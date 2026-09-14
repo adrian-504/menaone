@@ -1,0 +1,8 @@
+[package]
+name = "pptx-spike"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+zip = { version = "2", default-features = false, features = ["deflate"] }
+regex = "1"

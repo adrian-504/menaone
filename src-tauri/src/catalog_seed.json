@@ -1,0 +1,752 @@
+{
+ "services": [
+  {
+   "name": "Accountancy",
+   "category": "Accountancy & VAT",
+   "agreementType": "Accountancy",
+   "billing": "monthly",
+   "rateCard": "Accountancy & VAT",
+   "active": true,
+   "sortOrder": 0
+  },
+  {
+   "name": "Accountancy and VAT",
+   "category": "Accountancy & VAT",
+   "agreementType": "Accountancy",
+   "billing": "monthly",
+   "rateCard": "Accountancy & VAT",
+   "active": true,
+   "sortOrder": 1
+  },
+  {
+   "name": "Admin PRO",
+   "category": "Administration & PRO",
+   "agreementType": "Administration",
+   "billing": "monthly",
+   "rateCard": "Administration & PRO",
+   "active": true,
+   "sortOrder": 2
+  },
+  {
+   "name": "Admin PRO and Payroll",
+   "category": "Administration & PRO",
+   "agreementType": "Administration",
+   "billing": "monthly",
+   "rateCard": "Administration & PRO",
+   "active": true,
+   "sortOrder": 3
+  },
+  {
+   "name": "Business Setup and Maintenance Package",
+   "category": "Company Maintenance",
+   "agreementType": "Company Maintenance",
+   "billing": "monthly",
+   "rateCard": "Business Setup & Maintenance Package",
+   "active": true,
+   "sortOrder": 4
+  },
+  {
+   "name": "Company Constitution",
+   "category": "Company Constitution",
+   "agreementType": "Company Constitution",
+   "billing": "one_time",
+   "rateCard": "Company Constitution",
+   "active": true,
+   "sortOrder": 5
+  },
+  {
+   "name": "Company Maintenance",
+   "category": "Company Maintenance",
+   "agreementType": "Company Maintenance",
+   "billing": "monthly",
+   "rateCard": "Company Maintenance",
+   "active": true,
+   "sortOrder": 6
+  },
+  {
+   "name": "Consultancy",
+   "category": "Labor Law Consultancy",
+   "agreementType": "Consultancy",
+   "billing": "monthly",
+   "rateCard": "Labor Law Consultancy",
+   "active": true,
+   "sortOrder": 7
+  },
+  {
+   "name": "Dedicated Recruiter",
+   "category": "Manpower & Recruitment",
+   "agreementType": "Workforce",
+   "billing": "monthly",
+   "rateCard": "Manpower & Recruitment",
+   "active": true,
+   "sortOrder": 8
+  },
+  {
+   "name": "GM Representative",
+   "category": "Administration & PRO",
+   "agreementType": "Administration",
+   "billing": "monthly",
+   "rateCard": "GM Representative",
+   "active": true,
+   "sortOrder": 9
+  },
+  {
+   "name": "Manpower",
+   "category": "Manpower & Recruitment",
+   "agreementType": "Workforce",
+   "billing": "monthly",
+   "rateCard": "Manpower & Recruitment",
+   "active": true,
+   "sortOrder": 10
+  },
+  {
+   "name": "Mobilization",
+   "category": "Workforce Services",
+   "agreementType": "Workforce",
+   "billing": "one_time",
+   "rateCard": "Mobilization",
+   "active": true,
+   "sortOrder": 11
+  },
+  {
+   "name": "National Staffing",
+   "category": "Manpower & Recruitment",
+   "agreementType": "Workforce",
+   "billing": "monthly",
+   "rateCard": "Manpower & Recruitment",
+   "active": true,
+   "sortOrder": 12
+  },
+  {
+   "name": "Other (Check Remarks)",
+   "category": "Other",
+   "agreementType": "Other",
+   "billing": "monthly",
+   "rateCard": null,
+   "active": true,
+   "sortOrder": 13
+  },
+  {
+   "name": "Payroll",
+   "category": "GOSI & Payroll",
+   "agreementType": "Administration",
+   "billing": "monthly",
+   "rateCard": "GOSI & Payroll",
+   "active": true,
+   "sortOrder": 14
+  },
+  {
+   "name": "Payroll and GOSI",
+   "category": "GOSI & Payroll",
+   "agreementType": "Administration",
+   "billing": "monthly",
+   "rateCard": "GOSI & Payroll",
+   "active": true,
+   "sortOrder": 15
+  },
+  {
+   "name": "PRO",
+   "category": "Administration & PRO",
+   "agreementType": "Administration",
+   "billing": "monthly",
+   "rateCard": "Administration & PRO",
+   "active": true,
+   "sortOrder": 16
+  },
+  {
+   "name": "Recruitment",
+   "category": "Manpower & Recruitment",
+   "agreementType": "Workforce",
+   "billing": "monthly",
+   "rateCard": "Recruitment",
+   "active": true,
+   "sortOrder": 17
+  },
+  {
+   "name": "Training Services",
+   "category": "Training",
+   "agreementType": "Other",
+   "billing": "monthly",
+   "rateCard": null,
+   "active": true,
+   "sortOrder": 18
+  },
+  {
+   "name": "Workforce",
+   "category": "Workforce Services",
+   "agreementType": "Workforce",
+   "billing": "monthly",
+   "rateCard": "Workforce Services",
+   "active": true,
+   "sortOrder": 19
+  },
+  {
+   "name": "Company Constitution & Maintenance Package",
+   "category": "Company Constitution",
+   "agreementType": "Company Maintenance",
+   "billing": "monthly",
+   "rateCard": "Company Constitution & Maintenance Package",
+   "active": true,
+   "sortOrder": 20
+  },
+  {
+   "name": "Company Liquidation",
+   "category": "Company Liquidation",
+   "agreementType": null,
+   "billing": "one_time",
+   "rateCard": "Company Liquidation",
+   "active": true,
+   "sortOrder": 21
+  }
+ ],
+ "rateCards": [
+  {
+   "name": "Administration & PRO",
+   "category": "Administration & PRO",
+   "sortOrder": 0,
+   "pricing": {
+    "name": "Administration & PRO",
+    "cat": "Administration & PRO",
+    "hasTranches": true,
+    "trancheLabel": "Employees",
+    "tranches": [
+     {
+      "label": "1–5 employees",
+      "noCommMin": 1750,
+      "noCommMax": 2000,
+      "commMin": 2250,
+      "commMax": 2500
+     },
+     {
+      "label": "6–15 employees",
+      "noCommMin": 3300,
+      "noCommMax": 3750,
+      "commMin": 4425,
+      "commMax": 4875
+     },
+     {
+      "label": "16–25 employees",
+      "noCommMin": 4625,
+      "noCommMax": 5000,
+      "commMin": 5875,
+      "commMax": 6125
+     },
+     {
+      "label": "26–50 employees",
+      "noCommMin": 8250,
+      "noCommMax": 8750,
+      "commMin": 9750,
+      "commMax": 11000
+     },
+     {
+      "label": "51–75 employees",
+      "noCommMin": 10500,
+      "noCommMax": 11250,
+      "commMin": null,
+      "commMax": null
+     },
+     {
+      "label": "76–120 employees",
+      "noCommMin": 13200,
+      "noCommMax": 14400,
+      "commMin": null,
+      "commMax": null
+     }
+    ],
+    "bundles": [
+     {
+      "name": "InActive (≤3 emp)",
+      "price": 990
+     },
+     {
+      "name": "Startup (≤3 emp)",
+      "price": 1225
+     }
+    ],
+    "showBands": 3,
+    "minimumMonths": 12
+   },
+   "addons": [
+    {
+     "action": "Authorities Visits",
+     "fee": "SAR 525/hr"
+    },
+    {
+     "action": "Criminal Records & Certificates",
+     "fee": "SAR 500"
+    },
+    {
+     "action": "Claims & Complaints Filing",
+     "fee": "SAR 7,500–25,000"
+    },
+    {
+     "action": "COC Online Attestations",
+     "fee": "SAR 100"
+    },
+    {
+     "action": "E-Contracts Preparation",
+     "fee": "SAR 225"
+    },
+    {
+     "action": "Issue/Extension Business Visa",
+     "fee": "SAR 500"
+    }
+   ]
+  },
+  {
+   "name": "GOSI & Payroll",
+   "category": "GOSI & Payroll",
+   "sortOrder": 1,
+   "pricing": {
+    "name": "GOSI & Payroll",
+    "cat": "GOSI & Payroll",
+    "hasTranches": true,
+    "trancheLabel": "Employees",
+    "tranches": [
+     {
+      "label": "1–5 employees",
+      "noCommMin": 1125,
+      "noCommMax": 1250,
+      "commMin": 1500,
+      "commMax": 1750
+     },
+     {
+      "label": "6–15 employees",
+      "noCommMin": 2550,
+      "noCommMax": 3000,
+      "commMin": 2700,
+      "commMax": 3300
+     },
+     {
+      "label": "16–25 employees",
+      "noCommMin": 2875,
+      "noCommMax": 3500,
+      "commMin": 3500,
+      "commMax": 4000
+     },
+     {
+      "label": "26–50 employees",
+      "noCommMin": 4500,
+      "noCommMax": 5250,
+      "commMin": 5500,
+      "commMax": 6250
+     },
+     {
+      "label": "51–75 employees",
+      "noCommMin": 5250,
+      "noCommMax": 6750,
+      "commMin": null,
+      "commMax": null
+     },
+     {
+      "label": "76–120 employees",
+      "noCommMin": 6600,
+      "noCommMax": 8400,
+      "commMin": null,
+      "commMax": null
+     }
+    ],
+    "bundles": [
+     {
+      "name": "InActive (≤3 emp)",
+      "price": 725
+     },
+     {
+      "name": "Startup (≤3 emp)",
+      "price": 990
+     }
+    ],
+    "showBands": 3,
+    "minimumMonths": 12
+   },
+   "addons": [
+    {
+     "action": "GOSI Calculations",
+     "fee": "SAR 1,250"
+    },
+    {
+     "action": "Terminations & EOS (up to 20 emp)",
+     "fee": "SAR 1,750"
+    },
+    {
+     "action": "Monthly Match Report",
+     "fee": "SAR 3,500–7,500"
+    },
+    {
+     "action": "Payslip Preparation",
+     "fee": "SAR 125"
+    }
+   ]
+  },
+  {
+   "name": "Company Maintenance",
+   "category": "Company Maintenance",
+   "sortOrder": 2,
+   "pricing": {
+    "name": "Company Maintenance",
+    "cat": "Company Maintenance",
+    "hasTranches": false,
+    "noCommMin": 7000,
+    "noCommMax": 7500,
+    "commMin": 8250,
+    "commMax": 8750,
+    "bundles": [
+     {
+      "name": "Startup",
+      "price": 2500
+     }
+    ]
+   },
+   "addons": [
+    {
+     "action": "Change of Location/Address",
+     "fee": "SAR 9,500"
+    },
+    {
+     "action": "Change of General Manager",
+     "fee": "SAR 8,000"
+    },
+    {
+     "action": "Drafting (Legal/Contractual)",
+     "fee": "SAR 1,600"
+    },
+    {
+     "action": "Review Draft",
+     "fee": "SAR 500"
+    },
+    {
+     "action": "Attestation",
+     "fee": "SAR 500"
+    },
+    {
+     "action": "MISA Change Modification",
+     "fee": "SAR 6,500–15,500"
+    },
+    {
+     "action": "Visit/Meeting on Behalf",
+     "fee": "SAR 750–1,500"
+    },
+    {
+     "action": "Portals Modification",
+     "fee": "SAR 700–1,200"
+    }
+   ]
+  },
+  {
+   "name": "Labor Law Consultancy",
+   "category": "Labor Law Consultancy",
+   "sortOrder": 3,
+   "pricing": {
+    "name": "Labor Law Consultancy",
+    "cat": "Labor Law Consultancy",
+    "hasTranches": false,
+    "noCommMin": 6750,
+    "noCommMax": 7250,
+    "commMin": 8000,
+    "commMax": 8500,
+    "bundles": [
+     {
+      "name": "Startup",
+      "price": 2250
+     }
+    ]
+   },
+   "addons": [
+    {
+     "action": "GOSI vs. Labor Law Report",
+     "fee": "SAR 2,000–5,000"
+    },
+    {
+     "action": "Claims & Complaints Filing",
+     "fee": "SAR 7,500–25,000"
+    },
+    {
+     "action": "Company Policies Drafting",
+     "fee": "TBD"
+    }
+   ]
+  },
+  {
+   "name": "Manpower & Recruitment",
+   "category": "Manpower & Recruitment",
+   "sortOrder": 4,
+   "pricing": {
+    "name": "Manpower & Recruitment",
+    "cat": "Manpower & Recruitment",
+    "hasTranches": false,
+    "noCommMin": 6500,
+    "noCommMax": 7000,
+    "commMin": 8000,
+    "commMax": 8500
+   },
+   "addons": []
+  },
+  {
+   "name": "Accountancy & VAT",
+   "category": "Accountancy & VAT",
+   "sortOrder": 5,
+   "pricing": {
+    "name": "Accountancy & VAT",
+    "cat": "Accountancy & VAT",
+    "hasTranches": false,
+    "hasPackages": true,
+    "packages": [
+     {
+      "name": "Acct + Bookkeeping + VAT (Startup)",
+      "min": 3500,
+      "max": 3750
+     },
+     {
+      "name": "Acct + Bookkeeping + VAT (Operational)",
+      "min": 5750,
+      "max": 6250
+     },
+     {
+      "name": "Acct + Bookkeeping only (Startup)",
+      "min": 2500,
+      "max": 2750
+     },
+     {
+      "name": "Acct + Bookkeeping only (Operational)",
+      "min": 4500,
+      "max": 5000
+     },
+     {
+      "name": "E-Invoicing 10/mo (Startup)",
+      "min": 3500,
+      "max": 4000
+     },
+     {
+      "name": "E-Invoicing 15/mo (Operational)",
+      "min": 6500,
+      "max": 7000
+     },
+     {
+      "name": "VAT Return only (Startup)",
+      "min": 900,
+      "max": 1000
+     },
+     {
+      "name": "VAT Return only (Operational)",
+      "min": 1250,
+      "max": 1400
+     }
+    ],
+    "bundles": [
+     {
+      "name": "InActive (transaction-based)",
+      "price": 1750
+     },
+     {
+      "name": "Basic (transaction-based)",
+      "price": 2700
+     }
+    ],
+    "rows": [
+     {
+      "label": "Accountancy (No Projects)",
+      "min": 2250,
+      "standard": 2250,
+      "max": 2750,
+      "counts": true
+     },
+     {
+      "label": "Accountancy (Projects)",
+      "min": 4750,
+      "standard": 4750,
+      "max": 6250
+     },
+     {
+      "label": "VAT Return – Monthly Preparation & Declaration",
+      "min": 900,
+      "standard": 900,
+      "max": 1050
+     },
+     {
+      "label": "VAT Return – Quarterly Preparation & Declaration",
+      "min": 2150,
+      "standard": 2150,
+      "max": 2150
+     },
+     {
+      "label": "“Optional” Auditing and Management Consultancy",
+      "min": 750,
+      "standard": 750,
+      "max": 1000
+     }
+    ]
+   },
+   "addons": []
+  },
+  {
+   "name": "Workforce Services",
+   "category": "Workforce Services",
+   "sortOrder": 6,
+   "pricing": {
+    "name": "Workforce Services",
+    "cat": "Workforce Services",
+    "hasTranches": true,
+    "trancheLabel": "Employee Type",
+    "tranches": [
+     {
+      "label": "Nationalized (Engineers & Managers)",
+      "noCommMin": 3250,
+      "noCommMax": 3550,
+      "commMin": 3650,
+      "commMax": 3850,
+      "volMin": 3150
+     },
+     {
+      "label": "Nationalized (Technicians & Supervisors)",
+      "noCommMin": 2450,
+      "noCommMax": 2650,
+      "commMin": 2750,
+      "commMax": 2950,
+      "volMin": 2150
+     },
+     {
+      "label": "Non-Nationalized (Unskilled)",
+      "noCommMin": 1350,
+      "noCommMax": 1650,
+      "commMin": 1700,
+      "commMax": 1850,
+      "volMin": 1050
+     }
+    ],
+    "perPerson": true,
+    "minimumMonths": 12
+   },
+   "addons": []
+  },
+  {
+   "name": "Company Constitution",
+   "category": "Company Constitution",
+   "sortOrder": 7,
+   "pricing": {
+    "name": "Company Constitution",
+    "cat": "Company Constitution",
+    "hasTranches": false,
+    "oneTime": true,
+    "noCommMin": 45000,
+    "noCommMax": 66000,
+    "commMin": 70000,
+    "commMax": 75000,
+    "standard": 55000,
+    "milestones": [
+     "35% as advance payment on the PO issuance",
+     "35% when the Commercial Registration is obtained",
+     "15% when the governmental portals are completed",
+     "15% when the company is fully activated"
+    ]
+   },
+   "addons": []
+  },
+  {
+   "name": "Company Constitution & Maintenance Package",
+   "category": "Company Constitution",
+   "sortOrder": 8,
+   "pricing": {
+    "name": "Company Constitution & Maintenance Package",
+    "cat": "Company Constitution",
+    "hasTranches": false,
+    "noCommMin": 8250,
+    "standard": 9500,
+    "noCommMax": 9750,
+    "minimumMonths": 12
+   },
+   "addons": []
+  },
+  {
+   "name": "Company Liquidation",
+   "category": "Company Liquidation",
+   "sortOrder": 9,
+   "pricing": {
+    "name": "Company Liquidation",
+    "cat": "Company Liquidation",
+    "hasTranches": false,
+    "oneTime": true,
+    "noCommMin": 20000,
+    "standard": 30000,
+    "noCommMax": 35000
+   },
+   "addons": []
+  },
+  {
+   "name": "Recruitment",
+   "category": "Manpower & Recruitment",
+   "sortOrder": 10,
+   "pricing": {
+    "name": "Recruitment",
+    "cat": "Manpower & Recruitment",
+    "hasTranches": false,
+    "oneTime": true,
+    "percent": {
+     "min": 9,
+     "standard": 10,
+     "max": 12,
+     "basis": "of the annual package"
+    },
+    "rows": [
+     {
+      "label": "Professional Staff",
+      "min": 9,
+      "standard": 10,
+      "max": 12,
+      "percent": true
+     },
+     {
+      "label": "Blue Collar Staff",
+      "min": 9,
+      "standard": 10,
+      "max": 12,
+      "percent": true
+     }
+    ]
+   },
+   "addons": []
+  },
+  {
+   "name": "Business Setup & Maintenance Package",
+   "category": "Company Maintenance",
+   "sortOrder": 11,
+   "pricing": {
+    "name": "Business Setup & Maintenance Package",
+    "cat": "Company Maintenance",
+    "hasTranches": false,
+    "noCommMin": 8000,
+    "standard": 8000,
+    "noCommMax": 8000,
+    "minimumMonths": 12
+   },
+   "addons": []
+  },
+  {
+   "name": "GM Representative",
+   "category": "Administration & PRO",
+   "sortOrder": 12,
+   "pricing": {
+    "name": "GM Representative",
+    "cat": "Administration & PRO",
+    "hasTranches": false,
+    "noCommMin": 6000,
+    "standard": 6000,
+    "noCommMax": 6000,
+    "minimumMonths": 12
+   },
+   "addons": []
+  },
+  {
+   "name": "Mobilization",
+   "category": "Workforce Services",
+   "sortOrder": 13,
+   "pricing": {
+    "name": "Mobilization",
+    "cat": "Workforce Services",
+    "hasTranches": false,
+    "oneTime": true,
+    "perCountry": true
+   },
+   "addons": []
+  }
+ ]
+}

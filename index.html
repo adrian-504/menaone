@@ -1,0 +1,2488 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MENA One</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+    <script type="module" src="/src/main.ts"></script>
+  </head>
+  <body>
+<div id="sidebar">
+  <div class="sb-header">
+    <img class="sb-logo-img" src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAAsADkDASIAAhEBAxEB/8QAHAAAAgIDAQEAAAAAAAAAAAAABgcAAgEDBQQI/8QAPRAAAQMDAgIECQkJAAAAAAAAAQIDBAAFEQYSByExQWFxExQVFlFVlLLhIiQyNTdydJHwIzZCVHOBkrPS/8QAGgEAAgIDAAAAAAAAAAAAAAAAAAUBBgIDBP/EAC0RAAEDAgIIBQUAAAAAAAAAAAEAAhEDIQQxBRITFSJBUaEUYbHC0SMyQlLw/9oADAMBAAIRAxEAPwBjp4t6PU4E+UHUgnG4xnMDt6KjnFrR7a1J8oOqCTjcmM4Qe7lSbsFogzdD6ouMhjfKhJjmO5uI2blkK5A4OR6ard7RBjcPLBc2mNsyW9IS85uJ3hJISMdAxjqq0bpwevqS7OOWca3Tolviq0TbKe8J43XiTpmzXFyDMlupfbCVKCY61DCkhQ5gegipH4k6Zk2uZcW5jpjw1NpeJjrBBWSE4GOfQaWr0K23HjUYt3Q0uEthsuJdXtTkRkkZOR14oatQA0JqsDoEiEB3eEXWlui8M5jc5hh5RxGOiyOJqBxyi/ZORHFrSLjiUCc/lRAGYq+v+1em5cTNMWq5SIEuY8mRHWUOJTHWoA94HOkve7XChad0dLjR0tyJja1yFgnLhC0gE/nRCmyxrrxY1I1cYRejpRIdTvCgncAnacipdo3CDi4oh3SbEDogYiqbWm3cJlxLxbNcwlLtElTiIzm1wONqRzIyOkfrn0V7PIEj+aR/ir/qgXgV9T3b8Q37lNmleMHhq7qNM2C6aX1GB7syvnDS/wBmutvuxffNVv32TaW/ESveNdTTen7yxw+1hGdtM5t95McNNKjqCnMLJO0YycdlVvWn707ww03FbtM5chp+SXGkx1FaAVHGRjIzVk2rNvMj7/Yl4adTLl7lLrYGtT8YHLS+8tlt5lslaACRtjJV191Xn2zTtt0Bf02G9OXJSpEQP72tng8LVtxyGc8/yrdfWtSWTic7e7ZY5UpTbTaUExnFtqywlB5p9HPr6RXMtenr4NEalbcs89Dzz8RTbZjLCl4WsqwMZOMisGuJZTcX8IDLSM5vPPop/Jwi/F6Kmpf3R0H/AEHP9ia6d7uOrLvr2+2i13mQ20yp1YaU+UIDaQMgcu2sah0/eXtL6JaatM5bjDKw8hMdRLZK0kbhjly9NVu7WprNxFvlyttilyUvqdaSoxXFIUhYHMFPdQxzHARBPHEx+yCCDeYt6Ij4F/VF3x0eMN+5TZpY8GLXPtlquiZ8GTFK30FAfaKCoBHSM0zqr+lCDi3kf1gu/DCKQQwkSUtIbMa8HaMA/s89v8dZHjIz81u5Oc7lBsnq5fT7B+iaA/OU+p7R7L8annKfU9o9l+NJ9qVZN3M8u/yj5wyHFuqEW8pDhJ2gt4GfR8vu/LvrDnhlg/M7whRJO5GwEA55fT7f1igLzlPqe0ey/Gp5yn1PaPZfjRtSjdzPLv8AKP2FPNLSpUG7r2gcj4PGcYz9PprWBIHPxa8ZxjkGxjHo+X09vaaBPOU+p7R7L8annKfU9o9l+NG1KN3M8u/ymjat5Q8pxqWhal5PjJHP7oBOBXRoT0LcTcIkxRiRI+x1IxHb2A8uvnRZW5pkSlGIpinVLByX/9k=" alt="MENA One">
+    <div class="sb-logo-text">MENA One<div class="sb-logo-sub">Workspace</div></div>
+    <button class="sb-collapse-btn" id="sb-collapse-btn" onclick="toggleSidebar()" title="Collapse sidebar (⌘\\)">
+      <span class="sb-icon" data-icon="sidebar"></span>
+    </button>
+  </div>
+  <button class="sb-search-btn" onclick="openCommandPalette()">
+    <span class="sb-icon" data-icon="search"></span><span>Search & Commands</span><kbd>&#8984;K</kbd>
+  </button>
+  <nav class="sb-nav">
+  <div class="sb-group" data-group="home">
+      <button class="sb-item" data-tab="myday" onclick="navToModule('myday')">
+        <span class="sb-icon" data-icon="sun"></span>
+        <span class="sb-label">My Day</span>
+      </button>
+      <button class="sb-item" data-tab="inbox" onclick="navToModule('inbox')">
+        <span class="sb-icon" data-icon="inbox"></span>
+        <span class="sb-label">Inbox</span><span class="sb-badge" id="inbox-badge" style="display:none">0</span>
+      </button>
+      <button class="sb-item ms365-hidden" data-ms365-gated data-tab="action-required" onclick="navToModule('action-required')">
+        <span class="sb-icon" data-icon="mail"></span>
+        <span class="sb-label">Action Required</span><span class="sb-badge" id="ar-badge" style="display:none">0</span>
+      </button>
+      <button class="sb-item ms365-hidden" data-ms365-gated data-tab="calendar" onclick="navToModule('calendar')">
+        <span class="sb-icon" data-icon="calendar"></span>
+        <span class="sb-label">Calendar</span>
+      </button>
+  </div>
+  <div class="sb-group" data-group="work">
+    <button class="sb-section-label sb-group-toggle" onclick="toggleSidebarGroup('work')" aria-expanded="true"><span>Work</span><span class="sb-group-chev" data-icon="chevronDown" data-icon-size="11"></span></button>
+      <button class="sb-item" data-tab="todo" onclick="navToModule('todo')">
+        <span class="sb-icon" data-icon="check"></span>
+        <span class="sb-label">Tasks</span><span class="sb-badge" id="todo-badge" style="display:none">0</span>
+      </button>
+      <button class="sb-item" data-tab="projects" onclick="navToModule('projects')">
+        <span class="sb-icon" data-icon="target"></span>
+        <span class="sb-label">Projects</span>
+      </button>
+      <button class="sb-item" data-tab="meetings" onclick="navToModule('meetings')">
+        <span class="sb-icon" data-icon="meeting"></span>
+        <span class="sb-label">Meetings</span>
+      </button>
+      <button class="sb-item" data-tab="notes" onclick="navToModule('notes')">
+        <span class="sb-icon" data-icon="note"></span>
+        <span class="sb-label">Notes</span>
+      </button>
+  </div>
+  <div class="sb-group" data-group="clients">
+    <button class="sb-section-label sb-group-toggle" onclick="toggleSidebarGroup('clients')" aria-expanded="true"><span>Clients</span><span class="sb-group-chev" data-icon="chevronDown" data-icon-size="11"></span></button>
+      <button class="sb-item" data-tab="companies" onclick="navToModule('companies')">
+        <span class="sb-icon" data-icon="building"></span>
+        <span class="sb-label">Companies</span>
+      </button>
+      <button class="sb-item" data-tab="contacts" onclick="navToModule('contacts')">
+        <span class="sb-icon" data-icon="people"></span>
+        <span class="sb-label">Contacts</span>
+      </button>
+  </div>
+  <div class="sb-group" data-group="sales">
+    <button class="sb-section-label sb-group-toggle" onclick="toggleSidebarGroup('sales')" aria-expanded="true"><span>Sales</span><span class="sb-group-chev" data-icon="chevronDown" data-icon-size="11"></span></button>
+      <button class="sb-item" data-tab="opportunities" onclick="navToModule('opportunities')">
+        <span class="sb-icon" data-icon="briefcase"></span>
+        <span class="sb-label">Opportunities</span>
+      </button>
+      <button class="sb-item" data-tab="database" onclick="navToModule('database')">
+        <span class="sb-icon" data-icon="database"></span>
+        <span class="sb-label">Proposals</span>
+      </button>
+      <button class="sb-item sb-item-sub" data-tab="pending" onclick="navToModule('pending')">
+        <span class="sb-icon" data-icon="clock" data-icon-size="15"></span>
+        <span class="sb-label">Pending</span><span class="sb-badge" id="pending-badge" style="display:none">0</span>
+      </button>
+      <button class="sb-item sb-item-sub" data-tab="followup" onclick="navToModule('followup')">
+        <span class="sb-icon" data-icon="repeat" data-icon-size="15"></span>
+        <span class="sb-label">Follow-Up</span><span class="sb-badge" id="fu-badge" style="display:none">0</span>
+      </button>
+      <button class="sb-item" data-tab="agreements" onclick="navToModule('agreements')">
+        <span class="sb-icon" data-icon="document"></span>
+        <span class="sb-label">Agreements</span>
+      </button>
+      <button class="sb-item" data-tab="pricing" onclick="navToModule('pricing')">
+        <span class="sb-icon" data-icon="dollar"></span>
+        <span class="sb-label">Services</span>
+      </button>
+  </div>
+  <div class="sb-group" data-group="library">
+    <button class="sb-section-label sb-group-toggle" onclick="toggleSidebarGroup('library')" aria-expanded="true"><span>Library</span><span class="sb-group-chev" data-icon="chevronDown" data-icon-size="11"></span></button>
+      <button class="sb-item" data-tab="files" onclick="navToModule('files')">
+        <span class="sb-icon" data-icon="folder"></span>
+        <span class="sb-label">Files</span>
+      </button>
+      <button class="sb-item" data-tab="intelligence" onclick="navToModule('intelligence')">
+        <span class="sb-icon" data-icon="bolt"></span>
+        <span class="sb-label">Watch</span>
+      </button>
+  </div>
+  <div class="sb-group" data-group="insights">
+    <button class="sb-section-label sb-group-toggle" onclick="toggleSidebarGroup('insights')" aria-expanded="true"><span>Insights</span><span class="sb-group-chev" data-icon="chevronDown" data-icon-size="11"></span></button>
+      <button class="sb-item" data-tab="dashboard" onclick="navToModule('dashboard')">
+        <span class="sb-icon" data-icon="home"></span>
+        <span class="sb-label">Dashboard</span>
+      </button>
+      <button class="sb-item" data-tab="reports" onclick="navToModule('reports')">
+        <span class="sb-icon" data-icon="chartBar"></span>
+        <span class="sb-label">Reports</span>
+      </button>
+      <button class="sb-item" data-tab="analytics" onclick="navToModule('analytics')">
+        <span class="sb-icon" data-icon="chartLine"></span>
+        <span class="sb-label">Analytics</span>
+      </button>
+  </div>
+  </nav>
+  <div class="sb-footer">
+    <button class="sb-item" data-tab="cleanup" onclick="navToModule('cleanup')" title="Records whose status or details need tidying">
+      <span class="sb-icon" data-icon="checklist"></span>
+      <span class="sb-label">Clean-up</span><span class="sb-count" id="cleanup-badge" style="display:none">0</span>
+    </button>
+    <button class="sb-item" data-tab="settings" onclick="navToModule('settings')" title="Settings — theme, Microsoft 365 and backups">
+      <span class="sb-icon" data-icon="gear"></span>
+      <span class="sb-label">Settings</span>
+    </button>
+    <button class="sb-add-btn" id="sb-new-btn" onclick="toggleNewMenu(event)"><span class="sb-icon" data-icon="plus"></span><span>New</span></button>
+  </div>
+</div>
+<div class="cmdk-ov" id="cmdk-ov" onclick="if(event.target===this)closeCommandPalette()">
+  <div class="cmdk-box">
+    <div class="cmdk-input-row">
+      <span class="icon" data-icon="search"></span>
+      <input class="cmdk-input" id="cmdk-input" placeholder="Search everything, or jump to a page..." autocomplete="off" oninput="onPaletteInput(this.value)">
+    </div>
+    <div class="cmdk-list" id="cmdk-list"></div>
+  </div>
+</div>
+
+<div id="app-main">
+
+<button class="sb-expand-btn" id="sb-expand-btn" onclick="toggleSidebar()" title="Show sidebar (⌘\\)">
+  <span class="sb-icon" data-icon="sidebar"></span>
+</button>
+
+<main>
+<aside class="record-rail" id="record-rail" hidden aria-label="List"></aside>
+<datalist id="team-names"></datalist>
+
+<header class="loc-bar" id="loc-bar">
+  <div class="loc-nav-group">
+    <button class="loc-nav" id="loc-back" onclick="navBack()" title="Back (⌘[)" aria-label="Back" disabled><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3.5 5.5 8l4.5 4.5"/></svg></button>
+    <button class="loc-nav" id="loc-fwd" onclick="navForward()" title="Forward (⌘])" aria-label="Forward" disabled><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3.5 10.5 8 6 12.5"/></svg></button>
+  </div>
+  <nav class="loc-crumbs" id="loc-crumbs" aria-label="Location"></nav>
+  <button class="loc-nav loc-rail" id="loc-rail" onclick="toggleRecordRail()" title="Show the list beside the record" aria-label="Toggle the list" hidden><span data-icon="sidebar" data-icon-size="15"></span></button>
+</header>
+
+<!-- DASHBOARD -->
+<div id="tab-dashboard" class="tab active">
+  <div class="page-header">
+    <div>
+      <div class="page-title">Dashboard</div>
+      <div class="page-subtitle">Your business at a glance.</div>
+    </div>
+    <div class="page-header-actions"><select class="fsel period-sel" onchange="setGlobalPeriod(this.value)" title="Period" aria-label="Period">
+      <option value="all">All time</option>
+      <option value="2026" class="opt-year">2026</option>
+      <option value="2026-Q1"> 2026 Q1 — Jan–Mar</option>
+      <option value="2026-Q2"> 2026 Q2 — Apr–Jun</option>
+      <option value="2026-Q3"> 2026 Q3 — Jul–Sep</option>
+      <option value="2026-Q4"> 2026 Q4 — Oct–Dec</option>
+      <option value="2025" class="opt-year">2025</option>
+      <option value="2025-Q1"> 2025 Q1 — Jan–Mar</option>
+      <option value="2025-Q2"> 2025 Q2 — Apr–Jun</option>
+      <option value="2025-Q3"> 2025 Q3 — Jul–Sep</option>
+      <option value="2025-Q4"> 2025 Q4 — Oct–Dec</option>
+      <option value="2024" class="opt-year">2024</option>
+      <option value="2024-Q1"> 2024 Q1 — Jan–Mar</option>
+      <option value="2024-Q2"> 2024 Q2 — Apr–Jun</option>
+      <option value="2024-Q3"> 2024 Q3 — Jul–Sep</option>
+      <option value="2024-Q4"> 2024 Q4 — Oct–Dec</option>
+      <option value="2023" class="opt-year">2023</option>
+      <option value="2023-Q1"> 2023 Q1 — Jan–Mar</option>
+      <option value="2023-Q2"> 2023 Q2 — Apr–Jun</option>
+      <option value="2023-Q3"> 2023 Q3 — Jul–Sep</option>
+      <option value="2023-Q4"> 2023 Q4 — Oct–Dec</option>
+    </select></div>
+  </div>
+  <div class="period-banner" id="period-banner">
+    <span data-icon="calendar" data-icon-size="14"></span>
+    <span id="period-banner-txt"></span>
+    <button class="period-banner-clear" onclick="setGlobalPeriod('all')"><span data-icon="close" data-icon-size="11"></span> Clear filter</button>
+  </div>
+  <div class="alert-bar alert-fu" id="fu-alert" style="display:none" onclick="switchTab('followup')">
+    <span class="alert-dot tone-amber"></span>
+    <div><div class="alert-title" id="fu-alert-title"></div><div class="alert-sub" id="fu-alert-sub"></div></div>
+    <div class="alert-cta">View all <span data-icon="chevronRight" data-icon-size="12"></span></div>
+  </div>
+  <div class="alert-bar alert-renew" id="renew-alert" style="display:none" onclick="switchTab('agreements')">
+    <span class="alert-dot tone-accent"></span>
+    <div><div class="alert-title" id="renew-alert-title"></div><div class="alert-sub" id="renew-alert-sub"></div></div>
+    <div class="alert-cta">View <span data-icon="chevronRight" data-icon-size="12"></span></div>
+  </div>
+  <div class="tab-section-hd"><span data-icon="chartLine"></span><span>Business Performance</span></div>
+  <div class="kpi-row">
+    <div class="kpi"><div class="kpi-lbl">Total Proposals</div><div class="kpi-val" id="kpi-total">—</div><div class="kpi-sub">All time</div></div>
+    <div class="kpi"><div class="kpi-lbl">Open proposals</div><div class="kpi-val" id="kpi-active">—</div><div class="kpi-sub">Not yet won, lost or withdrawn</div></div>
+    <div class="kpi"><div class="kpi-lbl">Won</div><div class="kpi-val" id="kpi-signed">—</div><div class="kpi-sub">Signed by both parties</div></div>
+    <div class="kpi"><div class="kpi-lbl">Lost</div><div class="kpi-val" id="kpi-closed">—</div><div class="kpi-sub">With a recorded reason</div></div>
+  </div>
+  <div class="kpi-row-2">
+    <div class="kpi"><div class="kpi-lbl">Active MRR</div><div class="kpi-val" id="kpi-mrr">—</div><div class="kpi-sub" id="kpi-mrr-sub">Agreements with active services</div></div>
+    <div class="kpi"><div class="kpi-lbl">Pipeline MRR</div><div class="kpi-val" id="kpi-pipe-mrr">—</div><div class="kpi-sub">Open proposals with fees</div></div>
+    <div class="kpi"><div class="kpi-lbl">Agreements ending ≤60d</div><div class="kpi-val" id="kpi-renew">—</div><div class="kpi-sub">Up for renewal</div></div>
+    <div class="kpi"><div class="kpi-lbl">Active clients</div><div class="kpi-val" id="kpi-service">—</div><div class="kpi-sub">With an active service</div></div>
+  </div>
+  <div class="charts-row cols-3-2">
+    <div class="card"><div class="card-hd">Pipeline by Status</div><div class="chart-box chart-lg"><canvas id="ch-status"></canvas></div></div>
+    <div class="card"><div class="card-hd">By Proposal Type</div><div class="chart-box chart-md"><canvas id="ch-type"></canvas></div><div id="type-legend" class="chart-legend"></div></div>
+  </div>
+  <div class="charts-row cols-3-2">
+    <div class="card"><div class="card-hd">Monthly Proposal Volume <span class="card-hd-hint">by sent date</span></div><div class="chart-box chart-sm"><canvas id="ch-monthly"></canvas></div></div>
+    <div class="card"><div class="card-hd">Top Clients by Volume</div><div id="top-clients"></div></div>
+  </div>
+
+  <div class="tab-section-hd"><span data-icon="target"></span><span>Work Management</span></div>
+  <div class="kpi-row" id="dash-work-kpis"></div>
+
+  <div class="tab-section-hd"><span data-icon="people"></span><span>Relationships</span></div>
+  <div class="kpi-row" id="dash-relationships-kpis"></div>
+
+  <div class="tab-section-hd"><span data-icon="note"></span><span>Knowledge</span></div>
+  <div class="kpi-row" id="dash-knowledge-kpis"></div>
+
+  <div class="tab-section-hd"><span data-icon="bolt"></span><span>Intelligence</span></div>
+  <div class="card" id="dash-intel-card" style="display:none"></div>
+</div>
+
+<!-- MY DAY TAB -->
+<div id="tab-myday" class="tab">
+  <header class="mdy-header">
+    <h1 class="mdy-greeting" id="myday-greeting">My Day</h1>
+    <div class="mdy-summary" id="myday-date"></div>
+  </header>
+  <div class="mdy-layout">
+    <div class="mdy-main">
+      <section class="card mdy-card">
+        <div class="rec-section-hd"><h2>Today</h2></div>
+        <div id="myday-today"></div>
+        <form class="task-quickadd mdy-capture" onsubmit="mydayCapture(event)" autocomplete="off">
+          <span class="task-quickadd-plus" data-icon="plus" data-icon-size="14"></span>
+          <input type="text" id="myday-capture-input" placeholder='Add a task for today — or "Call Globex tomorrow 3pm !high"' oninput="mydayCapturePreview()" onkeydown="mydayCaptureKey(event)" aria-label="Add a task">
+          <div class="qa-chips" id="myday-capture-preview"></div>
+        </form>
+      </section>
+      <section class="card mdy-card">
+        <div class="rec-section-hd"><h2>Needs your attention</h2><span class="rcnt" id="myday-attention-cnt"></span></div>
+        <div id="myday-attention"></div>
+      </section>
+    </div>
+    <aside class="mdy-rail">
+      <section class="card mdy-card">
+        <div class="rec-section-hd"><h2>Coming up</h2><span class="mdy-hd-note">Next 7 days</span></div>
+        <div id="myday-upcoming"></div>
+      </section>
+      <section class="card mdy-card">
+        <div class="rec-section-hd"><h2>Business</h2></div>
+        <div id="myday-pipeline"></div>
+      </section>
+      <section class="card mdy-card" id="myday-watch-card" hidden>
+        <div class="rec-section-hd"><h2>Watch</h2><div class="rec-section-actions"><button class="btn-sm mdy-mini" onclick="navToModule('intelligence')">All</button></div></div>
+        <div id="myday-watch"></div>
+      </section>
+      <section class="card mdy-card">
+        <div class="rec-section-hd"><h2>Recent activity</h2></div>
+        <div id="myday-activity"></div>
+      </section>
+    </aside>
+  </div>
+</div>
+
+<div id="tab-cleanup" class="tab">
+  <div class="page-header">
+    <div>
+      <div class="page-title">Clean-up</div>
+      <div class="page-subtitle" id="cleanup-total"></div>
+    </div>
+  </div>
+  <div class="cu-layout" id="cleanup-root"></div>
+</div>
+
+<!-- ACTION REQUIRED TAB -->
+<div id="tab-action-required" class="tab">
+  <div class="page-header">
+    <div>
+      <div class="page-title">Action Required</div>
+      <div class="page-subtitle">Flagged Outlook emails. Outlook stays the source of truth — actions here sync straight back.</div>
+    </div>
+  </div>
+  <div class="fbar">
+    <div class="seg-btns" id="ar-filter-btns">
+      <button class="seg-btn ar-fbtn active" data-filter="all" onclick="setArFilter('all')">All</button>
+      <button class="seg-btn ar-fbtn" data-filter="due-today" onclick="setArFilter('due-today')">Due Today</button>
+      <button class="seg-btn ar-fbtn seg-danger" data-filter="overdue" onclick="setArFilter('overdue')">Overdue</button>
+      <button class="seg-btn ar-fbtn" data-filter="recent" onclick="setArFilter('recent')">Recently Flagged</button>
+      <button class="seg-btn ar-fbtn" data-filter="completed" onclick="setArFilter('completed')">Completed</button>
+    </div>
+    <select class="fsel" onchange="setArSort(this.value)">
+      <option value="received">Sort: Received</option>
+      <option value="due">Sort: Due Date</option>
+      <option value="sender">Sort: Sender</option>
+    </select>
+    <button class="btn-secondary" id="ar-sync-btn" onclick="arSyncNow()">Sync Now</button>
+    <span class="rcnt" id="ar-synced-sub"></span>
+  </div>
+  <div id="ar-root"></div>
+</div>
+
+<!-- CALENDAR TAB -->
+<div id="tab-calendar" class="tab">
+  <div class="page-header">
+    <div>
+      <div class="page-title">Calendar</div>
+      <div class="page-subtitle">Outlook stays the source of truth — meetings created or edited here sync straight back.</div>
+    </div>
+    <button class="btn-primary" onclick="openOutlookMeetingModal(null)">+ New Meeting</button>
+  </div>
+  <div class="fbar">
+    <div class="seg-btns" id="cal-view-btns">
+      <button class="seg-btn cal-vbtn" data-view="day" onclick="setCalendarView('day')">Day</button>
+      <button class="seg-btn cal-vbtn active" data-view="week" onclick="setCalendarView('week')">Week</button>
+      <button class="seg-btn cal-vbtn" data-view="month" onclick="setCalendarView('month')">Month</button>
+    </div>
+    <button class="loc-nav" onclick="calendarNav(-1)" title="Previous" aria-label="Previous"><span data-icon="chevronLeft" data-icon-size="15"></span></button>
+    <button class="btn-sm" onclick="calendarNav(0)">Today</button>
+    <button class="loc-nav" onclick="calendarNav(1)" title="Next" aria-label="Next"><span data-icon="chevronRight" data-icon-size="15"></span></button>
+    <span class="toolbar-title" id="cal-range-label"></span>
+    <span class="rcnt push-right" id="cal-sync-sub"></span>
+  </div>
+  <div id="cal-root"></div>
+</div>
+
+<!-- OUTLOOK MEETING MODAL -->
+<div class="modal-ov" id="modal-outlook-meeting" onclick="if(event.target===this)closeOutlookMeetingModal()">
+  <div class="modal">
+    <div class="modal-hd"><div class="modal-title" id="om-modal-title">New Meeting</div><button class="modal-close" onclick="closeOutlookMeetingModal()">×</button></div>
+    <form id="outlook-meeting-form" onsubmit="submitOutlookMeeting(event)">
+      <div class="fg">
+        <div class="fgrp fgrp-full">
+          <label class="flbl">Subject *</label>
+          <input class="finp" name="omSubject" required placeholder="e.g. Acme Holdings — Quarterly Review">
+        </div>
+        <div class="fgrp">
+          <label class="flbl">Date *</label>
+          <input type="date" class="finp" name="omDate" required>
+        </div>
+        <div class="fgrp">
+          <label class="flbl">Start *</label>
+          <input type="time" class="finp" name="omStart" required>
+        </div>
+        <div class="fgrp">
+          <label class="flbl">End *</label>
+          <input type="time" class="finp" name="omEnd" required>
+        </div>
+        <div class="fgrp">
+          <label class="flbl">Location <span class="flbl-hint">(optional)</span></label>
+          <input class="finp" name="omLocation" placeholder="e.g. HQ Boardroom">
+        </div>
+        <div class="fgrp">
+          <label class="flbl">Attendees <span class="flbl-hint">(comma separated emails)</span></label>
+          <input class="finp" name="omAttendees" placeholder="jane@client.com, ...">
+        </div>
+        <div class="fgrp">
+          <label class="flbl">Company <span class="flbl-hint">(optional)</span></label>
+          <input class="finp" name="omCompany" list="om-company-list" placeholder="Client company...">
+          <datalist id="om-company-list"></datalist>
+        </div>
+        <div class="fgrp">
+          <label class="flbl">Project <span class="flbl-hint">(optional)</span></label>
+          <select class="finp" name="omProject"><option value="">— No project —</option></select>
+        </div>
+        <div class="fgrp fgrp-full">
+          <label class="flbl">Description <span class="flbl-hint">(optional)</span></label>
+          <textarea class="finp" name="omDescription" rows="3"></textarea>
+        </div>
+      </div>
+      <label class="check-label">
+        <input type="checkbox" name="omTeams" checked> Make this a Teams meeting
+      </label>
+      <div class="fact">
+        <button type="button" class="btn-secondary" onclick="closeOutlookMeetingModal()">Cancel</button>
+        <button type="submit" class="btn-primary" id="om-submit-btn">Create Meeting</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- INTELLIGENCE TAB (Regulatory Watch / Business Watch) -->
+<div id="tab-intelligence" class="tab">
+  <div class="page-header">
+    <div>
+      <div class="page-title">Watch</div>
+      <div class="page-subtitle" id="intel-subtitle">Saudi regulatory changes — labour law, Saudization/Nitaqat, GOSI, ZATCA, MISA, and more.</div>
+    </div>
+    <button class="btn-primary" onclick="openIntelModal(null)">+ Add Item</button>
+  </div>
+  <div class="fbar">
+    <div class="seg-btns" id="intel-kind-btns">
+      <button class="seg-btn intel-kbtn active" data-kind="regulatory" onclick="setIntelKind('regulatory')">Regulatory</button>
+      <button class="seg-btn intel-kbtn" data-kind="business" onclick="setIntelKind('business')">Business</button>
+    </div>
+    <select class="fsel" onchange="setIntelImportanceFilter(this.value)">
+      <option value="">All Importance</option>
+      <option value="critical">Critical</option>
+      <option value="important">Important</option>
+      <option value="monitor">Monitor</option>
+    </select>
+    <button class="btn-sm" id="intel-archived-btn" onclick="toggleIntelArchived()">Show archived</button>
+    <span class="rcnt push-right" id="intel-sync-status"></span>
+    <span class="rcnt" id="intel-cnt"></span>
+  </div>
+  <div id="intel-root"></div>
+</div>
+
+<!-- INTELLIGENCE MODAL -->
+<div class="modal-ov" id="modal-intel" onclick="if(event.target===this)closeIntelModal()">
+  <div class="modal">
+    <div class="modal-hd"><div class="modal-title" id="intel-modal-title">Add Intelligence Item</div><button class="modal-close" onclick="closeIntelModal()">×</button></div>
+    <form id="intel-form" onsubmit="submitIntelItem(event)">
+      <div class="fg">
+        <div class="fgrp">
+          <label class="flbl">Watch</label>
+          <select class="finp" name="itKind"><option value="regulatory">Regulatory</option><option value="business">Business</option></select>
+        </div>
+        <div class="fgrp">
+          <label class="flbl">Importance</label>
+          <select class="finp" name="itImportance"><option value="monitor">Monitor</option><option value="important">Important</option><option value="critical">Critical</option></select>
+        </div>
+        <div class="fgrp fgrp-full">
+          <label class="flbl">Headline *</label>
+          <input class="finp" name="itHeadline" required placeholder="e.g. GOSI announces updated contribution rates for 2027">
+        </div>
+        <div class="fgrp">
+          <label class="flbl">Status <span class="flbl-hint">(optional)</span></label>
+          <input class="finp" name="itStatus" placeholder="e.g. confirmed, draft, consultation...">
+        </div>
+        <div class="fgrp">
+          <label class="flbl">Effective Date <span class="flbl-hint">(optional)</span></label>
+          <input type="date" class="finp" name="itEffectiveDate">
+        </div>
+        <div class="fgrp">
+          <label class="flbl">Source Name *</label>
+          <input class="finp" name="itSourceName" required placeholder="e.g. GOSI, Ministry of Human Resources...">
+        </div>
+        <div class="fgrp">
+          <label class="flbl">Published <span class="flbl-hint">(optional)</span></label>
+          <input type="date" class="finp" name="itPublishedAt">
+        </div>
+        <div class="fgrp fgrp-full">
+          <label class="flbl">Source URL *</label>
+          <input type="url" class="finp" name="itSourceUrl" required placeholder="https://...">
+        </div>
+        <div class="fgrp">
+          <label class="flbl">Who's Affected <span class="flbl-hint">(optional)</span></label>
+          <input class="finp" name="itWhoAffected" placeholder="e.g. All private-sector employers">
+        </div>
+        <div class="fgrp">
+          <label class="flbl">Company <span class="flbl-hint">(optional)</span></label>
+          <input class="finp" name="itCompany" list="intel-company-list" placeholder="If specific to one client...">
+          <datalist id="intel-company-list"></datalist>
+        </div>
+        <div class="fgrp fgrp-full">
+          <label class="flbl">What Changed <span class="flbl-hint">(optional)</span></label>
+          <textarea class="finp" name="itWhatChanged" rows="2"></textarea>
+        </div>
+        <div class="fgrp fgrp-full">
+          <label class="flbl">Why It Matters <span class="flbl-hint">(optional — your own take, kept separate from the sourced facts above)</span></label>
+          <textarea class="finp" name="itWhyItMatters" rows="2"></textarea>
+        </div>
+        <div class="fgrp fgrp-full">
+          <label class="flbl">Summary <span class="flbl-hint">(optional)</span></label>
+          <textarea class="finp" name="itSummary" rows="2"></textarea>
+        </div>
+      </div>
+      <div class="fact">
+        <button type="button" class="btn-secondary btn-danger-ghost push-left" onclick="deleteCurrentIntelItem()" id="intel-delete-btn">Delete</button>
+        <button type="button" class="btn-secondary" onclick="closeIntelModal()">Cancel</button>
+        <button type="submit" class="btn-primary">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- INBOX TAB -->
+<div id="tab-inbox" class="tab">
+  <div class="page-header">
+    <div>
+      <div class="page-title">Inbox</div>
+      <div class="page-subtitle">Capture anything fast, then decide what it becomes.</div>
+    </div>
+  </div>
+  <form class="task-quickadd inbox-composer" onsubmit="captureInboxItem(event)" autocomplete="off">
+    <span class="task-quickadd-plus" data-icon="plus" data-icon-size="14"></span>
+    <input type="text" id="inbox-capture-input" name="inboxContent" placeholder="Capture a thought, task or idea — press Enter" required>
+    <input type="hidden" name="inboxType" value="task">
+    <div class="inbox-kinds" role="radiogroup" aria-label="Kind">
+      <button type="button" class="inbox-kind active" data-kind="task" onclick="setInboxKind('task')">Task</button>
+      <button type="button" class="inbox-kind" data-kind="note" onclick="setInboxKind('note')">Note</button>
+      <button type="button" class="inbox-kind" data-kind="idea" onclick="setInboxKind('idea')">Idea</button>
+      <button type="button" class="inbox-kind" data-kind="followup" onclick="setInboxKind('followup')">Follow-up</button>
+    </div>
+  </form>
+  <div class="inbox-list" id="inbox-list"></div>
+</div>
+
+<!-- MEETINGS TAB -->
+<div id="tab-meetings" class="tab">
+  <div id="meeting-detail" class="proj-detail record-page">
+    <header class="rec-header">
+      <div class="rec-avatar rec-avatar-icon"><span data-icon="meeting" data-icon-size="24"></span></div>
+      <div class="rec-head-main">
+        <div class="rec-eyebrow">Meeting</div>
+        <h1 class="rec-title" id="md-title"></h1>
+        <div class="rec-badges" id="md-badges"></div>
+      </div>
+      <div class="rec-actions">
+        <span id="md-save-confirm" class="rec-saved-note" style="display:none"><span data-icon="check" data-icon-size="12"></span> Filed to Notes · <a href="#" class="rlink" onclick="event.preventDefault();viewMeetingNote()">View note</a></span>
+        <a id="md-join-btn" href="#" target="_blank" rel="noopener" class="btn-primary" style="display:none">Join Teams</a>
+        <button class="btn-secondary in-menu" id="md-edit-schedule-btn" style="display:none" onclick="editCurrentMeetingSchedule()">Edit schedule</button>
+        <button class="btn-primary" onclick="saveAndFileMeetingNotes()">Save &amp; file notes</button>
+        <button class="btn-secondary btn-danger-ghost in-menu" id="md-delete-btn" onclick="deleteCurrentMeeting()">Delete</button>
+        <button class="loc-nav rec-more" onclick="meetingMoreMenu(event)" title="More" aria-label="More"><span data-icon="more" data-icon-size="16"></span></button>
+      </div>
+    </header>
+    <div class="rec-layout">
+    <div class="rec-main">
+    <section class="card rec-section md-client" id="md-client"></section>
+    <section class="card rec-section md-people" id="md-people" hidden></section>
+    <div class="rec-grid-2">
+      <section class="card rec-section"><div class="rec-section-hd"><h2>Agenda</h2></div><textarea id="md-agenda" class="rec-notes" placeholder="What's this meeting about?" oninput="autoSaveMeetingField('agenda',this.value)"></textarea></section>
+      <section class="card rec-section"><div class="rec-section-hd"><h2>Discussion</h2></div><textarea id="md-discussion" class="rec-notes" placeholder="Notes as the meeting happens…" oninput="autoSaveMeetingField('discussion',this.value)"></textarea></section>
+      <section class="card rec-section"><div class="rec-section-hd"><h2>Decisions</h2></div><textarea id="md-decisions" class="rec-notes" placeholder="What was decided?" oninput="autoSaveMeetingField('decisions',this.value)"></textarea></section>
+      <section class="card rec-section">
+        <div class="rec-section-hd"><h2>Action items</h2></div>
+        <div id="md-tasks-list" class="md-tasks-list"></div>
+        <input id="md-task-input" class="td-input md-task-input" placeholder="Add a task and press Enter…" onkeydown="if(event.key==='Enter'){event.preventDefault();addMeetingTask(this.value);this.value='';}">
+        <div id="md-legacy-actions" class="rec-legacy-text" style="display:none"></div>
+      </section>
+    </div>
+    <section class="card rec-section">
+      <div class="rec-section-hd"><h2>Follow-up</h2></div>
+      <textarea id="md-followup" class="rec-notes" placeholder="Follow-up notes…" oninput="autoSaveMeetingField('followUp',this.value)"></textarea>
+      <dl class="rec-inline-props rec-props-spaced"><div><dt>Next meeting</dt><dd><input type="date" id="md-next-meeting" class="td-input" onchange="autoSaveMeetingField('nextMeeting',this.value)"></dd></div></dl>
+    </section>
+    </div>
+    <aside class="rec-side">
+      <section class="card rec-side-card">
+        <div class="rec-section-hd"><h2>Details</h2></div>
+        <dl class="rec-props rec-props-edit">
+          <dt>Client</dt><dd><input id="md-company-inp" class="td-input" list="md-company-list" placeholder="No client" onchange="autoSaveMeetingCompany(this.value)"><datalist id="md-company-list"></datalist></dd>
+          <dt>Project</dt><dd><select id="md-project-sel" class="td-select" onchange="autoSaveMeetingProject(this.value)"></select></dd>
+          <dt>Opportunity</dt><dd><select id="md-opportunity-sel" class="td-select" onchange="autoSaveMeetingOpportunity(this.value)"></select></dd>
+        </dl>
+        <div class="rec-side-extra" id="md-outlook-card" style="display:none"><div id="md-outlook-info"></div></div>
+      </section>
+    </aside>
+    </div>
+  </div>
+
+  <div id="meeting-list-view">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Meetings</div>
+        <div class="page-subtitle">Attendees, decisions, and action items — never lost in someone's inbox.</div>
+      </div>
+      <div class="page-header-actions"><button class="btn-primary" onclick="openMeetingModal(null)">+ New Meeting</button></div>
+    </div>
+    <div id="meeting-list"></div>
+  </div>
+</div>
+
+<!-- MEETING MODAL -->
+<div class="modal-ov" id="modal-meeting" onclick="if(event.target===this)closeMeetingModal()">
+  <div class="modal">
+    <div class="modal-hd"><div class="modal-title" id="meeting-modal-title">New Meeting</div><button class="modal-close" onclick="closeMeetingModal()">×</button></div>
+    <form id="meeting-form" onsubmit="submitMeeting(event)">
+      <div class="fg">
+        <div class="fgrp fgrp-full">
+          <label class="flbl">Meeting Title *</label>
+          <input class="finp" name="mtTitle" required placeholder="e.g. Acme Holdings Quarterly Review">
+        </div>
+        <div class="fgrp">
+          <label class="flbl">Date</label>
+          <input type="date" class="finp" name="mtDate">
+        </div>
+        <div class="fgrp">
+          <label class="flbl">Start <span class="flbl-hint">(optional)</span></label>
+          <input type="time" class="finp" name="mtStart">
+        </div>
+        <div class="fgrp">
+          <label class="flbl">End <span class="flbl-hint">(optional)</span></label>
+          <input type="time" class="finp" name="mtEnd">
+        </div>
+        <div class="fgrp">
+          <label class="flbl">Company <span class="flbl-hint">(optional)</span></label>
+          <input class="finp" name="mtCompany" list="mt-company-list" placeholder="Client company...">
+          <datalist id="mt-company-list"></datalist>
+        </div>
+        <div class="fgrp">
+          <label class="flbl">Project <span class="flbl-hint">(optional)</span></label>
+          <select class="finp" name="mtProject"><option value="">— No project —</option></select>
+        </div>
+        <div class="fgrp">
+          <label class="flbl">Opportunity <span class="flbl-hint">(optional)</span></label>
+          <select class="finp" name="mtOpportunity"><option value="">— No opportunity —</option></select>
+        </div>
+        <div class="fgrp fgrp-full">
+          <label class="flbl">Attendees <span class="flbl-hint">(comma separated)</span></label>
+          <input class="finp" name="mtAttendees" placeholder="e.g. Ahmad, Jane Doe">
+        </div>
+        <div class="fgrp fgrp-full form-hint">Agenda, discussion notes and tasks are captured live on the meeting page after you save.</div>
+      </div>
+      <div class="fact">
+        <button type="button" class="btn-secondary" onclick="closeMeetingModal()">Cancel</button>
+        <button type="submit" class="btn-primary" id="meeting-submit-btn">Save Meeting</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- FILES TAB -->
+<div id="tab-files" class="tab">
+  <div class="page-header">
+    <div>
+      <div class="page-title">Files</div>
+      <div class="page-subtitle">Your OneDrive, synced to this Mac. Files open in their own apps, right where they live.</div>
+    </div>
+    <div class="page-header-actions"><button class="btn-secondary" onclick="msFilesOpenSetupWizard()">Match folders to companies…</button></div>
+  </div>
+  <div class="fx">
+    <nav class="fx-places" id="msf-places" aria-label="Places"></nav>
+    <section class="fx-main">
+      <div class="fx-toolbar">
+        <button class="loc-nav" id="msf-back-btn" onclick="msFilesGoBack()" title="Up one folder (⌘↑)" aria-label="Up one folder"><span data-icon="chevronLeft" data-icon-size="15"></span></button>
+        <div class="fx-folder-title" id="msf-folder-title"></div>
+        <input type="text" class="f-search fx-search" id="msf-search" placeholder="Search" oninput="msFilesSearchChanged()" aria-label="Search this folder">
+        <button class="btn-sm fx-sort" onclick="msFilesSortMenu(event)" title="Sort by">Sort: <span id="msf-sort-label">Name</span></button>
+        <div class="seg-btns" id="msf-layout-btns">
+          <button class="seg-btn" data-layout="list" onclick="msFilesLayout('list')" title="List" aria-label="List"><span data-icon="list" data-icon-size="13"></span></button>
+          <button class="seg-btn" data-layout="icons" onclick="msFilesLayout('icons')" title="Icons" aria-label="Icons"><span data-icon="board" data-icon-size="13"></span></button>
+        </div>
+      </div>
+      <div class="fx-path" id="msf-breadcrumb"></div>
+      <div class="fx-body" id="msf-body"></div>
+    </section>
+    <aside class="fx-info" id="msf-info" hidden aria-label="Info"></aside>
+  </div>
+</div>
+
+<!-- SETTINGS TAB -->
+<div id="tab-gallery" class="tab">
+  <div class="page-header">
+    <div>
+      <div class="page-title">Component Gallery</div>
+      <div class="page-subtitle">Development only — every shared component in the current theme.</div>
+    </div>
+  </div>
+  <div id="gallery-body"></div>
+</div>
+
+<div id="tab-settings" class="tab">
+  <div class="page-header">
+    <div>
+      <div class="page-title">Settings</div>
+    </div>
+  </div>
+  <div class="settings-layout">
+    <nav class="settings-nav" aria-label="Settings sections"><button class="settings-nav-item" data-pane="general" onclick="setSettingsPane('general')"><span data-icon="gear" data-icon-size="15"></span>General</button><button class="settings-nav-item" data-pane="team" onclick="setSettingsPane('team')"><span data-icon="people" data-icon-size="15"></span>Team</button><button class="settings-nav-item" data-pane="business" onclick="setSettingsPane('business')"><span data-icon="dollar" data-icon-size="15"></span>Business</button><button class="settings-nav-item" data-pane="connections" onclick="setSettingsPane('connections')"><span data-icon="link" data-icon-size="15"></span>Connections</button><button class="settings-nav-item" data-pane="data" onclick="setSettingsPane('data')"><span data-icon="archive" data-icon-size="15"></span>Data</button></nav>
+    <div class="settings-panes">
+    <section class="settings-pane" data-pane="general" hidden>
+      <h2 class="settings-pane-title">General</h2>
+  <div id="reminder-settings-card"></div>
+  <div class="card settings-card">
+    <div class="settings-card-hd">
+      <span data-icon="sun"></span>
+      <div class="card-hd">Theme</div>
+    </div>
+    <p class="settings-card-desc">Choose how MENA One looks. Your choice is remembered on this computer.</p>
+    <div class="theme-picker" id="theme-picker"></div>
+  </div>
+    </section>
+    <section class="settings-pane" data-pane="team" hidden>
+      <h2 class="settings-pane-title">Team</h2>
+  <div class="card settings-card">
+    <div class="settings-card-hd">
+      <span data-icon="people"></span>
+      <div class="card-hd">Team</div>
+    </div>
+    <p class="settings-card-desc">The people who own proposals, review them and prepare agreements. Reviewers are offered on every proposal. When MENA One gets sign-in for the team, these become the user accounts.</p>
+    <div id="team-directory"></div>
+  </div>
+    </section>
+    <section class="settings-pane" data-pane="business" hidden>
+      <h2 class="settings-pane-title">Business</h2>
+  <div class="card settings-card">
+    <div class="settings-card-hd">
+      <span data-icon="dollar"></span>
+      <div class="card-hd">Business entities and currencies</div>
+    </div>
+    <p class="settings-card-desc">Each proposal and agreement belongs to one MENA BIG entity, which sets its default currency. Totals are shown per currency; set a rate to also see everything converted to SAR.</p>
+    <div id="entity-settings"></div>
+  </div>
+  <div class="card settings-card">
+    <div class="settings-card-hd">
+      <span data-icon="database"></span>
+      <div class="card-hd">Proposals</div>
+    </div>
+    <p class="settings-card-desc">Where client proposal folders live in OneDrive, and a one-time tidy-up of the old free-text "owner" field.</p>
+    <div id="proposal-settings"></div>
+  </div>
+    </section>
+    <section class="settings-pane" data-pane="connections" hidden>
+      <h2 class="settings-pane-title">Connections</h2>
+  <div class="card settings-card">
+    <div class="settings-card-hd">
+      <span data-icon="building"></span>
+      <div class="card-hd">Microsoft 365</div>
+    </div>
+    <p class="settings-card-desc">Connect Outlook Mail, Calendar and Teams. Outlook stays the source of truth — MENA One only caches what it needs for Action Required, Calendar, and Meetings.</p>
+
+    <div id="ms365-status-row" class="settings-status">
+      <span class="status-dot settings-status-dot" id="ms365-status-dot"></span>
+      <div class="settings-status-text">
+        <div id="ms365-status-text" class="settings-status-title">Checking status…</div>
+        <div id="ms365-status-sub" class="settings-status-sub"></div>
+      </div>
+      <button class="btn-primary" id="ms365-connect-btn" onclick="ms365ConnectClick()" style="display:none">Connect</button>
+      <button class="btn-secondary" id="ms365-reconnect-btn" onclick="ms365ConnectClick()" style="display:none">Reconnect</button>
+      <button class="btn-secondary btn-danger-ghost" id="ms365-disconnect-btn" onclick="ms365DisconnectClick()" style="display:none">Disconnect</button>
+    </div>
+
+    <div class="fgrp settings-field">
+      <label class="flbl">Azure application (client) ID</label>
+      <div class="btn-row">
+        <input type="text" class="finp" id="ms365-client-id-input" placeholder="e.g. 3fa1c2b4-…">
+        <button class="btn-secondary" onclick="ms365SaveClientIdClick()">Save</button>
+      </div>
+    </div>
+    <div class="fgrp settings-field">
+      <label class="flbl">Directory (tenant) ID</label>
+      <input type="text" class="finp" id="ms365-tenant-id-input" placeholder="e.g. 8f2e1a90-…">
+    </div>
+
+    <details class="settings-help">
+      <summary>How to get a client ID and tenant ID (one-time setup, about 2 minutes)</summary>
+      <ol>
+        <li>Go to <a href="#" class="rlink" onclick="event.preventDefault();openExternalUrl('https://portal.azure.com')">portal.azure.com</a> and open <strong>Microsoft Entra ID → App registrations → New registration</strong>.</li>
+        <li>Name it "MENA BIG Workspace". Under <strong>Supported account types</strong>, choose "Accounts in this organizational directory only" (or "Any organizational directory" if you want to sign in with other tenants too).</li>
+        <li>Under <strong>Redirect URI</strong>, select platform <strong>"Mobile and desktop applications"</strong> and add exactly: <code class="inline-code">http://localhost:18473/callback</code></li>
+        <li>Click <strong>Register</strong>. On the Overview page, copy the <strong>Application (client) ID</strong> into the field above, and the <strong>Directory (tenant) ID</strong> into the Tenant ID field above. Both are required — a single-tenant app registration (the default) will fail sign-in without the Tenant ID.</li>
+        <li>Go to <strong>Authentication</strong> in the left menu and make sure <strong>"Allow public client flows"</strong> is set to <strong>Yes</strong>, then Save.</li>
+        <li>Go to <strong>API permissions → Add a permission → Microsoft Graph → Delegated permissions</strong> and add: <code class="inline-code">Mail.ReadWrite</code>, <code class="inline-code">Calendars.ReadWrite</code>, <code class="inline-code">User.Read</code>, <code class="inline-code">offline_access</code>.</li>
+        <li>Click <strong>Save</strong> above, then <strong>Connect</strong>.</li>
+      </ol>
+    </details>
+  </div>
+  <div class="card settings-card">
+    <div class="settings-card-hd">
+      <span data-icon="folder"></span>
+      <div class="card-hd">Microsoft Files</div>
+    </div>
+    <p class="settings-card-desc">Browses your OneDrive right from this Mac's Finder-synced folders — no separate connection needed. Match a folder of client subfolders (e.g. "Proposals") to your Companies so each Company's linked folder shows up under its own Files tab.</p>
+    <button class="btn-secondary" onclick="switchTab('files');msFilesOpenSetupWizard()">Match folders to companies…</button>
+  </div>
+    </section>
+    <section class="settings-pane" data-pane="data" hidden>
+      <h2 class="settings-pane-title">Data</h2>
+  <div class="card settings-card">
+    <div class="settings-card-hd">
+      <span data-icon="building"></span>
+      <div class="card-hd">Company Master Data</div>
+    </div>
+    <p class="settings-card-desc">Links every legacy company name on Proposals, Contacts, Agreements and Projects to a canonical Company record, and moves researched industries onto the new controlled taxonomy. Backs up your database first, never guesses on an ambiguous name (those go to a Needs Review queue on the Companies page instead), and is safe to run more than once — it only processes what's still unlinked.</p>
+    <div class="btn-row">
+      <button class="btn-secondary" onclick="runCompanyMigrationClick()">Run company migration</button>
+      <span id="company-migration-status" class="settings-inline-status"></span>
+    </div>
+  </div>
+  <div class="card settings-card">
+    <div class="settings-card-hd">
+      <span data-icon="archive"></span>
+      <div class="card-hd">Data Backup</div>
+    </div>
+    <p class="settings-card-desc">Save a full backup of all your tracker data, or restore from a previous backup file.</p>
+    <div class="btn-row">
+      <button class="btn-secondary" onclick="backupAllData()">Export backup file…</button>
+      <label class="btn-secondary file-btn" title="Restore from a previous backup file, or import from the original tracker">
+        Restore from backup…
+        <input type="file" accept=".json" hidden onchange="restoreFromBackup(this.files[0])">
+      </label>
+    </div>
+    <div class="settings-subsection">
+      <div class="settings-subsection-title">Automatic backups</div>
+      <p id="local-backups-status" class="settings-card-desc">A copy of the database is saved on this computer every day (last 14 kept) and before every app upgrade.</p>
+      <div class="btn-row">
+        <button class="btn-secondary" id="backup-now-btn" onclick="backupDatabaseNowFromSettings()">Back Up Now</button>
+        <button class="btn-secondary" onclick="revealBackupsFolderFromSettings()">Show backups folder</button>
+      </div>
+    </div>
+  </div>
+    </section>
+    </div>
+  </div>
+</div>
+
+<!-- PROJECTS TAB -->
+<div id="tab-projects" class="tab">
+  <div id="proj-list-view">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Projects</div>
+        <div class="page-subtitle">Client engagements and internal initiatives — one system, equally first-class.</div>
+      </div>
+      <div class="page-header-actions">
+        <button class="btn-primary" onclick="openProjectModal(null)">+ New Project</button>
+      </div>
+    </div>
+    <div class="toolbar">
+      <div class="segmented" id="proj-type-seg">
+        <button class="active" onclick="setProjectFilter('all')">All</button>
+        <button onclick="setProjectFilter('client')">Client</button>
+        <button onclick="setProjectFilter('internal')">Internal</button>
+      </div>
+      <select class="ssel" id="proj-status-filter" onchange="renderProjects()">
+        <option value="">All Statuses</option>
+        <option>Idea</option><option>Planning</option><option>Not Started</option><option>In Progress</option>
+        <option>At Risk</option><option>On Hold</option><option>Completed</option><option>Cancelled</option>
+      </select>
+      <select class="ssel" id="proj-sort" onchange="renderProjects()">
+        <option value="updated">Sort: Recently Updated</option>
+        <option value="priority">Sort: Priority</option>
+        <option value="target">Sort: Target Date</option>
+        <option value="progress">Sort: Progress</option>
+        <option value="status">Sort: Status</option>
+      </select>
+      <input type="text" class="f-search" id="proj-search" placeholder="Search projects..." oninput="renderProjects()">
+      <span class="rcnt" id="proj-cnt">0 projects</span>
+    </div>
+    <div class="project-grid" id="proj-grid"></div>
+  </div>
+
+  <div id="proj-detail" class="proj-detail record-page">
+    <header class="rec-header">
+      <div class="rec-avatar rec-avatar-icon"><span data-icon="target" data-icon-size="24"></span></div>
+      <div class="rec-head-main">
+        <div class="rec-eyebrow">Project</div>
+        <h1 class="rec-title" id="pd-name"></h1>
+        <div class="rec-badges" id="pd-badges"></div>
+      </div>
+      <div class="rec-actions">
+        <button class="btn-secondary" onclick="editCurrentProject()">Edit</button>
+        <button class="btn-secondary" id="pd-archive-btn" onclick="toggleArchiveProject()">Archive</button>
+        <button class="loc-nav rec-more" onclick="projectMoreMenu(event)" title="More" aria-label="More"><span data-icon="more" data-icon-size="16"></span></button>
+      </div>
+    </header>
+    <div class="rec-layout">
+    <div class="rec-main">
+    <div class="rec-grid-2">
+      <section class="card rec-section">
+        <div class="rec-section-hd"><h2>Milestones</h2><span class="rec-count" id="pd-milestone-cnt"></span></div>
+        <div id="pd-milestones"></div>
+        <form class="milestone-add-row" onsubmit="addMilestone(event)">
+          <input class="td-input" name="msName" placeholder="New milestone…" required>
+          <input class="td-input" type="date" name="msDate">
+          <button type="submit" class="btn-sm">Add</button>
+        </form>
+      </section>
+      <section class="card rec-section">
+        <div class="rec-section-hd"><h2>Tasks</h2><span class="rec-count" id="pd-task-cnt"></span><div class="rec-section-actions"><button class="btn-sm" onclick="createTodoForCurrentProject()">+ New</button></div></div>
+        <div id="pd-tasks"></div>
+      </section>
+    </div>
+    <div class="card rec-section" id="pd-origin" style="display:none"></div>
+    <div class="rec-grid-2">
+      <div class="card rec-section" id="pd-notes"></div>
+      <div class="card rec-section" id="pd-meetings"></div>
+    </div>
+    <div class="card rec-section" id="pd-emails" style="display:none"></div>
+    <section class="card rec-section">
+      <div class="rec-section-hd"><h2>Files</h2><span class="rec-count" id="pd-files-cnt"></span></div>
+      <div id="pd-files"></div>
+    </section>
+    <div class="card rec-section" id="pd-activity"></div>
+    </div>
+    <aside class="rec-side">
+      <section class="card rec-side-card">
+        <div class="rec-section-hd"><h2>Details</h2></div>
+        <dl class="rec-props rec-props-edit">
+          <dt>Status</dt><dd><select id="pd-status-sel" class="td-select" onchange="changeCurrentProjectStatus(this.value)">
+            <option>Idea</option><option>Planning</option><option>Not Started</option>
+            <option>In Progress</option><option>At Risk</option><option>On Hold</option>
+            <option>Completed</option><option>Cancelled</option>
+          </select></dd>
+          <dt>Priority</dt><dd><select id="pd-priority-sel" class="td-select" onchange="autoSaveProjectField('priority',this.value)"><option>High</option><option>Medium</option><option>Low</option></select></dd>
+          <dt>Owner</dt><dd><input id="pd-owner-inp" class="td-input" placeholder="Add owner" list="team-names" onchange="autoSaveProjectField('owner',this.value)"></dd>
+          <dt>Company</dt><dd id="pd-company-link" class="rec-prop-text"></dd>
+          <dt>Start</dt><dd><input id="pd-start-inp" type="date" class="td-input" onchange="autoSaveProjectField('startDate',this.value)"></dd>
+          <dt>Target</dt><dd><input id="pd-target-inp" type="date" class="td-input" onchange="autoSaveProjectField('targetDate',this.value)"></dd>
+        </dl>
+        <div class="rec-progress">
+          <span class="rec-progress-lbl">Progress</span>
+          <div class="project-progress-track"><div class="project-progress-fill" id="pd-progress-fill"></div></div>
+          <strong id="pd-progress-txt"></strong>
+        </div>
+        <p id="pd-desc" class="rec-desc"></p>
+      </section>
+    </aside>
+    </div>
+  </div>
+</div>
+
+<!-- PROJECT MODAL -->
+<div class="modal-ov" id="modal-project" onclick="if(event.target===this)closeProjectModal()">
+  <div class="modal">
+    <div class="modal-hd"><div class="modal-title" id="proj-modal-title">New Project</div><button class="modal-close" onclick="closeProjectModal()">×</button></div>
+    <form id="project-form" onsubmit="submitProject(event)">
+      <div class="fg">
+        <div class="fgrp fgrp-full">
+          <label class="flbl">Project Name *</label>
+          <input class="finp" name="pjName" required placeholder="e.g. Launch MENA BIG Recruitment Division">
+        </div>
+        <div class="fgrp">
+          <label class="flbl">Type</label>
+          <select class="finp" name="pjType" onchange="toggleProjectCompanyField(this.value)">
+            <option value="internal">Internal (MENA BIG)</option>
+            <option value="client">Client Engagement</option>
+          </select>
+        </div>
+        <div class="fgrp" id="pj-company-group">
+          <label class="flbl">Company <span class="flbl-hint">(optional)</span></label>
+          <input class="finp" name="pjCompany" list="pj-company-list" placeholder="Client company...">
+          <datalist id="pj-company-list"></datalist>
+        </div>
+        <div class="fgrp">
+          <label class="flbl">Status</label>
+          <select class="finp" name="pjStatus">
+            <option>Idea</option><option>Planning</option><option selected>Not Started</option>
+            <option>In Progress</option><option>At Risk</option><option>On Hold</option>
+            <option>Completed</option><option>Cancelled</option>
+          </select>
+        </div>
+        <div class="fgrp">
+          <label class="flbl">Priority</label>
+          <select class="finp" name="pjPriority">
+            <option>High</option><option selected>Medium</option><option>Low</option>
+          </select>
+        </div>
+        <div class="fgrp">
+          <label class="flbl">Owner</label>
+          <input class="finp" name="pjOwner" placeholder="Owner name...">
+        </div>
+        <div class="fgrp">
+          <label class="flbl">Start Date</label>
+          <input type="date" class="finp" name="pjStart">
+        </div>
+        <div class="fgrp">
+          <label class="flbl">Target Date</label>
+          <input type="date" class="finp" name="pjTarget">
+        </div>
+        <div class="fgrp">
+          <label class="flbl">Tags <span class="flbl-hint">(comma separated)</span></label>
+          <input class="finp" name="pjTags" placeholder="e.g. growth, ops">
+        </div>
+        <div class="fgrp fgrp-full">
+          <label class="flbl">Description</label>
+          <textarea class="finp" name="pjDesc" rows="3" placeholder="What is this project about?"></textarea>
+        </div>
+      </div>
+      <div class="fact">
+        <button type="button" class="btn-secondary" onclick="closeProjectModal()">Cancel</button>
+        <button type="submit" class="btn-primary" id="proj-submit-btn">Save Project</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- OPPORTUNITIES TAB -->
+<div id="tab-opportunities" class="tab">
+  <div id="opp-list-view">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Opportunities</div>
+        <div class="page-subtitle">The pipeline from first contact to signed proposal — before a Proposal exists.</div>
+      </div>
+      <div class="page-header-actions">
+        <button class="btn-primary" onclick="openOpportunityModal(null)">+ New Opportunity</button>
+      </div>
+    </div>
+    <div class="toolbar">
+      <div class="seg-btns" id="opp-view-btns">
+        <button class="seg-btn active" id="opp-view-board" onclick="setOpportunityView('board')"><span data-icon="board" data-icon-size="13"></span> Board</button>
+        <button class="seg-btn" id="opp-view-list" onclick="setOpportunityView('list')"><span data-icon="list" data-icon-size="13"></span> List</button>
+      </div>
+      <select class="ssel" id="opp-stage-filter" onchange="opportunityFilterChanged()">
+        <option value="">All Stages</option>
+        <option>Lead</option><option>Qualified</option><option>Discovery</option><option>Meeting</option>
+        <option>Solution Design</option><option>Proposal</option><option>Negotiation</option>
+        <option>Verbal Commitment</option><option>Won</option><option>Lost</option><option>On Hold</option>
+      </select>
+      <input type="text" class="f-search" id="opp-search" placeholder="Search opportunities..." oninput="opportunitySearchChanged()">
+      <span class="rcnt" id="opp-cnt">0 opportunities</span>
+    </div>
+    <div id="opp-board"></div>
+    <div id="opp-list-table-wrap" class="tbl-wrap" style="display:none">
+      <table>
+        <thead><tr>
+          <th>Name</th><th>Company</th><th>Stage</th><th>Value</th><th>Probability</th><th>Expected Close</th><th>Owner</th>
+        </tr></thead>
+        <tbody id="opp-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="opp-detail" class="proj-detail record-page">
+    <header class="rec-header">
+      <div class="rec-avatar rec-avatar-icon"><span data-icon="briefcase" data-icon-size="24"></span></div>
+      <div class="rec-head-main">
+        <div class="rec-eyebrow">Opportunity</div>
+        <h1 class="rec-title" id="od-name"></h1>
+        <div class="rec-badges" id="od-badges"></div>
+      </div>
+      <div class="rec-actions">
+        <button class="btn-secondary" onclick="editCurrentOpportunity()">Edit</button>
+        <button class="loc-nav rec-more" onclick="opportunityMoreMenu(event)" title="More" aria-label="More"><span data-icon="more" data-icon-size="16"></span></button>
+      </div>
+    </header>
+    <div class="rec-layout">
+    <div class="rec-main">
+    <div class="rec-grid-2">
+      <section class="card rec-section"><div class="rec-section-hd"><h2>Description</h2></div><textarea id="od-description" class="rec-notes" placeholder="What is this opportunity about?" oninput="autoSaveOpportunityField('description',this.value)"></textarea></section>
+      <section class="card rec-section"><div class="rec-section-hd"><h2>Next action</h2></div><textarea id="od-next-action" class="rec-notes" placeholder="What happens next?" oninput="autoSaveOpportunityField('nextAction',this.value)"></textarea></section>
+      <div class="card rec-section" id="od-contacts"></div>
+      <div class="card rec-section" id="od-notes"></div>
+      <div class="card rec-section" id="od-meetings"></div>
+      <div class="card rec-section" id="od-proposal"></div>
+      <div class="card rec-section" id="od-project"></div>
+    </div>
+    <section class="card rec-section" id="od-files"></section>
+    <div class="card rec-section" id="od-activity"></div>
+    </div>
+    <aside class="rec-side">
+      <section class="card rec-side-card">
+        <div class="rec-section-hd"><h2>Details</h2></div>
+        <dl class="rec-props rec-props-edit">
+          <dt>Company</dt><dd><input id="od-company-inp" class="td-input" list="od-company-list" placeholder="No company" onchange="autoSaveOpportunityField('companyName',this.value)"><datalist id="od-company-list"></datalist></dd>
+          <dt>Stage</dt><dd><select id="od-stage-sel" class="td-select" onchange="changeCurrentOpportunityStage(this.value)"></select></dd>
+          <dt>Owner</dt><dd><input id="od-owner-inp" class="td-input" placeholder="Add owner" list="team-names" onchange="autoSaveOpportunityField('owner',this.value)"></dd>
+          <dt>Value</dt><dd><input id="od-value-inp" type="number" class="td-input" placeholder="0" onchange="autoSaveOpportunityNumber('estimatedValue',this.value)"></dd>
+          <dt>Probability</dt><dd><input id="od-probability-inp" type="number" min="0" max="100" class="td-input" placeholder="%" onchange="autoSaveOpportunityNumber('probability',this.value)"></dd>
+          <dt>Expected close</dt><dd><input id="od-close-date-inp" type="date" class="td-input" onchange="autoSaveOpportunityField('expectedCloseDate',this.value)"></dd>
+        </dl>
+      </section>
+    </aside>
+    </div>
+  </div>
+</div>
+
+<!-- OPPORTUNITY MODAL -->
+<div class="modal-ov" id="modal-opportunity" onclick="if(event.target===this)closeOpportunityModal()">
+  <div class="modal">
+    <div class="modal-hd"><div class="modal-title" id="opp-modal-title">New Opportunity</div><button class="modal-close" onclick="closeOpportunityModal()">×</button></div>
+    <form id="opportunity-form" onsubmit="submitOpportunity(event)">
+      <div class="fg">
+        <div class="fgrp fgrp-full">
+          <label class="flbl">Opportunity Name *</label>
+          <input class="finp" name="oppName" required placeholder="e.g. Globex Saudization Workforce">
+        </div>
+        <div class="fgrp">
+          <label class="flbl">Company <span class="flbl-hint">(optional)</span></label>
+          <input class="finp" name="oppCompany" list="opp-company-list" oninput="refreshOppModalContacts(this.value)" placeholder="Client company...">
+          <datalist id="opp-company-list"></datalist>
+        </div>
+        <div class="fgrp">
+          <label class="flbl">Stage</label>
+          <select class="finp" name="oppStage"></select>
+        </div>
+        <div class="fgrp">
+          <label class="flbl">Owner</label>
+          <input class="finp" name="oppOwner" placeholder="Owner...">
+        </div>
+        <div class="fgrp fgrp-full">
+          <label class="flbl">Contacts <span class="flbl-hint">(optional — type a company above to see its contacts)</span></label>
+          <select class="finp" name="oppContacts" id="opp-contacts-sel" multiple size="3"></select>
+        </div>
+        <div class="fgrp">
+          <label class="flbl">Estimated Value (SAR)</label>
+          <input class="finp" type="number" name="oppValue" placeholder="0">
+        </div>
+        <div class="fgrp">
+          <label class="flbl">Probability %</label>
+          <input class="finp" type="number" min="0" max="100" name="oppProbability" placeholder="0-100">
+        </div>
+        <div class="fgrp">
+          <label class="flbl">Expected Close Date</label>
+          <input class="finp" type="date" name="oppCloseDate">
+        </div>
+        <div class="fgrp fgrp-full">
+          <label class="flbl">Description</label>
+          <textarea class="finp" name="oppDescription" rows="3" placeholder="What is this opportunity about?"></textarea>
+        </div>
+      </div>
+      <div class="fact">
+        <button type="button" class="btn-secondary" onclick="closeOpportunityModal()">Cancel</button>
+        <button type="submit" class="btn-primary">Save Opportunity</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- NOTES TAB -->
+<div id="tab-notes" class="tab ws-tab">
+  <div class="ws notes-ws" id="notes-ws">
+    <aside class="ws-side notes-side" aria-label="Note library">
+      <div class="ws-side-scroll">
+        <div class="ws-side-group">
+          <button class="ws-side-item notes-folder-item active" data-folder="all" data-drop="note-library" data-drop-value="all" onclick="setNoteFolder('all')"><span class="ws-side-icon" data-icon="note" data-icon-size="15"></span><span class="ws-side-label">All Notes</span><span class="ws-side-count" id="nf-all"></span></button>
+          <button class="ws-side-item notes-folder-item" data-folder="pinned" data-drop="note-library" data-drop-value="pinned" onclick="setNoteFolder('pinned')"><span class="ws-side-icon tint-amber" data-icon="pin" data-icon-size="15"></span><span class="ws-side-label">Pinned</span><span class="ws-side-count" id="nf-pinned"></span></button>
+          <button class="ws-side-item notes-folder-item" data-folder="recent" onclick="setNoteFolder('recent')"><span class="ws-side-icon" data-icon="clock" data-icon-size="15"></span><span class="ws-side-label">Recent</span><span class="ws-side-count" id="nf-recent"></span></button>
+          <button class="ws-side-item notes-folder-item" data-folder="client" onclick="setNoteFolder('client')"><span class="ws-side-icon" data-icon="building" data-icon-size="15"></span><span class="ws-side-label">Linked to clients</span><span class="ws-side-count" id="nf-client"></span></button>
+        </div>
+        <div class="ws-side-section">
+          <div class="ws-side-section-hd notes-section-hd"><span>Folders</span><button class="notes-section-add" onclick="addNoteFolder()" title="New folder" aria-label="New folder"><span data-icon="plus" data-icon-size="12"></span></button></div>
+          <div id="notes-folder-items"></div>
+        </div>
+        <div class="ws-side-section" id="notes-tags-section">
+          <div class="ws-side-section-hd notes-section-hd"><span>Tags</span></div>
+          <div id="notes-tag-items"></div>
+        </div>
+      </div>
+    </aside>
+
+    <section class="notes-list-pane" aria-label="Notes">
+      <div class="notes-list-head">
+        <div class="notes-list-title-wrap">
+          <div class="notes-list-title" id="notes-list-title">All Notes</div>
+          <div class="notes-list-count" id="notes-list-count"></div>
+        </div>
+        <div class="notes-new-group">
+          <button class="loc-nav" onclick="createNewNote(null)" title="New note (⌘N)" aria-label="New note"><span data-icon="edit" data-icon-size="15"></span></button>
+          <button class="loc-nav" onclick="toggleNewNoteMenu(event)" title="New from template" aria-label="New from template"><span data-icon="chevronDown" data-icon-size="13"></span></button>
+          <div class="wikilink-menu" id="new-note-menu"></div>
+        </div>
+      </div>
+      <div class="notes-search-box">
+        <span data-icon="search" data-icon-size="13"></span>
+        <input type="text" id="notes-search" placeholder="Search notes" oninput="notesSearchChanged()" aria-label="Search notes">
+      </div>
+      <div class="notes-list" id="notes-list"></div>
+    </section>
+
+    <section class="notes-editor-pane" id="notes-main" aria-label="Editor">
+      <div class="notes-topbar">
+        <div class="notes-topbar-group">
+          <button class="loc-nav" onclick="toggleNotesSidebar()" title="Show or hide the library" aria-label="Toggle library"><span data-icon="sidebar" data-icon-size="15"></span></button>
+          <button class="loc-nav" id="notes-focus-btn" onclick="toggleNotesFocus()" title="Focus mode (⌘.)" aria-label="Focus mode"><svg width="15" height="15" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3 7V4a1 1 0 0 1 1-1h3M11 3h3a1 1 0 0 1 1 1v3M15 11v3a1 1 0 0 1-1 1h-3M7 15H4a1 1 0 0 1-1-1v-3"/></svg></button>
+        </div>
+        <div class="notes-topbar-status">
+          <span id="notes-save-status"></span>
+          <span id="notes-ts"></span>
+          <span id="notes-word-count"></span>
+        </div>
+        <div class="notes-topbar-group" id="notes-doc-actions" hidden>
+          <button class="loc-nav" id="notes-format-btn" onclick="toggleNotesFormatBar()" title="Formatting bar" aria-label="Formatting bar"><span class="notes-format-glyph">Aa</span></button>
+          <button class="loc-nav" id="notes-pin-btn" onclick="toggleNotePin()" title="Pin" aria-label="Pin"><span data-icon="pin" data-icon-size="15"></span></button>
+          <button class="loc-nav" onclick="noteMoreMenu(event)" title="More" aria-label="More"><span data-icon="more" data-icon-size="16"></span></button>
+        </div>
+      </div>
+      <div class="notes-toolbar" id="notes-toolbar" hidden>
+        <button class="toolbar-btn" onclick="mdBold()" title="Bold (⌘B)"><span data-icon="bold" data-icon-size="15"></span></button>
+        <button class="toolbar-btn" onclick="mdItalic()" title="Italic (⌘I)"><span data-icon="italic" data-icon-size="15"></span></button>
+        <button class="toolbar-btn" onclick="mdStrike()" title="Strikethrough"><span data-icon="strikethrough" data-icon-size="15"></span></button>
+        <div class="toolbar-sep"></div>
+        <button class="toolbar-btn toolbar-btn-text" onclick="mdHeading(1)" title="Heading 1">H1</button>
+        <button class="toolbar-btn toolbar-btn-text" onclick="mdHeading(2)" title="Heading 2">H2</button>
+        <button class="toolbar-btn toolbar-btn-text" onclick="mdHeading(3)" title="Heading 3">H3</button>
+        <div class="toolbar-sep"></div>
+        <button class="toolbar-btn" onclick="mdBulletList()" title="Bullet list"><span data-icon="list" data-icon-size="15"></span></button>
+        <button class="toolbar-btn" onclick="mdNumberedList()" title="Numbered list"><span data-icon="numberedList" data-icon-size="15"></span></button>
+        <button class="toolbar-btn" onclick="mdChecklist()" title="Checklist"><span data-icon="checklist" data-icon-size="15"></span></button>
+        <div class="toolbar-sep"></div>
+        <button class="toolbar-btn" onclick="mdQuote()" title="Quote"><span data-icon="quote" data-icon-size="15"></span></button>
+        <button class="toolbar-btn" onclick="mdCode()" title="Code block"><span data-icon="codeBlock" data-icon-size="15"></span></button>
+        <button class="toolbar-btn" onclick="mdLink()" title="Link"><span data-icon="link" data-icon-size="15"></span></button>
+        <button class="toolbar-btn" onclick="mdDivider()" title="Divider"><span data-icon="divider" data-icon-size="15"></span></button>
+      </div>
+      <div class="notes-empty-wrap" id="notes-empty"></div>
+      <div class="notes-doc-scroll" id="notes-editor-panel" style="display:none">
+        <article class="notes-doc">
+          <textarea class="notes-title-input" id="notes-title-inp" rows="1" placeholder="Untitled" oninput="autoSaveNote();autoGrowNoteTitle()" onkeydown="noteTitleKey(event)" aria-label="Title"></textarea>
+          <div class="notes-props" id="notes-props"></div>
+          <div class="notes-body">
+            <div class="notes-editor" id="notes-editor"></div>
+            <div class="wikilink-menu" id="wikilink-menu"></div>
+            <div class="wikilink-menu slash-menu" id="slash-menu"></div>
+          </div>
+          <footer class="relations-panel" id="notes-relations"></footer>
+        </article>
+      </div>
+      <div class="md-float-toolbar" id="md-float-toolbar" role="toolbar" aria-label="Formatting">
+        <button onmousedown="event.preventDefault()" onclick="mdBold()" title="Bold (⌘B)"><span data-icon="bold" data-icon-size="14"></span></button>
+        <button onmousedown="event.preventDefault()" onclick="mdItalic()" title="Italic (⌘I)"><span data-icon="italic" data-icon-size="14"></span></button>
+        <button onmousedown="event.preventDefault()" onclick="mdStrike()" title="Strikethrough"><span data-icon="strikethrough" data-icon-size="14"></span></button>
+        <span class="md-float-sep"></span>
+        <button onmousedown="event.preventDefault()" onclick="mdHeading(1)" title="Heading 1" class="md-float-text">H1</button>
+        <button onmousedown="event.preventDefault()" onclick="mdHeading(2)" title="Heading 2" class="md-float-text">H2</button>
+        <span class="md-float-sep"></span>
+        <button onmousedown="event.preventDefault()" onclick="mdQuote()" title="Quote"><span data-icon="quote" data-icon-size="14"></span></button>
+        <button onmousedown="event.preventDefault()" onclick="mdChecklist()" title="Checklist"><span data-icon="checklist" data-icon-size="14"></span></button>
+        <button onmousedown="event.preventDefault()" onclick="mdLink()" title="Link"><span data-icon="link" data-icon-size="14"></span></button>
+        <button onmousedown="event.preventDefault()" onclick="mdInlineCode()" title="Code"><span data-icon="codeBlock" data-icon-size="14"></span></button>
+      </div>
+    </section>
+  </div>
+</div>
+
+<!-- TODO TAB -->
+<div id="tab-todo" class="tab ws-tab">
+  <div class="ws" id="tasks-ws">
+    <aside class="ws-side" id="tasks-side" aria-label="Task lists"></aside>
+    <section class="ws-main" aria-label="Tasks">
+      <header class="ws-head">
+        <div class="ws-head-text">
+          <h1 class="ws-title" id="tasks-title">Today</h1>
+          <div class="ws-subtitle" id="tasks-subtitle"></div>
+        </div>
+        <div class="ws-head-actions">
+          <div id="task-cal-nav" class="task-cal-nav" hidden>
+            <button class="loc-nav" onclick="taskCalNav(-1)" title="Previous month" aria-label="Previous month"><span data-icon="chevronLeft" data-icon-size="15"></span></button>
+            <span id="task-cal-label" class="task-cal-label"></span>
+            <button class="loc-nav" onclick="taskCalNav(1)" title="Next month" aria-label="Next month"><span data-icon="chevronRight" data-icon-size="15"></span></button>
+            <button class="btn-sm" onclick="taskCalNav(0)">Today</button>
+          </div>
+          <div class="segmented" id="task-view-btns" role="tablist" aria-label="View">
+            <button class="task-vbtn active" data-view="list" onclick="setTaskView('list')" title="List"><span data-icon="list" data-icon-size="14"></span></button>
+            <button class="task-vbtn" data-view="board" onclick="setTaskView('board')" title="Board"><span data-icon="board" data-icon-size="14"></span></button>
+            <button class="task-vbtn" data-view="calendar" onclick="setTaskView('calendar')" title="Calendar"><span data-icon="calendar" data-icon-size="14"></span></button>
+          </div>
+          <button class="loc-nav" onclick="taskListMenu(event)" title="Sort and options" aria-label="Sort and options"><span data-icon="more" data-icon-size="16"></span></button>
+        </div>
+      </header>
+      <form class="task-quickadd" id="task-quickadd" onsubmit="quickAddTask(event)" autocomplete="off">
+        <span class="task-quickadd-plus" data-icon="plus" data-icon-size="14"></span>
+        <input type="text" id="quick-task-input" placeholder='New task — try "Call Globex tomorrow 3pm #project !high"' oninput="quickAddPreview()" onkeydown="quickAddKey(event)" aria-label="New task">
+        <div class="qa-chips" id="quick-task-preview"></div>
+      </form>
+      <div class="ws-scroll" id="todo-list" tabindex="-1"></div>
+    </section>
+    <aside class="task-detail" id="task-detail" hidden aria-label="Task details"></aside>
+  </div>
+</div>
+
+<!-- PENDING / WORK QUEUE -->
+<div id="tab-pending" class="tab">
+  <div class="page-header">
+    <div>
+      <div class="page-title">Proposals</div>
+      <div class="page-subtitle">Requests, drafts and proposals in internal review.</div>
+    </div>
+    <div class="page-header-actions"><select class="fsel period-sel" onchange="setGlobalPeriod(this.value)" title="Period" aria-label="Period">
+      <option value="all">All time</option>
+      <option value="2026" class="opt-year">2026</option>
+      <option value="2026-Q1"> 2026 Q1 — Jan–Mar</option>
+      <option value="2026-Q2"> 2026 Q2 — Apr–Jun</option>
+      <option value="2026-Q3"> 2026 Q3 — Jul–Sep</option>
+      <option value="2026-Q4"> 2026 Q4 — Oct–Dec</option>
+      <option value="2025" class="opt-year">2025</option>
+      <option value="2025-Q1"> 2025 Q1 — Jan–Mar</option>
+      <option value="2025-Q2"> 2025 Q2 — Apr–Jun</option>
+      <option value="2025-Q3"> 2025 Q3 — Jul–Sep</option>
+      <option value="2025-Q4"> 2025 Q4 — Oct–Dec</option>
+      <option value="2024" class="opt-year">2024</option>
+      <option value="2024-Q1"> 2024 Q1 — Jan–Mar</option>
+      <option value="2024-Q2"> 2024 Q2 — Apr–Jun</option>
+      <option value="2024-Q3"> 2024 Q3 — Jul–Sep</option>
+      <option value="2024-Q4"> 2024 Q4 — Oct–Dec</option>
+      <option value="2023" class="opt-year">2023</option>
+      <option value="2023-Q1"> 2023 Q1 — Jan–Mar</option>
+      <option value="2023-Q2"> 2023 Q2 — Apr–Jun</option>
+      <option value="2023-Q3"> 2023 Q3 — Jul–Sep</option>
+      <option value="2023-Q4"> 2023 Q4 — Oct–Dec</option>
+    </select><button class="btn-primary" onclick="openProposalBuilder()"><span data-icon="plus" data-icon-size="14"></span> New proposal</button></div>
+  </div>
+  <nav class="pr-views" data-pr-views aria-label="Proposal views"></nav>
+  <div class="fbar">
+    <input type="text" class="f-search" id="wq-search" placeholder="Search client, type, owner..." oninput="renderPending()">
+    <select class="fsel" id="wq-filter-status" onchange="renderPending()">
+      <option value="">All stages</option>
+      <option value="Proposal Request Received">Request received</option>
+      <option value="Drafting">Drafting</option>
+      <option value="In Internal Review">In internal review</option>
+    </select>
+    <select class="fsel" id="wq-filter-owner" onchange="renderPending()">
+      <option value="">All Owners</option>
+    </select>
+    <select class="fsel" id="wq-sort" onchange="renderPending()">
+      <option value="age">Sort: Oldest First</option>
+      <option value="age-desc">Sort: Newest First</option>
+      <option value="client">Sort: Client A–Z</option>
+    </select>
+    <button class="btn-sm" onclick="wqClear()">Clear</button>
+    <button class="btn-sm" id="wq-toggle-archived" onclick="toggleWqArchived()">Show archived</button>
+    <span class="rcnt" id="wq-cnt">0 pending</span>
+  </div>
+  <div id="wq-content"></div>
+</div>
+
+<!-- FOLLOW-UP -->
+<div id="tab-followup" class="tab">
+  <div class="page-header">
+    <div>
+      <div class="page-title">Proposals</div>
+      <div class="page-subtitle">Sent to a client with no answer for over 10 days — mark them won or lost, or snooze them.</div>
+    </div>
+    <div class="page-header-actions"><select class="fsel period-sel" onchange="setGlobalPeriod(this.value)" title="Period" aria-label="Period">
+      <option value="all">All time</option>
+      <option value="2026" class="opt-year">2026</option>
+      <option value="2026-Q1"> 2026 Q1 — Jan–Mar</option>
+      <option value="2026-Q2"> 2026 Q2 — Apr–Jun</option>
+      <option value="2026-Q3"> 2026 Q3 — Jul–Sep</option>
+      <option value="2026-Q4"> 2026 Q4 — Oct–Dec</option>
+      <option value="2025" class="opt-year">2025</option>
+      <option value="2025-Q1"> 2025 Q1 — Jan–Mar</option>
+      <option value="2025-Q2"> 2025 Q2 — Apr–Jun</option>
+      <option value="2025-Q3"> 2025 Q3 — Jul–Sep</option>
+      <option value="2025-Q4"> 2025 Q4 — Oct–Dec</option>
+      <option value="2024" class="opt-year">2024</option>
+      <option value="2024-Q1"> 2024 Q1 — Jan–Mar</option>
+      <option value="2024-Q2"> 2024 Q2 — Apr–Jun</option>
+      <option value="2024-Q3"> 2024 Q3 — Jul–Sep</option>
+      <option value="2024-Q4"> 2024 Q4 — Oct–Dec</option>
+      <option value="2023" class="opt-year">2023</option>
+      <option value="2023-Q1"> 2023 Q1 — Jan–Mar</option>
+      <option value="2023-Q2"> 2023 Q2 — Apr–Jun</option>
+      <option value="2023-Q3"> 2023 Q3 — Jul–Sep</option>
+      <option value="2023-Q4"> 2023 Q4 — Oct–Dec</option>
+    </select>
+      <button class="btn-sm" id="fu-toggle-archived" onclick="toggleFuArchived()">Show archived</button>
+    </div>
+  </div>
+  <nav class="pr-views" data-pr-views aria-label="Proposal views"></nav>
+  <div id="fu-list"></div>
+</div>
+
+<!-- CONTACTS -->
+<div id="tab-contacts" class="tab">
+<div id="ct-list-view">
+  <div class="page-header">
+    <div>
+      <div class="page-title">Contacts</div>
+      <div class="page-subtitle">Everyone you work with, across every company.</div>
+    </div>
+    <div class="page-header-actions">
+      <button class="btn-sm" onclick="openCtListsModal()">Manage lists</button>
+      <button class="btn-secondary" onclick="exportAcContacts()" title="Export the selected (or filtered) contacts as an ActiveCampaign import file">Export to ActiveCampaign</button>
+      <button class="btn-primary" onclick="openContactModal()"><span data-icon="plus" data-icon-size="13"></span> New contact</button>
+    </div>
+  </div>
+  <div class="ct-people-banner" id="ct-people-banner" hidden></div>
+  <div class="fbar">
+    <input type="text" class="f-search" id="ct-search" placeholder="Search name, company, email, role, service…" oninput="renderContacts()">
+    <select class="fsel" id="ct-client" onchange="renderContacts()"><option value="">All Clients</option></select>
+    <select class="fsel" id="ct-list-filter" onchange="renderContacts()"><option value="">All lists</option></select>
+    <select class="fsel" id="ct-type-filter" onchange="renderContacts()" title="Filter by the client company's proposal/service type">
+      <option value="">All Service Types</option>
+      <option>Accountancy</option>
+      <option>Accountancy and VAT</option>
+      <option>Admin PRO</option>
+      <option>Admin PRO and Payroll</option>
+      <option>Business Setup and Maintenance Package</option>
+      <option>Company Constitution</option>
+      <option>Company Maintenance</option>
+      <option>Consultancy</option>
+      <option>Dedicated Recruiter</option>
+      <option>GM Representative</option>
+      <option>Manpower</option>
+      <option>Mobilization</option>
+      <option>National Staffing</option>
+      <option>Payroll</option>
+      <option>Payroll and GOSI</option>
+      <option>PRO</option>
+      <option>Recruitment</option>
+      <option>Training Services</option>
+      <option>Workforce</option>
+    </select>
+    <button class="btn-sm" onclick="openContactColumns(event)" title="Choose columns">Columns</button>
+    <span class="rcnt" id="ct-cnt">0 contacts</span>
+  </div>
+  <div class="list-bar" id="ct-lists-bar" aria-label="Lists"></div>
+  <div class="tbl-wrap">
+    <table class="tbl-lists"><thead id="ct-thead"></thead><tbody id="ct-tbody"></tbody></table>
+  </div>
+</div>
+<div class="record-page ct-detail" id="ct-detail">
+  <header class="rec-header">
+    <div class="rec-avatar round" id="ctd-avatar"></div>
+    <div class="rec-head-main">
+      <div class="rec-eyebrow">Contact</div>
+      <h1 class="rec-title" id="ctd-name"></h1>
+      <div class="rec-badges" id="ctd-meta"></div>
+    </div>
+    <div class="rec-actions" id="ctd-actions"></div>
+  </header>
+  <div class="ctd-grid">
+    <aside class="card ctd-props-card">
+      <div class="rec-section-hd"><h2>Details</h2><span class="rec-save-state" id="ctd-save-state"></span></div>
+      <dl class="rec-props ctd-props" id="ctd-props"></dl>
+      <div class="rec-section-hd rec-section-hd-spaced"><h2>Lists</h2></div>
+      <div class="ctd-lists" id="ctd-lists"></div>
+    </aside>
+    <div class="ctd-main">
+      <section class="rec-section card"><div class="rec-section-hd"><h2>Opportunities</h2><span class="rec-count" id="ctd-opps-count"></span></div><div class="rec-list" id="ctd-opps"></div></section>
+      <section class="rec-section card"><div class="rec-section-hd"><h2>Meetings</h2><span class="rec-count" id="ctd-meetings-count"></span></div><div class="rec-list" id="ctd-meetings"></div></section>
+      <section class="rec-section card"><div class="rec-section-hd"><h2>Emails</h2><span class="rec-count" id="ctd-emails-count"></span></div><div class="rec-list" id="ctd-emails"></div></section>
+      <section class="rec-section card"><div class="rec-section-hd"><h2>Mentioned in</h2><span class="rec-count" id="ctd-mentions-count"></span></div><div class="rec-list" id="ctd-mentions"></div></section>
+      <section class="rec-section card"><div class="rec-section-hd"><h2>Activity</h2></div><div class="feed" id="ctd-activity"></div></section>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- COMPANIES -->
+<div id="tab-companies" class="tab">
+  <div class="page-header">
+    <div>
+      <div class="page-title">Companies</div>
+      <div class="page-subtitle">Clients and prospects — proposals, contacts, files, and activity in one place.</div>
+    </div>
+  </div>
+  <div class="co-list-view" id="co-list-view">
+    <div class="co-review-queue" id="co-review-queue" style="display:none"></div>
+    <div class="co-quality-bar" id="co-quality-bar"></div>
+    <div class="co-search-bar">
+      <input type="text" class="f-search" id="co-search" placeholder="Search companies..." oninput="renderCompanyList()">
+      <select class="fsel" id="co-filter-status" onchange="renderCompanyList()" aria-label="Relationship">
+        <option value="">Any relationship</option>
+        <option value="client">Active clients</option>
+        <option value="discussion">In discussion</option>
+        <option value="prospect">Prospects</option>
+        <option value="past">Past clients or prospects</option>
+        <option value="open-opp">Has an open opportunity</option>
+        <option value="active">Has open proposals</option>
+        <option value="signed">Has a signed agreement</option>
+      </select>
+      <select class="fsel" id="co-filter-industry" onchange="renderCompanyList()" aria-label="Industry">
+        <option value="">All industries</option>
+      </select>
+      <select class="fsel" id="co-filter-service" onchange="renderCompanyList()" aria-label="Service">
+        <option value="">Any service</option>
+      </select>
+      <select class="fsel" id="co-filter-location" onchange="renderCompanyList()" aria-label="Location">
+        <option value="">Anywhere</option>
+      </select>
+      <select class="fsel" id="co-filter-owner" onchange="renderCompanyList()" aria-label="Owner">
+        <option value="">All owners</option>
+      </select>
+      <select class="fsel" id="co-filter-contacts" onchange="renderCompanyList()" aria-label="Contacts">
+        <option value="">With or without contacts</option>
+        <option value="none">No contacts yet</option>
+        <option value="some">Has contacts</option>
+      </select>
+      <button class="btn-sm" onclick="clearCompanyFilters()">Clear</button>
+      <select class="fsel" id="co-sort" onchange="sortCompaniesFromSelect(this.value)" aria-label="Sort">
+        <option value="relationship">Sort: Relationship</option>
+        <option value="company">Sort: A–Z</option>
+        <option value="mrr">Sort: Highest MRR</option>
+        <option value="renewal">Sort: Agreement ends soonest</option>
+        <option value="activity">Sort: Latest activity</option>
+        <option value="pipeline">Sort: Most open deals</option>
+        <option value="contacts">Sort: Most contacts</option>
+        <option value="proposals">Sort: Most proposals</option>
+      </select>
+      <div class="seg-btns" id="co-view-btns">
+        <button class="seg-btn co-vbtn active" data-view="grid" onclick="setCoListView('grid')"><span data-icon="board" data-icon-size="13"></span> Grid</button>
+        <button class="seg-btn co-vbtn" data-view="list" onclick="setCoListView('list')"><span data-icon="list" data-icon-size="13"></span> List</button>
+      </div>
+      <button class="btn-sm" id="co-columns-btn" onclick="openCompanyColumns(event)" title="Choose columns" hidden>Columns</button>
+      <span class="rcnt" id="co-cnt">0 companies</span>
+    </div>
+    <div class="list-bar" id="co-lists-bar" aria-label="Company lists"></div>
+    <div class="co-grid" id="co-grid"></div>
+    <div class="tbl-wrap" id="co-list-table" style="display:none"><table class="tbl-lists"><thead id="co-thead"></thead><tbody id="co-tbody"></tbody></table></div>
+  </div>
+
+  <div class="co-detail record-page" id="co-detail">
+    <header class="rec-header">
+      <div class="rec-avatar" id="co-avatar"></div>
+      <div class="rec-head-main">
+        <div class="rec-eyebrow">Company</div>
+        <h1 class="rec-title" id="co-detail-name"></h1>
+        <div class="rec-badges" id="co-detail-meta"></div>
+      </div>
+      <div class="rec-actions">
+        <button class="btn-primary" onclick="companyNewMenu(event)"><span data-icon="plus" data-icon-size="13"></span> New</button>
+        <button class="btn-secondary" onclick="openEditCompanyModal()">Edit</button>
+        <button class="loc-nav rec-more" onclick="companyMoreMenu(event)" title="More" aria-label="More"><span data-icon="more" data-icon-size="16"></span></button>
+      </div>
+    </header>
+    <nav class="rec-sections" id="co-section-nav" aria-label="Sections"></nav>
+
+    <section class="rec-section rec-overview" id="co-sec-overview" data-section="overview">
+      <div class="rec-stats" id="co-detail-kpis"></div>
+      <div class="rec-overview-grid">
+        <div class="card rec-facts" id="co-facts-card"><div class="rec-section-hd"><h2>Key facts</h2><div class="rec-section-actions"><button class="btn-sm" id="co-facts-edit-btn" onclick="openEditCompanyModal()">Edit</button></div></div><dl class="rec-props" id="co-facts"></dl><div class="co-facts-edit" id="co-facts-edit" hidden>
+    <div class="fgrp">
+      <label class="flbl">Company Name</label>
+      <input class="finp" id="edit-co-name" placeholder="Company name">
+      <div class="form-hint">Renaming will update all proposals, contacts, agreements, notes, tasks, meetings and projects linked to this company.</div>
+    </div>
+    <div class="fgrp">
+      <label class="flbl">Industry <span class="flbl-hint">(a company can have more than one)</span></label>
+      <div class="tag-chip-input" id="edit-co-industries"></div>
+      <datalist id="edit-co-industry-options"></datalist>
+    </div>
+    <div class="fg">
+      <div class="fgrp"><label class="flbl">Legal Name</label><input class="finp" id="edit-co-legal-name" placeholder="Full registered name"></div>
+      <div class="fgrp"><label class="flbl">Website</label><input class="finp" id="edit-co-website" placeholder="https://..."></div>
+      <div class="fgrp"><label class="flbl">Country</label><input class="finp" id="edit-co-country" placeholder="Country"></div>
+      <div class="fgrp"><label class="flbl">City</label><input class="finp" id="edit-co-city" placeholder="City"></div>
+      <div class="fgrp">
+        <label class="flbl">Company Type</label>
+        <select class="finp" id="edit-co-type">
+          <option value="">—</option>
+          <option value="Client">Client</option>
+          <option value="Prospect">Prospect</option>
+          <option value="Partner">Partner</option>
+          <option value="Vendor">Vendor</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <div class="fgrp">
+        <label class="flbl">Status</label>
+        <select class="finp" id="edit-co-status">
+          <option value="">—</option>
+          <option value="Active">Active</option>
+          <option value="Inactive">Inactive</option>
+          <option value="Dormant">Dormant</option>
+        </select>
+      </div>
+      <div class="fgrp"><label class="flbl">Owner</label><input class="finp" id="edit-co-owner" placeholder="Relationship owner" list="edit-co-owner-options"><datalist id="edit-co-owner-options"></datalist></div>
+      <div class="fgrp fgrp-end"><label class="check-label"><input type="checkbox" id="edit-co-archived"> Archived</label></div>
+    </div>
+    <div class="fgrp">
+      <label class="flbl">Description</label>
+      <textarea class="finp" id="edit-co-description" rows="2" placeholder="What this company is / does..."></textarea>
+    </div>
+    <div class="fact">
+      <button class="btn-secondary" onclick="closeEditCompanyModal()">Cancel</button>
+      <button class="btn-primary" onclick="saveEditCompany()">Save changes</button>
+    </div>
+  </div></div>
+        <div class="card rec-notes-card">
+          <div class="rec-section-hd"><h2>Company notes</h2><span class="rec-save-state" id="co-notes-state"></span></div>
+          <textarea class="rec-notes" id="co-notes-text" placeholder="Background, preferences, who decides — anything the team should know." oninput="companyNotesInput(this.value)"></textarea>
+        </div>
+      </div>
+      <div class="card" id="co-emails" style="display:none"></div>
+    </section>
+    <section class="rec-section card" id="co-sec-contacts" data-section="contacts">
+      <div class="rec-section-hd"><h2>Contacts</h2><span class="rec-count" id="co-contacts-count"></span><div class="rec-section-actions"><button class="btn-sm" onclick="openContactForCompany()">+ Add</button></div></div>
+      <div class="rec-list" id="co-contacts-list"></div>
+    </section>
+    <section class="rec-section card" id="co-sec-opportunities" data-section="opportunities">
+      <div class="rec-section-hd"><h2>Opportunities</h2><span class="rec-count" id="co-opps-count"></span><div class="rec-section-actions"><button class="btn-sm" onclick="createOpportunityForCurrentCompany()">+ New</button></div></div>
+      <div class="rec-list" id="co-opps-list"></div>
+    </section>
+    <section class="rec-section card" id="co-sec-proposals" data-section="proposals">
+      <div class="rec-section-hd"><h2>Proposals</h2><span class="rec-count" id="co-proposals-count"></span><div class="rec-section-actions"><button class="btn-sm" onclick="createProposalForCurrentCompany()">+ New</button></div></div>
+      <div class="tbl-wrap rec-table"><table><thead><tr><th>SL#</th><th>Service</th><th>Status</th><th>Sent</th><th>Signed</th><th>MRR</th><th>Log</th><th></th></tr></thead><tbody id="co-proposals-tbody"></tbody></table></div>
+    </section>
+    <section class="rec-section card" id="co-sec-projects" data-section="projects">
+      <div class="rec-section-hd"><h2>Projects</h2><span class="rec-count" id="co-projects-tab-count"></span><div class="rec-section-actions"><button class="btn-sm" onclick="createProjectForCurrentCompany()">+ New</button></div></div>
+      <div id="cosub-projects-inner"></div>
+    </section>
+    <section class="rec-section card" id="co-sec-agreements" data-section="agreements">
+      <div class="rec-section-hd"><h2>Agreements</h2><span class="rec-count" id="co-agreements-count"></span><div class="rec-section-actions"><button class="btn-sm" onclick="openAgrForCompany()">+ New</button></div></div>
+      <div class="tbl-wrap rec-table"><table><thead><tr><th>Ref</th><th>Type</th><th>Status</th><th>Sent</th><th>Client signed</th><th>MENA signed</th><th>MRR</th><th></th></tr></thead><tbody id="co-agreements-tbody"></tbody></table></div>
+    </section>
+    <section class="rec-section card" id="co-sec-meetings" data-section="meetings">
+      <div class="rec-section-hd"><h2>Meetings</h2><span class="rec-count" id="co-meetings-tab-count"></span><div class="rec-section-actions"><button class="btn-sm" onclick="createMeetingForCurrentCompany()">+ New</button></div></div>
+      <div id="cosub-meetings-inner"></div>
+    </section>
+    <section class="rec-section card" id="co-sec-notes" data-section="notes">
+      <div class="rec-section-hd"><h2>Notes</h2><span class="rec-count" id="co-notes-tab-count"></span><div class="rec-section-actions"><button class="btn-sm" onclick="createNoteForCurrentCompany()">+ New</button></div></div>
+      <div id="cosub-notes-inner"></div>
+    </section>
+    <section class="rec-section card" id="co-sec-tasks" data-section="tasks">
+      <div class="rec-section-hd"><h2>Tasks</h2><span class="rec-count" id="co-todos-tab-count"></span><div class="rec-section-actions"><button class="btn-sm" onclick="createTodoForCurrentCompany()">+ New</button></div></div>
+      <div id="cosub-todos-inner"></div>
+    </section>
+    <section class="rec-section card" id="co-sec-files" data-section="files">
+      <div class="rec-section-hd"><h2>Files</h2><span class="rec-count" id="co-files-tab-count"></span><div class="rec-section-actions"><button class="btn-sm" onclick="switchTab('files');msFilesOpenSetupWizard()">Match a folder…</button></div></div>
+      <div id="cosub-files-inner"></div>
+    </section>
+    <section class="rec-section card" id="co-sec-activity" data-section="activity">
+      <div class="rec-section-hd"><h2>Activity</h2><span class="rec-count" id="co-activity-count"></span><div class="rec-section-actions"><button class="btn-sm" onclick="openActivityNote()">+ Log note</button></div></div>
+      <div class="feed" id="co-timeline"></div>
+    </section>
+  </div>
+</div>
+
+<!-- AGREEMENTS -->
+<div id="tab-agreements" class="tab">
+<div id="agr-list-view">
+  <div class="page-header">
+    <div>
+      <div class="page-title">Agreements</div>
+      <div class="page-subtitle">Contracts from preparation to signature, and the services running under them.</div>
+    </div>
+    <div class="page-header-actions">
+      <button class="btn-secondary" onclick="exportAgreementsCSV()">Export CSV</button>
+      <button class="btn-primary" onclick="openAgrModal(null)"><span data-icon="plus" data-icon-size="14"></span> New agreement</button>
+    </div>
+  </div>
+  <div id="agr-summary" class="kpi-row-auto"></div>
+  <div class="fbar">
+    <input type="text" class="f-search" id="agr-search" placeholder="Search client, reference, service, remarks…" oninput="renderAgreements()">
+    <select class="fsel" id="agr-status" onchange="renderAgreements()"><option value="">All statuses</option></select>
+    <select class="fsel" id="agr-service" onchange="renderAgreements()"><option value="">Any service status</option></select>
+    <select class="fsel" id="agr-type" onchange="renderAgreements()"><option value="">All types</option></select>
+    <select class="fsel" id="agr-prep" onchange="renderAgreements()"><option value="">Prepared by anyone</option></select>
+    <button class="btn-sm" onclick="agrClear()">Clear</button>
+    <span class="rcnt" id="agr-cnt">0 agreements</span>
+  </div>
+  <div class="tbl-wrap data-table">
+    <table>
+      <thead><tr>
+        <th>Reference</th>
+        <th>Client</th>
+        <th>Services</th>
+        <th>Status</th>
+        <th>Service</th>
+        <th>Prepared by</th>
+        <th>Start</th>
+        <th>End</th>
+        <th class="num">Monthly</th>
+      </tr></thead>
+      <tbody id="agr-tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="record-page agr-page" id="agr-detail">
+  <header class="rec-header">
+    <div class="rec-avatar rec-avatar-icon" data-icon="document" data-icon-size="24"></div>
+    <div class="rec-head-main">
+      <div class="rec-eyebrow">Agreement</div>
+      <h1 class="rec-title" id="agd-title"></h1>
+      <div class="rec-badges" id="agd-badges"></div>
+    </div>
+    <div class="rec-actions" id="agd-actions"></div>
+  </header>
+  <div class="ctd-grid">
+    <aside class="card ctd-props-card">
+      <div class="rec-section-hd"><h2>Details</h2><span class="rec-save-state" id="agd-save-state"></span></div>
+      <dl class="rec-props pr-props" id="agd-props"></dl>
+    </aside>
+    <div class="ctd-main">
+      <section class="rec-section card">
+        <div class="rec-section-hd"><h2>Term and service</h2></div>
+        <dl class="rec-props pr-props" id="agd-term"></dl>
+      </section>
+      <section class="rec-section card">
+        <div class="rec-section-hd"><h2>Services on this agreement</h2><span class="rec-count" id="agd-lines-count"></span></div>
+        <div id="agd-lines"></div>
+      </section>
+      <section class="rec-section card">
+        <div class="rec-section-hd"><h2>Signature trail</h2></div>
+        <dl class="rec-props pr-props" id="agd-dates"></dl>
+      </section>
+      <section class="rec-section card">
+        <div class="rec-section-hd"><h2>Activity</h2></div>
+        <div class="feed" id="agd-activity"></div>
+      </section>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- DATABASE (Proposals) -->
+<div id="tab-database" class="tab">
+<div id="pr-list-view">
+  <div class="page-header">
+    <div>
+      <div class="page-title">Proposals</div>
+      <div class="page-subtitle">Every proposal, from the first request to signature.</div>
+    </div>
+    <div class="page-header-actions"><select class="fsel period-sel" onchange="setGlobalPeriod(this.value)" title="Period" aria-label="Period">
+      <option value="all">All time</option>
+      <option value="2026" class="opt-year">2026</option>
+      <option value="2026-Q1"> 2026 Q1 — Jan–Mar</option>
+      <option value="2026-Q2"> 2026 Q2 — Apr–Jun</option>
+      <option value="2026-Q3"> 2026 Q3 — Jul–Sep</option>
+      <option value="2026-Q4"> 2026 Q4 — Oct–Dec</option>
+      <option value="2025" class="opt-year">2025</option>
+      <option value="2025-Q1"> 2025 Q1 — Jan–Mar</option>
+      <option value="2025-Q2"> 2025 Q2 — Apr–Jun</option>
+      <option value="2025-Q3"> 2025 Q3 — Jul–Sep</option>
+      <option value="2025-Q4"> 2025 Q4 — Oct–Dec</option>
+      <option value="2024" class="opt-year">2024</option>
+      <option value="2024-Q1"> 2024 Q1 — Jan–Mar</option>
+      <option value="2024-Q2"> 2024 Q2 — Apr–Jun</option>
+      <option value="2024-Q3"> 2024 Q3 — Jul–Sep</option>
+      <option value="2024-Q4"> 2024 Q4 — Oct–Dec</option>
+      <option value="2023" class="opt-year">2023</option>
+      <option value="2023-Q1"> 2023 Q1 — Jan–Mar</option>
+      <option value="2023-Q2"> 2023 Q2 — Apr–Jun</option>
+      <option value="2023-Q3"> 2023 Q3 — Jul–Sep</option>
+      <option value="2023-Q4"> 2023 Q4 — Oct–Dec</option>
+    </select>
+      <button class="btn-secondary" onclick="exportFiltered()">Export CSV</button>
+      <button class="btn-primary" onclick="openProposalBuilder()"><span data-icon="plus" data-icon-size="14"></span> New proposal</button>
+    </div>
+  </div>
+  <nav class="pr-views" data-pr-views aria-label="Proposal views"></nav>
+  <div class="fbar">
+    <input type="text" class="f-search" id="db-search" placeholder="Search client, service, owner, remarks…" oninput="dbSearchChanged()">
+    <select class="fsel" id="db-status" onchange="dbFilter()"><option value="">All statuses</option></select>
+    <select class="fsel" id="db-type" onchange="dbFilter()"><option value="">All services</option></select>
+    <select class="fsel" id="db-owner" onchange="dbFilter()"><option value="">All owners</option></select>
+    <select class="fsel" id="db-entity" onchange="dbFilter()"><option value="">All entities</option></select>
+    <div class="fbar-range" aria-label="Sent date range">
+      <span>Sent</span>
+      <input type="date" id="db-df" onchange="dbFilter()" aria-label="Sent from">
+      <span>to</span>
+      <input type="date" id="db-dt" onchange="dbFilter()" aria-label="Sent to">
+    </div>
+    <button class="btn-sm" onclick="dbClear()">Clear</button>
+    <label class="check-label"><input type="checkbox" id="db-show-archived" onchange="dbFilter()"> Show archived</label>
+    <span class="rcnt" id="db-cnt">0 results</span>
+  </div>
+  <div class="tbl-wrap data-table">
+    <table id="db-table">
+      <thead><tr>
+        <th class="td-chk"><input type="checkbox" id="db-select-all" onchange="dbSelectAll(this.checked)" aria-label="Select all on this page"></th>
+        <th onclick="dbSort('id')">SL#</th>
+        <th onclick="dbSort('client')">Client</th>
+        <th onclick="dbSort('type')">Services</th>
+        <th onclick="dbSort('status')">Status</th>
+        <th onclick="dbSort('owner')">Owner</th>
+        <th onclick="dbSort('dateAdded')">Received</th>
+        <th onclick="dbSort('sentDate')">Sent</th>
+        <th onclick="dbSort('dblSignedDate')">Signed</th>
+        <th class="num" onclick="dbSort('monthlyFee')">Monthly</th>
+        <th onclick="dbSort('contractMonths')">Term</th>
+        
+      </tr></thead>
+      <tbody id="db-tbody"></tbody>
+    </table>
+  </div>
+  <div class="pgn">
+    <button class="pgn-btn" id="pgn-prev" onclick="dbPageChange(-1)" disabled>← Prev</button>
+    <span class="pgn-info" id="pgn-info">Page 1 of 1</span>
+    <button class="pgn-btn" id="pgn-next" onclick="dbPageChange(1)">Next →</button>
+  </div>
+</div>
+
+<div class="record-page pr-page" id="pr-detail">
+  <header class="rec-header">
+    <div class="rec-avatar" id="prd-avatar"></div>
+    <div class="rec-head-main">
+      <div class="rec-eyebrow" id="prd-eyebrow">Proposal</div>
+      <h1 class="rec-title" id="prd-title"></h1>
+      <div class="rec-badges" id="prd-badges"></div>
+    </div>
+    <div class="rec-actions" id="prd-actions"></div>
+  </header>
+  <ol class="pr-stages" id="prd-stages" aria-label="Progress"></ol>
+  <div class="pr-toolbar" id="prd-toolbar"></div>
+  <div class="ctd-grid pr-grid">
+    <aside class="card ctd-props-card">
+      <div class="rec-section-hd"><h2>Details</h2><span class="rec-save-state" id="prd-save-state"></span></div>
+      <dl class="rec-props pr-props" id="prd-props"></dl>
+    </aside>
+    <div class="ctd-main">
+      <section class="rec-section card pr-review" id="prd-review"></section>
+      <section class="rec-section card" id="prd-commercials-sec">
+        <div class="rec-section-hd"><h2>Commercials</h2><span class="rec-count" id="prd-lines-count"></span></div>
+        <div id="prd-lines"></div>
+      </section>
+      <section class="rec-section card" id="prd-documents-sec">
+        <div class="rec-section-hd"><h2>Documents</h2><span class="rec-count" id="prd-docs-count"></span><div class="rec-section-actions" id="prd-docs-actions"></div></div>
+        <div id="prd-folder"></div>
+        <div class="rec-list" id="prd-docs"></div>
+      </section>
+      <section class="rec-section card">
+        <div class="rec-section-hd"><h2>Linked records</h2></div>
+        <div class="rec-list" id="prd-related"></div>
+      </section>
+      <section class="rec-section card">
+        <div class="rec-section-hd"><h2>Notes</h2><span class="rec-count" id="prd-notes-count"></span></div>
+        <div class="pr-note-add">
+          <textarea class="finp" id="prd-note-input" rows="2" placeholder="Log a call, email or decision…" onkeydown="if((event.metaKey||event.ctrlKey)&&event.key==='Enter')addProposalPageNote()"></textarea>
+          <button class="btn-secondary" onclick="addProposalPageNote()">Add note</button>
+        </div>
+        <div class="feed" id="prd-notes"></div>
+      </section>
+      <section class="rec-section card">
+        <div class="rec-section-hd"><h2>Activity</h2></div>
+        <div class="feed" id="prd-activity"></div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<div class="record-page pr-builder" id="pr-builder">
+  <header class="rec-header">
+    <div class="rec-avatar rec-avatar-icon" data-icon="database" data-icon-size="24"></div>
+    <div class="rec-head-main">
+      <div class="rec-eyebrow">New proposal</div>
+      <h1 class="rec-title" id="prb-title">Create a proposal</h1>
+      <div class="rec-badges"><span class="rec-meta">One proposal, with a line for each service.</span></div>
+    </div>
+    <div class="rec-actions">
+      <button class="btn-secondary" type="button" onclick="closeProposalBuilder()">Cancel</button>
+      <button class="btn-primary" type="submit" form="prb-form">Create proposal</button>
+    </div>
+  </header>
+  <form id="prb-form" class="prb-grid" onsubmit="submitProposalBuilder(event)" autocomplete="off">
+    <div class="prb-main">
+      <section class="card prb-section">
+        <div class="prb-section-hd"><span class="prb-step">1</span><h2>Client</h2></div>
+        <div class="fg">
+          <div class="fgrp fgrp-full"><label class="flbl" for="prb-client">Company *</label><input class="finp" id="prb-client" required placeholder="Search or type a new company" oninput="prbClientChanged()"></div>
+        </div>
+        <div id="prb-client-info"></div>
+        <div class="fg">
+          <div class="fgrp"><label class="flbl" for="prb-opportunity">Opportunity</label><select class="finp" id="prb-opportunity"></select></div>
+          <div class="fgrp"><label class="flbl" for="prb-contact">Primary contact</label><select class="finp" id="prb-contact" onchange="prbContactChanged()"></select></div>
+        </div>
+        <div class="fg prb-new-contact" id="prb-new-contact" hidden>
+          <div class="fgrp"><label class="flbl" for="prb-ct-name">Name</label><input class="finp" id="prb-ct-name" placeholder="Full name"></div>
+          <div class="fgrp"><label class="flbl" for="prb-ct-role">Role</label><input class="finp" id="prb-ct-role" placeholder="e.g. HR Director"></div>
+          <div class="fgrp"><label class="flbl" for="prb-ct-email">Email</label><input class="finp" id="prb-ct-email" type="email" placeholder="name@company.com"></div>
+          <div class="fgrp"><label class="flbl" for="prb-ct-phone">Phone</label><input class="finp" id="prb-ct-phone" placeholder="+966…"></div>
+        </div>
+      </section>
+      <section class="card prb-section">
+        <div class="prb-section-hd"><span class="prb-step">2</span><h2>Services</h2><span class="prb-hint">Pick one or more — each becomes a line you can price.</span></div>
+        <div class="prb-service-picker" id="prb-service-picker"></div>
+        <div id="prb-lines"></div>
+      </section>
+      <section class="card prb-section">
+        <div class="prb-section-hd"><span class="prb-step">3</span><h2>Terms</h2></div>
+        <div class="fg">
+          <div class="fgrp"><label class="flbl" for="prb-entity">Business entity</label><select class="finp" id="prb-entity" onchange="prbEntityChanged()"></select></div>
+          <div class="fgrp"><label class="flbl" for="prb-currency">Currency</label><select class="finp" id="prb-currency" onchange="prbRefreshLines()"></select></div>
+          <div class="fgrp"><label class="flbl" for="prb-months">Contract term</label><select class="finp" id="prb-months" onchange="prbRefreshLines()"><option value="">Not set</option><option value="3">3 months</option><option value="6">6 months</option><option value="12">12 months</option><option value="24">24 months</option><option value="36">36 months</option></select></div>
+          <div class="fgrp"><label class="flbl" for="prb-valid">Valid until</label><input class="finp" type="date" id="prb-valid"></div>
+        </div>
+      </section>
+      <section class="card prb-section">
+        <div class="prb-section-hd"><span class="prb-step">4</span><h2>Workflow</h2></div>
+        <div class="fg">
+          <div class="fgrp"><label class="flbl" for="prb-status">Where it stands</label><select class="finp" id="prb-status" onchange="prbStatusChanged()">
+            <option value="Proposal Request Received">Request received — not started</option>
+            <option value="Drafting">Drafting</option>
+            <option value="In Internal Review">Ready for internal review</option>
+            <option value="Sent to Client">Already sent to the client</option>
+          </select></div>
+          <div class="fgrp"><label class="flbl" for="prb-received">Request received on</label><input class="finp" type="date" id="prb-received"></div>
+          <div class="fgrp" id="prb-sent-grp" hidden><label class="flbl" for="prb-sent">Sent to client on</label><input class="finp" type="date" id="prb-sent"></div>
+          <div class="fgrp"><label class="flbl" for="prb-owner">Owner</label><select class="finp" id="prb-owner"></select></div>
+          <div class="fgrp"><label class="flbl" for="prb-reviewer">Reviewer</label><select class="finp" id="prb-reviewer"></select></div>
+          <div class="fgrp"><label class="flbl" for="prb-source">Lead source</label><select class="finp" id="prb-source"></select></div>
+          <div class="fgrp fgrp-full"><label class="flbl" for="prb-remarks">Remarks</label><textarea class="finp" id="prb-remarks" rows="2" placeholder="Anything the team should know"></textarea></div>
+        </div>
+      </section>
+    </div>
+    <aside class="prb-side">
+      <div class="card prb-summary" id="prb-summary"></div>
+      <div class="card prb-folder" id="prb-folder"></div>
+    </aside>
+  </form>
+</div>
+</div>
+
+<!-- REPORTS -->
+<div id="tab-reports" class="tab">
+  <div class="page-header">
+    <div>
+      <div class="page-title">Reports</div>
+      <div class="page-subtitle">Filter proposals and export them, or prepare a HubSpot import.</div>
+    </div>
+    <div class="page-header-actions"><select class="fsel period-sel" onchange="setGlobalPeriod(this.value)" title="Period" aria-label="Period">
+      <option value="all">All time</option>
+      <option value="2026" class="opt-year">2026</option>
+      <option value="2026-Q1"> 2026 Q1 — Jan–Mar</option>
+      <option value="2026-Q2"> 2026 Q2 — Apr–Jun</option>
+      <option value="2026-Q3"> 2026 Q3 — Jul–Sep</option>
+      <option value="2026-Q4"> 2026 Q4 — Oct–Dec</option>
+      <option value="2025" class="opt-year">2025</option>
+      <option value="2025-Q1"> 2025 Q1 — Jan–Mar</option>
+      <option value="2025-Q2"> 2025 Q2 — Apr–Jun</option>
+      <option value="2025-Q3"> 2025 Q3 — Jul–Sep</option>
+      <option value="2025-Q4"> 2025 Q4 — Oct–Dec</option>
+      <option value="2024" class="opt-year">2024</option>
+      <option value="2024-Q1"> 2024 Q1 — Jan–Mar</option>
+      <option value="2024-Q2"> 2024 Q2 — Apr–Jun</option>
+      <option value="2024-Q3"> 2024 Q3 — Jul–Sep</option>
+      <option value="2024-Q4"> 2024 Q4 — Oct–Dec</option>
+      <option value="2023" class="opt-year">2023</option>
+      <option value="2023-Q1"> 2023 Q1 — Jan–Mar</option>
+      <option value="2023-Q2"> 2023 Q2 — Apr–Jun</option>
+      <option value="2023-Q3"> 2023 Q3 — Jul–Sep</option>
+      <option value="2023-Q4"> 2023 Q4 — Oct–Dec</option>
+    </select>
+      <button class="btn-primary" onclick="exportReport()">Export CSV</button>
+    </div>
+  </div>
+  <div class="fbar">
+    <input type="text" class="f-search" id="r-search" placeholder="Search client…" oninput="renderReports()">
+    <select class="fsel" id="r-status" onchange="renderReports()"><option value="">All</option></select>
+    <select class="fsel" id="r-type" onchange="renderReports()"><option value="">All</option></select>
+    <span class="fbar-range">Sent <input type="date" id="r-df" onchange="renderReports()" aria-label="Sent from"> to <input type="date" id="r-dt" onchange="renderReports()" aria-label="Sent to"></span>
+    <button class="btn-sm" onclick="rptClear()">Clear</button>
+  </div>
+  <div class="rpt-sum" id="rpt-sum"></div>
+  <div class="breakdown" id="rpt-breakdown"></div>
+  <div class="tbl-wrap"><table><thead><tr>
+    <th>#</th><th>SL#</th><th>Client</th><th>Type</th><th>Status</th><th>Sent</th><th>Signed</th><th>MRR</th><th>Added</th><th>Owner</th><th>Remarks</th>
+  </tr></thead><tbody id="rpt-tbody"></tbody></table></div>
+  <section class="card export-card">
+    <div class="export-card-hd">
+      <div><div class="card-hd">HubSpot export</div><p class="settings-card-desc">HubSpot-ready CSV files: each proposal becomes a <strong>Deal</strong>, each client a <strong>Company</strong>.</p></div>
+      <label class="check-label"><input type="checkbox" id="hs-new-only"> Only records not yet in HubSpot</label>
+    </div>
+    <div class="export-grid">
+      <div class="export-tile"><div class="export-tile-title">Companies CSV</div><p>One row per client. Import this first.</p><button class="btn-secondary" onclick="exportHubSpotCompanies()">Export companies</button></div>
+      <div class="export-tile"><div class="export-tile-title">Deals CSV</div><p>One row per proposal. Import after companies.</p><button class="btn-secondary" onclick="exportHubSpotDeals()">Export deals</button></div>
+    </div>
+    <p class="export-note">Stage names must match your HubSpot pipeline, or remap them during import. <a href="#" class="rlink" onclick="event.preventDefault();openExternalUrl('https://knowledge.hubspot.com/import-and-export/set-up-your-import-file')">HubSpot import guide</a></p>
+    <details class="export-details"><summary>Deal stage mapping</summary>
+      <div class="tbl-wrap mini-table"><table><thead><tr><th>MENA BIG status</th><th>HubSpot stage</th></tr></thead><tbody id="stage-map-tbody"></tbody></table></div>
+    </details>
+  </section>
+</div>
+
+<!-- ANALYTICS -->
+<div id="tab-analytics" class="tab">
+  <div class="page-header">
+    <div>
+      <div class="page-title">Analytics</div>
+      <div class="page-subtitle">Pipeline health, what we win and lose, and month-by-month results.</div>
+    </div>
+    <div class="page-header-actions"><select class="fsel period-sel" onchange="setGlobalPeriod(this.value)" title="Period" aria-label="Period">
+      <option value="all">All time</option>
+      <option value="2026" class="opt-year">2026</option>
+      <option value="2026-Q1"> 2026 Q1 — Jan–Mar</option>
+      <option value="2026-Q2"> 2026 Q2 — Apr–Jun</option>
+      <option value="2026-Q3"> 2026 Q3 — Jul–Sep</option>
+      <option value="2026-Q4"> 2026 Q4 — Oct–Dec</option>
+      <option value="2025" class="opt-year">2025</option>
+      <option value="2025-Q1"> 2025 Q1 — Jan–Mar</option>
+      <option value="2025-Q2"> 2025 Q2 — Apr–Jun</option>
+      <option value="2025-Q3"> 2025 Q3 — Jul–Sep</option>
+      <option value="2025-Q4"> 2025 Q4 — Oct–Dec</option>
+      <option value="2024" class="opt-year">2024</option>
+      <option value="2024-Q1"> 2024 Q1 — Jan–Mar</option>
+      <option value="2024-Q2"> 2024 Q2 — Apr–Jun</option>
+      <option value="2024-Q3"> 2024 Q3 — Jul–Sep</option>
+      <option value="2024-Q4"> 2024 Q4 — Oct–Dec</option>
+      <option value="2023" class="opt-year">2023</option>
+      <option value="2023-Q1"> 2023 Q1 — Jan–Mar</option>
+      <option value="2023-Q2"> 2023 Q2 — Apr–Jun</option>
+      <option value="2023-Q3"> 2023 Q3 — Jul–Sep</option>
+      <option value="2023-Q4"> 2023 Q4 — Oct–Dec</option>
+    </select></div>
+  </div>
+  <div class="seg-btns an-views" role="tablist" aria-label="Analytics view">
+    <button class="seg-btn active" data-an-view="pipeline" onclick="setAnalyticsView('pipeline')">Pipeline</button>
+    <button class="seg-btn" data-an-view="winloss" onclick="setAnalyticsView('winloss')">Win &amp; loss</button>
+    <button class="seg-btn" data-an-view="monthly" onclick="setAnalyticsView('monthly')">Monthly</button>
+  </div>
+  <div id="an-pipeline"></div>
+  <div id="an-winloss" hidden></div>
+  <div id="an-monthly" hidden>
+    <div class="card">
+      <div class="analytics-pickers">
+        <div class="fgrp"><label class="flbl">Month</label><select class="finp" id="mp-month" onchange="renderMonthlyReport()"><option value="">Select month…</option></select></div>
+        <div class="fgrp"><label class="flbl">Year</label><select class="finp" id="mp-year" onchange="renderMonthlyReport()"></select></div>
+      </div>
+      <div id="mp-content"><div class="feed-empty">Choose a month above.</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- SERVICES (catalog + rate card) -->
+<div id="tab-pricing" class="tab">
+  <div class="page-header">
+    <div>
+      <div class="page-title">Services</div>
+      <div class="page-subtitle">The services MENA BIG sells, what agreement each becomes, and the rate card behind their prices.</div>
+    </div>
+    <div class="page-header-actions">
+      <button class="btn-primary" onclick="openServiceEditor(null)"><span data-icon="plus" data-icon-size="14"></span> New service</button>
+    </div>
+  </div>
+  <div class="seg-btns svc-views" role="tablist" aria-label="Services view">
+    <button class="seg-btn active" data-svc-view="catalog" onclick="setServicesView('catalog')">Catalog</button>
+    <button class="seg-btn" data-svc-view="rates" onclick="setServicesView('rates')">Rate card</button>
+    <button class="seg-btn" data-svc-view="templates" onclick="setServicesView('templates')">Proposal templates</button>
+  </div>
+  <div class="fbar">
+    <input type="text" class="f-search" id="price-search" placeholder="Search services…" oninput="renderPricingTab()">
+    <select class="fsel" id="price-filter" onchange="renderPricingTab()"><option value="">All categories</option></select>
+    <label class="check-label" id="svc-inactive-wrap"><input type="checkbox" id="svc-show-inactive" onchange="renderPricingTab()"> Show retired services</label>
+  </div>
+  <div id="pricing-content"></div>
+</div>
+
+</main>
+</div><!-- /app-main -->
+
+<!-- GENERATE PROPOSAL -->
+<div class="modal-ov" id="modal-generate" onclick="if(event.target===this)closeGenerateProposal()">
+  <div class="modal modal-lg">
+    <div class="modal-hd"><div class="modal-title">Generate proposal</div><button class="modal-close" onclick="closeGenerateProposal()">×</button></div>
+    <div class="fg">
+      <div class="fgrp"><label class="flbl" for="gen-template">Design</label><select class="finp" id="gen-template" onchange="refreshGeneratePreview(true)"></select></div>
+      <div class="fgrp"><label class="flbl" for="gen-file-name">File name</label><input class="finp" id="gen-file-name"></div>
+      <div class="fgrp fgrp-full"><label class="flbl" for="gen-logo">Client logo</label>
+        <div class="btn-row"><select class="finp" id="gen-logo" onchange="refreshGeneratePreview()"></select><button class="btn-secondary" type="button" onclick="chooseGenerateLogo()">Choose…</button></div>
+      </div>
+    </div>
+    <div id="gen-preview"></div>
+    <div class="fact">
+      <button class="btn-secondary" onclick="closeGenerateProposal()">Cancel</button>
+      <button class="btn-primary" id="gen-confirm" onclick="confirmGenerateProposal()">Generate</button>
+    </div>
+  </div>
+</div>
+
+<!-- WEBSITES FROM EMAIL DOMAINS -->
+<div class="modal-ov" id="modal-websites" onclick="if(event.target===this)closeWebsiteSuggestions()">
+  <div class="modal modal-lg">
+    <div class="modal-hd"><div class="modal-title">Fill websites from email domains</div><button class="modal-close" onclick="closeWebsiteSuggestions()">×</button></div>
+    <div id="websites-body"></div>
+    <div class="fact">
+      <button class="btn-secondary" onclick="closeWebsiteSuggestions()">Cancel</button>
+      <button class="btn-primary" id="websites-apply" onclick="applyWebsiteSuggestions()">Fill selected websites</button>
+    </div>
+  </div>
+</div>
+
+<!-- SERVICE EDITOR -->
+<div class="modal-ov" id="modal-service" onclick="if(event.target===this)closeServiceEditor()">
+  <div class="modal modal-md">
+    <div class="modal-hd"><div class="modal-title" id="svc-modal-title">New service</div><button class="modal-close" onclick="closeServiceEditor()">×</button></div>
+    <form id="service-form" onsubmit="submitServiceEditor(event)">
+      <div class="fg">
+        <div class="fgrp fgrp-full"><label class="flbl">Name *</label><input class="finp" name="svcName" required placeholder="e.g. Saudization Advisory"></div>
+        <div class="fgrp"><label class="flbl">Category</label><input class="finp" name="svcCategory" list="svc-cat-list" placeholder="e.g. Workforce Services"><datalist id="svc-cat-list"></datalist></div>
+        <div class="fgrp"><label class="flbl">Billing</label><select class="finp" name="svcBilling"><option value="monthly">Monthly</option><option value="one_time">One-time</option></select></div>
+        <div class="fgrp"><label class="flbl">Becomes agreement type</label><select class="finp" name="svcAgreementType" id="svc-agr-type"></select></div>
+        <div class="fgrp"><label class="flbl">Rate card</label><select class="finp" name="svcRateCard" id="svc-rate-card"></select></div>
+        <div class="fgrp"><label class="flbl">Default price (SAR)</label><input class="finp" type="number" min="0" step="50" name="svcPrice" placeholder="Optional"></div>
+        <div class="fgrp fgrp-end"><label class="check-label"><input type="checkbox" name="svcActive" checked> Offered today</label></div>
+        <div class="fgrp fgrp-full"><label class="flbl">Description</label><textarea class="finp" name="svcDescription" rows="2" placeholder="What the service covers (optional)"></textarea></div>
+      </div>
+      <p class="form-hint" id="svc-usage"></p>
+      <div class="fact">
+        <button type="button" class="btn-secondary" onclick="closeServiceEditor()">Cancel</button>
+        <button type="submit" class="btn-primary">Save service</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- RATE CARD -->
+<div class="modal-ov" id="modal-rate-card" onclick="if(event.target===this)closeRateCardEditor()">
+  <div class="modal modal-lg">
+    <div class="modal-hd"><div class="modal-title" id="rate-card-title">Rate card</div><button class="modal-close" onclick="closeRateCardEditor()">×</button></div>
+    <div class="modal-sub">Prices are ranges with a usual (standard) figure. Proposal lines suggest the standard and flag prices outside the range. Existing proposals keep their prices.</div>
+    <div id="rate-card-body"></div>
+    <div class="fact">
+      <button type="button" class="btn-secondary" onclick="closeRateCardEditor()">Cancel</button>
+      <button type="button" class="btn-primary" onclick="saveRateCardEditor()">Save rate card</button>
+    </div>
+  </div>
+</div>
+
+<!-- WIN/LOSS REASON MODAL -->
+<div class="modal-ov" id="modal-people-review" onclick="if(event.target===this)closePeopleFromMeetings()">
+  <div class="modal modal-lg">
+    <div class="modal-hd"><div class="modal-title">People from your meetings</div><button class="modal-close" onclick="closePeopleFromMeetings()">×</button></div>
+    <div class="modal-sub">People who attended your Outlook meetings but aren't contacts yet. Check the name and company, then add them. Their email domain is remembered, so future meetings link to the company by themselves.</div>
+    <div id="people-review-body"></div>
+    <div class="fact">
+      <button class="btn-secondary" onclick="closePeopleFromMeetings()">Cancel</button>
+      <button class="btn-primary" onclick="addReviewedPeople()">Add selected</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-ov" id="modal-wl" onclick="if(event.target===this)closeWlModal()">
+  <div class="modal modal-sm">
+    <div class="modal-hd"><div class="modal-title" id="wl-title">Close Proposal</div><button class="modal-close" onclick="closeWlModal()">×</button></div>
+    <div class="modal-sub" id="wl-client"></div>
+    <div class="fgrp" id="wl-date-grp">
+      <label class="flbl" for="wl-date">Date signed by both parties</label>
+      <input type="date" class="finp" id="wl-date">
+    </div>
+    <div class="fgrp">
+      <label class="flbl" id="wl-reason-lbl" for="wl-reason">Reason</label>
+      <select class="finp" id="wl-reason"></select>
+    </div>
+    <div class="fgrp">
+      <label class="flbl">Additional Notes (optional)</label>
+      <textarea class="finp" id="wl-note" rows="2" placeholder="Any further context..."></textarea>
+    </div>
+    <div class="fact">
+      <button class="btn-secondary" onclick="closeWlModal()">Cancel</button>
+      <button class="btn-primary" id="wl-confirm-btn" onclick="confirmWinLoss()">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- ACTIVITY LOG MODAL -->
+<div class="modal-ov" id="modal-notes" onclick="if(event.target===this)closeNotesModal()">
+  <div class="modal modal-md">
+    <div class="modal-hd"><div class="modal-title">Activity Log &amp; Notes</div><button class="modal-close" onclick="closeNotesModal()">×</button></div>
+    <div class="modal-sub" id="notes-client"></div>
+    <div class="activity-notes-list" id="activity-notes-list"></div>
+    <div class="fgrp">
+      <label class="flbl">Add New Note</label>
+      <textarea class="finp" id="notes-input" rows="2" placeholder="Log a call, email, meeting outcome..."></textarea>
+    </div>
+    <div class="fact">
+      <button class="btn-secondary" onclick="closeNotesModal()">Close</button>
+      <button class="btn-primary" onclick="addNote()">+ Add Note</button>
+    </div>
+  </div>
+</div>
+
+<!-- CONTACT MODAL -->
+<div class="modal-ov" id="modal-contact" onclick="if(event.target===this)closeContactModal()">
+  <div class="modal modal-md">
+    <div class="modal-hd"><div class="modal-title" id="ct-modal-title">Add Contact</div><button class="modal-close" onclick="closeContactModal()">×</button></div>
+    <form id="contact-form" onsubmit="submitContact(event)">
+      <div class="fg">
+        <div class="fgrp fgrp-full"><label class="flbl">Full Name *</label><input class="finp" name="ct-name" required placeholder="e.g. Ahmed Al-Rashidi"></div>
+        <div class="fgrp"><label class="flbl">Client / Company *</label><input class="finp" name="ct-client" id="ct-modal-client" required placeholder="Must match an existing client name" list="ct-client-list"><datalist id="ct-client-list"></datalist></div>
+        <div class="fgrp"><label class="flbl">Role / Title</label><input class="finp" name="ct-role" placeholder="e.g. HR Director, CEO..."></div>
+        <div class="fgrp"><label class="flbl">Email</label><input class="finp" type="email" name="ct-email" placeholder="ahmed@company.com"></div>
+        <div class="fgrp"><label class="flbl">Phone</label><input class="finp" name="ct-phone" placeholder="+966 5x xxx xxxx"></div>
+        <div class="fgrp"><label class="flbl">WhatsApp Number</label><input class="finp" name="ct-wa" placeholder="+966 5x xxx xxxx"></div>
+      </div>
+      <div class="fact">
+        <button type="button" class="btn-secondary" onclick="closeContactModal()">Cancel</button>
+        <button type="submit" class="btn-primary">Save Contact</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- STATUS UPDATE MODAL -->
+<div class="modal-ov" id="modal-status" onclick="if(event.target===this)document.getElementById('modal-status').classList.remove('open')">
+  <div class="modal modal-sm">
+    <div class="modal-hd"><div class="modal-title">Update Status</div><button class="modal-close" onclick="document.getElementById('modal-status').classList.remove('open')">×</button></div>
+    <div class="modal-sub" id="status-modal-client"></div>
+    <select class="finp" id="status-modal-sel"></select>
+    <div class="fact">
+      <button class="btn-secondary" onclick="document.getElementById('modal-status').classList.remove('open')">Cancel</button>
+      <button class="btn-primary" onclick="applyStatusModal()">Update</button>
+    </div>
+  </div>
+</div>
+
+<!-- AGREEMENT MODAL (new agreements; editing happens on the agreement page) -->
+<div class="modal-ov" id="modal-agr" onclick="if(event.target===this)closeAgrModal()">
+  <div class="modal modal-md">
+    <div class="modal-hd">
+      <div class="modal-title" id="agr-modal-title">New agreement</div>
+      <button class="modal-close" onclick="closeAgrModal()">×</button>
+    </div>
+    <form id="agr-form" onsubmit="submitAgreement(event)">
+      <div class="fg">
+        <div class="fgrp fgrp-full"><label class="flbl">Client *</label><input class="finp" name="agrClient" required id="agr-client-inp" placeholder="Search or type a company"></div>
+        <div class="fgrp"><label class="flbl">Agreement type *</label><select class="finp" name="agrType" required id="agr-type-sel"></select></div>
+        <div class="fgrp"><label class="flbl">Status</label><select class="finp" name="agrStatus" id="agr-status-sel"></select></div>
+        <div class="fgrp"><label class="flbl">Prepared by</label><select class="finp" name="agrPrepBy" id="agr-prep-sel"></select></div>
+        <div class="fgrp"><label class="flbl">Business entity</label><select class="finp" name="agrEntity" id="agr-entity-sel"></select></div>
+        <div class="fgrp"><label class="flbl">Service start</label><input type="date" class="finp" name="agrStart"></div>
+        <div class="fgrp"><label class="flbl">Contract term</label>
+          <select class="finp" name="agrContractMonths">
+            <option value="">Not set</option><option value="3">3 months</option><option value="6">6 months</option>
+            <option value="12">12 months</option><option value="24">24 months</option><option value="36">36 months</option>
+          </select>
+        </div>
+        <div class="fgrp fgrp-full"><label class="flbl">Reference</label><input class="finp" name="agrRef" placeholder="Leave empty to generate one (e.g. AZME_WF_004_0926)"></div>
+      </div>
+      <p class="form-hint">Services, fees, dates and documents are added on the agreement's page next.</p>
+      <div class="fact">
+        <button type="button" class="btn-secondary" onclick="closeAgrModal()">Cancel</button>
+        <button type="submit" class="btn-primary">Create agreement</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- EDIT COMPANY MODAL -->
+
+<!-- NEW COMPANY MODAL -->
+<div class="modal-ov" id="modal-new-company" onclick="if(event.target===this)closeNewCompanyModal()">
+  <div class="modal modal-md">
+    <div class="modal-hd"><div class="modal-title">New Company</div><button class="modal-close" onclick="closeNewCompanyModal()">×</button></div>
+    <form onsubmit="submitNewCompany(event)">
+      <div class="fgrp">
+        <label class="flbl">Company Name *</label>
+        <input class="finp" id="new-co-name" required placeholder="e.g. Acme Holdings">
+        <div class="form-hint">Creates an empty company you can attach proposals, contacts, and everything else to — most companies show up automatically the first time you reference them elsewhere, so this is only needed when you want the record to exist first.</div>
+      </div>
+      <div class="fgrp">
+        <label class="flbl">Industry <span class="flbl-hint">(optional, a company can have more than one)</span></label>
+        <div class="tag-chip-input" id="new-co-industries"></div>
+      </div>
+      <div class="fact">
+        <button type="button" class="btn-secondary" onclick="closeNewCompanyModal()">Cancel</button>
+        <button type="submit" class="btn-primary">Create Company</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- MERGE COMPANIES MODAL -->
+<div class="modal-ov" id="modal-merge-company" onclick="if(event.target===this)closeMergeCompanyModal()">
+  <div class="modal modal-md">
+    <div class="modal-hd"><div class="modal-title">Merge Companies</div><button class="modal-close" onclick="closeMergeCompanyModal()">×</button></div>
+    <div class="fgrp">
+      <label class="flbl">Merging</label>
+      <div id="merge-co-source" class="modal-strong"></div>
+    </div>
+    <div class="fgrp">
+      <label class="flbl">Into (the surviving company)</label>
+      <input class="finp" id="merge-co-target" list="merge-co-target-list" placeholder="Pick or type the target company…" oninput="previewCompanyMerge()" autocomplete="off">
+      <datalist id="merge-co-target-list"></datalist>
+    </div>
+    <div id="merge-co-summary" class="modal-body-text"></div>
+    <div class="fact">
+      <button class="btn-secondary" onclick="closeMergeCompanyModal()">Cancel</button>
+      <button class="btn-danger" id="merge-co-confirm-btn" disabled onclick="confirmMergeCompanies()">Merge Companies</button>
+    </div>
+  </div>
+</div>
+
+<!-- TODO MODAL -->
+<div class="modal-ov" id="modal-todo" onclick="if(event.target===this)closeTodoModal()">
+  <div class="modal modal-md">
+    <div class="modal-hd"><div class="modal-title" id="todo-modal-title">New Task</div><button class="modal-close" onclick="closeTodoModal()">×</button></div>
+    <form id="todo-form" onsubmit="submitTodo(event)">
+      <div class="fg">
+        <div class="fgrp fgrp-full">
+          <label class="flbl">Task Title *</label>
+          <input class="finp" name="todoTitle" required placeholder="What needs to be done?">
+        </div>
+        <div class="fgrp">
+          <label class="flbl">Type</label>
+          <select class="finp" name="todoType" onchange="toggleTodoClient(this.value)">
+            <option value="general">General MENA Task</option>
+            <option value="client">Client Request</option>
+          </select>
+        </div>
+        <div class="fgrp" id="todo-client-group" style="display:none">
+          <label class="flbl">Client</label>
+          <input class="finp" name="todoClient" list="todo-client-list" placeholder="Client name...">
+          <datalist id="todo-client-list"></datalist>
+        </div>
+        <div class="fgrp">
+          <label class="flbl">Priority</label>
+          <select class="finp" name="todoPriority">
+            <option value="Medium">Medium</option>
+            <option value="High">High</option>
+            <option value="Low">Low</option>
+          </select>
+        </div>
+        <div class="fgrp">
+          <label class="flbl">Due Date</label>
+          <input type="date" class="finp" name="todoDue">
+        </div>
+        <div class="fgrp">
+          <label class="flbl">Status</label>
+          <select class="finp" name="todoStatus">
+            <option value="Pending">Pending</option>
+            <option value="In Progress">In Progress</option>
+            <option value="Done">Done</option>
+          </select>
+        </div>
+        <div class="fgrp">
+          <label class="flbl">Repeat</label>
+          <select class="finp" name="todoRecurrence">
+            <option value="">None</option>
+            <option value="daily">Daily</option>
+            <option value="weekly">Weekly</option>
+            <option value="monthly">Monthly</option>
+          </select>
+        </div>
+        <div class="fgrp fgrp-full">
+          <label class="flbl">Project <span class="flbl-hint">(optional)</span></label>
+          <select class="finp" name="todoProject">
+            <option value="">— No project —</option>
+          </select>
+        </div>
+        <div class="fgrp fgrp-full">
+          <label class="flbl">Tags</label>
+          <div id="todo-tags-chips" class="tag-chip-input"></div>
+        </div>
+        <div class="fgrp fgrp-full">
+          <label class="flbl">Description / Notes</label>
+          <textarea class="finp" name="todoDesc" rows="2" placeholder="Additional details..."></textarea>
+        </div>
+      </div>
+      <div class="fact">
+        <button type="button" class="btn-secondary" onclick="closeTodoModal()">Cancel</button>
+        <button type="submit" class="btn-primary" id="todo-submit-btn">Save Task</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- CONTACT LISTS MODAL -->
+<div class="modal-ov" id="modal-ct-lists" onclick="if(event.target===this)closeCtListsModal()">
+  <div class="modal modal-sm">
+    <div class="modal-hd"><div class="modal-title">Lists</div><button class="modal-close" onclick="closeCtListsModal()">×</button></div>
+    <div id="ct-lists-panel"></div>
+    <div class="btn-row">
+      <input class="finp" id="new-list-name" placeholder="New contact list name…" onkeydown="if(event.key==='Enter'){addContactList();event.preventDefault()}">
+      <button class="btn-primary" onclick="addContactList()">+ Add</button>
+    </div>
+    <div class="fact"><button class="btn-secondary" onclick="closeCtListsModal()">Close</button></div>
+  </div>
+</div>
+
+<!-- ASSIGN LISTS MODAL -->
+<div class="modal-ov" id="modal-assign-list" onclick="if(event.target===this)closeAssignListModal()">
+  <div class="modal modal-sm">
+    <div class="modal-hd"><div class="modal-title">Assign to Lists</div><button class="modal-close" onclick="closeAssignListModal()">×</button></div>
+    <div class="modal-sub" id="assign-list-contact"></div>
+    <div id="assign-list-checks" class="check-list"></div>
+    <div class="fact">
+      <button class="btn-secondary" onclick="closeAssignListModal()">Cancel</button>
+      <button class="btn-primary" onclick="saveAssignLists()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- NOTES MARKDOWN MIGRATION REPORT -->
+<div class="modal-ov" id="modal-md-migration" onclick="if(event.target===this)closeMigrationReport()">
+  <div class="modal modal-sm">
+    <div class="modal-hd"><div class="modal-title">Notes converted to Markdown</div><button class="modal-close" onclick="closeMigrationReport()">×</button></div>
+    <div id="migration-report-body" class="modal-body-text"></div>
+    <div class="fact">
+      <button class="btn-primary" onclick="closeMigrationReport()">Got it</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-ov" id="modal-opp-backfill" onclick="if(event.target===this)closeOpportunityBackfillReport()">
+  <div class="modal modal-sm">
+    <div class="modal-hd"><div class="modal-title">Opportunities added</div><button class="modal-close" onclick="closeOpportunityBackfillReport()">×</button></div>
+    <div id="opp-backfill-report-body" class="modal-body-text"></div>
+    <div class="fact">
+      <button class="btn-primary" onclick="closeOpportunityBackfillReport()">Got it</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-ov" id="modal-company-migration" onclick="if(event.target===this)closeCompanyMigrationReport()">
+  <div class="modal modal-md">
+    <div class="modal-hd"><div class="modal-title">Company migration complete</div><button class="modal-close" onclick="closeCompanyMigrationReport()">×</button></div>
+    <div id="company-migration-report-body" class="modal-body-text"></div>
+    <div class="fact">
+      <button class="btn-primary" onclick="closeCompanyMigrationReport()">Got it</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-ov" id="modal-text-prompt" onclick="if(event.target===this)resolveTextPrompt(null)">
+  <div class="modal modal-sm">
+    <div class="modal-hd"><div class="modal-title" id="text-prompt-title">Enter a value</div><button class="modal-close" onclick="resolveTextPrompt(null)">×</button></div>
+    <div class="fgrp">
+      <label class="flbl prewrap" id="text-prompt-label" style="display:none"></label>
+      <input type="text" class="finp" id="text-prompt-input" onkeydown="if(event.key==='Enter'){event.preventDefault();resolveTextPrompt(this.value)}else if(event.key==='Escape'){event.preventDefault();resolveTextPrompt(null)}">
+    </div>
+    <div class="fact">
+      <button class="btn-secondary" onclick="resolveTextPrompt(null)">Cancel</button>
+      <button class="btn-primary" onclick="resolveTextPrompt(document.getElementById('text-prompt-input').value)">OK</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-ov" id="modal-confirm-prompt" onclick="if(event.target===this)resolveConfirmPrompt(false)">
+  <div class="modal modal-sm">
+    <div class="modal-hd"><div class="modal-title" id="confirm-prompt-title">Are you sure?</div><button class="modal-close" onclick="resolveConfirmPrompt(false)">×</button></div>
+    <div class="fgrp"><div id="confirm-prompt-message" class="modal-body-text prewrap"></div></div>
+    <div class="fact">
+      <button class="btn-secondary" onclick="resolveConfirmPrompt(false)">Cancel</button>
+      <button class="btn-danger" id="confirm-prompt-ok-btn" onclick="resolveConfirmPrompt(true)">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-ov" id="modal-msfiles-setup" onclick="if(event.target===this)closeMsFilesSetupWizard()">
+  <div class="modal modal-lg">
+    <div class="modal-hd"><div class="modal-title">Match Folders to Companies</div><button class="modal-close" onclick="closeMsFilesSetupWizard()">×</button></div>
+
+    <div id="msfw-step-pick">
+      <p class="msfw-intro">Pick the OneDrive folder that has one subfolder per client — for example "Proposals". MENA One will suggest a Company match for each subfolder.</p>
+      <div class="toolbar">
+        <button class="btn-sm" onclick="msfwGoBack()" id="msfw-back-btn">&larr; Back</button>
+        <div class="msf-breadcrumb" id="msfw-breadcrumb"></div>
+      </div>
+      <div id="msfw-picker-body" class="msfw-picker-list"></div>
+      <div class="fact">
+        <button class="btn-secondary" onclick="closeMsFilesSetupWizard()">Cancel</button>
+        <button class="btn-primary" id="msfw-use-folder-btn" onclick="msfwUseCurrentFolder()" disabled>Use This Folder</button>
+      </div>
+    </div>
+
+    <div id="msfw-step-review" style="display:none">
+      <p class="msfw-intro">Found <strong id="msfw-review-count"></strong> subfolder<span id="msfw-review-plural"></span> in <strong id="msfw-review-folder-name"></strong>. Confirm, change, or clear each match below — nothing is saved until you click Save.</p>
+      <label class="check-label">
+        <input type="checkbox" id="msfw-unmatched-only" onchange="renderReviewFromToggle()">
+        Show only unmatched (<span id="msfw-unmatched-count">0</span>)
+      </label>
+      <div id="msfw-review-list" class="msfw-review-list"></div>
+      <datalist id="msfw-companies-datalist"></datalist>
+      <div class="fact">
+        <button class="btn-secondary" onclick="msfwBackToPicker()">&larr; Pick a different folder</button>
+        <button class="btn-primary" onclick="msfwSaveMatches()">Save Matches</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-ov" id="modal-msfiles-link" onclick="if(event.target===this)closeMsFilesLinkModal()">
+  <div class="modal modal-sm">
+    <div class="modal-hd"><div class="modal-title" id="msfl-title">Link to Company</div><button class="modal-close" onclick="closeMsFilesLinkModal()">×</button></div>
+    <p class="msfw-intro modal-strong" id="msfl-item-name"></p>
+    <div class="fgrp">
+      <label class="flbl" id="msfl-label">Company</label>
+      <input type="text" class="finp" id="msfl-input" list="msfl-datalist" placeholder="Type or select…">
+      <datalist id="msfl-datalist"></datalist>
+      <div id="msfl-error" class="form-error" style="display:none"></div>
+    </div>
+    <div class="fact">
+      <button class="btn-secondary" onclick="closeMsFilesLinkModal()">Cancel</button>
+      <button class="btn-primary" onclick="msFilesSaveLink()">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-ov" id="modal-msfiles-inspector" onclick="if(event.target===this)closeMsFilesInspector()">
+  <div class="modal modal-md">
+    <div class="modal-hd"><div class="modal-title" id="msfi-name">Item</div><button class="modal-close" onclick="closeMsFilesInspector()">×</button></div>
+    <div id="msfi-meta" class="modal-sub"></div>
+    <div class="btn-row modal-block">
+      <button class="btn-secondary" onclick="msFilesInspectorOpen()">Open</button>
+      <button class="btn-secondary" onclick="msFilesInspectorReveal()">Reveal in Finder</button>
+    </div>
+    <div class="card-hd">Linked to</div>
+    <div id="msfi-linked" class="modal-block"></div>
+    <div class="rec-section-hd"><h2>Notes</h2><div class="rec-section-actions"><button class="btn-sm" onclick="msFilesInspectorAddNote()">+ New</button></div></div>
+    <div id="msfi-notes"></div>
+  </div>
+</div>
+
+<div class="ctx-menu" id="ctx-menu" onclick="event.stopPropagation()" oncontextmenu="event.preventDefault();event.stopPropagation()"></div>
+
+  </body>
+</html>
