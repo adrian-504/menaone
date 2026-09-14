@@ -4,7 +4,7 @@ import { S } from '../lib/state';
 import { toast, undoToast } from '../lib/ui';
 import { renderBulkBar } from '../lib/bulkBar';
 import { STATUSES, ST, AGR_ST, CC } from '../lib/constants';
-import { today, fmtDate, escHtml, expose, statusDot, showTextPrompt, getClients, companyRef, inCompany, daysSince, daysUntil, type CompanyRef } from '../lib/utils';
+import { today, fmtDate, escHtml, expose, statusDot, showTextPrompt, getClients, companyRef, inCompany, daysSince, daysUntil, strColor, type CompanyRef } from '../lib/utils';
 import { shownColumns, sortState, setSort, sortRows, headerCells, openColumnPicker, agoLabel, type Column, type SortState } from '../lib/tableColumns';
 import { companyLists, companyNamesInList, contactsInCompanyList, contactsAtCompanies, createSavedList, renameSavedList, removeSavedList, updateSmartListFilters, addCompaniesToList, removeCompaniesFromList, addToCompanyListChoices, exportToActiveCampaign, listById, sameFilters, cleanFilters, listChipLabel, listsForCompany } from '../core/lists';
 import { emptyState } from '../lib/ui';
@@ -12,7 +12,7 @@ import { recordLink } from '../lib/links';
 import { activityItem, renderFeed, type FeedItem } from '../lib/activityFeed';
 import { renderIcons } from '../core/chrome';
 import { icon } from '../lib/icons';
-import { persistProposals, persistContacts, persistAgreements, persistTodos, persistNotes, persistCompanyNotes, persistCompanyIndustries, persistCreateCompany } from '../lib/persist';
+import { persistProposals, persistContacts, persistAgreements, persistTodos, persistNotes, persistCompanyNotes, persistCreateCompany } from '../lib/persist';
 import { registerTabRenderer, registerCompanyViewRefresher, refreshBadges, notifyNavigated, refreshAll } from '../lib/registry';
 import { showContextMenu, showMenuAt } from '../lib/contextMenu';
 import { renderTagChips } from '../lib/tagChips';
@@ -35,7 +35,7 @@ import type { Proposal, Contact, Agreement, ActivityNote, Company, Opportunity, 
  * company can span more than one industry, so this mirrors the same
  * tag-chip-input pattern already used for Note/Task tags (renderTagChips,
  * lib/tagChips.ts) rather than a plain text field. Committed to
- * S.companyIndustries only on Save, same as the name/notes fields. */
+ * the company record only on Save, same as the name/notes fields. */
 let editCoIndustriesDraft: string[] = [];
 
 /** The canonical Company row for the company currently being viewed/edited —
@@ -104,6 +104,9 @@ async function reassignCompanyName(oldName: string, newName: string): Promise<vo
   S.todos.forEach((t) => { if (inCompany(ref, t.companyId, t.client)) t.client = newName; });
   S.notes.forEach((n) => { if (inCompany(ref, n.companyId, n.clientName)) n.clientName = newName; });
   persistProposals(); persistContacts(); persistAgreements(); persistTodos(); persistNotes();
+  // Opportunities carry the company's name for display only (the backend keeps their link by id).
+  S.opportunities.forEach((o) => { if (inCompany(ref, o.companyId, o.companyName)) o.companyName = newName; });
+  S.emails.forEach((e) => { if (inCompany(ref, e.companyId, e.companyName)) e.companyName = newName; });
 
   for (const m of S.meetings.filter((x) => inCompany(ref, x.companyId, x.companyName))) {
     m.companyName = newName;
@@ -126,7 +129,6 @@ export async function saveEditCompany(): Promise<void> {
   const oldName = S.currentCompany;
   if (notesVal) S.companyNotes[newName] = notesVal;
   else delete S.companyNotes[newName];
-  delete S.companyIndustries[newName]; // industries now live on the Company entity itself, not this legacy name-keyed dict
   if (oldName !== newName && oldName) {
     // Rename the company record itself first, keeping its id, so every record
     // linked to it stays linked; the free-text names then follow.
@@ -141,7 +143,6 @@ export async function saveEditCompany(): Promise<void> {
       }
     }
     delete S.companyNotes[oldName];
-    delete S.companyIndustries[oldName];
     await reassignCompanyName(oldName, newName);
     if (!record) {
       try { await mergeCompanyLinks(oldName, newName); } catch (e) { console.error('[company rename] link reconciliation failed:', e); }
@@ -149,7 +150,6 @@ export async function saveEditCompany(): Promise<void> {
     S.currentCompany = newName;
   }
   persistCompanyNotes();
-  persistCompanyIndustries();
 
   // Ensure a canonical companies row exists for this name (find-or-create,
   // safe to call even if one already does), then save every Company-entity
@@ -212,9 +212,16 @@ export async function submitNewCompany(e: Event): Promise<void> {
   const created = await persistCreateCompany(name);
   if (!created) return;
   if (!S.companies.some((c) => c.id === created.id)) S.companies.push(created);
-  if (newCoIndustriesDraft.length > 0) {
-    S.companyIndustries[name] = newCoIndustriesDraft;
-    persistCompanyIndustries();
+  // Industries belong to the company record (they used to go to a legacy list the app no longer reads).
+  const industries = newCoIndustriesDraft.filter((i) => (INDUSTRY_TAXONOMY as readonly string[]).includes(i));
+  if (industries.length > 0) {
+    try {
+      const saved = await saveCompany({ ...created, industries: [...new Set([...(created.industries || []), ...industries])] });
+      const idx = S.companies.findIndex((c) => c.id === saved.id);
+      if (idx > -1) S.companies[idx] = saved; else S.companies.push(saved);
+    } catch (e) {
+      toast(`Couldn't save the industries for ${name}`, { tone: 'error', detail: String(e) });
+    }
   }
   closeNewCompanyModal();
   switchTab('companies');
@@ -301,10 +308,6 @@ export async function confirmMergeCompanies(): Promise<void> {
   delete S.companyNotes[source];
   persistCompanyNotes();
 
-  const mergedIndustries = [...new Set([...(S.companyIndustries[target] || []), ...(S.companyIndustries[source] || [])])];
-  if (mergedIndustries.length > 0) S.companyIndustries[target] = mergedIndustries;
-  delete S.companyIndustries[source];
-  persistCompanyIndustries();
 
   try {
     await mergeCompanyLinks(source, target);
@@ -405,12 +408,6 @@ expose('resolveReviewEntry', resolveReviewEntry);
 
 // ═══════════════ COMPANIES TAB ═══════════════
 
-export function strColor(s: string): string {
-  const palette = ['#1D4ED8', '#7C3AED', '#0D9488', '#D97706', '#DC2626', '#0369A1', '#065F46', '#92400E', '#DB2777', '#059669'];
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) & 0xffffffff;
-  return palette[Math.abs(h) % palette.length];
-}
 
 /** @deprecated Use `getClients` from `lib/utils` directly — both names now
  * resolve to the same canonical, non-period-gated company list. Kept as an

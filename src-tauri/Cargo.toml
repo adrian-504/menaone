@@ -36,6 +36,9 @@ thiserror = "2"
 # Proposal decks: a .pptx is a zip of XML parts (pptx.rs).
 zip = { version = "2", default-features = false, features = ["deflate"] }
 regex = "1"
+# Native error box when the database can't be backed up or upgraded at start
+# (before any window exists). Already used by tauri-plugin-dialog.
+rfd = { version = "0.16", default-features = false }
 
 # Microsoft 365 / Graph integration (M365 upgrade). rustls instead of the
 # default native-tls/OpenSSL backend — no system OpenSSL dependency to manage

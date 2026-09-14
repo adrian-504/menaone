@@ -2,7 +2,7 @@ import { S } from './state';
 import {
   persist, persistReturning, upsertProposals, deleteProposals, upsertContacts, deleteContacts,
   upsertAgreements, deleteAgreements, upsertTodos, deleteTodos, upsertNotes, deleteNotes, saveNoteFolders,
-  saveContactLists, saveCompanyNotes, saveCompanyIndustries, saveProject, saveMilestones, saveOpportunity, saveMeeting,
+  saveContactLists, saveCompanyNote, saveProject, saveMilestones, saveOpportunity, saveMeeting,
   createCompany, getCompanies,
 } from './db';
 import type { Project, Milestone, Opportunity, Meeting, Company, RecordCompanyLink } from './types';
@@ -91,6 +91,7 @@ export function markLoadedAsSaved(): void {
     t.saved = new Map(t.current().map((item) => [item.id, JSON.stringify(item)]));
   };
   mark(trackers.proposals); mark(trackers.contacts); mark(trackers.agreements); mark(trackers.todos); mark(trackers.notes);
+  savedCompanyNotes = new Map(Object.entries(S.companyNotes).filter(([, v]) => (v || '').trim()));
 }
 
 /** Resolves once every queued proposal/agreement save has reached the database. */
@@ -108,10 +109,34 @@ export function persistContacts(): void { void saveChanges(trackers.contacts); }
 export function persistAgreements(): void { void saveChanges(trackers.agreements); }
 export function persistTodos(): void { void saveChanges(trackers.todos); }
 export function persistNotes(): void { void saveChanges(trackers.notes); }
-export function persistNoteFolders(): void { void persist('note folders', () => saveNoteFolders(S.noteFolders)); }
-export function persistContactLists(): void { void persist('contact lists', () => saveContactLists(S.contactLists)); }
-export function persistCompanyNotes(): void { void persist('company notes', () => saveCompanyNotes(S.companyNotes)); }
-export function persistCompanyIndustries(): void { void persist('company industries', () => saveCompanyIndustries(S.companyIndustries)); }
+// Folder and contact-list names are small lists saved whole; queued so a
+// quicker second save can never be overtaken by the first.
+let listsQueue: Promise<void> = Promise.resolve();
+function queued(label: string, save: () => Promise<void>): Promise<void> {
+  listsQueue = listsQueue.then(() => persist(label, save));
+  return listsQueue;
+}
+export function persistNoteFolders(): Promise<void> { const items = [...S.noteFolders]; return queued('note folders', () => saveNoteFolders(items)); }
+export function persistContactLists(): Promise<void> { const items = [...S.contactLists]; return queued('contact lists', () => saveContactLists(items)); }
+
+/** Company notes as last saved, by company name — so only changed companies are written. */
+let savedCompanyNotes = new Map<string, string>();
+let companyNotesQueue: Promise<void> = Promise.resolve();
+export function persistCompanyNotes(): Promise<void> {
+  companyNotesQueue = companyNotesQueue.then(async () => {
+    const current = new Map(Object.entries(S.companyNotes).filter(([, v]) => (v || '').trim()));
+    const names = new Set([...current.keys(), ...savedCompanyNotes.keys()]);
+    for (const name of names) {
+      const text = current.get(name) || '';
+      if ((savedCompanyNotes.get(name) || '') === text) continue;
+      let ok = false;
+      await persist('company notes', async () => { await saveCompanyNote(name, text); ok = true; });
+      if (!ok) continue;
+      if (text) savedCompanyNotes.set(name, text); else savedCompanyNotes.delete(name);
+    }
+  });
+  return companyNotesQueue;
+}
 
 // Projects/Opportunities/Meetings save a single row and need the server-assigned
 // result back (new id, computed fields) — persistReturning() surfaces failures

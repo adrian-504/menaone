@@ -23,6 +23,19 @@ fn attachments_dir(app: &AppHandle) -> CmdResult<std::path::PathBuf> {
     Ok(dir)
 }
 
+/// Only the file's own name is kept — never a folder part — so a name like
+/// `../../x` can't place the file outside the attachments folder.
+pub fn safe_file_name(filename: &str) -> String {
+    let base = filename.rsplit(['/', '\\']).next().unwrap_or("").trim();
+    let cleaned: String = base.chars().filter(|c| !c.is_control()).collect();
+    if cleaned.is_empty() || cleaned == "." || cleaned == ".." { "attachment".into() } else { cleaned }
+}
+
+/// Where an attachment's bytes live.
+fn stored_path(dir: &std::path::Path, id: i64, filename: &str) -> std::path::PathBuf {
+    dir.join(format!("{id}_{}", safe_file_name(filename)))
+}
+
 fn guess_mime(filename: &str) -> Option<String> {
     let ext = filename.rsplit('.').next()?.to_lowercase();
     Some(match ext.as_str() {
@@ -41,6 +54,7 @@ pub fn save_attachment(app: AppHandle, state: State<DbState>, note_id: i64, file
     // Data URLs (`data:image/png;base64,AAAA...`) are the common case from a
     // paste/drop event — strip the prefix if present, otherwise treat the
     // whole string as raw base64.
+    let filename = safe_file_name(&filename);
     let raw_b64 = base64_data.split(',').last().unwrap_or(&base64_data);
     let bytes = STANDARD.decode(raw_b64).map_err(err)?;
 
@@ -56,7 +70,7 @@ pub fn save_attachment(app: AppHandle, state: State<DbState>, note_id: i64, file
     drop(conn);
 
     let dir = attachments_dir(&app)?;
-    let path = dir.join(format!("{id}_{filename}"));
+    let path = stored_path(&dir, id, &filename);
     fs::write(&path, &bytes).map_err(err)?;
 
     Ok(Attachment { id, note_id, filename, mime_type, created_at: Some(now) })
@@ -73,7 +87,7 @@ pub fn get_attachment_data_url(app: AppHandle, state: State<DbState>, id: i64) -
     drop(conn);
 
     let dir = attachments_dir(&app)?;
-    let path = dir.join(format!("{id}_{filename}"));
+    let path = stored_path(&dir, id, &filename);
     let bytes = fs::read(&path).map_err(err)?;
     let mime = mime_type.unwrap_or_else(|| "application/octet-stream".to_string());
     Ok(format!("data:{mime};base64,{}", STANDARD.encode(bytes)))
@@ -92,7 +106,22 @@ pub fn delete_attachment(app: AppHandle, state: State<DbState>, id: i64) -> CmdR
 
     if let Some(filename) = filename {
         let dir = attachments_dir(&app)?;
-        let _ = fs::remove_file(dir.join(format!("{id}_{filename}")));
+        let _ = fs::remove_file(stored_path(&dir, id, &filename));
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::safe_file_name;
+
+    #[test]
+    fn attachment_names_cannot_leave_the_folder() {
+        assert_eq!(safe_file_name("photo.png"), "photo.png");
+        assert_eq!(safe_file_name("../../Library/LaunchAgents/x.plist"), "x.plist");
+        assert_eq!(safe_file_name("..\\..\\evil.exe"), "evil.exe");
+        assert_eq!(safe_file_name(".."), "attachment");
+        assert_eq!(safe_file_name(""), "attachment");
+        assert_eq!(safe_file_name("a/"), "attachment");
+    }
 }

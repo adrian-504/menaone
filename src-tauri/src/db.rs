@@ -696,7 +696,54 @@ const CODE_MIGRATIONS: &[(i64, fn(&Connection) -> rusqlite::Result<()>)] = &[
     (27, crate::commercial::migrate_pricing_ranges),
     // Company lists (hand-picked or smart) and smart contact lists (lists.rs).
     (28, crate::lists::migrate_saved_lists),
+    // Foundation Lock: former company names, and links to records that no longer exist.
+    (29, migrate_foundation_lock),
 ];
+
+fn migrate_foundation_lock(conn: &Connection) -> rusqlite::Result<()> {
+    conn.execute_batch(FOUNDATION_LOCK_MIGRATION)?;
+    remove_orphan_links(conn)?;
+    Ok(())
+}
+
+/// Entity types used in `entity_links`, and the table each lives in.
+pub const LINK_ENTITY_TABLES: &[(&str, &str)] = &[
+    ("company", "companies"), ("contact", "contacts"), ("opportunity", "opportunities"), ("project", "projects"),
+    ("proposal", "proposals"), ("agreement", "agreements"), ("meeting", "meetings"), ("note", "notes"),
+    ("task", "todos"), ("msfile", "microsoft_files"), ("intelligence", "intelligence_items"), ("email", "emails"),
+    ("document", "documents"),
+];
+
+const FOUNDATION_LOCK_MIGRATION: &str = r#"
+    CREATE TABLE IF NOT EXISTS company_aliases (
+      alias      TEXT NOT NULL COLLATE NOCASE PRIMARY KEY,
+      company_id INTEGER NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+      created_at TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_company_aliases_company ON company_aliases(company_id);
+"#;
+
+/// Deletes entity links whose source or target record no longer exists.
+/// Returns how many were removed.
+pub fn remove_orphan_links(conn: &Connection) -> rusqlite::Result<usize> {
+    let mut removed = 0;
+    for (kind, _) in LINK_ENTITY_TABLES {
+        removed += remove_orphan_links_of(conn, kind)?;
+    }
+    Ok(removed)
+}
+
+/// Same, for links from or to one kind of record — called after deleting records of that kind.
+pub fn remove_orphan_links_of(conn: &Connection, kind: &str) -> rusqlite::Result<usize> {
+    let Some((_, table)) = LINK_ENTITY_TABLES.iter().find(|(k, _)| *k == kind) else { return Ok(0) };
+    Ok(conn.execute(
+        &format!(
+            "DELETE FROM entity_links WHERE (from_type = ?1 AND from_id NOT IN (SELECT id FROM {table}))
+                OR (to_type = ?1 AND to_id NOT IN (SELECT id FROM {table}))"
+        ),
+        rusqlite::params![kind],
+    )?)
+}
 
 fn add_template_sync_columns(conn: &Connection) -> rusqlite::Result<()> {
     add_sync_columns_to(conn, &["proposal_templates"])
@@ -726,7 +773,10 @@ fn add_sync_columns(conn: &Connection) -> rusqlite::Result<()> {
 
 /// Same sync columns and triggers for tables added after migration 17.
 pub fn add_sync_columns_to(conn: &Connection, tables: &[&str]) -> rusqlite::Result<()> {
-    let tx = conn.unchecked_transaction()?;
+    atomic(conn, "sync_columns", |tx| add_sync_columns_inner(tx, tables))
+}
+
+fn add_sync_columns_inner(tx: &Connection, tables: &[&str]) -> rusqlite::Result<()> {
     tx.execute_batch(
         "CREATE TABLE IF NOT EXISTS sync_tombstones (
            id         INTEGER PRIMARY KEY,
@@ -763,7 +813,7 @@ pub fn add_sync_columns_to(conn: &Connection, tables: &[&str]) -> rusqlite::Resu
              END;"
         ))?;
     }
-    tx.commit()
+    Ok(())
 }
 
 /// Resolve the SQLite database file path inside the app's data directory
@@ -778,6 +828,9 @@ pub fn init_connection(path: &PathBuf) -> rusqlite::Result<Connection> {
     }
     let conn = Connection::open(path)?;
     conn.execute_batch(SCHEMA_V1)?;
+    // Company names are resolved by several older migrations too, and that
+    // lookup reads former names — so the table exists before any of them run.
+    conn.execute_batch(FOUNDATION_LOCK_MIGRATION)?;
     run_migrations(&conn)?;
     seed_defaults(&conn)?;
     Ok(conn)
@@ -810,27 +863,60 @@ enum MigrationStep {
     Code(fn(&Connection) -> rusqlite::Result<()>),
 }
 
+/// Runs `f` inside a savepoint: everything it writes is kept only if it
+/// succeeds. Savepoints nest, so a step that is itself atomic can run inside
+/// another one (a migration inside the migration runner, for example).
+pub fn atomic<T>(conn: &Connection, name: &str, f: impl FnOnce(&Connection) -> rusqlite::Result<T>) -> rusqlite::Result<T> {
+    conn.execute_batch(&format!("SAVEPOINT {name}"))?;
+    match f(conn) {
+        Ok(value) => {
+            conn.execute_batch(&format!("RELEASE {name}"))?;
+            Ok(value)
+        }
+        Err(e) => {
+            let _ = conn.execute_batch(&format!("ROLLBACK TO {name}; RELEASE {name}"));
+            Err(e)
+        }
+    }
+}
+
 fn run_migrations(conn: &Connection) -> rusqlite::Result<()> {
-    let mut version = current_schema_version(conn)?;
     let mut steps: Vec<(i64, MigrationStep)> = MIGRATIONS.iter().map(|(v, sql)| (*v, MigrationStep::Sql(sql))).collect();
     steps.extend(CODE_MIGRATIONS.iter().map(|(v, f)| (*v, MigrationStep::Code(*f))));
+    run_steps(conn, steps)
+}
+
+/// A migration and the schema version it reaches are written together: one
+/// that fails part-way leaves no trace, and the database stays at the last
+/// version that fully applied (instead of half-migrated and unable to start).
+fn run_steps(conn: &Connection, mut steps: Vec<(i64, MigrationStep)>) -> rusqlite::Result<()> {
+    let mut version = current_schema_version(conn)?;
     steps.sort_by_key(|(v, _)| *v);
     for (target_version, step) in &steps {
         if version >= *target_version {
             continue;
         }
-        match step {
-            MigrationStep::Sql(sql) => conn.execute_batch(sql)?,
-            MigrationStep::Code(f) => f(conn)?,
-        }
-        conn.execute(
-            "INSERT INTO app_meta (key, value) VALUES ('schema_version', ?1)
-             ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-            rusqlite::params![target_version.to_string()],
-        )?;
+        atomic(conn, "migration_step", |conn| {
+            match step {
+                MigrationStep::Sql(sql) => conn.execute_batch(sql)?,
+                MigrationStep::Code(f) => f(conn)?,
+            }
+            conn.execute(
+                "INSERT INTO app_meta (key, value) VALUES ('schema_version', ?1)
+                 ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                rusqlite::params![target_version.to_string()],
+            )?;
+            Ok(())
+        })?;
         version = *target_version;
     }
     Ok(())
+}
+
+/// Test hook: runs made-up migration steps through the real runner.
+#[doc(hidden)]
+pub fn run_test_steps(conn: &Connection, sql_steps: &[(i64, &'static str)]) -> rusqlite::Result<()> {
+    run_steps(conn, sql_steps.iter().map(|(v, sql)| (*v, MigrationStep::Sql(sql))).collect())
 }
 
 /// First-run defaults: default note folders (matching the original app's

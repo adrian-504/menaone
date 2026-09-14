@@ -36,12 +36,8 @@ export async function saveNoteFolders(items: string[]): Promise<void> {
 export async function saveContactLists(items: string[]): Promise<void> {
   await invoke('save_contact_lists', { items });
 }
-export async function saveCompanyNotes(items: Record<string, string>): Promise<void> {
-  await invoke('save_company_notes', { items });
-}
-export async function getCompanyIndustries(): Promise<Record<string, string[]>> { return invoke<Record<string, string[]>>('get_company_industries'); }
-export async function saveCompanyIndustries(items: Record<string, string[]>): Promise<void> {
-  await invoke('save_company_industries', { items });
+export async function saveCompanyNote(companyName: string, text: string): Promise<void> {
+  await invoke('save_company_note', { companyName, text });
 }
 
 export async function getPipelineFacts(): Promise<PipelineFact[]> { return invoke<PipelineFact[]>('get_pipeline_facts'); }
@@ -93,11 +89,9 @@ export async function setAppMeta(key: string, value: string): Promise<void> {
   await invoke('set_app_meta', { key, value });
 }
 
-export async function writeTextFile(path: string, contents: string): Promise<void> {
-  await invoke('write_text_file', { path, contents });
-}
-export async function readTextFile(path: string): Promise<string> {
-  return invoke<string>('read_text_file', { path });
+/** Asks where to save (system dialog) and writes the file; null when cancelled. */
+export async function saveTextFileDialog(defaultName: string, contents: string, extensions: string[]): Promise<string | null> {
+  return invoke<string | null>('save_text_file_dialog', { defaultName, contents, extensions });
 }
 
 // ═══════════════ V2: Work Hub commands ═══════════════

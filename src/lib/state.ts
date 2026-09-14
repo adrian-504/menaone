@@ -18,7 +18,6 @@ export const S = {
   noteFolders: ['Meeting Notes', 'Client Notes', 'Internal'] as string[],
   contactLists: [] as string[],
   companyNotes: {} as Record<string, string>,
-  companyIndustries: {} as Record<string, string[]>,
 
   // Commercial setup: service catalog, rate cards, entities, team
   services: [] as Service[],

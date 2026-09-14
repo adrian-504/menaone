@@ -162,7 +162,7 @@ pub fn save_intelligence_item(state: State<DbState>, item: IntelligenceItem) -> 
 pub fn delete_intelligence_item(state: State<DbState>, id: i64) -> CmdResult<()> {
     let conn = state.0.lock().map_err(err)?;
     conn.execute("DELETE FROM intelligence_items WHERE id = ?1", params![id]).map_err(err)?;
-    conn.execute("DELETE FROM entity_links WHERE from_type='intelligence' AND from_id=?1", params![id]).map_err(err)?;
+    crate::db::remove_orphan_links_of(&conn, "intelligence").map_err(err)?;
     conn.execute("DELETE FROM search_index WHERE entity_type='intelligence' AND entity_id=?1", params![id]).map_err(err)?;
     Ok(())
 }

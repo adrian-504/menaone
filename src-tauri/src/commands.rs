@@ -2,7 +2,7 @@ use crate::db::DbState;
 use crate::models::*;
 use rusqlite::{params, Connection, OptionalExtension};
 use std::collections::HashMap;
-use tauri::State;
+use tauri::{AppHandle, State};
 
 type CmdResult<T> = Result<T, String>;
 
@@ -512,6 +512,11 @@ pub fn write_notes(conn: &mut Connection, items: &[Note]) -> rusqlite::Result<()
 
 pub fn write_note_folders(conn: &mut Connection, items: &[String]) -> rusqlite::Result<()> {
     let tx = conn.transaction()?;
+    write_note_folders_in(&tx, items)?;
+    tx.commit()
+}
+
+pub fn write_note_folders_in(tx: &Connection, items: &[String]) -> rusqlite::Result<()> {
     tx.execute("DELETE FROM note_folders", [])?;
     {
         let mut stmt = tx.prepare("INSERT INTO note_folders (name, sort_order) VALUES (?1, ?2)")?;
@@ -519,11 +524,16 @@ pub fn write_note_folders(conn: &mut Connection, items: &[String]) -> rusqlite::
             stmt.execute(params![name, i as i64])?;
         }
     }
-    tx.commit()
+    Ok(())
 }
 
 pub fn write_contact_lists(conn: &mut Connection, items: &[String]) -> rusqlite::Result<()> {
     let tx = conn.transaction()?;
+    write_contact_lists_in(&tx, items)?;
+    tx.commit()
+}
+
+pub fn write_contact_lists_in(tx: &Connection, items: &[String]) -> rusqlite::Result<()> {
     // Keep existing memberships for lists that still exist; drop memberships of removed lists.
     tx.execute(
         "DELETE FROM contact_list_members WHERE list_name NOT IN (SELECT value FROM json_each(?1))",
@@ -536,7 +546,7 @@ pub fn write_contact_lists(conn: &mut Connection, items: &[String]) -> rusqlite:
             stmt.execute(params![name])?;
         }
     }
-    tx.commit()
+    Ok(())
 }
 
 /// Was a blind DELETE-then-reinsert — safe while company_notes had only one
@@ -547,6 +557,11 @@ pub fn write_contact_lists(conn: &mut Connection, items: &[String]) -> rusqlite:
 /// does the same for `industries` without touching `note_text`.
 pub fn write_company_notes(conn: &mut Connection, items: &HashMap<String, String>) -> rusqlite::Result<()> {
     let tx = conn.transaction()?;
+    write_company_notes_in(&tx, items)?;
+    tx.commit()
+}
+
+pub fn write_company_notes_in(tx: &Connection, items: &HashMap<String, String>) -> rusqlite::Result<()> {
     tx.execute("UPDATE company_notes SET note_text = NULL", [])?;
     {
         let mut stmt = tx.prepare(
@@ -561,47 +576,7 @@ pub fn write_company_notes(conn: &mut Connection, items: &HashMap<String, String
         "DELETE FROM company_notes WHERE (note_text IS NULL OR note_text = '') AND (industries IS NULL OR industries = '[]')",
         [],
     )?;
-    tx.commit()
-}
-
-fn read_company_industries(conn: &Connection) -> rusqlite::Result<HashMap<String, Vec<String>>> {
-    let mut stmt = conn.prepare("SELECT company_name, industries FROM company_notes WHERE industries IS NOT NULL AND industries != '[]'")?;
-    let rows = stmt.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, Option<String>>(1)?)))?;
-    let mut map = HashMap::new();
-    for row in rows {
-        let (k, v) = row?;
-        let list: Vec<String> = v.and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default();
-        if !list.is_empty() {
-            map.insert(k, list);
-        }
-    }
-    Ok(map)
-}
-
-pub fn write_company_industries(conn: &mut Connection, items: &HashMap<String, Vec<String>>) -> rusqlite::Result<()> {
-    let tx = conn.transaction()?;
-    tx.execute("UPDATE company_notes SET industries = '[]'", [])?;
-    {
-        // note_text has no column default (unlike industries' NOT NULL
-        // DEFAULT '[]'), so a fresh row created by this INSERT must supply
-        // one explicitly or it lands NULL — read_company_notes always reads
-        // it as a non-optional String and would fail every future
-        // get_all_data call. '' on ON CONFLICT is a no-op (excluded.note_text
-        // isn't referenced), so an existing note is never touched.
-        let mut stmt = tx.prepare(
-            "INSERT INTO company_notes (company_name, note_text, industries) VALUES (?1,'',?2)
-             ON CONFLICT(company_name) DO UPDATE SET industries = excluded.industries",
-        )?;
-        for (k, v) in items {
-            let json = serde_json::to_string(v).unwrap_or_else(|_| "[]".into());
-            stmt.execute(params![k, json])?;
-        }
-    }
-    tx.execute(
-        "DELETE FROM company_notes WHERE (note_text IS NULL OR note_text = '') AND (industries IS NULL OR industries = '[]')",
-        [],
-    )?;
-    tx.commit()
+    Ok(())
 }
 
 // ═══════════════════════════ WRITE: per-record upsert / delete ═══════════════════════════
@@ -649,8 +624,14 @@ const NOTE_COLS: &[&str] = &["id", "title", "content", "folder", "client_name", 
 
 pub fn upsert_proposal_rows(conn: &mut Connection, items: &[Proposal]) -> rusqlite::Result<()> {
     let tx = conn.transaction()?;
+    upsert_proposal_rows_in(&tx, items)?;
+    tx.commit()
+}
+
+pub fn upsert_proposal_rows_in(tx: &Connection, items: &[Proposal]) -> rusqlite::Result<()> {
     for p in items {
-        let company_id = crate::opportunities::resolve_company(&tx, Some(&p.client))?;
+        let hint = crate::opportunities::current_company_id(tx, "proposals", p.id)?.or(p.company_id);
+        let company_id = crate::opportunities::resolve_company_ref(tx, hint, Some(&p.client))?;
         tx.prepare_cached(&upsert_sql("proposals", PROPOSAL_COLS))?.execute(params![
             p.id, p.client, p.r#type, p.status, p.sent_date, p.dbl_signed_date, p.kickoff_date,
             p.finance, p.hubspot, p.owner, p.remarks, p.date_added, p.monthly_fee, p.contract_months,
@@ -669,29 +650,41 @@ pub fn upsert_proposal_rows(conn: &mut Connection, items: &[Proposal]) -> rusqli
             nstmt.execute(params![n.id, p.id, n.date, n.text])?;
         }
         drop(nstmt);
-        crate::commercial::save_lines(&tx, "proposal_lines", "proposal_id", p.id, &p.lines)?;
-        crate::commercial::save_documents(&tx, p.id, &p.documents)?;
-        crate::commercial::apply_derived_proposal_totals(&tx, p.id, &p.lines)?;
-        crate::v2_search::reindex_proposal(&tx, p.id)?;
-        crate::v2_search::reindex_company(&tx, &p.client)?;
+        crate::commercial::save_lines(tx, "proposal_lines", "proposal_id", p.id, &p.lines)?;
+        crate::commercial::save_documents(tx, p.id, &p.documents)?;
+        crate::commercial::apply_derived_proposal_totals(tx, p.id, &p.lines)?;
+        crate::v2_search::reindex_proposal(tx, p.id)?;
+        crate::v2_search::reindex_company(tx, &p.client)?;
     }
-    tx.commit()
+    Ok(())
 }
 
 pub fn delete_proposal_rows(conn: &mut Connection, ids: &[i64]) -> rusqlite::Result<()> {
     let tx = conn.transaction()?;
+    delete_proposal_rows_in(&tx, ids)?;
+    tx.commit()
+}
+
+pub fn delete_proposal_rows_in(tx: &Connection, ids: &[i64]) -> rusqlite::Result<()> {
     tx.execute("DELETE FROM proposals WHERE id IN (SELECT value FROM json_each(?1))", params![ids_json(ids)])?;
+    crate::db::remove_orphan_links_of(tx, "proposal")?;
     tx.execute(
         "DELETE FROM search_index WHERE entity_type = 'proposal' AND entity_id IN (SELECT value FROM json_each(?1))",
         params![ids_json(ids)],
     )?;
-    tx.commit()
+    Ok(())
 }
 
 pub fn upsert_contact_rows(conn: &mut Connection, items: &[Contact]) -> rusqlite::Result<()> {
     let tx = conn.transaction()?;
+    upsert_contact_rows_in(&tx, items)?;
+    tx.commit()
+}
+
+pub fn upsert_contact_rows_in(tx: &Connection, items: &[Contact]) -> rusqlite::Result<()> {
     for c in items {
-        let company_id = crate::opportunities::resolve_company(&tx, c.client_name.as_deref())?;
+        let hint = crate::opportunities::current_company_id(tx, "contacts", c.id)?.or(c.company_id);
+        let company_id = crate::opportunities::resolve_company_ref(tx, hint, c.client_name.as_deref())?;
         tx.prepare_cached(&upsert_sql("contacts", CONTACT_COLS))?.execute(params![
             c.id, c.client_name, c.name, c.role, c.email, c.phone, c.whatsapp, c.service, company_id
         ])?;
@@ -706,25 +699,37 @@ pub fn upsert_contact_rows(conn: &mut Connection, items: &[Contact]) -> rusqlite
                 params![c.id, list_name],
             )?;
         }
-        crate::v2_search::reindex_contact(&tx, c.id)?;
+        crate::v2_search::reindex_contact(tx, c.id)?;
     }
-    tx.commit()
+    Ok(())
 }
 
 pub fn delete_contact_rows(conn: &mut Connection, ids: &[i64]) -> rusqlite::Result<()> {
     let tx = conn.transaction()?;
+    delete_contact_rows_in(&tx, ids)?;
+    tx.commit()
+}
+
+pub fn delete_contact_rows_in(tx: &Connection, ids: &[i64]) -> rusqlite::Result<()> {
     tx.execute("DELETE FROM contacts WHERE id IN (SELECT value FROM json_each(?1))", params![ids_json(ids)])?;
+    crate::db::remove_orphan_links_of(tx, "contact")?;
     tx.execute(
         "DELETE FROM search_index WHERE entity_type = 'contact' AND entity_id IN (SELECT value FROM json_each(?1))",
         params![ids_json(ids)],
     )?;
-    tx.commit()
+    Ok(())
 }
 
 pub fn upsert_agreement_rows(conn: &mut Connection, items: &[Agreement]) -> rusqlite::Result<()> {
     let tx = conn.transaction()?;
+    upsert_agreement_rows_in(&tx, items)?;
+    tx.commit()
+}
+
+pub fn upsert_agreement_rows_in(tx: &Connection, items: &[Agreement]) -> rusqlite::Result<()> {
     for a in items {
-        let company_id = crate::opportunities::resolve_company(&tx, a.client.as_deref())?;
+        let hint = crate::opportunities::current_company_id(tx, "agreements", a.id)?.or(a.company_id);
+        let company_id = crate::opportunities::resolve_company_ref(tx, hint, a.client.as_deref())?;
         tx.prepare_cached(&upsert_sql("agreements", AGREEMENT_COLS))?.execute(params![
             a.id, a.agr_ref, a.client, a.r#type, a.status, a.prepared_by, a.date_prepared,
             a.date_sent_to_client, a.date_client_signed, a.date_mena_signed, a.date_filed,
@@ -733,25 +738,36 @@ pub fn upsert_agreement_rows(conn: &mut Connection, items: &[Agreement]) -> rusq
             a.business_entity_id, a.currency, a.start_date, a.end_date, a.service_status, a.auto_renew as i64,
             a.notice_days, a.prepared_by_id,
         ])?;
-        crate::commercial::save_lines(&tx, "agreement_lines", "agreement_id", a.id, &a.lines)?;
-        crate::commercial::apply_derived_agreement_totals(&tx, a.id, &a.lines)?;
-        crate::v2_search::reindex_agreement(&tx, a.id)?;
+        crate::commercial::save_lines(tx, "agreement_lines", "agreement_id", a.id, &a.lines)?;
+        crate::commercial::apply_derived_agreement_totals(tx, a.id, &a.lines)?;
+        crate::v2_search::reindex_agreement(tx, a.id)?;
     }
-    tx.commit()
+    Ok(())
 }
 
 pub fn delete_agreement_rows(conn: &mut Connection, ids: &[i64]) -> rusqlite::Result<()> {
     let tx = conn.transaction()?;
+    delete_agreement_rows_in(&tx, ids)?;
+    tx.commit()
+}
+
+pub fn delete_agreement_rows_in(tx: &Connection, ids: &[i64]) -> rusqlite::Result<()> {
     tx.execute("DELETE FROM agreements WHERE id IN (SELECT value FROM json_each(?1))", params![ids_json(ids)])?;
+    crate::db::remove_orphan_links_of(tx, "agreement")?;
     tx.execute(
         "DELETE FROM search_index WHERE entity_type = 'agreement' AND entity_id IN (SELECT value FROM json_each(?1))",
         params![ids_json(ids)],
     )?;
-    tx.commit()
+    Ok(())
 }
 
 pub fn upsert_todo_rows(conn: &mut Connection, items: &[Todo]) -> rusqlite::Result<()> {
     let tx = conn.transaction()?;
+    upsert_todo_rows_in(&tx, items)?;
+    tx.commit()
+}
+
+pub fn upsert_todo_rows_in(tx: &Connection, items: &[Todo]) -> rusqlite::Result<()> {
     // A new subtask and its new parent can arrive in the same batch in either order.
     tx.execute("PRAGMA defer_foreign_keys = ON", [])?;
     let sql = "INSERT INTO todos (id, title, type, client, priority, due_date, status, description, created_at, completed_at,
@@ -787,23 +803,34 @@ pub fn upsert_todo_rows(conn: &mut Connection, items: &[Todo]) -> rusqlite::Resu
         for tag in &t.tags {
             tx.execute("INSERT OR IGNORE INTO entity_tags (entity_type, entity_id, tag) VALUES ('task', ?1, ?2)", params![t.id, tag])?;
         }
-        crate::opportunities::link_company(&tx, "todos", t.id, t.client.as_deref())?;
-        crate::v2_search::reindex_todo(&tx, t.id)?;
+        crate::opportunities::link_company(tx, "todos", t.id, t.client.as_deref())?;
+        crate::v2_search::reindex_todo(tx, t.id)?;
     }
-    tx.commit()
+    Ok(())
 }
 
 pub fn delete_todo_rows(conn: &mut Connection, ids: &[i64]) -> rusqlite::Result<()> {
     let tx = conn.transaction()?;
+    delete_todo_rows_in(&tx, ids)?;
+    tx.commit()
+}
+
+pub fn delete_todo_rows_in(tx: &Connection, ids: &[i64]) -> rusqlite::Result<()> {
     tx.execute("DELETE FROM todos WHERE id IN (SELECT value FROM json_each(?1))", params![ids_json(ids)])?;
+    crate::db::remove_orphan_links_of(tx, "task")?;
     // Subtasks go with their parent via ON DELETE CASCADE, so clean up by what's left rather than by the ids given.
     tx.execute("DELETE FROM entity_tags WHERE entity_type = 'task' AND entity_id NOT IN (SELECT id FROM todos)", [])?;
     tx.execute("DELETE FROM search_index WHERE entity_type = 'task' AND entity_id NOT IN (SELECT id FROM todos)", [])?;
-    tx.commit()
+    Ok(())
 }
 
 pub fn upsert_note_rows(conn: &mut Connection, items: &[Note]) -> rusqlite::Result<()> {
     let tx = conn.transaction()?;
+    upsert_note_rows_in(&tx, items)?;
+    tx.commit()
+}
+
+pub fn upsert_note_rows_in(tx: &Connection, items: &[Note]) -> rusqlite::Result<()> {
     for n in items {
         let tags_json = strings_json(&n.tags);
         tx.prepare_cached(&upsert_sql("notes", NOTE_COLS))?.execute(params![
@@ -816,20 +843,26 @@ pub fn upsert_note_rows(conn: &mut Connection, items: &[Note]) -> rusqlite::Resu
         for tag in &n.tags {
             tx.execute("INSERT OR IGNORE INTO entity_tags (entity_type, entity_id, tag) VALUES ('note', ?1, ?2)", params![n.id, tag])?;
         }
-        crate::opportunities::link_company(&tx, "notes", n.id, n.client_name.as_deref())?;
-        crate::v2_search::reindex_note(&tx, n.id)?;
+        crate::opportunities::link_company(tx, "notes", n.id, n.client_name.as_deref())?;
+        crate::v2_search::reindex_note(tx, n.id)?;
     }
-    crate::v2_search::rebuild_note_links(&tx)?;
-    tx.commit()
+    crate::v2_search::rebuild_note_links(tx)?;
+    Ok(())
 }
 
 pub fn delete_note_rows(conn: &mut Connection, ids: &[i64]) -> rusqlite::Result<()> {
     let tx = conn.transaction()?;
+    delete_note_rows_in(&tx, ids)?;
+    tx.commit()
+}
+
+pub fn delete_note_rows_in(tx: &Connection, ids: &[i64]) -> rusqlite::Result<()> {
     tx.execute("DELETE FROM notes WHERE id IN (SELECT value FROM json_each(?1))", params![ids_json(ids)])?;
+    crate::db::remove_orphan_links_of(tx, "note")?;
     tx.execute("DELETE FROM entity_tags WHERE entity_type = 'note' AND entity_id NOT IN (SELECT id FROM notes)", [])?;
     tx.execute("DELETE FROM search_index WHERE entity_type = 'note' AND entity_id NOT IN (SELECT id FROM notes)", [])?;
-    crate::v2_search::rebuild_note_links(&tx)?;
-    tx.commit()
+    crate::v2_search::rebuild_note_links(tx)?;
+    Ok(())
 }
 
 // ═══════════════════════════ Agreements created from proposals ═══════════════════════════
@@ -934,24 +967,33 @@ macro_rules! save_command {
 save_command!(save_note_folders, write_note_folders, String);
 save_command!(save_contact_lists, write_contact_lists, String);
 
-#[tauri::command]
-pub fn save_company_notes(state: State<DbState>, items: HashMap<String, String>) -> CmdResult<()> {
-    let mut conn = state.0.lock().map_err(conn_err)?;
-    write_company_notes(&mut conn, &items).map_err(conn_err)
+/// Saves one company's notes (empty text clears them). Only that company's
+/// row is written — the whole-map `write_company_notes` is for restores.
+pub fn save_company_note_row(conn: &Connection, company_name: &str, text: &str) -> rusqlite::Result<()> {
+    let name = company_name.trim();
+    if name.is_empty() {
+        return Ok(());
+    }
+    if text.trim().is_empty() {
+        conn.execute("UPDATE company_notes SET note_text = NULL WHERE company_name = ?1", params![name])?;
+        conn.execute(
+            "DELETE FROM company_notes WHERE company_name = ?1 AND (industries IS NULL OR industries = '[]')",
+            params![name],
+        )?;
+    } else {
+        conn.execute(
+            "INSERT INTO company_notes (company_name, note_text) VALUES (?1, ?2)
+             ON CONFLICT(company_name) DO UPDATE SET note_text = excluded.note_text",
+            params![name, text],
+        )?;
+    }
+    Ok(())
 }
 
-/// Standalone (not part of get_all_data/AppData) — loaded via its own call
-/// in main.ts's startup Promise.all, same as get_companies/get_opportunities.
 #[tauri::command]
-pub fn get_company_industries(state: State<DbState>) -> CmdResult<HashMap<String, Vec<String>>> {
+pub fn save_company_note(state: State<DbState>, company_name: String, text: String) -> CmdResult<()> {
     let conn = state.0.lock().map_err(conn_err)?;
-    read_company_industries(&conn).map_err(conn_err)
-}
-
-#[tauri::command]
-pub fn save_company_industries(state: State<DbState>, items: HashMap<String, Vec<String>>) -> CmdResult<()> {
-    let mut conn = state.0.lock().map_err(conn_err)?;
-    write_company_industries(&mut conn, &items).map_err(conn_err)
+    save_company_note_row(&conn, &company_name, &text).map_err(conn_err)
 }
 
 // ═══════════════════════════ Backup / restore ═══════════════════════════
@@ -979,37 +1021,43 @@ pub fn export_backup_json(state: State<DbState>) -> CmdResult<String> {
     serde_json::to_string_pretty(&envelope).map_err(conn_err)
 }
 
+/// Exports and "Save as" copies: asks where to save with the system dialog
+/// and writes the file there. The page never passes a path, so nothing
+/// running in it can write to an arbitrary place on disk.
 #[tauri::command]
-pub fn write_text_file(path: String, contents: String) -> CmdResult<()> {
-    std::fs::write(&path, contents).map_err(conn_err)
-}
-
-#[tauri::command]
-pub fn read_text_file(path: String) -> CmdResult<String> {
-    std::fs::read_to_string(&path).map_err(conn_err)
+pub async fn save_text_file_dialog(app: AppHandle, default_name: String, contents: String, extensions: Vec<String>) -> CmdResult<Option<String>> {
+    use tauri_plugin_dialog::DialogExt;
+    let file_name = std::path::Path::new(&default_name)
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_else(|| "export.txt".into());
+    let extensions: Vec<String> = extensions.into_iter().filter(|e| !e.is_empty() && e.chars().all(|c| c.is_ascii_alphanumeric())).collect();
+    let (tx, rx) = std::sync::mpsc::channel();
+    let mut dialog = app.dialog().file().set_file_name(&file_name);
+    if !extensions.is_empty() {
+        let refs: Vec<&str> = extensions.iter().map(String::as_str).collect();
+        dialog = dialog.add_filter(extensions.join("/").to_uppercase(), &refs);
+    }
+    dialog.save_file(move |picked| {
+        let _ = tx.send(picked);
+    });
+    let picked = tauri::async_runtime::spawn_blocking(move || rx.recv().ok().flatten()).await.map_err(conn_err)?;
+    let Some(picked) = picked else { return Ok(None) };
+    let path = picked.into_path().map_err(conn_err)?;
+    std::fs::write(&path, contents).map_err(conn_err)?;
+    Ok(Some(path.to_string_lossy().to_string()))
 }
 
 /// Restore from this app's own (v2) backup format produced by `export_backup_json`.
 #[tauri::command]
-pub fn import_backup_json(state: State<DbState>, json: String) -> CmdResult<ImportSummary> {
+pub fn import_backup_json(app: AppHandle, state: State<DbState>, json: String) -> CmdResult<ImportSummary> {
     let parsed: serde_json::Value = serde_json::from_str(&json).map_err(conn_err)?;
     let data_val = parsed.get("data").ok_or("Not a valid MENA One backup file (missing 'data')")?;
     let data: AppData = serde_json::from_value(data_val.clone()).map_err(conn_err)?;
 
     let mut conn = state.0.lock().map_err(conn_err)?;
-    crate::activity::with_activity_muted(&mut conn, |conn| {
-        write_proposals(conn, &data.proposals)?;
-        write_contacts(conn, &data.contacts)?;
-        write_agreements(conn, &data.agreements)?;
-        write_todos(conn, &data.todos)?;
-        write_notes(conn, &data.notes)?;
-        write_note_folders(conn, &data.note_folders)?;
-        write_contact_lists(conn, &data.contact_lists)?;
-        write_company_notes(conn, &data.company_notes)?;
-        crate::commercial::restore_setup(conn, &data.services, &data.business_entities, &data.team_members)?;
-        crate::commercial::normalize_commercial_data(conn)
-    })
-    .map_err(conn_err)?;
+    crate::backups::snapshot_before_change(&app, &conn, "restore")?;
+    restore_backup_core(&mut conn, &data).map_err(conn_err)?;
 
     Ok(ImportSummary {
         proposals: data.proposals.len(),
@@ -1024,12 +1072,61 @@ pub fn import_backup_json(state: State<DbState>, json: String) -> CmdResult<Impo
     })
 }
 
+/// Restores this app's own backup. All or nothing: one transaction, with
+/// activity muted. See `restore_records_in` for how records are applied.
+pub fn restore_backup_core(conn: &mut Connection, data: &AppData) -> rusqlite::Result<()> {
+    crate::activity::with_activity_muted(conn, |conn| {
+        let tx = conn.transaction()?;
+        restore_records_in(
+            &tx, &data.proposals, &data.contacts, &data.agreements, &data.todos, &data.notes,
+            &data.note_folders, &data.contact_lists, &data.company_notes,
+        )?;
+        crate::commercial::restore_setup(&tx, &data.services, &data.business_entities, &data.team_members)?;
+        crate::commercial::normalize_commercial_data(&tx)?;
+        tx.commit()
+    })
+}
+
+/// Records in a backup are saved by id, so a record that is still here keeps
+/// its global id (uuid) and version history instead of being deleted and
+/// re-created; records not in the backup are deleted, leaving tombstones.
+#[allow(clippy::too_many_arguments)]
+pub fn restore_records_in(
+    tx: &Connection, proposals: &[Proposal], contacts: &[Contact], agreements: &[Agreement], todos: &[Todo], notes: &[Note],
+    note_folders: &[String], contact_lists: &[String], company_notes: &HashMap<String, String>,
+) -> rusqlite::Result<()> {
+    fn missing(tx: &Connection, table: &str, keep: Vec<i64>) -> rusqlite::Result<Vec<i64>> {
+        let mut stmt = tx.prepare(&format!("SELECT id FROM {table} WHERE id NOT IN (SELECT value FROM json_each(?1))"))?;
+        let rows = stmt.query_map(params![ids_json(&keep)], |r| r.get(0))?;
+        rows.collect()
+    }
+    let gone = missing(tx, "agreements", agreements.iter().map(|a| a.id).collect())?;
+    delete_agreement_rows_in(tx, &gone)?;
+    let gone = missing(tx, "proposals", proposals.iter().map(|p| p.id).collect())?;
+    delete_proposal_rows_in(tx, &gone)?;
+    let gone = missing(tx, "contacts", contacts.iter().map(|c| c.id).collect())?;
+    delete_contact_rows_in(tx, &gone)?;
+    let gone = missing(tx, "todos", todos.iter().map(|t| t.id).collect())?;
+    delete_todo_rows_in(tx, &gone)?;
+    let gone = missing(tx, "notes", notes.iter().map(|n| n.id).collect())?;
+    delete_note_rows_in(tx, &gone)?;
+    upsert_proposal_rows_in(tx, proposals)?;
+    upsert_contact_rows_in(tx, contacts)?;
+    upsert_agreement_rows_in(tx, agreements)?;
+    upsert_todo_rows_in(tx, todos)?;
+    upsert_note_rows_in(tx, notes)?;
+    write_note_folders_in(tx, note_folders)?;
+    write_contact_lists_in(tx, contact_lists)?;
+    write_company_notes_in(tx, company_notes)
+}
+
 /// Import the *original HTML app's* localStorage-based backup file
 /// (produced by its `backupAllData()` button — `{"version":1,"data":{"menabig_v5":[...],...}}`).
 /// This is the primary one-time migration path from the legacy tracker.
 #[tauri::command]
-pub fn import_legacy_backup_json(state: State<DbState>, json: String) -> CmdResult<ImportSummary> {
+pub fn import_legacy_backup_json(app: AppHandle, state: State<DbState>, json: String) -> CmdResult<ImportSummary> {
     let mut conn = state.0.lock().map_err(conn_err)?;
+    crate::backups::snapshot_before_change(&app, &conn, "import")?;
     crate::activity::with_activity_muted(&mut conn, |conn| import_legacy_backup_core(conn, &json)).map_err(conn_err)
 }
 
@@ -1064,15 +1161,10 @@ pub fn import_legacy_backup_core(conn: &mut Connection, json: &str) -> rusqlite:
         .and_then(|v| serde_json::from_value(v.clone()).ok())
         .unwrap_or_default();
 
-    write_proposals(conn, &proposals)?;
-    write_contacts(conn, &contacts)?;
-    write_agreements(conn, &agreements)?;
-    write_todos(conn, &todos)?;
-    write_notes(conn, &notes)?;
-    write_note_folders(conn, &note_folders)?;
-    write_contact_lists(conn, &contact_lists)?;
-    write_company_notes(conn, &company_notes)?;
-    crate::commercial::normalize_commercial_data(conn)?;
+    let tx = conn.transaction()?;
+    restore_records_in(&tx, &proposals, &contacts, &agreements, &todos, &notes, &note_folders, &contact_lists, &company_notes)?;
+    crate::commercial::normalize_commercial_data(&tx)?;
+    tx.commit()?;
 
     Ok(ImportSummary {
         proposals: proposals.len(),
@@ -1127,20 +1219,16 @@ pub fn set_app_meta(state: State<DbState>, key: String, value: String) -> CmdRes
 }
 
 #[tauri::command]
-pub fn wipe_all_data(state: State<DbState>) -> CmdResult<()> {
+pub fn wipe_all_data(app: AppHandle, state: State<DbState>) -> CmdResult<()> {
     let mut conn = state.0.lock().map_err(conn_err)?;
+    crate::backups::snapshot_before_change(&app, &conn, "wipe")?;
     crate::activity::with_activity_muted(&mut conn, |conn| {
-        write_proposals(conn, &[])?;
-        write_contacts(conn, &[])?;
-        write_agreements(conn, &[])?;
-        write_todos(conn, &[])?;
-        write_notes(conn, &[])?;
-        write_note_folders(conn, &[])?;
-        write_contact_lists(conn, &[])?;
-        write_company_notes(conn, &HashMap::new())?;
-        conn.execute("DELETE FROM saved_lists", [])?;
-        conn.execute("DELETE FROM activity", [])?;
-        Ok(())
+        // One transaction: everything goes, or nothing does.
+        let tx = conn.transaction()?;
+        restore_records_in(&tx, &[], &[], &[], &[], &[], &[], &[], &HashMap::new())?;
+        tx.execute("DELETE FROM saved_lists", [])?;
+        tx.execute("DELETE FROM activity", [])?;
+        tx.commit()
     })
     .map_err(conn_err)
 }

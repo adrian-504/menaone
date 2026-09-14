@@ -28,7 +28,7 @@ fn sync_state(conn: &Connection, table: &str, id: i64) -> (String, i64) {
 fn upserts_track_identity_versions_and_tombstones() {
     let (path, mut conn) = fresh_db("identity");
     let v: String = conn.query_row("SELECT value FROM app_meta WHERE key='schema_version'", [], |r| r.get(0)).unwrap();
-    assert_eq!(v, "28");
+    assert_eq!(v, "29");
 
     upsert_proposal_rows(&mut conn, &[proposal(1, "Acme Test Co", "Lead")]).unwrap();
     let (uuid1, ver1) = sync_state(&conn, "proposals", 1);
@@ -246,8 +246,9 @@ fn rehearse_migrations_on_database_copy() {
     let path = std::path::PathBuf::from(path);
     assert!(!path.to_string_lossy().contains("Application Support"), "point this at a copy, never the live database");
     // Deletes made in normal use already left tombstones; migrating must not add any.
+    // (Migration 29 removes links to records that no longer exist; those are the only deletions allowed.)
     let tombstones_before: i64 = Connection::open(&path)
-        .and_then(|c| c.query_row("SELECT COUNT(*) FROM sync_tombstones", [], |r| r.get(0)))
+        .and_then(|c| c.query_row("SELECT COUNT(*) FROM sync_tombstones WHERE table_name <> 'entity_links'", [], |r| r.get(0)))
         .unwrap_or(0);
     let conn = init_connection(&path).expect("migrations apply cleanly");
     let v: String = conn.query_row("SELECT value FROM app_meta WHERE key='schema_version'", [], |r| r.get(0)).unwrap();
@@ -267,6 +268,6 @@ fn rehearse_migrations_on_database_copy() {
             .unwrap();
         println!("{t}: with company name={named} linked={linked}");
     }
-    let tombstones: i64 = conn.query_row("SELECT COUNT(*) FROM sync_tombstones", [], |r| r.get(0)).unwrap();
+    let tombstones: i64 = conn.query_row("SELECT COUNT(*) FROM sync_tombstones WHERE table_name <> 'entity_links'", [], |r| r.get(0)).unwrap();
     assert_eq!(tombstones, tombstones_before, "migrating must not delete anything");
 }

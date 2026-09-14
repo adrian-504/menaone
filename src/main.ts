@@ -2,7 +2,7 @@ import './styles.css';
 import { S } from './lib/state';
 import { STATUSES } from './lib/constants';
 import { escHtml, getClients, expose } from './lib/utils';
-import { loadAllData, getCommercialSetup, getProjects, getAreas, getNoteTemplates, getAllTags, getInboxItems, getMeetings, getCompanies, getOpportunities, getCompanyIndustries, ms365Status, getSavedLists } from './lib/db';
+import { loadAllData, getCommercialSetup, getProjects, getAreas, getNoteTemplates, getAllTags, getInboxItems, getMeetings, getCompanies, getOpportunities, ms365Status, getSavedLists } from './lib/db';
 import { registerPeriodChangeHandler, populatePeriodSelector } from './lib/period';
 import { refreshAll, refreshBadges, getActiveTabId } from './lib/registry';
 import { markLoadedAsSaved } from './lib/persist';
@@ -18,7 +18,7 @@ import './core/commandPalette';
 import { backfillMilestoneDates, registerPopulateAllSelects } from './core/proposals';
 import './core/backup';
 import { syncAgreementsFromProposals, populateAgrFilters } from './core/agreements';
-import { populateCtListFilter } from './core/contacts';
+import { populateCtListFilter, populateCtTypeFilter } from './core/contacts';
 
 // Tabs (each registers its renderer with the registry on import)
 import './tabs/dashboard';
@@ -102,6 +102,7 @@ function populateAllSelects(): void {
   const stSel = document.getElementById('status-modal-sel') as HTMLSelectElement | null;
   if (stSel) stSel.innerHTML = STATUSES.map((s) => `<option value="${escHtml(s)}">${escHtml(s)}</option>`).join('');
   populateCtListFilter();
+  populateCtTypeFilter();
   populateAgrFilters();
   populateWqOwnerFilter();
 }
@@ -180,8 +181,8 @@ async function init(): Promise<void> {
   S.companyNotes = data.companyNotes;
   markLoadedAsSaved();
   applyCommercialSetup(await getCommercialSetup());
-  [S.projects, S.areas, S.noteTemplates, S.allTags, S.inboxItems, S.meetings, S.companies, S.opportunities, S.companyIndustries, S.ms365Status, S.savedLists] = await Promise.all([
-    getProjects(true), getAreas(), getNoteTemplates(), getAllTags(), getInboxItems(), getMeetings(), getCompanies(), getOpportunities(), getCompanyIndustries(), ms365Status(), getSavedLists(),
+  [S.projects, S.areas, S.noteTemplates, S.allTags, S.inboxItems, S.meetings, S.companies, S.opportunities, S.ms365Status, S.savedLists] = await Promise.all([
+    getProjects(true), getAreas(), getNoteTemplates(), getAllTags(), getInboxItems(), getMeetings(), getCompanies(), getOpportunities(), ms365Status(), getSavedLists(),
   ]);
   // Calendar/Action Required/the Settings shortcut are gated behind an active
   // Microsoft 365 connection (data-ms365-gated in index.html) — previously

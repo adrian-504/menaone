@@ -312,7 +312,11 @@ pub async fn ms365_sync_flagged_emails(db: State<'_, DbState>, ms: State<'_, Ms3
                conversation_id=excluded.conversation_id, subject=excluded.subject, sender_name=excluded.sender_name,
                sender_email=excluded.sender_email, preview=excluded.preview, received_at=excluded.received_at,
                flag_status=excluded.flag_status, flag_due_at=excluded.flag_due_at, web_link=excluded.web_link,
-               is_read=excluded.is_read, last_synced_at=excluded.last_synced_at, recipients_json=excluded.recipients_json",
+               is_read=excluded.is_read, last_synced_at=excluded.last_synced_at, recipients_json=excluded.recipients_json
+             WHERE emails.subject IS NOT excluded.subject OR emails.flag_status IS NOT excluded.flag_status
+                OR emails.flag_due_at IS NOT excluded.flag_due_at OR emails.is_read IS NOT excluded.is_read
+                OR emails.preview IS NOT excluded.preview OR emails.recipients_json IS NOT excluded.recipients_json
+                OR emails.received_at IS NOT excluded.received_at OR emails.sender_email IS NOT excluded.sender_email",
             params![
                 m.id, m.conversation_id, m.subject, sender_name, sender_email, m.body_preview,
                 m.received_date_time, flag_status, flag_due_at, m.web_link, m.is_read.unwrap_or(false) as i64, now,
@@ -518,7 +522,7 @@ pub(crate) fn utc_instant(date_time: &str, time_zone: &str) -> String {
     if millis.is_empty() { format!("{base}Z") } else { format!("{base}.{millis}Z") }
 }
 
-fn upsert_meeting_from_event(conn: &Connection, e: &graph::GraphEvent, now: &str) -> rusqlite::Result<()> {
+pub fn upsert_meeting_from_event(conn: &Connection, e: &graph::GraphEvent, now: &str) -> rusqlite::Result<()> {
     let organizer = e.organizer.as_ref().and_then(|o| o.email_address.name.clone().or(o.email_address.address.clone()));
     let organizer_email = e.organizer.as_ref().and_then(|o| o.email_address.address.clone());
     let attendee_emails_json = people_json(e.attendees.iter());
@@ -544,7 +548,14 @@ fn upsert_meeting_from_event(conn: &Connection, e: &graph::GraphEvent, now: &str
            start_at=excluded.start_at, end_at=excluded.end_at, organizer=excluded.organizer, location=excluded.location,
            is_online_meeting=excluded.is_online_meeting, online_meeting_url=excluded.online_meeting_url,
            is_cancelled=excluded.is_cancelled, last_synced_at=excluded.last_synced_at, updated_at=excluded.last_synced_at,
-           organizer_email=excluded.organizer_email, attendee_emails_json=excluded.attendee_emails_json",
+           organizer_email=excluded.organizer_email, attendee_emails_json=excluded.attendee_emails_json
+         -- An unchanged event is left alone, so a re-sync doesn't count as an edit of every meeting.
+         WHERE meetings.title IS NOT excluded.title OR meetings.meeting_date IS NOT excluded.meeting_date
+            OR meetings.attendees_json IS NOT excluded.attendees_json OR meetings.start_at IS NOT excluded.start_at
+            OR meetings.end_at IS NOT excluded.end_at OR meetings.organizer IS NOT excluded.organizer
+            OR meetings.location IS NOT excluded.location OR meetings.is_online_meeting IS NOT excluded.is_online_meeting
+            OR meetings.online_meeting_url IS NOT excluded.online_meeting_url OR meetings.is_cancelled IS NOT excluded.is_cancelled
+            OR meetings.organizer_email IS NOT excluded.organizer_email OR meetings.attendee_emails_json IS NOT excluded.attendee_emails_json",
         params![
             e.subject.clone().unwrap_or_else(|| "(No subject)".into()), meeting_date, attendees_json, description,
             e.id, start_at, end_at, organizer, location, is_online as i64, online_url, is_cancelled as i64, now,

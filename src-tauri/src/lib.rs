@@ -6,6 +6,7 @@ pub mod commercial;
 pub mod company_migration;
 pub mod db;
 pub mod insights;
+pub mod integrity;
 pub mod intel;
 pub mod lists;
 pub mod localfiles;
@@ -167,6 +168,18 @@ fn build_menu(app: &tauri::AppHandle) -> tauri::Result<tauri::menu::Menu<tauri::
         .build()
 }
 
+/// Shows what went wrong before the app has a window, then quits.
+fn startup_failure(message: &str, detail: &str) -> ! {
+    eprintln!("[startup] {message}\n{detail}");
+    rfd::MessageDialog::new()
+        .set_level(rfd::MessageLevel::Error)
+        .set_title("MENA One can't start")
+        .set_description(format!("{message}\n\n{detail}"))
+        .set_buttons(rfd::MessageButtons::Ok)
+        .show();
+    std::process::exit(1);
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -183,9 +196,18 @@ pub fn run() {
             let backups_dir = backups::backups_dir(&app_data_dir);
             if let Err(e) = backups::backup_before_migrations(&db_file, &backups_dir) {
                 // Refuse to migrate a database we couldn't copy first.
-                panic!("could not back up the database before upgrading it: {e}");
+                startup_failure(
+                    "MENA One couldn't back up your data before updating it, so it stopped without changing anything.",
+                    &format!("{e}\n\nYour data is at:\n{}", db_file.display()),
+                );
             }
-            let conn = db::init_connection(&db_file).expect("failed to initialize SQLite database");
+            let conn = match db::init_connection(&db_file) {
+                Ok(conn) => conn,
+                Err(e) => startup_failure(
+                    "MENA One couldn't open or update your data. Nothing from this update was applied.",
+                    &format!("{e}\n\nYour data is at:\n{}\nBackups are in:\n{}", db_file.display(), backups_dir.display()),
+                ),
+            };
             if let Err(e) = backups::ensure_daily_backup(&conn, &backups_dir, backups::DAILY_KEEP) {
                 eprintln!("[backups] daily snapshot failed: {e}");
             }
@@ -277,9 +299,7 @@ pub fn run() {
             commands::delete_notes,
             commands::save_note_folders,
             commands::save_contact_lists,
-            commands::save_company_notes,
-            commands::get_company_industries,
-            commands::save_company_industries,
+            commands::save_company_note,
             commands::export_backup_json,
             activity::get_activity,
             ms365::commands::ms365_get_emails_by_address,
@@ -289,8 +309,7 @@ pub fn run() {
             backups::reveal_backups_folder,
             commands::import_backup_json,
             commands::import_legacy_backup_json,
-            commands::write_text_file,
-            commands::read_text_file,
+            commands::save_text_file_dialog,
             commands::wipe_all_data,
             commands::get_app_meta,
             commands::set_app_meta,
@@ -371,6 +390,7 @@ pub fn run() {
             company_migration::get_review_queue,
             company_migration::resolve_review_queue_entry,
             opportunities::merge_company_links,
+            integrity::get_integrity_report,
             lists::get_saved_lists,
             lists::save_saved_list,
             lists::delete_saved_list,

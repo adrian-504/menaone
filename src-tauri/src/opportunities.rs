@@ -42,37 +42,118 @@ fn stage_to_status(stage: &str) -> &'static str {
     }
 }
 
-/// Find-or-create a company row by (trimmed) name. Empty/absent name => None,
-/// same convention as every other free-text company field in the app.
-/// `pub(crate)` — also reused by localfiles.rs's folder-to-Company linking
-/// wizard, which needs the exact same find-or-create semantics rather than a
-/// second copy of this logic.
-pub(crate) fn resolve_company(conn: &Connection, name: Option<&str>) -> rusqlite::Result<Option<i64>> {
-    let name = match name.map(str::trim) {
-        Some(n) if !n.is_empty() => n,
-        _ => return Ok(None),
-    };
-    if let Some(id) = conn
-        .query_row("SELECT id FROM companies WHERE name = ?1", params![name], |r| r.get::<_, i64>(0))
-        .optional()?
-    {
-        return Ok(Some(id));
-    }
-    conn.execute(
-        "INSERT INTO companies (name, created_at) VALUES (?1, ?2)",
-        params![name, crate::commands::now_iso()],
-    )?;
-    Ok(Some(conn.last_insert_rowid()))
+// ═══════════════ Company identity ═══════════════
+//
+// `company_id` is a record's company. Records still carry the company's name
+// as text (typed in forms, shown in lists, used in exports), so every save
+// works out which company that text means:
+//   1. the company the record is already linked to, if the text is that
+//      company's name or one of its former names (renamed or merged away);
+//   2. a company with exactly that name, then the same name ignoring case;
+//   3. a company that used to have that name;
+//   4. otherwise a new company.
+// Former names live in `company_aliases`, written by rename and merge, so an
+// old name arriving later (a record not yet refreshed, an import, a synced
+// email) finds the company instead of re-creating the one that was renamed or
+// merged away. Similar-but-different names ("Acme" vs "Acme LLC") are never
+// joined automatically; the Companies list flags them as possible duplicates.
+
+fn trimmed(name: Option<&str>) -> Option<&str> {
+    name.map(str::trim).filter(|n| !n.is_empty())
 }
 
-/// Points `table.company_id` at the company named `name` (creating it if
-/// needed), or clears it when the name is empty. Leaves the row alone when the
-/// link is already right, so an unchanged save doesn't count as an edit.
+/// The company a name refers to, without creating anything.
+pub fn find_company(conn: &Connection, hint: Option<i64>, name: Option<&str>) -> rusqlite::Result<Option<i64>> {
+    let Some(name) = trimmed(name) else { return Ok(None) };
+    if let Some(id) = hint {
+        let same: bool = conn.query_row(
+            "SELECT EXISTS(SELECT 1 FROM companies WHERE id = ?1 AND name = ?2 COLLATE NOCASE)
+                 OR EXISTS(SELECT 1 FROM company_aliases WHERE company_id = ?1 AND alias = ?2)",
+            params![id, name],
+            |r| r.get(0),
+        )?;
+        if same {
+            return Ok(Some(id));
+        }
+    }
+    if let Some(id) = find_company_by_name(conn, name)? {
+        return Ok(Some(id));
+    }
+    conn.query_row("SELECT company_id FROM company_aliases WHERE alias = ?1", params![name], |r| r.get(0)).optional()
+}
+
+fn find_company_by_name(conn: &Connection, name: &str) -> rusqlite::Result<Option<i64>> {
+    if let Some(id) = conn.query_row("SELECT id FROM companies WHERE name = ?1", params![name], |r| r.get(0)).optional()? {
+        return Ok(Some(id));
+    }
+    conn.query_row("SELECT id FROM companies WHERE name = ?1 COLLATE NOCASE ORDER BY id LIMIT 1", params![name], |r| r.get(0)).optional()
+}
+
+fn insert_company(conn: &Connection, name: &str) -> rusqlite::Result<i64> {
+    conn.execute("INSERT INTO companies (name, created_at) VALUES (?1, ?2)", params![name, crate::commands::now_iso()])?;
+    // A name that now belongs to a real company is no longer someone's former name.
+    conn.execute("DELETE FROM company_aliases WHERE alias = ?1", params![name])?;
+    Ok(conn.last_insert_rowid())
+}
+
+/// The company a saved record belongs to (see the rules above); `hint` is the
+/// company it is linked to now. Empty name => no company.
+pub fn resolve_company_ref(conn: &Connection, hint: Option<i64>, name: Option<&str>) -> rusqlite::Result<Option<i64>> {
+    let Some(name) = trimmed(name) else { return Ok(None) };
+    if let Some(id) = find_company(conn, hint, Some(name))? {
+        return Ok(Some(id));
+    }
+    insert_company(conn, name).map(Some)
+}
+
+/// Find-or-create by name alone, for records with no current link.
+pub(crate) fn resolve_company(conn: &Connection, name: Option<&str>) -> rusqlite::Result<Option<i64>> {
+    resolve_company_ref(conn, None, name)
+}
+
+/// An explicit "new company": an existing company with that name (ignoring
+/// case) is returned, but a former name doesn't count — the person means a
+/// new company, not the one that used to be called that.
+pub fn create_company_named(conn: &Connection, name: &str) -> rusqlite::Result<Option<i64>> {
+    let Some(name) = trimmed(Some(name)) else { return Ok(None) };
+    if let Some(id) = find_company_by_name(conn, name)? {
+        return Ok(Some(id));
+    }
+    insert_company(conn, name).map(Some)
+}
+
+/// The company a row of `table` is linked to now.
+pub(crate) fn current_company_id(conn: &Connection, table: &str, id: i64) -> rusqlite::Result<Option<i64>> {
+    Ok(conn
+        .query_row(&format!("SELECT company_id FROM {table} WHERE id = ?1"), params![id], |r| r.get::<_, Option<i64>>(0))
+        .optional()?
+        .flatten())
+}
+
+/// Points `table.company_id` at the company the name refers to (creating it
+/// if needed), or clears it when the name is empty. Leaves the row alone when
+/// the link is already right, so an unchanged save doesn't count as an edit.
 pub(crate) fn link_company(conn: &Connection, table: &str, id: i64, name: Option<&str>) -> rusqlite::Result<()> {
-    let company_id = resolve_company(conn, name)?;
+    let hint = current_company_id(conn, table, id)?;
+    let company_id = resolve_company_ref(conn, hint, name)?;
     conn.execute(
         &format!("UPDATE {table} SET company_id = ?1 WHERE id = ?2 AND company_id IS NOT ?1"),
         params![company_id, id],
+    )?;
+    Ok(())
+}
+
+/// Remembers `alias` as a former name of `company_id`.
+pub fn remember_company_alias(conn: &Connection, company_id: i64, alias: &str) -> rusqlite::Result<()> {
+    let Some(alias) = trimmed(Some(alias)) else { return Ok(()) };
+    let current: Option<String> = conn.query_row("SELECT name FROM companies WHERE id = ?1", params![company_id], |r| r.get(0)).optional()?;
+    if current.as_deref().is_some_and(|n| n.eq_ignore_ascii_case(alias)) {
+        return Ok(());
+    }
+    conn.execute(
+        "INSERT INTO company_aliases (alias, company_id, created_at) VALUES (?1, ?2, ?3)
+         ON CONFLICT(alias) DO UPDATE SET company_id = excluded.company_id, created_at = excluded.created_at",
+        params![alias, company_id, crate::commands::now_iso()],
     )?;
     Ok(())
 }
@@ -141,7 +222,7 @@ pub fn get_companies(state: State<DbState>) -> CmdResult<Vec<Company>> {
 #[tauri::command]
 pub fn create_company(state: State<DbState>, name: String) -> CmdResult<Company> {
     let conn = state.0.lock().map_err(err)?;
-    let id = resolve_company(&conn, Some(&name))
+    let id = create_company_named(&conn, &name)
         .map_err(err)?
         .ok_or_else(|| "Company name cannot be empty.".to_string())?;
     let sql = format!("SELECT {COMPANY_COLUMNS} FROM companies WHERE id = ?1");
@@ -204,6 +285,10 @@ pub fn save_company(state: State<DbState>, company: Company) -> CmdResult<Compan
 #[tauri::command]
 pub fn merge_company_links(state: State<DbState>, old_name: String, new_name: String) -> CmdResult<()> {
     let mut conn = state.0.lock().map_err(err)?;
+    merge_company_links_core(&mut conn, &old_name, &new_name)
+}
+
+pub fn merge_company_links_core(conn: &mut Connection, old_name: &str, new_name: &str) -> CmdResult<()> {
     let tx = conn.transaction().map_err(err)?;
     let old_id: Option<i64> = tx
         .query_row("SELECT id FROM companies WHERE name = ?1", params![old_name], |r| r.get(0))
@@ -218,6 +303,8 @@ pub fn merge_company_links(state: State<DbState>, old_name: String, new_name: St
         (None, _) => {}
         (Some(oid), None) => {
             tx.execute("UPDATE companies SET name = ?1 WHERE id = ?2", params![new_name, oid]).map_err(err)?;
+            tx.execute("DELETE FROM company_aliases WHERE alias = ?1", params![new_name]).map_err(err)?;
+            remember_company_alias(&tx, oid, &old_name).map_err(err)?;
         }
         (Some(oid), Some(nid)) => {
             tx.execute(
@@ -240,8 +327,11 @@ pub fn merge_company_links(state: State<DbState>, old_name: String, new_name: St
             ).map_err(err)?;
             tx.execute("DELETE FROM company_industries WHERE company_id = ?1", params![oid]).map_err(err)?;
             tx.execute("UPDATE OR IGNORE company_list_members SET company_id = ?1 WHERE company_id = ?2", params![nid, oid]).map_err(err)?;
+            // The merged-away name (and its own former names) now mean the company it went into.
+            tx.execute("UPDATE company_aliases SET company_id = ?1 WHERE company_id = ?2", params![nid, oid]).map_err(err)?;
             tx.execute("DELETE FROM company_list_members WHERE company_id = ?1", params![oid]).map_err(err)?;
             tx.execute("DELETE FROM companies WHERE id = ?1", params![oid]).map_err(err)?;
+            remember_company_alias(&tx, nid, &old_name).map_err(err)?;
         }
     }
     tx.commit().map_err(err)
@@ -273,9 +363,14 @@ pub fn get_opportunities(state: State<DbState>) -> CmdResult<Vec<Opportunity>> {
 #[tauri::command]
 pub fn save_opportunity(state: State<DbState>, opportunity: Opportunity) -> CmdResult<Opportunity> {
     let mut conn = state.0.lock().map_err(err)?;
+    save_opportunity_row(&mut conn, &opportunity)
+}
+
+pub fn save_opportunity_row(conn: &mut Connection, opportunity: &Opportunity) -> CmdResult<Opportunity> {
     let tx = conn.transaction().map_err(err)?;
     let now = crate::commands::now_iso();
-    let company_id = resolve_company(&tx, opportunity.company_name.as_deref()).map_err(err)?;
+    let hint = if opportunity.id > 0 { current_company_id(&tx, "opportunities", opportunity.id).map_err(err)? } else { None };
+    let company_id = resolve_company_ref(&tx, hint.or(opportunity.company_id), opportunity.company_name.as_deref()).map_err(err)?;
     let status = stage_to_status(&opportunity.stage);
 
     let prev: Option<(String, Option<i64>, Option<i64>)> = if opportunity.id > 0 {
@@ -340,9 +435,8 @@ pub fn save_opportunity(state: State<DbState>, opportunity: Opportunity) -> CmdR
 
     crate::v2_search::reindex_opportunity(&tx, id).map_err(err)?;
     tx.commit().map_err(err)?;
-    drop(conn);
 
-    let conn2 = state.0.lock().map_err(err)?;
+    let conn2 = &*conn;
     let sql = format!(
         "SELECT {OPP_COLUMNS} FROM opportunities o LEFT JOIN companies c ON c.id = o.company_id WHERE o.id = ?1"
     );

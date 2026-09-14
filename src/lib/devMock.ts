@@ -137,7 +137,6 @@ function makeMockCompany(id: number, name: string): Company {
   };
 }
 companiesStore = [{ ...makeMockCompany(1, 'Acme Holdings'), industries: ['Logistics'], owner: 'Ahmad', website: 'acme.test', country: 'Saudi Arabia', city: 'Riyadh' }];
-let companyIndustriesStore: Record<string, string[]> = {};
 let reviewQueueStore: ReviewQueueEntry[] = [];
 const mockOpp = (id: number, name: string, stage: string, value: number | null, created: string, extra: Partial<Opportunity> = {}): Opportunity => ({
   id, name, companyId: 1, companyName: 'Acme Holdings', owner: 'Ahmad', stage, status: stage === 'Won' ? 'Won' : stage === 'Lost' ? 'Lost' : 'Open',
@@ -546,12 +545,7 @@ export async function installDevMockIfNeeded(): Promise<void> {
             companiesTotal: companiesStore.length, companiesMissingIndustry: companiesStore.filter((c) => c.industries.length === 0).length,
             companiesWithoutContacts: companiesStore.length,
           };
-        case 'get_company_industries':
-          return companyIndustriesStore;
-        case 'save_company_industries':
-          companyIndustriesStore = ((_payload as any)?.items as Record<string, string[]>) ?? {};
-          return null;
-        case 'save_company_notes':
+        case 'save_company_note':
           return null;
         case 'merge_company_links': {
           const { oldName, newName } = (_payload as any) ?? {};

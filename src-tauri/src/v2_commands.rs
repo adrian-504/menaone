@@ -120,6 +120,10 @@ fn log_project_activity(tx: &Connection, project_id: i64, kind: &str, detail: Op
 #[tauri::command]
 pub fn save_project(state: State<DbState>, project: Project) -> CmdResult<Project> {
     let mut conn = state.0.lock().map_err(err)?;
+    save_project_row(&mut conn, &project)
+}
+
+pub fn save_project_row(conn: &mut Connection, project: &Project) -> CmdResult<Project> {
     let tx = conn.transaction().map_err(err)?;
     let now = crate::commands::now_iso();
     let is_new = project.id == 0;
@@ -128,7 +132,8 @@ pub fn save_project(state: State<DbState>, project: Project) -> CmdResult<Projec
     } else {
         None
     };
-    let company_id = crate::opportunities::resolve_company(&tx, project.company_name.as_deref()).map_err(err)?;
+    let hint = if project.id > 0 { crate::opportunities::current_company_id(&tx, "projects", project.id).map_err(err)? } else { None };
+    let company_id = crate::opportunities::resolve_company_ref(&tx, hint.or(project.company_id), project.company_name.as_deref()).map_err(err)?;
     let id = if project.id > 0 {
         tx.execute(
             "UPDATE projects SET name=?2, type=?3, status=?4, priority=?5, owner=?6, description=?7,
@@ -171,11 +176,10 @@ pub fn save_project(state: State<DbState>, project: Project) -> CmdResult<Projec
 
     crate::v2_search::reindex_project(&tx, id).map_err(err)?;
     tx.commit().map_err(err)?;
-    drop(conn);
-    let conn2 = state.0.lock().map_err(err)?;
+    let conn2 = &*conn;
     let sql = format!("SELECT {PROJECT_COLUMNS} FROM projects WHERE id = ?1");
     let p = conn2.query_row(&sql, params![id], row_to_project).map_err(err)?;
-    hydrate_project(&conn2, p).map_err(err)
+    hydrate_project(conn2, p).map_err(err)
 }
 
 #[tauri::command]
@@ -298,6 +302,10 @@ pub fn get_meetings(state: State<DbState>) -> CmdResult<Vec<Meeting>> {
 #[tauri::command]
 pub fn save_meeting(state: State<DbState>, meeting: Meeting) -> CmdResult<Meeting> {
     let mut conn = state.0.lock().map_err(err)?;
+    save_meeting_row(&mut conn, &meeting)
+}
+
+pub fn save_meeting_row(conn: &mut Connection, meeting: &Meeting) -> CmdResult<Meeting> {
     let tx = conn.transaction().map_err(err)?;
     let now = crate::commands::now_iso();
     let attendees_json = serde_json::to_string(&meeting.attendees).unwrap_or_else(|_| "[]".into());
@@ -325,8 +333,7 @@ pub fn save_meeting(state: State<DbState>, meeting: Meeting) -> CmdResult<Meetin
     crate::opportunities::link_company(&tx, "meetings", id, meeting.company_name.as_deref()).map_err(err)?;
     crate::v2_search::reindex_meeting(&tx, id).map_err(err)?;
     tx.commit().map_err(err)?;
-    drop(conn);
-    let conn2 = state.0.lock().map_err(err)?;
+    let conn2 = &*conn;
     let sql = format!("{MEETING_SELECT} WHERE id = ?1");
     conn2.query_row(&sql, params![id], row_to_meeting).map_err(err)
 }
@@ -398,6 +405,7 @@ pub fn save_document(state: State<DbState>, doc: DocumentRecord) -> CmdResult<Do
 pub fn delete_document(state: State<DbState>, id: i64) -> CmdResult<()> {
     let conn = state.0.lock().map_err(err)?;
     conn.execute("DELETE FROM documents WHERE id = ?1", params![id]).map_err(err)?;
+    crate::db::remove_orphan_links_of(&conn, "document").map_err(err)?;
     conn.execute("DELETE FROM search_index WHERE entity_type='document' AND entity_id=?1", params![id]).map_err(err)?;
     Ok(())
 }

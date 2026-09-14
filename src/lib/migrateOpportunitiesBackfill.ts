@@ -3,8 +3,7 @@
 // exactly: back up first, never delete/modify the source records, gate by
 // an app_meta flag so it runs exactly once.
 import { S } from './state';
-import { getAppMeta, setAppMeta, exportBackupJson, writeTextFile, saveOpportunity } from './db';
-import { today } from './utils';
+import { getAppMeta, setAppMeta, saveOpportunity, backupDatabaseNow } from './db';
 import type { Opportunity } from './types';
 
 const BACKFILL_FLAG = 'opportunities_leads_backfilled_v1';
@@ -18,12 +17,9 @@ export interface OpportunityBackfillReport {
 
 async function writeBackup(): Promise<string | null> {
   try {
-    const { appDataDir, join } = await import('@tauri-apps/api/path');
-    const json = await exportBackupJson();
-    const dir = await appDataDir();
-    const path = await join(dir, `opportunities-backfill-backup-${today()}-${Date.now()}.json`);
-    await writeTextFile(path, json);
-    return path;
+    // A database snapshot in the app's backups folder (Settings → Backups).
+    const backup = await backupDatabaseNow();
+    return backup.fileName;
   } catch (e) {
     console.error('Pre-backfill backup failed:', e);
     return null;

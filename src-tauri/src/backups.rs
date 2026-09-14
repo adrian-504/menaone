@@ -19,6 +19,7 @@ use crate::db::DbState;
 const DAILY_PREFIX: &str = "daily-";
 const PRE_MIGRATION_PREFIX: &str = "pre-migration-";
 const MANUAL_PREFIX: &str = "manual-";
+const BEFORE_CHANGE_PREFIX: &str = "before-";
 pub const DAILY_KEEP: usize = 14;
 
 type CmdResult<T> = Result<T, String>;
@@ -124,7 +125,7 @@ pub fn list_backups(dir: &Path) -> Vec<LocalBackup> {
                 "daily"
             } else if name.starts_with(PRE_MIGRATION_PREFIX) {
                 "pre-migration"
-            } else if name.starts_with(MANUAL_PREFIX) {
+            } else if name.starts_with(MANUAL_PREFIX) || name.starts_with(BEFORE_CHANGE_PREFIX) {
                 "manual"
             } else {
                 "other"
@@ -173,6 +174,26 @@ pub fn backup_database_now(app: AppHandle, state: State<DbState>) -> CmdResult<L
         .into_iter()
         .find(|b| dest.file_name().is_some_and(|n| n.to_string_lossy() == b.file_name))
         .ok_or_else(|| "Backup was written but could not be read back".to_string())
+}
+
+/// Snapshot taken right before a change that replaces many records at once
+/// (restoring a backup, importing, wiping). Callers refuse to go ahead when
+/// this fails. `what` names the change in the file name, e.g. "restore".
+pub fn snapshot_before_change(app: &AppHandle, conn: &Connection, what: &str) -> Result<PathBuf, String> {
+    let dir = dir_for(app)?;
+    let stamp: String = conn
+        .query_row("SELECT strftime('%Y%m%d-%H%M%S', 'now', 'localtime')", [], |r| r.get(0))
+        .map_err(|e| e.to_string())?;
+    let dest = dir.join(format!("{BEFORE_CHANGE_PREFIX}{what}-{stamp}.sqlite3"));
+    snapshot(conn, &dest).map_err(|e| format!("Couldn't back up the database first, so nothing was changed: {e}"))?;
+    Ok(dest)
+}
+
+/// Checks a snapshot can be opened and is intact.
+pub fn verify_snapshot(path: &Path) -> rusqlite::Result<bool> {
+    let conn = Connection::open_with_flags(path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)?;
+    let result: String = conn.query_row("PRAGMA integrity_check", [], |r| r.get(0))?;
+    Ok(result == "ok")
 }
 
 #[tauri::command]

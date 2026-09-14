@@ -151,6 +151,21 @@ export async function deleteContactList(i: number): Promise<void> {
 }
 expose('deleteContactList', deleteContactList);
 
+/** Services a proposal covers: its lines, or its type for older one-service proposals. */
+function proposalServices(p: { type: string | null; lines?: { serviceName: string }[] }): string[] {
+  return p.lines?.length ? p.lines.map((l) => l.serviceName) : p.type ? [p.type] : [];
+}
+
+/** Service filter, built from the services actually proposed (no hard-coded list to drift). */
+export function populateCtTypeFilter(): void {
+  const sel = document.getElementById('ct-type-filter') as HTMLSelectElement | null;
+  if (!sel) return;
+  const cur = sel.value;
+  const services = [...new Set(S.proposals.flatMap(proposalServices).map((x) => x.trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  if (cur && !services.includes(cur)) services.push(cur);
+  sel.innerHTML = `<option value="">All services</option>` + services.map((x) => `<option value="${escHtml(x)}" ${x === cur ? 'selected' : ''}>${escHtml(x)}</option>`).join('');
+}
+
 /** List filter: contact lists by name, company lists as `company:<id>`. */
 export function populateCtListFilter(): void {
   const sel = document.getElementById('ct-list-filter') as HTMLSelectElement | null;
@@ -233,7 +248,7 @@ export function contactsMatching(f: Record<string, string>): Contact[] {
     if (companyRefs) { if (!companyRefs.some((r) => inCompany(r, c.companyId, c.clientName))) return false; }
     else if (f.list && !(c.lists || []).includes(f.list)) return false;
     // Derived from the company's proposal types, not the contact's own Services field.
-    if (f.type && !S.proposals.some((p) => p.type === f.type && sameCompany(p.companyId, p.client, c.companyId, c.clientName))) return false;
+    if (f.type && !S.proposals.some((p) => proposalServices(p).includes(f.type) && sameCompany(p.companyId, p.client, c.companyId, c.clientName))) return false;
     if (search) {
       if (![c.name, c.clientName, c.email, c.phone, c.role, c.service].some((v) => (v || '').toLowerCase().includes(search))) return false;
     }
@@ -448,6 +463,7 @@ function lastTouchByEmail(): Map<string, string> {
 
 export function renderContacts(): void {
   populateCtListFilter();
+  populateCtTypeFilter();
   const filters = readContactFilters();
   renderListsBar(filters);
   void (window as any).updatePeopleBanner?.();

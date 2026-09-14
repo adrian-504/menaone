@@ -439,6 +439,8 @@ pub fn resolve_review_queue_entry(
     };
 
     if let Some(cid) = resolved_company_id {
+        // The confirmed name keeps meaning this company for later saves and imports.
+        crate::opportunities::remember_company_alias(&tx, cid, &raw_name).map_err(err)?;
         for (table, col) in LEGACY_SOURCES.iter() {
             let sql = format!("UPDATE {table} SET company_id = ?1 WHERE company_id IS NULL AND {col} = ?2");
             tx.execute(&sql, params![cid, raw_name]).map_err(err)?;

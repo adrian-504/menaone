@@ -115,9 +115,19 @@ pub fn rename_company_row(conn: &Connection, id: i64, name: &str) -> Result<(), 
     if clash.is_some() {
         return Err(format!("A company called \"{name}\" already exists — use Merge to combine them"));
     }
+    let old: Option<String> = conn.query_row("SELECT name FROM companies WHERE id = ?1", params![id], |r| r.get(0)).optional().map_err(err)?;
+    let Some(old) = old else { return Err("Company not found".into()) };
     conn.execute(
         "UPDATE companies SET name = ?1, updated_at = ?2 WHERE id = ?3",
         params![name, crate::commands::now_iso(), id],
+    )
+    .map_err(err)?;
+    conn.execute("DELETE FROM company_aliases WHERE alias = ?1", params![name]).map_err(err)?;
+    crate::opportunities::remember_company_alias(conn, id, &old).map_err(err)?;
+    // The company's notes are kept under its name; they follow the rename.
+    conn.execute(
+        "UPDATE OR IGNORE company_notes SET company_name = ?1 WHERE company_name = ?2",
+        params![name, old],
     )
     .map_err(err)?;
     Ok(())

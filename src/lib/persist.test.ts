@@ -12,7 +12,7 @@ vi.mock('./db', () => {
     upsertProposals: links(), deleteProposals: ok(), upsertContacts: links(), deleteContacts: ok(),
     upsertAgreements: links(), deleteAgreements: ok(), upsertTodos: links(), deleteTodos: ok(),
     upsertNotes: links(), deleteNotes: ok(), getCompanies: vi.fn(async () => [{ id: 7, name: 'Acme Test Co' }]), saveNoteFolders: ok(), saveContactLists: ok(),
-    saveCompanyNotes: ok(), saveCompanyIndustries: ok(), saveProject: ok(), saveMilestones: ok(),
+    saveCompanyNote: ok(), saveProject: ok(), saveMilestones: ok(),
     saveOpportunity: ok(), saveMeeting: ok(), createCompany: ok(),
   };
 });

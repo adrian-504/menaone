@@ -4,7 +4,6 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>MENA One</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
     <script type="module" src="/src/main.ts"></script>
   </head>
   <body>
@@ -1378,28 +1377,7 @@
     <input type="text" class="f-search" id="ct-search" placeholder="Search name, company, email, role, service…" oninput="renderContacts()">
     <select class="fsel" id="ct-client" onchange="renderContacts()"><option value="">All Clients</option></select>
     <select class="fsel" id="ct-list-filter" onchange="renderContacts()"><option value="">All lists</option></select>
-    <select class="fsel" id="ct-type-filter" onchange="renderContacts()" title="Filter by the client company's proposal/service type">
-      <option value="">All Service Types</option>
-      <option>Accountancy</option>
-      <option>Accountancy and VAT</option>
-      <option>Admin PRO</option>
-      <option>Admin PRO and Payroll</option>
-      <option>Business Setup and Maintenance Package</option>
-      <option>Company Constitution</option>
-      <option>Company Maintenance</option>
-      <option>Consultancy</option>
-      <option>Dedicated Recruiter</option>
-      <option>GM Representative</option>
-      <option>Manpower</option>
-      <option>Mobilization</option>
-      <option>National Staffing</option>
-      <option>Payroll</option>
-      <option>Payroll and GOSI</option>
-      <option>PRO</option>
-      <option>Recruitment</option>
-      <option>Training Services</option>
-      <option>Workforce</option>
-    </select>
+    <select class="fsel" id="ct-type-filter" onchange="renderContacts()" title="Contacts at companies that were offered or are on retainer for this service"><option value="">All services</option></select>
     <button class="btn-sm" onclick="openContactColumns(event)" title="Choose columns">Columns</button>
     <span class="rcnt" id="ct-cnt">0 contacts</span>
   </div>

@@ -7,7 +7,7 @@
 import TurndownService from 'turndown';
 import { gfm } from 'turndown-plugin-gfm';
 import { S } from './state';
-import { getAppMeta, setAppMeta, exportBackupJson, writeTextFile, updateNoteTemplate } from './db';
+import { getAppMeta, setAppMeta, updateNoteTemplate, backupDatabaseNow } from './db';
 import { persistNotes } from './persist';
 import { today } from './utils';
 
@@ -40,12 +40,9 @@ function buildTurndown(): TurndownService {
 
 async function writeBackup(): Promise<string | null> {
   try {
-    const { appDataDir, join } = await import('@tauri-apps/api/path');
-    const json = await exportBackupJson();
-    const dir = await appDataDir();
-    const path = await join(dir, `notes-markdown-migration-backup-${today()}-${Date.now()}.json`);
-    await writeTextFile(path, json);
-    return path;
+    // A database snapshot in the app's backups folder (Settings → Backups).
+    const backup = await backupDatabaseNow();
+    return backup.fileName;
   } catch (e) {
     console.error('Pre-migration backup failed:', e);
     return null;

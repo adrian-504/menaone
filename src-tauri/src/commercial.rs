@@ -335,14 +335,12 @@ struct CatalogSeed {
 const CATALOG_SEED: &str = include_str!("catalog_seed.json");
 
 pub fn migrate_commercial_core(conn: &Connection) -> rusqlite::Result<()> {
-    let tx = conn.unchecked_transaction()?;
-    tx.execute_batch(SCHEMA)?;
-    seed_reference_data(&tx)?;
-    tx.commit()?;
-    crate::db::add_sync_columns_to(conn, COMMERCIAL_SYNC_TABLES)?;
-    let tx = conn.unchecked_transaction()?;
-    normalize_commercial_data(&tx)?;
-    tx.commit()
+    crate::db::atomic(conn, "commercial_core", |tx| {
+        tx.execute_batch(SCHEMA)?;
+        seed_reference_data(tx)?;
+        crate::db::add_sync_columns_to(tx, COMMERCIAL_SYNC_TABLES)?;
+        normalize_commercial_data(tx)
+    })
 }
 
 fn seed_reference_data(conn: &Connection) -> rusqlite::Result<()> {
@@ -403,7 +401,10 @@ pub fn add_line_rate_columns(conn: &Connection) -> rusqlite::Result<()> {
 /// three employee bands shown on Admin and GOSI proposals. Cards and services
 /// the team already edited keep their values; only missing fields are added.
 pub fn migrate_pricing_ranges(conn: &Connection) -> rusqlite::Result<()> {
-    let tx = conn.unchecked_transaction()?;
+    crate::db::atomic(conn, "pricing_ranges", migrate_pricing_ranges_inner)
+}
+
+fn migrate_pricing_ranges_inner(tx: &Connection) -> rusqlite::Result<()> {
     let now = now_iso();
     let seed: CatalogSeed = serde_json::from_str(CATALOG_SEED).map_err(|e| rusqlite::Error::InvalidParameterName(e.to_string()))?;
     for rc in &seed.rate_cards {
@@ -461,7 +462,7 @@ pub fn migrate_pricing_ranges(conn: &Connection) -> rusqlite::Result<()> {
          WHERE name = 'Recruitment' AND rate_card_id IS (SELECT id FROM rate_cards WHERE name = 'Manpower & Recruitment')",
         [],
     )?;
-    tx.commit()
+    Ok(())
 }
 
 fn set_muted(conn: &Connection, muted: bool) -> rusqlite::Result<Option<String>> {
@@ -809,11 +810,11 @@ const AGREEMENT_QUALIFYING_STATUSES: &[&str] = &[
 /// Creates an agreement, with the proposal's lines, for every won proposal
 /// that has none. Returns the ids it created. Safe to repeat.
 pub fn create_agreements_core(conn: &Connection) -> rusqlite::Result<Vec<i64>> {
-    type Pending = (i64, String, Option<String>, Option<String>, Option<String>, Option<f64>, Option<i64>, Option<String>, Option<String>, Option<i64>, Option<String>);
+    type Pending = (i64, String, Option<String>, Option<String>, Option<String>, Option<f64>, Option<i64>, Option<String>, Option<String>, Option<i64>, Option<String>, Option<i64>);
     let pending: Vec<Pending> = {
         let mut stmt = conn.prepare(
             "SELECT p.id, p.client, p.type, p.dbl_signed_date, p.sent_date, p.monthly_fee, p.contract_months, p.hubspot,
-                    p.kickoff_date, p.business_entity_id, p.currency
+                    p.kickoff_date, p.business_entity_id, p.currency, p.company_id
              FROM proposals p
              WHERE p.status IN (SELECT value FROM json_each(?1))
                AND NOT EXISTS (SELECT 1 FROM agreements a WHERE a.proposal_id = p.id)
@@ -821,13 +822,13 @@ pub fn create_agreements_core(conn: &Connection) -> rusqlite::Result<Vec<i64>> {
         )?;
         let statuses = serde_json::to_string(AGREEMENT_QUALIFYING_STATUSES).unwrap_or_else(|_| "[]".into());
         let rows = stmt.query_map(params![statuses], |r| {
-            Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?, r.get(5)?, r.get(6)?, r.get(7)?, r.get(8)?, r.get(9)?, r.get(10)?))
+            Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?, r.get(5)?, r.get(6)?, r.get(7)?, r.get(8)?, r.get(9)?, r.get(10)?, r.get(11)?))
         })?;
         rows.collect::<rusqlite::Result<_>>()?
     };
     let today = now_iso();
     let mut created = Vec::new();
-    for (pid, client, ptype, dbl_signed, sent, fee, months, hubspot, kickoff, entity, currency) in pending {
+    for (pid, client, ptype, dbl_signed, sent, fee, months, hubspot, kickoff, entity, currency, proposal_company) in pending {
         let catalog_type: Option<String> = conn
             .query_row(
                 "SELECT s.agreement_type FROM proposal_lines l JOIN services s ON s.id = l.service_id
@@ -839,7 +840,7 @@ pub fn create_agreements_core(conn: &Connection) -> rusqlite::Result<Vec<i64>> {
         let agr_type = catalog_type.unwrap_or_else(|| crate::commands::proposal_type_to_agreement_type(ptype.as_deref()).to_string());
         let ref_date = dbl_signed.clone().filter(|d| !d.is_empty()).or(sent.filter(|d| !d.is_empty())).unwrap_or_else(|| today.clone());
         let agr_ref = crate::commands::next_agreement_ref(conn, &client, &agr_type, &ref_date)?;
-        let company_id = crate::opportunities::resolve_company(conn, Some(&client))?;
+        let company_id = crate::opportunities::resolve_company_ref(conn, proposal_company, Some(&client))?;
         let start = kickoff.filter(|d| !d.is_empty());
         conn.execute(
             "INSERT INTO agreements (agr_ref, client, type, status, prepared_by, date_prepared, date_sent_to_client,

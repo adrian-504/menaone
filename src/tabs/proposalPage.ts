@@ -6,7 +6,7 @@
 // to, notes and activity.
 
 import { S } from '../lib/state';
-import { escHtml, expose, fmtDate, today, nextId, nextCtId, showConfirm, showTextPrompt, debounce } from '../lib/utils';
+import { escHtml, expose, fmtDate, today, nextId, nextCtId, showConfirm, showTextPrompt, debounce, strColor } from '../lib/utils';
 import { icon } from '../lib/icons';
 import { companyLink, recordLink } from '../lib/links';
 import { emptyState, toast, undoToast } from '../lib/ui';
@@ -29,12 +29,6 @@ import type { Proposal, CommercialLine, ProposalFolder, Opportunity, LocalFileIt
 
 const w = window as any;
 
-function strColor(s: string): string {
-  const palette = ['#1D4ED8', '#7C3AED', '#0D9488', '#D97706', '#DC2626', '#0369A1', '#065F46', '#92400E', '#DB2777', '#059669'];
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) & 0xffffffff;
-  return palette[Math.abs(h) % palette.length];
-}
 
 const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((x) => x[0]).join('').toUpperCase() || '?';
 const currentProposal = (): Proposal | undefined => S.proposals.find((p) => p.id === S.currentProposalId);

@@ -10,7 +10,9 @@ import { getAllCompanies } from './companies';
 import { getIntelligenceItems } from '../lib/db';
 import type { Proposal } from '../lib/types';
 
-declare const Chart: any;
+// Bundled with the app: a script loaded from a CDN would run with full
+// access to the app, and charts would break offline.
+import Chart from 'chart.js/auto';
 
 export function destroyChart(id: string): void {
   if (S.charts[id]) { S.charts[id].destroy(); delete S.charts[id]; }
