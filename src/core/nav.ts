@@ -20,11 +20,18 @@ function closeTopmostModal(): boolean {
 
 /** Escape closes the topmost open modal, otherwise leaves the open record
  * (company, project, opportunity, meeting) for its module's list. Only fires
- * when nothing else already owns Escape (the command palette). */
+ * when nothing else already owns Escape (the command palette). While typing
+ * in a field of a record page, the first Escape only leaves the field (which
+ * saves it) — closing the page there would drop what was just typed. */
 document.addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return;
   if (S.commandPaletteOpen) return;
   if (closeTopmostModal()) return;
+  const t = e.target as HTMLElement | null;
+  if (t && (/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || t.isContentEditable || t.closest?.('.cm-editor'))) {
+    t.blur();
+    return;
+  }
   closeCurrentRecord({ fromEscape: true });
 });
 

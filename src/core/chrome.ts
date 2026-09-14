@@ -2,7 +2,7 @@ import { S } from '../lib/state';
 import { expose } from '../lib/utils';
 import { icon } from '../lib/icons';
 import { showMenuAt, type ContextMenuItem } from '../lib/contextMenu';
-import { currentPlace } from './router';
+import { currentPlace, placeCompany } from './router';
 
 /** Renders every `[data-icon]` placeholder in the current DOM using the
  * shared icon set (src/lib/icons.ts) — keeps SVG path data in one place
@@ -54,14 +54,13 @@ const NEW_ITEM_TYPES: { label: string; iconName: string; run: () => void }[] = [
   { label: 'Note', iconName: 'note', run: () => { (window as any).switchTab?.('notes'); (window as any).createNewNote?.(null); } },
 ];
 
-/** Company the open record belongs to (or the open company itself). */
+/** Company the open record belongs to (or the open company itself), by its
+ * current name. The forms below still take the company as text; the backend
+ * links it to this company by name and former names (Foundation Lock). */
 function contextCompany(): string | null {
   const p = currentPlace();
   if (p.kind === 'company') return S.currentCompany;
-  const id = Number(p.key);
-  if (p.kind === 'project') return S.projects.find((x) => x.id === id)?.companyName ?? null;
-  if (p.kind === 'opportunity') return S.opportunities.find((x) => x.id === id)?.companyName ?? null;
-  if (p.kind === 'meeting') return S.meetings.find((x) => x.id === id)?.companyName ?? null;
+  if (p.kind === 'project' || p.kind === 'opportunity' || p.kind === 'meeting') return placeCompany(p)?.name ?? null;
   return null;
 }
 

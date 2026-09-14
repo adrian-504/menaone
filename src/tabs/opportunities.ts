@@ -341,9 +341,11 @@ expose('submitOpportunity', submitOpportunity);
 // ── Workspace / detail view ─────────────────────────────────────────────────
 
 export async function openOpportunityDetail(id: number): Promise<void> {
-  S.currentOpportunityId = id;
   const o = S.opportunities.find((x) => x.id === id);
-  if (!o) return;
+  // A deleted opportunity (an old link or history entry) must not leave the
+  // page showing the previous one under a missing id: go to the list instead.
+  if (!o) { if (S.currentOpportunityId != null) closeOpportunityDetail(); return; }
+  S.currentOpportunityId = id;
   document.getElementById('opp-list-view')?.classList.add('hidden');
   document.getElementById('opp-detail')?.classList.add('open');
   notifyNavigated();

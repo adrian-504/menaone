@@ -108,9 +108,9 @@ export function projectContextMenu(e: MouseEvent, id: number): void {
   const p = S.projects.find((x) => x.id === id);
   if (!p) return;
   showContextMenu(e, [
-    { label: 'Open', iconName: 'target', run: () => { void openProjectDetail(id); } },
+    { label: 'Open', iconName: 'target', run: () => (window as any).openRecord('project', id) },
     { label: 'Edit', iconName: 'edit', run: () => openProjectModal(id) },
-    { label: 'Create Task', iconName: 'plus', run: () => { void openProjectDetail(id).then(() => createTodoForCurrentProject()); } },
+    { label: 'Create Task', iconName: 'plus', run: () => { (window as any).switchTab('projects'); void openProjectDetail(id).then(() => createTodoForCurrentProject()); } },
     { label: p.archived ? 'Unarchive' : 'Archive', iconName: 'archive', run: () => { S.currentProjectId = id; void toggleArchiveProject(); } },
   ]);
 }
@@ -118,7 +118,8 @@ expose('projectContextMenu', projectContextMenu);
 
 function projectCard(p: Project): string {
   const sc = STATUS_COLOR[p.status] || STATUS_COLOR['Not Started'];
-  return `<div class="project-card" data-project-id="${p.id}" onclick="openProjectDetail(${p.id})" oncontextmenu="projectContextMenu(event,${p.id})">
+  // Cards are also shown on company pages: open through the router so the Projects module comes forward.
+  return `<div class="project-card" data-project-id="${p.id}" onclick="openRecord('project', ${p.id})" oncontextmenu="projectContextMenu(event,${p.id})">
     <div class="project-card-hd">
       <div class="project-type-dot ${p.type}" title="${p.type === 'client' ? 'Client project' : 'Internal project'}"></div>
       <div class="project-name">${escHtml(p.name)}</div>

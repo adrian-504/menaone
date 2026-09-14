@@ -2158,3 +2158,7 @@ tr:hover .row-actions .rec-icon-btn,.row-actions .rec-icon-btn:focus-visible{opa
 .inbox-card .inbox-item:hover{box-shadow:none;background:color-mix(in srgb,var(--text) 3%,transparent)}
 .inbox-card .inbox-item-actions{opacity:.6}
 .inbox-card .inbox-item:hover .inbox-item-actions{opacity:1}
+.md-rel-link:empty{display:none}
+.md-rel-link{font-size:var(--type-secondary);white-space:nowrap}
+dd:has(> .md-rel-link:not(:empty)){display:flex;align-items:center;gap:10px}
+dd:has(> .md-rel-link:not(:empty)) > select{flex:1;min-width:0}

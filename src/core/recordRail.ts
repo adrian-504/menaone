@@ -2,6 +2,13 @@
 // agreement, opportunity, project or meeting is open, its module's records
 // stay visible on the left so you can move between them without going back
 // to the list. Toggled from the location bar; remembered on this device.
+//
+// Scope is deliberate. Tasks and Notes are NOT in `SUPPORTED` on purpose:
+// their modules already keep their own list beside the open item (the task
+// list with its detail panel, the notes sidebar beside the editor), so a
+// second list would duplicate it. They still take part in routing, history,
+// links and recents like every other record. Add a kind here only for a
+// record that opens as a full page without its list.
 
 import { S } from '../lib/state';
 import { escHtml, expose, fmtDate } from '../lib/utils';

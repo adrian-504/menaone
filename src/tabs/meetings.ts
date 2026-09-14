@@ -3,7 +3,7 @@ import { showContextMenu } from '../lib/contextMenu';
 import { renderIcons } from '../core/chrome';
 import { skeleton, emptyState } from '../lib/ui';
 import { toast } from '../lib/ui';
-import { companyLink } from '../lib/links';
+import { companyLink, recordLink } from '../lib/links';
 import { fmtDate, escHtml, expose, nextTodoId, nextNoteId, today, showConfirm, inCompany } from '../lib/utils';
 import { registerTabRenderer, refreshAll, refreshBadges, notifyNavigated } from '../lib/registry';
 import { getMeetings, deleteMeeting, ms365CancelOutlookMeeting, setLinksFrom } from '../lib/db';
@@ -69,9 +69,10 @@ function renderMeetingList(): void {
 }
 
 export function openMeetingDetail(id: number): void {
-  S.meetingEditId = id;
   const m = S.meetings.find((x) => x.id === id);
-  if (!m) return;
+  // A deleted meeting (an old link or history entry): back to the list, not a stale page.
+  if (!m) { if (S.meetingEditId != null && document.getElementById('meeting-detail')?.classList.contains('open')) closeMeetingDetail(); return; }
+  S.meetingEditId = id;
   (document.getElementById('md-title') as HTMLElement).textContent = m.title;
   (document.getElementById('md-badges') as HTMLElement).innerHTML = [
     m.meetingDate ? `<span class="chip">${fmtDate(m.meetingDate)}</span>` : '',
@@ -89,6 +90,7 @@ export function openMeetingDetail(id: number): void {
   const oppSel = document.getElementById('md-opportunity-sel') as HTMLSelectElement;
   oppSel.innerHTML = `<option value="">— No opportunity —</option>` + S.opportunities.filter((o) => !o.archived).map((o) => `<option value="${o.id}">${escHtml(o.name)}</option>`).join('');
   oppSel.value = m.opportunityId != null ? String(m.opportunityId) : '';
+  renderMeetingRelationLinks(m);
 
   (document.getElementById('md-agenda') as HTMLTextAreaElement).value = m.agenda || '';
   (document.getElementById('md-discussion') as HTMLTextAreaElement).value = m.discussion || '';
@@ -251,10 +253,20 @@ export function autoSaveMeetingField(field: MeetingTextField, value: string): vo
 }
 expose('autoSaveMeetingField', autoSaveMeetingField);
 
+/** "Open" links beside the meeting's project and opportunity pickers. */
+function renderMeetingRelationLinks(m: Meeting): void {
+  const project = m.projectId != null ? S.projects.find((p) => p.id === m.projectId) : undefined;
+  const opp = m.opportunityId != null ? S.opportunities.find((o) => o.id === m.opportunityId) : undefined;
+  const set = (id: string, html: string) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
+  set('md-project-link', project ? recordLink('project', project.id, 'Open', { className: 'md-open-link' }) : '');
+  set('md-opportunity-link', opp ? recordLink('opportunity', opp.id, 'Open', { className: 'md-open-link' }) : '');
+}
+
 export function autoSaveMeetingProject(value: string): void {
   const m = currentMeeting();
   if (!m) return;
   m.projectId = value ? Number(value) : null;
+  renderMeetingRelationLinks(m);
   void persistMeeting(m);
 }
 expose('autoSaveMeetingProject', autoSaveMeetingProject);
@@ -276,6 +288,7 @@ export function autoSaveMeetingOpportunity(value: string): void {
   const m = currentMeeting();
   if (!m) return;
   m.opportunityId = value ? Number(value) : null;
+  renderMeetingRelationLinks(m);
   void persistMeeting(m);
 }
 expose('autoSaveMeetingOpportunity', autoSaveMeetingOpportunity);

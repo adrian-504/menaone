@@ -2,6 +2,7 @@ import { S } from '../lib/state';
 import { escHtml, expose } from '../lib/utils';
 import { icon } from '../lib/icons';
 import { searchWorkspace } from '../lib/db';
+import { latestOnly } from '../lib/latest';
 import { switchTab } from './nav';
 import { openRecord, recentRecords, currentPlace, recordTitle } from './router';
 import type { RecordKind } from '../lib/navHistory';
@@ -126,10 +127,14 @@ function openSearchResult(r: SearchResult): void {
 let selIndex = 0;
 let currentItems: Array<{ kind: 'action'; action: Action } | { kind: 'result'; result: SearchResult }> = [];
 let searchTimer: number | undefined;
+/** Only the newest search may show its results (an older one can finish later). */
+const search = latestOnly(searchWorkspace);
 
 export function openCommandPalette(): void {
   S.commandPaletteOpen = true;
   S.searchQuery = '';
+  window.clearTimeout(searchTimer);
+  search.cancel();
   document.getElementById('cmdk-ov')?.classList.add('open');
   const input = document.getElementById('cmdk-input') as HTMLInputElement | null;
   if (input) { input.value = ''; setTimeout(() => input.focus(), 0); }
@@ -139,6 +144,8 @@ expose('openCommandPalette', openCommandPalette);
 
 export function closeCommandPalette(): void {
   S.commandPaletteOpen = false;
+  window.clearTimeout(searchTimer);
+  search.cancel();
   document.getElementById('cmdk-ov')?.classList.remove('open');
 }
 expose('closeCommandPalette', closeCommandPalette);
@@ -147,10 +154,18 @@ export function onPaletteInput(value: string): void {
   S.searchQuery = value;
   selIndex = 0;
   window.clearTimeout(searchTimer);
+  search.cancel();
   if (!value.trim()) { renderPalette([]); return; }
   searchTimer = window.setTimeout(async () => {
-    const results = await searchWorkspace(value.trim());
-    renderPalette(results);
+    let answer;
+    try {
+      answer = await search.run(value.trim());
+    } catch (err) {
+      console.error('[palette] search failed:', err);
+      answer = { current: true as const, value: [] as SearchResult[] };
+    }
+    if (!answer.current || !S.commandPaletteOpen) return;
+    renderPalette(answer.value);
   }, 150);
 }
 expose('onPaletteInput', onPaletteInput);

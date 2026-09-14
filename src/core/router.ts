@@ -26,6 +26,8 @@ interface RecordPage {
   /** Back to the module's list. */
   close(): void;
   label(key: number | string): string | null;
+  /** Whether the record still exists (a page can stay open in a module you left while the record is deleted elsewhere). */
+  exists(key: number | string): boolean;
   /** Whether Escape should leave the record (not for editors like Notes). */
   escapeCloses: boolean;
 }
@@ -44,6 +46,8 @@ const PAGES: Partial<Record<RecordKind, RecordPage>> = {
     open: (key) => { const name = companyByKey(key)?.name ?? (typeof key === 'string' ? key : null); if (name) w.openCompanyDetail(name); },
     close: () => w.closeCompanyDetail(),
     label: (key) => companyByKey(key)?.name ?? (typeof key === 'string' ? key : null),
+    // Companies can also be opened by a name only known from proposals.
+    exists: (key) => !!companyByKey(key) || typeof key === 'string',
     escapeCloses: true,
   },
   project: {
@@ -52,6 +56,7 @@ const PAGES: Partial<Record<RecordKind, RecordPage>> = {
     open: (key) => w.openProjectDetail(Number(key)),
     close: () => w.closeProjectDetail(),
     label: (key) => S.projects.find((p) => p.id === Number(key))?.name ?? null,
+    exists: (key) => S.projects.some((p) => p.id === Number(key)),
     escapeCloses: true,
   },
   opportunity: {
@@ -60,6 +65,7 @@ const PAGES: Partial<Record<RecordKind, RecordPage>> = {
     open: (key) => w.openOpportunityDetail(Number(key)),
     close: () => w.closeOpportunityDetail(),
     label: (key) => S.opportunities.find((o) => o.id === Number(key))?.name ?? null,
+    exists: (key) => S.opportunities.some((o) => o.id === Number(key)),
     escapeCloses: true,
   },
   meeting: {
@@ -68,6 +74,7 @@ const PAGES: Partial<Record<RecordKind, RecordPage>> = {
     open: (key) => w.openMeetingDetail(Number(key)),
     close: () => w.closeMeetingDetail(),
     label: (key) => S.meetings.find((m) => m.id === Number(key))?.title ?? null,
+    exists: (key) => S.meetings.some((m) => m.id === Number(key)),
     escapeCloses: true,
   },
   contact: {
@@ -76,6 +83,7 @@ const PAGES: Partial<Record<RecordKind, RecordPage>> = {
     open: (key) => w.openContactPage(Number(key)),
     close: () => w.closeContactPage(),
     label: (key) => S.contacts.find((c) => c.id === Number(key))?.name || 'Unnamed contact',
+    exists: (key) => S.contacts.some((c) => c.id === Number(key)),
     escapeCloses: true,
   },
   task: {
@@ -84,6 +92,7 @@ const PAGES: Partial<Record<RecordKind, RecordPage>> = {
     open: (key) => w.openTaskDetail(Number(key)),
     close: () => w.closeTaskDetail(),
     label: (key) => S.todos.find((t) => t.id === Number(key))?.title ?? null,
+    exists: (key) => S.todos.some((t) => t.id === Number(key)),
     escapeCloses: true,
   },
   proposal: {
@@ -96,6 +105,7 @@ const PAGES: Partial<Record<RecordKind, RecordPage>> = {
       const p = S.proposals.find((x) => x.id === Number(key));
       return p ? `${p.client} — SL# ${p.id}` : null;
     },
+    exists: (key) => key === 'new' || S.proposals.some((p) => p.id === Number(key)),
     escapeCloses: true,
   },
   agreement: {
@@ -104,6 +114,7 @@ const PAGES: Partial<Record<RecordKind, RecordPage>> = {
     open: (key) => w.openAgreementPage(Number(key)),
     close: () => w.closeAgreementPage(),
     label: (key) => { const a = S.agreements.find((x) => x.id === Number(key)); return a ? a.agrRef || `${a.client} agreement` : null; },
+    exists: (key) => S.agreements.some((a) => a.id === Number(key)),
     escapeCloses: true,
   },
   note: {
@@ -112,6 +123,7 @@ const PAGES: Partial<Record<RecordKind, RecordPage>> = {
     open: (key) => w.openNote(Number(key)),
     close: () => { /* Notes always shows its list beside the editor */ },
     label: (key) => S.notes.find((n) => n.id === Number(key))?.title || 'Untitled note',
+    exists: (key) => S.notes.some((n) => n.id === Number(key)),
     escapeCloses: false,
   },
 };
@@ -137,6 +149,17 @@ function pageForTab(tab: string): [RecordKind, RecordPage] | null {
     if (page.tab === tab) return [kind, page];
   }
   return null;
+}
+
+/** Closes a module's open page when its record no longer exists; true if it did. */
+function closeMissingRecord(): boolean {
+  const entry = pageForTab(S.currentTab);
+  if (!entry) return false;
+  const [kind, page] = entry;
+  const key = page.current();
+  if (key == null || page.exists(key) || kind === 'note') return false;
+  page.close();
+  return true;
 }
 
 export function currentPlace(): Place {
@@ -169,32 +192,35 @@ async function setWindowTitle(title: string): Promise<void> {
   tauriSetTitle?.(title);
 }
 
-/** Company a record belongs to, shown as a link beside the record in the location bar. */
-function placeCompany(p: Place): { id: number | null; name: string } | null {
-  if (p.key == null) return null;
-  const id = Number(p.key);
-  const rec = p.kind === 'project' ? S.projects.find((x) => x.id === id)
-    : p.kind === 'opportunity' ? S.opportunities.find((x) => x.id === id)
-    : p.kind === 'meeting' ? S.meetings.find((x) => x.id === id)
-    : null;
-  if (rec?.companyName) return { id: rec.companyId ?? null, name: rec.companyName };
-  if (p.kind === 'note') {
-    const n = S.notes.find((x) => x.id === id);
-    if (n?.clientName) return { id: n.companyId ?? null, name: n.clientName };
+/** The company fields of a record: its company link and its company text. */
+function companyFieldsOf(kind: RecordKind, id: number): { companyId?: number | null; name?: string | null } | null {
+  const pick = <T extends { companyId?: number | null }>(r: T | undefined, name: (r: T) => string | null | undefined) =>
+    (r ? { companyId: r.companyId, name: name(r) } : null);
+  switch (kind) {
+    case 'project': return pick(S.projects.find((x) => x.id === id), (r) => r.companyName);
+    case 'opportunity': return pick(S.opportunities.find((x) => x.id === id), (r) => r.companyName);
+    case 'meeting': return pick(S.meetings.find((x) => x.id === id), (r) => r.companyName);
+    case 'note': return pick(S.notes.find((x) => x.id === id), (r) => r.clientName);
+    case 'task': return pick(S.todos.find((x) => x.id === id), (r) => r.client);
+    case 'proposal': return pick(S.proposals.find((x) => x.id === id), (r) => r.client);
+    case 'agreement': return pick(S.agreements.find((x) => x.id === id), (r) => r.client);
+    case 'contact': return pick(S.contacts.find((x) => x.id === id), (r) => r.clientName);
+    default: return null;
   }
-  if (p.kind === 'proposal') {
-    const x = S.proposals.find((r) => r.id === id);
-    if (x?.client) return null;
-  }
-  if (p.kind === 'agreement') {
-    const a = S.agreements.find((r) => r.id === id);
-    if (a?.client) return { id: a.companyId ?? null, name: a.client };
-  }
-  if (p.kind === 'contact') {
-    const c = S.contacts.find((x) => x.id === id);
-    if (c?.clientName) return { id: c.companyId ?? null, name: c.clientName };
-  }
-  return null;
+}
+
+/** Company a record belongs to, shown as a link beside the record in the
+ * location bar. The linked company (`companyId`) is authoritative and shown
+ * under its current name; the record's company text is only used for a
+ * record whose company link hasn't been saved yet. */
+export function placeCompany(p: Place): { id: number | null; name: string } | null {
+  if (p.key == null || p.kind == null || p.kind === 'company') return null;
+  const ref = companyFieldsOf(p.kind, Number(p.key));
+  if (!ref) return null;
+  const linked = ref.companyId != null ? S.companies.find((c) => c.id === ref.companyId) : undefined;
+  if (linked) return { id: linked.id, name: linked.name };
+  const name = (ref.name || '').trim();
+  return name ? { id: ref.companyId ?? null, name } : null;
 }
 
 function renderChrome(): void {
@@ -260,6 +286,8 @@ function restoreScroll(p: Place): void {
 
 function settle(): void {
   pending = false;
+  // Arriving in a module whose open page shows a record deleted meanwhile: show its list.
+  if (!restoring && closeMissingRecord()) return;
   const place = currentPlace();
   if (restoring) { renderChrome(); return; }
   if (history.visit(place)) {
@@ -297,6 +325,7 @@ async function goTo(place: Place): Promise<void> {
         page.close();
       }
     }
+    closeMissingRecord();
   } finally {
     restoring = false;
   }
