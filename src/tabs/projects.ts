@@ -4,7 +4,7 @@ import { recordLink } from '../lib/links';
 import { activityItem, renderFeed } from '../lib/activityFeed';
 import { renderIcons } from '../core/chrome';
 import { registerDragSource, registerDropTarget, reorder } from '../lib/dnd';
-import { skeleton } from '../lib/ui';
+import { loadInto } from '../lib/ui';
 import { companyLink } from '../lib/links';
 import { fmtDate, escHtml, expose, statusDot, showConfirm, nextNoteId, today, inCompany } from '../lib/utils';
 import { registerTabRenderer, registerProjectViewRefresher, refreshAll, notifyNavigated } from '../lib/registry';
@@ -40,9 +40,7 @@ async function loadProjects(): Promise<void> {
 }
 
 async function renderProjectsTab(): Promise<void> {
-  const grid = document.getElementById('proj-grid');
-  if (grid && !grid.childElementCount) grid.innerHTML = skeleton(3, 'cards');
-  await loadProjects();
+  if (!(await loadInto(document.getElementById('proj-grid'), 'projects', 'renderTab(\'projects\')', loadProjects, 'cards'))) return;
   renderProjects();
   if (S.currentProjectId != null) await renderProjectDetail();
 }
@@ -95,7 +93,7 @@ export function renderProjects(): void {
   const grid = document.getElementById('proj-grid');
   if (!grid) return;
   if (data.length === 0) {
-    grid.innerHTML = `<div class="card grid-full">${emptyState({ icon: 'target', title: 'No projects here', body: 'Client engagements and internal initiatives both live here.', action: { label: 'New Project', onclick: 'openProjectModal(null)' } })}</div>`;
+    grid.innerHTML = `<div class="card grid-full">${emptyState({ icon: 'target', title: 'No projects here', body: 'Client engagements and internal initiatives both live here.', action: { label: 'New project', onclick: 'openProjectModal(null)' } })}</div>`;
     renderIcons(grid);
     return;
   }
@@ -448,15 +446,14 @@ export function openProjectModal(id: number | null): void {
   S.projectEditId = id;
   const f = document.getElementById('project-form') as HTMLFormElement;
   f.reset();
-  const dl = document.getElementById('pj-company-list'); if (dl) dl.innerHTML = getAllCompanies().map((c) => `<option value="${escHtml(c)}">`).join('');
   const companyInput = f.elements.namedItem('pjCompany') as HTMLInputElement | null;
   if (companyInput) attachCompanySelector(companyInput);
 
   if (id !== null) {
     const p = S.projects.find((x) => x.id === id);
     if (!p) return;
-    (document.getElementById('proj-modal-title') as HTMLElement).textContent = 'Edit Project';
-    (document.getElementById('proj-submit-btn') as HTMLElement).textContent = 'Save Changes';
+    (document.getElementById('proj-modal-title') as HTMLElement).textContent = 'Edit project';
+    (document.getElementById('proj-submit-btn') as HTMLElement).textContent = 'Save changes';
     (f.elements.namedItem('pjName') as HTMLInputElement).value = p.name;
     (f.elements.namedItem('pjType') as HTMLSelectElement).value = p.type;
     (f.elements.namedItem('pjCompany') as HTMLInputElement).value = p.companyName || '';
@@ -469,8 +466,8 @@ export function openProjectModal(id: number | null): void {
     (f.elements.namedItem('pjDesc') as HTMLTextAreaElement).value = p.description || '';
     toggleProjectCompanyField(p.type);
   } else {
-    (document.getElementById('proj-modal-title') as HTMLElement).textContent = 'New Project';
-    (document.getElementById('proj-submit-btn') as HTMLElement).textContent = 'Save Project';
+    (document.getElementById('proj-modal-title') as HTMLElement).textContent = 'New project';
+    (document.getElementById('proj-submit-btn') as HTMLElement).textContent = 'Create project';
     toggleProjectCompanyField('internal');
   }
   document.getElementById('modal-project')?.classList.add('open');
@@ -570,7 +567,7 @@ export function renderCoProjectsSection(d: { name: string; companyId: number | n
   const cnt = document.getElementById('co-projects-tab-count');
   if (cnt) cnt.textContent = companyProjects.length ? String(companyProjects.length) : '';
   if (companyProjects.length === 0) {
-    container.innerHTML = emptyState({ icon: 'target', title: `No projects for ${d.name} yet`, compact: true, action: { label: 'New Project', onclick: 'createProjectForCurrentCompany()' } });
+    container.innerHTML = emptyState({ icon: 'target', title: `No projects for ${d.name} yet`, compact: true, action: { label: 'New project', onclick: 'createProjectForCurrentCompany()' } });
     renderIcons(container);
     return;
   }

@@ -10,7 +10,7 @@ import { addMoney, fmtMoneyByCurrency, type MoneyByCurrency } from '../lib/comme
 import { opportunityHealth } from '../lib/pipeline';
 import { openOutcomeDialog } from '../core/proposals';
 import { S } from '../lib/state';
-import { skeleton, toast } from '../lib/ui';
+import { loadInto, toast } from '../lib/ui';
 import { companyLink, recordLink } from '../lib/links';
 import { fmtDate, escHtml, expose, nextNoteId, today, debounce, showConfirm, daysSince, daysUntil, companyRef, inCompany, sameCompany } from '../lib/utils';
 import { registerTabRenderer, refreshAll, notifyNavigated } from '../lib/registry';
@@ -39,9 +39,7 @@ async function loadOpportunities(): Promise<void> {
 }
 
 async function renderOpportunitiesTab(): Promise<void> {
-  const board = document.getElementById('opp-board');
-  if (board && !board.childElementCount) board.innerHTML = skeleton(3, 'cards');
-  await loadOpportunities();
+  if (!(await loadInto(document.getElementById('opp-board'), 'opportunities', 'renderTab(\'opportunities\')', loadOpportunities, 'cards'))) return;
   renderOpportunitiesList();
 }
 registerTabRenderer('opportunities', () => { void renderOpportunitiesTab(); });
@@ -266,7 +264,6 @@ export function openOpportunityModal(id: number | null, ctx: WorkContext | null 
   oppModalContext = id === null ? ctx : null;
   const f = document.getElementById('opportunity-form') as HTMLFormElement;
   f.reset();
-  const dl = document.getElementById('opp-company-list'); if (dl) dl.innerHTML = getAllCompanies().map((c) => `<option value="${escHtml(c)}">`).join('');
   const companyInput = f.elements.namedItem('oppCompany') as HTMLInputElement | null;
   if (companyInput) attachCompanySelector(companyInput);
   const stageSel = f.elements.namedItem('oppStage') as HTMLSelectElement;
@@ -275,7 +272,8 @@ export function openOpportunityModal(id: number | null, ctx: WorkContext | null 
   if (id !== null) {
     const o = S.opportunities.find((x) => x.id === id);
     if (!o) return;
-    (document.getElementById('opp-modal-title') as HTMLElement).textContent = 'Edit Opportunity';
+    (document.getElementById('opp-modal-title') as HTMLElement).textContent = 'Edit opportunity';
+    (document.getElementById('opp-submit-btn') as HTMLElement).textContent = 'Save changes';
     (f.elements.namedItem('oppName') as HTMLInputElement).value = o.name;
     (f.elements.namedItem('oppCompany') as HTMLInputElement).value = o.companyName || '';
     stageSel.value = o.stage;
@@ -288,7 +286,8 @@ export function openOpportunityModal(id: number | null, ctx: WorkContext | null 
   } else {
     (f.elements.namedItem('oppCompany') as HTMLInputElement).value = ctx?.companyName || '';
     void refreshOppModalContacts(ctx?.companyName || '');
-    (document.getElementById('opp-modal-title') as HTMLElement).textContent = 'New Opportunity';
+    (document.getElementById('opp-modal-title') as HTMLElement).textContent = 'New opportunity';
+    (document.getElementById('opp-submit-btn') as HTMLElement).textContent = 'Create opportunity';
     stageSel.value = 'Lead';
   }
   document.getElementById('modal-opportunity')?.classList.add('open');
@@ -385,8 +384,8 @@ async function renderOpportunityDetail(): Promise<void> {
 
   (document.getElementById('od-name') as HTMLElement).textContent = o.name;
   (document.getElementById('od-badges') as HTMLElement).innerHTML = [
-    `<span class="rec-badge tone-accent">${escHtml(o.stage)}</span>`,
-    o.status && o.status !== 'Open' ? `<span class="rec-badge tone-${o.status === 'Won' ? 'green' : o.status === 'Lost' ? 'red' : 'muted'}">${escHtml(o.status)}</span>` : '',
+    // One lifecycle badge: the stage, coloured by the outcome it means (the status is derived from the stage).
+    `<span class="rec-badge tone-${o.status === 'Won' ? 'green' : o.status === 'Lost' ? 'red' : o.status === 'On Hold' ? 'amber' : 'accent'}">${escHtml(o.stage)}</span>`,
     indicatorChips(o),
     o.winLossReason && (o.stage === 'Won' || o.stage === 'Lost') ? `<span class="rec-meta">${escHtml(o.winLossReason)}</span>` : '',
   ].filter(Boolean).join('');
@@ -394,8 +393,6 @@ async function renderOpportunityDetail(): Promise<void> {
   const odCompanyInput = document.getElementById('od-company-inp') as HTMLInputElement;
   odCompanyInput.value = o.companyName || '';
   attachCompanySelector(odCompanyInput);
-  const companyList = document.getElementById('od-company-list') as HTMLElement;
-  companyList.innerHTML = getAllCompanies().map((c) => `<option value="${escHtml(c)}">`).join('');
   const stageSel = document.getElementById('od-stage-sel') as HTMLSelectElement;
   stageSel.innerHTML = OPPORTUNITY_STAGES.map((s) => `<option value="${s}" ${o.stage === s ? 'selected' : ''}>${s}</option>`).join('');
   (document.getElementById('od-owner-inp') as HTMLInputElement).value = o.owner || '';
@@ -626,7 +623,7 @@ async function renderOpportunityActivity(oppId: number): Promise<void> {
   if (badgesEl && daysInStage != null) {
     const span = document.createElement('span');
     span.className = 'rec-meta';
-    span.textContent = `${daysInStage}d in stage`;
+    span.textContent = daysInStage <= 0 ? 'Entered this stage today' : `${daysInStage} day${daysInStage === 1 ? '' : 's'} in this stage`;
     badgesEl.appendChild(span);
   }
 }

@@ -120,7 +120,7 @@ function paintActionRequired(): void {
   document.querySelectorAll('.ar-fbtn').forEach((b) => b.classList.toggle('active', (b as HTMLElement).dataset.filter === S.arFilter));
 
   if (!S.ms365Status || S.ms365Status.status !== 'connected') {
-    root.innerHTML = `<div class="card">${emptyState({ icon: 'mail', title: 'Not connected to Microsoft 365', body: 'Connect Outlook in Settings to see your flagged emails here.', action: { label: 'Open Settings', onclick: "navToModule('settings')" } })}</div>`;
+    root.innerHTML = `<div class="card">${emptyState({ icon: 'mail', title: 'Not connected to Microsoft 365', body: 'Connect Outlook in Settings to see your flagged emails here.', action: { label: 'Open settings', onclick: "navToModule('settings')" } })}</div>`;
     renderIcons(root);
     return;
   }

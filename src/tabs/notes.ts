@@ -249,7 +249,7 @@ export function renderNotesList(): void {
   if (filtered.length === 0) {
     list.innerHTML = search
       ? emptyState({ icon: 'search', title: 'No matching notes', body: `Nothing in ${folderLabel(folder)} mentions “${search}”.`, compact: true })
-      : emptyState({ icon: 'note', title: folder === 'all' ? 'No notes yet' : `Nothing in ${folderLabel(folder)}`, compact: true, action: { label: 'New Note', onclick: 'createNewNote(null)' } });
+      : emptyState({ icon: 'note', title: folder === 'all' ? 'No notes yet' : `Nothing in ${folderLabel(folder)}`, compact: true, action: { label: 'New note', onclick: 'createNewNote(null)' } });
     renderIcons(list);
     return;
   }
@@ -276,7 +276,7 @@ expose('notesSearchChanged', notesSearchChanged);
 function renderNotesEmpty(): void {
   const el = document.getElementById('notes-empty');
   if (!el) return;
-  el.innerHTML = emptyState({ icon: 'note', title: S.notes.length ? 'No note selected' : 'Start your first note', body: S.notes.length ? 'Pick a note from the list, or start a new one.' : 'Meeting notes, client research, ideas — link them to clients and projects as you go.', action: { label: 'New Note', onclick: 'createNewNote(null)' } });
+  el.innerHTML = emptyState({ icon: 'note', title: S.notes.length ? 'No note selected' : 'Start your first note', body: S.notes.length ? 'Pick a note from the list, or start a new one.' : 'Meeting notes, client research, ideas — link them to clients and projects as you go.', action: { label: 'New note', onclick: 'createNewNote(null)' } });
   renderIcons(el);
 }
 
@@ -1132,7 +1132,7 @@ export function renderCoNotesSection(d: { name: string; companyId: number | null
   const cnt = document.getElementById('co-notes-tab-count');
   if (cnt) cnt.textContent = String(companyNotes.length);
   if (companyNotes.length === 0) {
-    container.innerHTML = emptyState({ icon: 'note', title: `No notes for ${d.name} yet`, compact: true, action: { label: 'New Note', onclick: `createNoteForCompany('${jsArg(d.name)}')` } });
+    container.innerHTML = emptyState({ icon: 'note', title: `No notes for ${d.name} yet`, compact: true, action: { label: 'New note', onclick: `createNoteForCompany('${jsArg(d.name)}')` } });
     renderIcons(container);
     return;
   }

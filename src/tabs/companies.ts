@@ -1007,6 +1007,11 @@ function renderCompanyDetail(): void {
   const openOpps = opps.filter((o) => o.status === 'Open');
   const pipeline = openOpps.reduce((s, o) => s + (o.estimatedValue || 0), 0);
   const activeProposals = d.proposals.filter((p) => !p.archived && isOpenProposal(p));
+  // Active MRR is a key fact below; the tiles answer "what's happening" (meetings, open work).
+  const todayIso = today();
+  const lastMeeting = meetings.filter((m) => !m.isCancelled).map((m) => m.meetingDate || '').filter((x) => x && x <= todayIso).sort().pop() || null;
+  const openTasks = tasks.filter((t) => t.status !== 'Done' && t.parentId == null);
+  const overdueTasks = openTasks.filter((t) => t.dueDate && t.dueDate < todayIso).length;
   const stat = (section: string, label: string, value: string | number, sub = '') =>
     `<button class="rec-stat" onclick="scrollToCompanySection('${section}')"><span class="rec-stat-val">${value}</span><span class="rec-stat-lbl">${label}</span>${sub ? `<span class="rec-stat-sub">${sub}</span>` : ''}</button>`;
   (document.getElementById('co-detail-kpis') as HTMLElement).innerHTML = [
@@ -1015,7 +1020,8 @@ function renderCompanyDetail(): void {
     stat('proposals', 'Active proposals', activeProposals.length, `${d.proposals.length} total`),
     stat('projects', 'Active projects', projects.filter((p) => !['Completed', 'Cancelled'].includes(p.status)).length),
     stat('agreements', 'Signed agreements', d.signedAgreements.length, d.activeAgreements.length ? `${d.activeAgreements.length} in progress` : ''),
-    stat('agreements', 'Active MRR', Object.keys(d.activeMrr).length ? fmtMoneyByCurrency(d.activeMrr) : '—'),
+    stat('meetings', 'Meetings', meetings.length, lastMeeting ? `Last ${fmtDate(lastMeeting)}` : ''),
+    stat('tasks', 'Open tasks', openTasks.length, overdueTasks ? `${overdueTasks} overdue` : ''),
   ].join('');
 
   renderCompanyFacts(d);
@@ -1135,21 +1141,9 @@ export function companyNotesInput(value: string): void {
 }
 expose('companyNotesInput', companyNotesInput);
 
+/** The header's "New" menu — the shared list for the open record (core/contextActions). */
 export function companyNewMenu(e: MouseEvent): void {
-  e.stopPropagation();
-  const name = S.currentCompany;
-  if (!name) return;
-  const w = window as any;
-  showMenuAt(e.currentTarget as HTMLElement, [
-    { label: 'Contact', iconName: 'people', run: () => openContactForCompany() },
-    { label: 'Opportunity', iconName: 'briefcase', run: () => createOpportunityForCurrentCompany() },
-    { label: 'Proposal', iconName: 'database', run: () => createProposalForCurrentCompany() },
-    { label: 'Project', iconName: 'target', run: () => w.createProjectForCurrentCompany() },
-    { label: 'Agreement', iconName: 'document', run: () => openAgrForCompany() },
-    { label: 'Meeting', iconName: 'meeting', run: () => w.createMeetingForCurrentCompany() },
-    { label: 'Task', iconName: 'check', run: () => createTodoForCompany(name) },
-    { label: 'Note', iconName: 'note', run: () => createNoteForCompany(name) },
-  ]);
+  (window as any).recordNewMenu(e);
 }
 expose('companyNewMenu', companyNewMenu);
 
@@ -1222,7 +1216,7 @@ export function renderCoContacts(d: CompanyData): void {
   const list = document.getElementById('co-contacts-list');
   if (!list) return;
   if (d.contacts.length === 0) {
-    list.innerHTML = emptyState({ icon: 'people', title: 'No contacts yet', body: 'Add the people you deal with here so everyone knows who to call.', compact: true, action: { label: 'Add Contact', onclick: 'openContactForCompany()' } });
+    list.innerHTML = emptyState({ icon: 'people', title: 'No contacts yet', body: 'Add the people you deal with here so everyone knows who to call.', compact: true, action: { label: 'New contact', onclick: 'openContactForCompany()' } });
     return;
   }
   list.innerHTML = d.contacts.map((c) => `<div class="rec-row" onclick="openRecord('contact', ${c.id})" data-drag-kind="contact" data-drag-id="${c.id}">
@@ -1240,7 +1234,7 @@ function renderCoOpportunities(d: CompanyData, opps: Opportunity[]): void {
   const list = document.getElementById('co-opps-list');
   if (!list) return;
   if (!opps.length) {
-    list.innerHTML = emptyState({ icon: 'briefcase', title: 'No opportunities', body: `Track the next piece of business with ${d.name} here.`, compact: true, action: { label: 'New Opportunity', onclick: 'createOpportunityForCurrentCompany()' } });
+    list.innerHTML = emptyState({ icon: 'briefcase', title: 'No opportunities', body: `Track the next piece of business with ${d.name} here.`, compact: true, action: { label: 'New opportunity', onclick: 'createOpportunityForCurrentCompany()' } });
     return;
   }
   const order: Record<string, number> = { Open: 0, 'On Hold': 1, Won: 2, Lost: 3 };
@@ -1262,7 +1256,7 @@ export function renderCoProposals(d: CompanyData): void {
   const cntEl = document.getElementById('co-proposals-count'); if (cntEl) cntEl.textContent = d.proposals.length ? String(d.proposals.length) : '';
   const tbody = document.getElementById('co-proposals-tbody');
   if (!tbody) return;
-  if (d.proposals.length === 0) { tbody.innerHTML = `<tr><td colspan="8">${emptyState({ icon: 'database', title: 'No proposals yet', compact: true, action: { label: 'New Proposal', onclick: 'createProposalForCurrentCompany()' } })}</td></tr>`; return; }
+  if (d.proposals.length === 0) { tbody.innerHTML = `<tr><td colspan="8">${emptyState({ icon: 'database', title: 'No proposals yet', compact: true, action: { label: 'New proposal', onclick: 'createProposalForCurrentCompany()' } })}</td></tr>`; return; }
   const sorted = [...d.proposals].sort((a, b) => (b.sentDate || b.dateAdded || '').localeCompare(a.sentDate || a.dateAdded || ''));
   tbody.innerHTML = sorted.map((p) => {
     const cfg = ST[p.status] || { c: 'var(--muted)', ch: 'var(--muted)' };
@@ -1284,7 +1278,7 @@ export function renderCoAgreements(d: CompanyData): void {
   const cntEl = document.getElementById('co-agreements-count'); if (cntEl) cntEl.textContent = d.agreements.length ? String(d.agreements.length) : '';
   const tbody = document.getElementById('co-agreements-tbody');
   if (!tbody) return;
-  if (d.agreements.length === 0) { tbody.innerHTML = `<tr><td colspan="8">${emptyState({ icon: 'document', title: 'No agreements yet', compact: true, action: { label: 'New Agreement', onclick: 'openAgrForCompany()' } })}</td></tr>`; return; }
+  if (d.agreements.length === 0) { tbody.innerHTML = `<tr><td colspan="8">${emptyState({ icon: 'document', title: 'No agreements yet', compact: true, action: { label: 'New agreement', onclick: 'openAgrForCompany()' } })}</td></tr>`; return; }
   tbody.innerHTML = d.agreements.map((a) => {
     const sc = AGR_ST[a.status || ''] || { c: 'var(--muted)', ch: 'var(--muted)' };
     const pending = '<span class="rec-muted">Pending</span>';

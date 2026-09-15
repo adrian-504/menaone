@@ -25,6 +25,11 @@ const GROUPS: Group[] = [
     k('Close a dialog or the open record', ['Esc']),
     k('This list', ['?']),
   ] },
+  { title: 'Dialogs and pickers', items: [
+    k('Choose in a company list', ['↑'], ['↓']),
+    k('Pick the highlighted company', ['Enter']),
+    k('Close the list, then the dialog', ['Esc']),
+  ] },
   { title: 'Lists and records', tabs: ['companies', 'contacts', 'database', 'agreements', 'opportunities', 'projects', 'meetings'], items: [
     k('Move through a list', ['↑'], ['↓']),
     k('Open the selected record', ['Enter']),

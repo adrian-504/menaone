@@ -1,13 +1,14 @@
 import { S } from '../lib/state';
 import { showContextMenu } from '../lib/contextMenu';
 import { renderIcons } from '../core/chrome';
-import { skeleton, emptyState } from '../lib/ui';
+import { loadInto, emptyState } from '../lib/ui';
 import { toast } from '../lib/ui';
 import { companyLink, recordLink } from '../lib/links';
 import { fmtDate, escHtml, expose, nextNoteId, today, showConfirm, inCompany } from '../lib/utils';
 import { registerTabRenderer, refreshAll, refreshBadges, notifyNavigated } from '../lib/registry';
 import { getMeetings, deleteMeeting, ms365CancelOutlookMeeting, setLinksFrom, getLinksFor } from '../lib/db';
 import { getAllCompanies } from './companies';
+import { attachCompanySelector } from '../lib/companySelector';
 import { openOutlookMeetingModal } from './calendar';
 import { persistTodos, persistNotes, persistMeeting } from '../lib/persist';
 import { toggleTodoDone, deleteTodo, taskRowHtml } from './todo';
@@ -36,9 +37,7 @@ async function loadMeetings(): Promise<void> {
 }
 
 async function renderMeetingsTab(): Promise<void> {
-  const list = document.getElementById('meeting-list');
-  if (list && !list.childElementCount) list.innerHTML = skeleton(4);
-  await loadMeetings();
+  if (!(await loadInto(document.getElementById('meeting-list'), 'meetings', 'renderTab(\'meetings\')', loadMeetings))) return;
   renderMeetingList();
 }
 registerTabRenderer('meetings', () => { void renderMeetingsTab(); });
@@ -49,7 +48,7 @@ function renderMeetingList(): void {
   if (!el) return;
   const sorted = [...S.meetings].sort((a, b) => (b.meetingDate || '').localeCompare(a.meetingDate || ''));
   if (sorted.length === 0) {
-    el.innerHTML = `<div class="card">${emptyState({ icon: 'meeting', title: 'No meetings logged yet', body: 'Capture attendees, decisions and action items so nothing gets lost.', action: { label: 'New Meeting', onclick: 'openMeetingModal(null)' } })}</div>`;
+    el.innerHTML = `<div class="card">${emptyState({ icon: 'meeting', title: 'No meetings logged yet', body: 'Capture attendees, decisions and action items so nothing gets lost.', action: { label: 'New meeting', onclick: 'openMeetingModal(null)' } })}</div>`;
     renderIcons(el);
     return;
   }
@@ -85,8 +84,7 @@ export function openMeetingDetail(id: number): void {
   projSel.value = m.projectId != null ? String(m.projectId) : '';
   const companyInp = document.getElementById('md-company-inp') as HTMLInputElement;
   companyInp.value = m.companyName || '';
-  const companyList = document.getElementById('md-company-list') as HTMLElement;
-  companyList.innerHTML = getAllCompanies().map((c) => `<option value="${escHtml(c)}">`).join('');
+  attachCompanySelector(companyInp);
   const oppSel = document.getElementById('md-opportunity-sel') as HTMLSelectElement;
   oppSel.innerHTML = `<option value="">— No opportunity —</option>` + S.opportunities.filter((o) => !o.archived).map((o) => `<option value="${o.id}">${escHtml(o.name)}</option>`).join('');
   oppSel.value = m.opportunityId != null ? String(m.opportunityId) : '';
@@ -254,6 +252,9 @@ function renderMeetingRelationLinks(m: Meeting): void {
   const project = m.projectId != null ? S.projects.find((p) => p.id === m.projectId) : undefined;
   const opp = m.opportunityId != null ? S.opportunities.find((o) => o.id === m.opportunityId) : undefined;
   const set = (id: string, html: string) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
+  set('md-company-link', m.companyName ? companyLink(m.companyId, m.companyName, { className: 'md-open-link' }).replace(`>${escHtml(m.companyName)}<`, '>Open<') : '');
+  const note = m.noteId != null ? S.notes.find((n) => n.id === m.noteId) : undefined;
+  set('md-note-link', note ? recordLink('note', note.id, note.title || 'Meeting note') : `<a href="#" class="rlink md-muted-link" onclick="event.preventDefault();openMeetingNote()">Start the meeting note</a>`);
   set('md-project-link', project ? recordLink('project', project.id, 'Open', { className: 'md-open-link' }) : '');
   set('md-opportunity-link', opp ? recordLink('opportunity', opp.id, 'Open', { className: 'md-open-link' }) : '');
 }
@@ -387,7 +388,8 @@ export function openMeetingModal(id: number | null, ctx: WorkContext | null = nu
   meetingModalContext = id === null ? ctx : null;
   const f = document.getElementById('meeting-form') as HTMLFormElement;
   f.reset();
-  const dl = document.getElementById('mt-company-list'); if (dl) dl.innerHTML = getAllCompanies().map((c) => `<option value="${escHtml(c)}">`).join('');
+  const companyField = f.elements.namedItem('mtCompany') as HTMLInputElement | null;
+  if (companyField) attachCompanySelector(companyField);
   const projSel = f.elements.namedItem('mtProject') as HTMLSelectElement | null;
   if (projSel) projSel.innerHTML = `<option value="">— No project —</option>` + S.projects.filter((p) => !p.archived).map((p) => `<option value="${p.id}">${escHtml(p.name)}</option>`).join('');
   const oppSel = f.elements.namedItem('mtOpportunity') as HTMLSelectElement | null;
@@ -396,7 +398,8 @@ export function openMeetingModal(id: number | null, ctx: WorkContext | null = nu
   if (id !== null) {
     const m = S.meetings.find((x) => x.id === id);
     if (!m) return;
-    (document.getElementById('meeting-modal-title') as HTMLElement).textContent = 'Edit Meeting';
+    (document.getElementById('meeting-modal-title') as HTMLElement).textContent = 'Edit meeting';
+    (document.getElementById('meeting-submit-btn') as HTMLElement).textContent = 'Save changes';
     (f.elements.namedItem('mtTitle') as HTMLInputElement).value = m.title;
     (f.elements.namedItem('mtDate') as HTMLInputElement).value = m.meetingDate || '';
     (f.elements.namedItem('mtStart') as HTMLInputElement).value = m.startAt ? new Date(m.startAt).toTimeString().slice(0, 5) : '';
@@ -406,7 +409,8 @@ export function openMeetingModal(id: number | null, ctx: WorkContext | null = nu
     if (oppSel) oppSel.value = m.opportunityId != null ? String(m.opportunityId) : '';
     (f.elements.namedItem('mtAttendees') as HTMLInputElement).value = (m.attendees || []).join(', ');
   } else {
-    (document.getElementById('meeting-modal-title') as HTMLElement).textContent = 'New Meeting';
+    (document.getElementById('meeting-modal-title') as HTMLElement).textContent = 'New meeting';
+    (document.getElementById('meeting-submit-btn') as HTMLElement).textContent = 'Create meeting';
     if (ctx) {
       (f.elements.namedItem('mtCompany') as HTMLInputElement).value = ctx.companyName || '';
       if (projSel && ctx.projectId != null) projSel.value = String(ctx.projectId);
@@ -515,7 +519,7 @@ export function renderCoMeetingsSection(d: { name: string; companyId: number | n
     const cnt = document.getElementById('co-meetings-tab-count');
     if (cnt) cnt.textContent = companyMeetings.length ? String(companyMeetings.length) : '';
     if (companyMeetings.length === 0) {
-      container.innerHTML = emptyState({ icon: 'meeting', title: `No meetings with ${d.name} yet`, compact: true, action: { label: 'New Meeting', onclick: 'createMeetingForCurrentCompany()' } });
+      container.innerHTML = emptyState({ icon: 'meeting', title: `No meetings with ${d.name} yet`, compact: true, action: { label: 'New meeting', onclick: 'createMeetingForCurrentCompany()' } });
       renderIcons(container);
       return;
     }

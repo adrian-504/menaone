@@ -48,13 +48,32 @@ document.addEventListener('change', (e) => {
   if (modal) modal.dataset.dirty = '1';
 });
 
+/** What had focus before each dialog opened, so closing it puts focus back. */
+const modalOpeners = new WeakMap<HTMLElement, HTMLElement>();
+
 const modalDirtyReset = new MutationObserver((mutations) => {
   for (const m of mutations) {
     const el = m.target as HTMLElement;
-    if (el.classList.contains('open')) el.dataset.dirty = '';
+    const wasOpen = /(^|\s)open(\s|$)/.test(m.oldValue || '');
+    const isOpen = el.classList.contains('open');
+    if (isOpen && !wasOpen) {
+      el.dataset.dirty = '';
+      const active = document.activeElement as HTMLElement | null;
+      if (active && active !== document.body && !el.contains(active)) modalOpeners.set(el, active);
+      // Keyboard users land in the dialog: its first field, unless the dialog already focused one.
+      requestAnimationFrame(() => {
+        if (!el.classList.contains('open') || el.contains(document.activeElement)) return;
+        el.querySelector<HTMLElement>('[autofocus], input:not([type=hidden]):not([disabled]):not([autocomplete=off]), select, textarea, .modal button')?.focus({ preventScroll: true });
+      });
+    } else if (!isOpen && wasOpen) {
+      const opener = modalOpeners.get(el);
+      modalOpeners.delete(el);
+      const focusLost = !document.activeElement || document.activeElement === document.body || el.contains(document.activeElement);
+      if (opener?.isConnected && focusLost) opener.focus({ preventScroll: true });
+    }
   }
 });
-document.querySelectorAll('.modal-ov').forEach((el) => modalDirtyReset.observe(el, { attributes: true, attributeFilter: ['class'] }));
+document.querySelectorAll('.modal-ov').forEach((el) => modalDirtyReset.observe(el, { attributes: true, attributeFilter: ['class'], attributeOldValue: true }));
 
 /** Clicking the backdrop of a modal with unsaved input previously discarded
  * it silently (every `.modal-ov` closes unconditionally on backdrop click) —

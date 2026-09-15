@@ -305,19 +305,19 @@ input[type=text]:focus,input[type=date]:focus,input[type=number]:focus,select.fs
 .btn-snooze:hover{background:var(--bg)}
 .snooze-popup{position:absolute;bottom:calc(100% + 6px);right:0;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-md);padding:10px;z-index:1500;min-width:160px;opacity:0;pointer-events:none;transform:scale(.94) translateY(4px);transform-origin:bottom right;transition:opacity var(--dur-base) var(--ease-out),transform var(--dur-base) var(--ease-out)}
 .snooze-popup.open{opacity:1;pointer-events:auto;transform:scale(1) translateY(0)}
-.ctx-menu{position:fixed;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-md);padding:5px;z-index:2500;min-width:190px;opacity:0;pointer-events:none;transform:scale(.94) translateY(-4px);transform-origin:top left;transition:opacity var(--dur-base) var(--ease-out),transform var(--dur-base) var(--ease-out)}
+.ctx-menu{position:fixed;max-height:min(420px,70vh);overflow-y:auto;overscroll-behavior:contain;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-md);padding:5px;z-index:2500;min-width:190px;opacity:0;pointer-events:none;transform:scale(.94) translateY(-4px);transform-origin:top left;transition:opacity var(--dur-base) var(--ease-out),transform var(--dur-base) var(--ease-out)}
 .ctx-menu.open{opacity:1;pointer-events:auto;transform:scale(1) translateY(0)}
 .ctx-menu-item{display:flex;align-items:center;gap:8px;padding:7px 9px;border-radius:6px;font-size:var(--type-body);font-weight:500;color:var(--text);cursor:pointer;transition:background var(--dur-fast) var(--ease-out),color var(--dur-fast) var(--ease-out)}
 .ctx-menu-item:hover{background:var(--accent-bg);color:var(--accent)}
 .ctx-menu-item.danger{color:var(--red)}
 .ctx-menu-item.danger:hover{background:var(--red-bg)}
-.company-selector-popover{position:fixed;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-md);padding:5px;z-index:2500;min-width:220px;max-width:320px;max-height:260px;overflow-y:auto;opacity:0;pointer-events:none;transform:scale(.94) translateY(-4px);transform-origin:top left;transition:opacity var(--dur-base) var(--ease-out),transform var(--dur-base) var(--ease-out)}
+.company-selector-popover{position:fixed;overscroll-behavior:contain;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-md);padding:5px;z-index:2500;min-width:220px;max-width:420px;max-height:min(320px,50vh);overflow-y:auto;opacity:0;pointer-events:none;transform:scale(.94) translateY(-4px);transform-origin:top left;transition:opacity var(--dur-base) var(--ease-out),transform var(--dur-base) var(--ease-out)}
 .company-selector-popover.open{opacity:1;pointer-events:auto;transform:scale(1) translateY(0)}
 .company-selector-row{display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding:7px 9px;border-radius:6px;font-size:var(--type-body);font-weight:500;color:var(--text);cursor:pointer;transition:background var(--dur-fast) var(--ease-out),color var(--dur-fast) var(--ease-out)}
-.company-selector-row:hover{background:var(--accent-bg);color:var(--accent)}
+.company-selector-row:hover,.company-selector-row.active{background:var(--accent-bg);color:var(--accent)}
 .company-selector-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .company-selector-sub{font-size:var(--type-meta);font-weight:600;color:var(--muted);white-space:nowrap}
-.company-selector-row:hover .company-selector-sub{color:var(--accent)}
+.company-selector-row:hover .company-selector-sub,.company-selector-row.active .company-selector-sub{color:var(--accent)}
 .company-selector-create{color:var(--accent);font-weight:600}
 .company-selector-warn{padding:6px 9px;font-size:var(--type-meta);font-weight:600;color:var(--amber,#b45309)}
 .co-quality-bar{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
@@ -455,6 +455,15 @@ body{display:flex;min-height:100vh}
 .sb-expand-btn:hover{color:var(--text);border-color:var(--border2)}
 #app-main.sidebar-collapsed .sb-expand-btn{display:flex}
 .sb-header{display:flex;align-items:center;gap:9px;padding:14px 12px 10px}
+/* macOS window chrome (see main.ts): the native title bar overlays the app and the
+   traffic lights stay at the system position (close button 6pt from the top-left,
+   13pt tall). The sidebar header sits on that same line, right of the buttons. */
+.mac-window-chrome .sb-header{height:25px;box-sizing:content-box;padding:0 10px 0 72px;margin:0 0 10px}
+.mac-window-chrome .sb-logo-img{height:20px;border-radius:4px}
+.mac-window-chrome .sb-logo-sub{display:none}
+.mac-window-chrome #app-main.sidebar-collapsed .loc-bar{padding-left:112px}
+.mac-window-chrome .sb-expand-btn{top:2px;left:70px;box-shadow:none;background:transparent;border-color:transparent}
+#window-drag-strip{position:fixed;top:0;left:0;right:0;height:44px;z-index:35}
 .sb-logo-img{height:26px;width:auto;object-fit:contain;flex-shrink:0;border-radius:5px}
 .sb-logo-text{font-weight:700;font-size:var(--type-body);color:var(--text);line-height:1.15;white-space:nowrap;overflow:hidden}
 .sb-logo-sub{font-size:var(--type-caption);color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
@@ -1043,7 +1052,7 @@ main.workspace .tab.active{animation:none}
 .rec-count{font-size:var(--type-meta);color:var(--muted);font-weight:600}
 .rec-section-actions{margin-left:auto;display:flex;gap:6px}
 .rec-save-state{margin-left:auto;font-size:var(--type-meta);color:var(--muted)}
-.rec-stats{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin-bottom:12px}
+.rec-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));gap:10px;margin-bottom:12px}
 .rec-stat{font:inherit;display:flex;flex-direction:column;align-items:flex-start;gap:1px;padding:12px 14px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);text-align:left;cursor:pointer;transition:border-color var(--dur-fast) var(--ease-out),box-shadow var(--dur-fast) var(--ease-out),transform var(--dur-fast) var(--ease-out)}
 .rec-stat:hover{border-color:var(--accent-border);box-shadow:var(--shadow)}
 .rec-stat:active{transform:scale(.985)}
@@ -1099,7 +1108,7 @@ main.workspace .tab.active{animation:none}
 .feed-time{margin-left:8px;font-size:var(--type-meta);color:var(--muted)}
 .feed-detail{margin-top:3px;font-size:var(--type-secondary);color:var(--sub);line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere;max-height:6.2em;overflow:hidden}
 .feed-empty{padding:14px 2px;font-size:var(--type-secondary);color:var(--muted)}
-@media (max-width:1100px){.rec-stats{grid-template-columns:repeat(3,minmax(0,1fr))}.rec-overview-grid{grid-template-columns:1fr}}
+@media (max-width:1100px){.rec-overview-grid{grid-template-columns:1fr}}
 
 #tab-companies:has(#co-detail.open) > .page-header{display:none}
 .ct-detail{display:none}
@@ -2162,3 +2171,8 @@ tr:hover .row-actions .rec-icon-btn,.row-actions .rec-icon-btn:focus-visible{opa
 .md-rel-link{font-size:var(--type-secondary);white-space:nowrap}
 dd:has(> .md-rel-link:not(:empty)){display:flex;align-items:center;gap:10px}
 dd:has(> .md-rel-link:not(:empty)) > select{flex:1;min-width:0}
+
+.md-muted-link{color:var(--muted)}
+
+/* Keyboard focus is always visible (mouse clicks don't show it). Low specificity so components can refine it. */
+:where(button,a,[role=button],[tabindex]:not([tabindex="-1"]),summary):focus-visible{outline:2px solid var(--accent);outline-offset:2px}

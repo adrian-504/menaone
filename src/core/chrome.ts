@@ -60,7 +60,7 @@ const NEW_ITEM_TYPES: { label: string; iconName: string; run: () => void }[] = [
  * that company. */
 function contextNewItems(): ContextMenuItem[] {
   const w = window as any;
-  const items: ContextMenuItem[] = contextCreateActions().map((a) => ({ label: a.label.replace(/^New |^Create /, ''), iconName: a.iconName, run: a.run }));
+  const items: ContextMenuItem[] = contextCreateActions().map((a) => ({ label: a.label.replace(/^New /, ''), iconName: a.iconName, run: a.run }));
   const company = contextRecordCompany();
   if (company) {
     const ctx = { companyId: company.id, companyName: company.name, projectId: null, opportunityId: null, meetingId: null, noteId: null };

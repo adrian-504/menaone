@@ -1,6 +1,7 @@
 import { S } from '../lib/state';
 import { toast } from '../lib/ui';
 import { escHtml, expose, today } from '../lib/utils';
+import { attachCompanySelector } from '../lib/companySelector';
 import { registerTabRenderer } from '../lib/registry';
 import {
   ms365Status, ms365SyncCalendar, ms365CreateTeamsMeeting, ms365UpdateOutlookMeeting,
@@ -210,7 +211,8 @@ export function openOutlookMeetingModal(id: number | null): void {
   S.outlookMeetingEditId = id;
   const f = document.getElementById('outlook-meeting-form') as HTMLFormElement;
   f.reset();
-  const dl = document.getElementById('om-company-list'); if (dl) dl.innerHTML = getAllCompanies().map((c) => `<option value="${escHtml(c)}">`).join('');
+  const omCompany = (document.getElementById('outlook-meeting-form') as HTMLFormElement | null)?.elements.namedItem('omCompany') as HTMLInputElement | null;
+  if (omCompany) attachCompanySelector(omCompany);
   const projSel = f.elements.namedItem('omProject') as HTMLSelectElement | null;
   if (projSel) projSel.innerHTML = `<option value="">— No project —</option>` + S.projects.filter((p) => !p.archived).map((p) => `<option value="${p.id}">${escHtml(p.name)}</option>`).join('');
 
@@ -218,8 +220,8 @@ export function openOutlookMeetingModal(id: number | null): void {
   if (id !== null) {
     const m = S.meetings.find((x) => x.id === id);
     if (!m) return;
-    (document.getElementById('om-modal-title') as HTMLElement).textContent = 'Edit Meeting';
-    (document.getElementById('om-submit-btn') as HTMLElement).textContent = 'Save Changes';
+    (document.getElementById('om-modal-title') as HTMLElement).textContent = 'Edit meeting';
+    (document.getElementById('om-submit-btn') as HTMLElement).textContent = 'Save changes';
     (f.elements.namedItem('omSubject') as HTMLInputElement).value = m.title;
     if (m.startAt) {
       const s = new Date(m.startAt);
@@ -234,8 +236,8 @@ export function openOutlookMeetingModal(id: number | null): void {
     (f.elements.namedItem('omDescription') as HTMLTextAreaElement).value = m.discussion || '';
     teamsChk.checked = m.isOnlineMeeting;
   } else {
-    (document.getElementById('om-modal-title') as HTMLElement).textContent = 'New Meeting';
-    (document.getElementById('om-submit-btn') as HTMLElement).textContent = 'Create Meeting';
+    (document.getElementById('om-modal-title') as HTMLElement).textContent = 'New meeting';
+    (document.getElementById('om-submit-btn') as HTMLElement).textContent = 'Create meeting';
     (f.elements.namedItem('omDate') as HTMLInputElement).value = S.calendarAnchor || today();
     teamsChk.checked = true;
   }
@@ -251,7 +253,7 @@ expose('closeOutlookMeetingModal', closeOutlookMeetingModal);
 export async function submitOutlookMeeting(e: Event): Promise<void> {
   e.preventDefault();
   if (!S.ms365Status || S.ms365Status.status !== 'connected') {
-    toast('Connect Microsoft 365 in Settings before scheduling a meeting', { action: { label: 'Open Settings', run: () => (window as any).switchTab('settings') } });
+    toast('Connect Microsoft 365 in Settings before scheduling a meeting', { action: { label: 'Open settings', run: () => (window as any).switchTab('settings') } });
     return;
   }
   const f = e.target as HTMLFormElement;

@@ -1259,7 +1259,8 @@ export function openTodoModal(id: number | null, ctx: WorkContext | null = null)
   todoModalContext = ctx;
   const f = document.getElementById('todo-form') as HTMLFormElement;
   f.reset();
-  const dl = document.getElementById('todo-client-list'); if (dl) dl.innerHTML = getClients().map((c) => `<option value="${escHtml(c)}">`).join('');
+  const clientField = f.elements.namedItem('todoClient') as HTMLInputElement | null;
+  if (clientField) attachCompanySelector(clientField);
   const projSel = f.elements.namedItem('todoProject') as HTMLSelectElement | null;
   if (projSel) {
     projSel.innerHTML = `<option value="">— No project —</option>` +
@@ -1274,8 +1275,8 @@ export function openTodoModal(id: number | null, ctx: WorkContext | null = null)
   }
   const parent = S.todoParentId != null ? S.todos.find((x) => x.id === S.todoParentId) : null;
   const title = document.getElementById('todo-modal-title');
-  if (title) title.textContent = parent ? `New Subtask of "${parent.title}"` : 'New Task';
-  const btn = document.getElementById('todo-submit-btn'); if (btn) btn.textContent = 'Save Task';
+  if (title) title.textContent = parent ? `New subtask of “${parent.title}”` : 'New task';
+  const btn = document.getElementById('todo-submit-btn'); if (btn) btn.textContent = 'Create task';
   const type = ctx?.companyName ? 'client' : 'general';
   (f.elements.namedItem('todoType') as HTMLSelectElement).value = type;
   (f.elements.namedItem('todoClient') as HTMLInputElement).value = ctx?.companyName || '';
@@ -1393,7 +1394,7 @@ export function renderCoTodosSection(d: { name: string; companyId: number | null
   const cnt = document.getElementById('co-todos-tab-count');
   if (cnt) cnt.textContent = String(companyTodos.filter(isOpenTask).length);
   if (companyTodos.length === 0) {
-    container.innerHTML = emptyState({ icon: 'check', title: `No tasks for ${d.name}`, compact: true, action: { label: 'New Task', onclick: `createTodoForCompany('${d.name.replace(/'/g, "\\'")}')` } });
+    container.innerHTML = emptyState({ icon: 'check', title: `No tasks for ${d.name}`, compact: true, action: { label: 'New task', onclick: `createTodoForCompany('${d.name.replace(/'/g, "\\'")}')` } });
     renderIcons(container);
     return;
   }

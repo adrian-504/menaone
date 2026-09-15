@@ -393,9 +393,20 @@ Full notes: `docs/work-graph.md`.
 - **Schema 31**: `todos.opportunity_id` (SET NULL), task activity carries it; integrity check "tasks whose opportunity belongs to another company".
 - **Pages**: opportunity Tasks section; project origin shows opportunity, proposal, agreement and contacts; agreement page shows opportunity and project; task panel shows opportunity, meeting and source note; note connections show opportunity and tasks. Filing meeting notes adds links instead of replacing them and asks before replacing note text it didn't write.
 
+## UX and application coherence (Phase 3)
+
+Conventions: `docs/ux-conventions.md`.
+
+- **Window**: macOS title bar in Overlay style (hidden title, system traffic lights); `mac-window-chrome` class and drag regions (`data-tauri-drag-region`, `#window-drag-strip`) in `main.ts`/`index.html`.
+- **Scrolling**: the company picker and context menus no longer close when they scroll themselves (`companySelector.ts`, `contextMenu.ts`); floating lists contain their scroll. Workspaces (Tasks, Notes) own pane scrolling; other pages scroll the document.
+- **Creation**: record headers (company, opportunity, project, meeting) have a New menu from `contextActions.ts` — the same list as "+ New" and the palette. Dialog titles and buttons follow "New x / Edit x", "Create x / Save changes".
+- **Company fields**: every company field uses the shared picker (all matches, keyboard navigation); the old `<datalist>` suggestions are gone.
+- **States**: `loadInto`/`loadFailedState` (`lib/ui.ts`) for list loads; dialogs restore focus on close; global `:focus-visible` style.
+- **Fixes**: `daysSince`/`daysUntil` count calendar days (today was -1 before or after midday); one lifecycle badge on opportunities; Company 360 tiles show meetings and open tasks.
+
 ## Tests
 
-- `npm test`: Vitest (`src/**/*.test.ts`), covering change tracking, company matching, agreement references, the task quick-add parser, drag-and-drop reordering, and commercial rules (line totals, MRR, currencies, file names).
+- `npm test`: Vitest (`src/**/*.test.ts`), covering the company picker (scrolling, keyboard), day counts, change tracking, company matching, agreement references, the task quick-add parser, drag-and-drop reordering, and commercial rules (line totals, MRR, currencies, file names).
 - `cargo test` in `src-tauri`: migration engine, per-record saves and sync columns, backups, the activity triggers and company rename, commercial lines, agreement creation and the legacy clean-up, Graph parsing. `rehearse_migrations_on_database_copy` is opt-in (`MENA_REHEARSAL_DB=<copy> cargo test -- --ignored rehearse`) and refuses paths under Application Support.
 - `.github/workflows/ci.yml` runs both on macOS and Windows and builds the Windows installer. It is inactive until the repository is on GitHub.
 

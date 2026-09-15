@@ -94,6 +94,28 @@ export function emptyState(o: EmptyStateOptions): string {
     + `</div>`;
 }
 
+/** Shown in place of a list that couldn't be loaded, with a way to try again. */
+export function loadFailedState(what: string, retryOnclick: string, err?: unknown): string {
+  return emptyState({ icon: 'warning', title: `Couldn't load ${what}`, body: err ? String(err) : 'Something went wrong reading the database.', action: { label: 'Try again', onclick: retryOnclick } });
+}
+
+/** Loads a list for a view: while it loads the view shows placeholders; if it
+ * fails, the view keeps what it already shows (with a message), or shows a
+ * retry state when it has nothing yet. Returns whether the load succeeded. */
+export async function loadInto(el: HTMLElement | null, what: string, retryOnclick: string, load: () => Promise<void>, variant: 'rows' | 'cards' = 'rows'): Promise<boolean> {
+  const empty = !!el && !el.childElementCount;
+  if (el && empty) el.innerHTML = skeleton(variant === 'cards' ? 3 : 4, variant);
+  try {
+    await load();
+    return true;
+  } catch (err) {
+    console.error(`[load] ${what}:`, err);
+    if (el && (empty || el.querySelector('.skel-wrap'))) el.innerHTML = loadFailedState(what, retryOnclick, err);
+    else toast(`Couldn't refresh ${what}`, { tone: 'error', detail: String(err) });
+    return false;
+  }
+}
+
 /** Placeholder rows shown while a view loads. */
 export function skeleton(rows = 4, variant: 'rows' | 'cards' = 'rows'): string {
   const item = variant === 'cards'

@@ -8,7 +8,7 @@
   </head>
   <body>
 <div id="sidebar">
-  <div class="sb-header">
+  <div class="sb-header" data-tauri-drag-region="deep">
     <img class="sb-logo-img" src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAAsADkDASIAAhEBAxEB/8QAHAAAAgIDAQEAAAAAAAAAAAAABgcAAgEDBQQI/8QAPRAAAQMDAgIECQkJAAAAAAAAAQIDBAAFEQYSByExQWFxExQVFlFVlLLhIiQyNTdydJHwIzZCVHOBkrPS/8QAGgEAAgIDAAAAAAAAAAAAAAAAAAUBBgIDBP/EAC0RAAEDAgIIBQUAAAAAAAAAAAEAAhEDIQQxBRITFSJBUaEUYbHC0SMyQlLw/9oADAMBAAIRAxEAPwBjp4t6PU4E+UHUgnG4xnMDt6KjnFrR7a1J8oOqCTjcmM4Qe7lSbsFogzdD6ouMhjfKhJjmO5uI2blkK5A4OR6ard7RBjcPLBc2mNsyW9IS85uJ3hJISMdAxjqq0bpwevqS7OOWca3Tolviq0TbKe8J43XiTpmzXFyDMlupfbCVKCY61DCkhQ5gegipH4k6Zk2uZcW5jpjw1NpeJjrBBWSE4GOfQaWr0K23HjUYt3Q0uEthsuJdXtTkRkkZOR14oatQA0JqsDoEiEB3eEXWlui8M5jc5hh5RxGOiyOJqBxyi/ZORHFrSLjiUCc/lRAGYq+v+1em5cTNMWq5SIEuY8mRHWUOJTHWoA94HOkve7XChad0dLjR0tyJja1yFgnLhC0gE/nRCmyxrrxY1I1cYRejpRIdTvCgncAnacipdo3CDi4oh3SbEDogYiqbWm3cJlxLxbNcwlLtElTiIzm1wONqRzIyOkfrn0V7PIEj+aR/ir/qgXgV9T3b8Q37lNmleMHhq7qNM2C6aX1GB7syvnDS/wBmutvuxffNVv32TaW/ESveNdTTen7yxw+1hGdtM5t95McNNKjqCnMLJO0YycdlVvWn707ww03FbtM5chp+SXGkx1FaAVHGRjIzVk2rNvMj7/Yl4adTLl7lLrYGtT8YHLS+8tlt5lslaACRtjJV191Xn2zTtt0Bf02G9OXJSpEQP72tng8LVtxyGc8/yrdfWtSWTic7e7ZY5UpTbTaUExnFtqywlB5p9HPr6RXMtenr4NEalbcs89Dzz8RTbZjLCl4WsqwMZOMisGuJZTcX8IDLSM5vPPop/Jwi/F6Kmpf3R0H/AEHP9ia6d7uOrLvr2+2i13mQ20yp1YaU+UIDaQMgcu2sah0/eXtL6JaatM5bjDKw8hMdRLZK0kbhjly9NVu7WprNxFvlyttilyUvqdaSoxXFIUhYHMFPdQxzHARBPHEx+yCCDeYt6Ij4F/VF3x0eMN+5TZpY8GLXPtlquiZ8GTFK30FAfaKCoBHSM0zqr+lCDi3kf1gu/DCKQQwkSUtIbMa8HaMA/s89v8dZHjIz81u5Oc7lBsnq5fT7B+iaA/OU+p7R7L8annKfU9o9l+NJ9qVZN3M8u/yj5wyHFuqEW8pDhJ2gt4GfR8vu/LvrDnhlg/M7whRJO5GwEA55fT7f1igLzlPqe0ey/Gp5yn1PaPZfjRtSjdzPLv8AKP2FPNLSpUG7r2gcj4PGcYz9PprWBIHPxa8ZxjkGxjHo+X09vaaBPOU+p7R7L8annKfU9o9l+NG1KN3M8u/ymjat5Q8pxqWhal5PjJHP7oBOBXRoT0LcTcIkxRiRI+x1IxHb2A8uvnRZW5pkSlGIpinVLByX/9k=" alt="MENA One">
     <div class="sb-logo-text">MENA One<div class="sb-logo-sub">Workspace</div></div>
     <button class="sb-collapse-btn" id="sb-collapse-btn" onclick="toggleSidebar()" title="Collapse sidebar (⌘\\)">
@@ -153,7 +153,7 @@
 <aside class="record-rail" id="record-rail" hidden aria-label="List"></aside>
 <datalist id="team-names"></datalist>
 
-<header class="loc-bar" id="loc-bar">
+<header class="loc-bar" id="loc-bar" data-tauri-drag-region="deep">
   <div class="loc-nav-group">
     <button class="loc-nav" id="loc-back" onclick="navBack()" title="Back (⌘[)" aria-label="Back" disabled><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3.5 5.5 8l4.5 4.5"/></svg></button>
     <button class="loc-nav" id="loc-fwd" onclick="navForward()" title="Forward (⌘])" aria-label="Forward" disabled><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3.5 10.5 8 6 12.5"/></svg></button>
@@ -330,7 +330,7 @@
       <div class="page-title">Calendar</div>
       <div class="page-subtitle">Outlook stays the source of truth — meetings created or edited here sync straight back.</div>
     </div>
-    <button class="btn-primary" onclick="openOutlookMeetingModal(null)">+ New Meeting</button>
+    <button class="btn-primary" onclick="openOutlookMeetingModal(null)"><span data-icon="plus" data-icon-size="14"></span> New meeting</button>
   </div>
   <div class="fbar">
     <div class="seg-btns" id="cal-view-btns">
@@ -350,7 +350,7 @@
 <!-- OUTLOOK MEETING MODAL -->
 <div class="modal-ov" id="modal-outlook-meeting" onclick="if(event.target===this)closeOutlookMeetingModal()">
   <div class="modal">
-    <div class="modal-hd"><div class="modal-title" id="om-modal-title">New Meeting</div><button class="modal-close" onclick="closeOutlookMeetingModal()">×</button></div>
+    <div class="modal-hd"><div class="modal-title" id="om-modal-title">New meeting</div><button class="modal-close" onclick="closeOutlookMeetingModal()">×</button></div>
     <form id="outlook-meeting-form" onsubmit="submitOutlookMeeting(event)">
       <div class="fg">
         <div class="fgrp fgrp-full">
@@ -370,7 +370,7 @@
           <input type="time" class="finp" name="omEnd" required>
         </div>
         <div class="fgrp">
-          <label class="flbl">Location <span class="flbl-hint">(optional)</span></label>
+          <label class="flbl">Location</label>
           <input class="finp" name="omLocation" placeholder="e.g. HQ Boardroom">
         </div>
         <div class="fgrp">
@@ -378,16 +378,16 @@
           <input class="finp" name="omAttendees" placeholder="jane@client.com, ...">
         </div>
         <div class="fgrp">
-          <label class="flbl">Company <span class="flbl-hint">(optional)</span></label>
-          <input class="finp" name="omCompany" list="om-company-list" placeholder="Client company...">
-          <datalist id="om-company-list"></datalist>
+          <label class="flbl">Company</label>
+          <input class="finp" name="omCompany" placeholder="Search or type a company">
+          
         </div>
         <div class="fgrp">
-          <label class="flbl">Project <span class="flbl-hint">(optional)</span></label>
+          <label class="flbl">Project</label>
           <select class="finp" name="omProject"><option value="">— No project —</option></select>
         </div>
         <div class="fgrp fgrp-full">
-          <label class="flbl">Description <span class="flbl-hint">(optional)</span></label>
+          <label class="flbl">Description</label>
           <textarea class="finp" name="omDescription" rows="3"></textarea>
         </div>
       </div>
@@ -396,7 +396,7 @@
       </label>
       <div class="fact">
         <button type="button" class="btn-secondary" onclick="closeOutlookMeetingModal()">Cancel</button>
-        <button type="submit" class="btn-primary" id="om-submit-btn">Create Meeting</button>
+        <button type="submit" class="btn-primary" id="om-submit-btn">Create meeting</button>
       </div>
     </form>
   </div>
@@ -409,7 +409,7 @@
       <div class="page-title">Watch</div>
       <div class="page-subtitle" id="intel-subtitle">Saudi regulatory changes — labour law, Saudization/Nitaqat, GOSI, ZATCA, MISA, and more.</div>
     </div>
-    <button class="btn-primary" onclick="openIntelModal(null)">+ Add Item</button>
+    <button class="btn-primary" onclick="openIntelModal(null)"><span data-icon="plus" data-icon-size="14"></span> New item</button>
   </div>
   <div class="fbar">
     <div class="seg-btns" id="intel-kind-btns">
@@ -473,8 +473,8 @@
         </div>
         <div class="fgrp">
           <label class="flbl">Company <span class="flbl-hint">(optional)</span></label>
-          <input class="finp" name="itCompany" list="intel-company-list" placeholder="If specific to one client...">
-          <datalist id="intel-company-list"></datalist>
+          <input class="finp" name="itCompany" placeholder="Only if it concerns one company">
+          
         </div>
         <div class="fgrp fgrp-full">
           <label class="flbl">What Changed <span class="flbl-hint">(optional)</span></label>
@@ -534,6 +534,7 @@
         <span id="md-save-confirm" class="rec-saved-note" style="display:none"><span data-icon="check" data-icon-size="12"></span> Filed to Notes · <a href="#" class="rlink" onclick="event.preventDefault();viewMeetingNote()">View note</a></span>
         <a id="md-join-btn" href="#" target="_blank" rel="noopener" class="btn-primary" style="display:none">Join Teams</a>
         <button class="btn-secondary in-menu" id="md-edit-schedule-btn" style="display:none" onclick="editCurrentMeetingSchedule()">Edit schedule</button>
+        <button class="btn-secondary" onclick="recordNewMenu(event)" aria-haspopup="menu"><span data-icon="plus" data-icon-size="13"></span> New</button>
         <button class="btn-primary" onclick="saveAndFileMeetingNotes()">Save &amp; file notes</button>
         <button class="btn-secondary btn-danger-ghost in-menu" id="md-delete-btn" onclick="deleteCurrentMeeting()">Delete</button>
         <button class="loc-nav rec-more" onclick="meetingMoreMenu(event)" title="More" aria-label="More"><span data-icon="more" data-icon-size="16"></span></button>
@@ -564,9 +565,10 @@
       <section class="card rec-side-card">
         <div class="rec-section-hd"><h2>Details</h2></div>
         <dl class="rec-props rec-props-edit">
-          <dt>Client</dt><dd><input id="md-company-inp" class="td-input" list="md-company-list" placeholder="No client" onchange="autoSaveMeetingCompany(this.value)"><datalist id="md-company-list"></datalist></dd>
+          <dt>Company</dt><dd><input id="md-company-inp" class="td-input" placeholder="No company" onchange="autoSaveMeetingCompany(this.value)"><span class="md-rel-link" id="md-company-link"></span></dd>
           <dt>Project</dt><dd><select id="md-project-sel" class="td-select" onchange="autoSaveMeetingProject(this.value)"></select><span class="md-rel-link" id="md-project-link"></span></dd>
           <dt>Opportunity</dt><dd><select id="md-opportunity-sel" class="td-select" onchange="autoSaveMeetingOpportunity(this.value)"></select><span class="md-rel-link" id="md-opportunity-link"></span></dd>
+          <dt>Note</dt><dd id="md-note-link"></dd>
         </dl>
         <div class="rec-side-extra" id="md-outlook-card" style="display:none"><div id="md-outlook-info"></div></div>
       </section>
@@ -580,7 +582,7 @@
         <div class="page-title">Meetings</div>
         <div class="page-subtitle">Attendees, decisions, and action items — never lost in someone's inbox.</div>
       </div>
-      <div class="page-header-actions"><button class="btn-primary" onclick="openMeetingModal(null)">+ New Meeting</button></div>
+      <div class="page-header-actions"><button class="btn-primary" onclick="openMeetingModal(null)"><span data-icon="plus" data-icon-size="14"></span> New meeting</button></div>
     </div>
     <div id="meeting-list"></div>
   </div>
@@ -589,11 +591,11 @@
 <!-- MEETING MODAL -->
 <div class="modal-ov" id="modal-meeting" onclick="if(event.target===this)closeMeetingModal()">
   <div class="modal">
-    <div class="modal-hd"><div class="modal-title" id="meeting-modal-title">New Meeting</div><button class="modal-close" onclick="closeMeetingModal()">×</button></div>
+    <div class="modal-hd"><div class="modal-title" id="meeting-modal-title">New meeting</div><button class="modal-close" onclick="closeMeetingModal()">×</button></div>
     <form id="meeting-form" onsubmit="submitMeeting(event)">
       <div class="fg">
         <div class="fgrp fgrp-full">
-          <label class="flbl">Meeting Title *</label>
+          <label class="flbl">Title *</label>
           <input class="finp" name="mtTitle" required placeholder="e.g. Acme Holdings Quarterly Review">
         </div>
         <div class="fgrp">
@@ -601,24 +603,24 @@
           <input type="date" class="finp" name="mtDate">
         </div>
         <div class="fgrp">
-          <label class="flbl">Start <span class="flbl-hint">(optional)</span></label>
+          <label class="flbl">Start</label>
           <input type="time" class="finp" name="mtStart">
         </div>
         <div class="fgrp">
-          <label class="flbl">End <span class="flbl-hint">(optional)</span></label>
+          <label class="flbl">End</label>
           <input type="time" class="finp" name="mtEnd">
         </div>
         <div class="fgrp">
-          <label class="flbl">Company <span class="flbl-hint">(optional)</span></label>
-          <input class="finp" name="mtCompany" list="mt-company-list" placeholder="Client company...">
-          <datalist id="mt-company-list"></datalist>
+          <label class="flbl">Company</label>
+          <input class="finp" name="mtCompany" placeholder="Search or type a company">
+          
         </div>
         <div class="fgrp">
-          <label class="flbl">Project <span class="flbl-hint">(optional)</span></label>
+          <label class="flbl">Project</label>
           <select class="finp" name="mtProject"><option value="">— No project —</option></select>
         </div>
         <div class="fgrp">
-          <label class="flbl">Opportunity <span class="flbl-hint">(optional)</span></label>
+          <label class="flbl">Opportunity</label>
           <select class="finp" name="mtOpportunity"><option value="">— No opportunity —</option></select>
         </div>
         <div class="fgrp fgrp-full">
@@ -629,7 +631,7 @@
       </div>
       <div class="fact">
         <button type="button" class="btn-secondary" onclick="closeMeetingModal()">Cancel</button>
-        <button type="submit" class="btn-primary" id="meeting-submit-btn">Save Meeting</button>
+        <button type="submit" class="btn-primary" id="meeting-submit-btn">Create meeting</button>
       </div>
     </form>
   </div>
@@ -829,7 +831,7 @@
         <div class="page-subtitle">Client engagements and internal initiatives — one system, equally first-class.</div>
       </div>
       <div class="page-header-actions">
-        <button class="btn-primary" onclick="openProjectModal(null)">+ New Project</button>
+        <button class="btn-primary" onclick="openProjectModal(null)"><span data-icon="plus" data-icon-size="14"></span> New project</button>
       </div>
     </div>
     <div class="toolbar">
@@ -865,6 +867,7 @@
         <div class="rec-badges" id="pd-badges"></div>
       </div>
       <div class="rec-actions">
+        <button class="btn-primary" onclick="recordNewMenu(event)" aria-haspopup="menu"><span data-icon="plus" data-icon-size="13"></span> New</button>
         <button class="btn-secondary" onclick="editCurrentProject()">Edit</button>
         <button class="btn-secondary" id="pd-archive-btn" onclick="toggleArchiveProject()">Archive</button>
         <button class="loc-nav rec-more" onclick="projectMoreMenu(event)" title="More" aria-label="More"><span data-icon="more" data-icon-size="16"></span></button>
@@ -929,11 +932,11 @@
 <!-- PROJECT MODAL -->
 <div class="modal-ov" id="modal-project" onclick="if(event.target===this)closeProjectModal()">
   <div class="modal">
-    <div class="modal-hd"><div class="modal-title" id="proj-modal-title">New Project</div><button class="modal-close" onclick="closeProjectModal()">×</button></div>
+    <div class="modal-hd"><div class="modal-title" id="proj-modal-title">New project</div><button class="modal-close" onclick="closeProjectModal()">×</button></div>
     <form id="project-form" onsubmit="submitProject(event)">
       <div class="fg">
         <div class="fgrp fgrp-full">
-          <label class="flbl">Project Name *</label>
+          <label class="flbl">Name *</label>
           <input class="finp" name="pjName" required placeholder="e.g. Launch MENA BIG Recruitment Division">
         </div>
         <div class="fgrp">
@@ -944,9 +947,9 @@
           </select>
         </div>
         <div class="fgrp" id="pj-company-group">
-          <label class="flbl">Company <span class="flbl-hint">(optional)</span></label>
-          <input class="finp" name="pjCompany" list="pj-company-list" placeholder="Client company...">
-          <datalist id="pj-company-list"></datalist>
+          <label class="flbl">Company</label>
+          <input class="finp" name="pjCompany" placeholder="Client company...">
+          
         </div>
         <div class="fgrp">
           <label class="flbl">Status</label>
@@ -967,11 +970,11 @@
           <input class="finp" name="pjOwner" placeholder="Owner name...">
         </div>
         <div class="fgrp">
-          <label class="flbl">Start Date</label>
+          <label class="flbl">Start date</label>
           <input type="date" class="finp" name="pjStart">
         </div>
         <div class="fgrp">
-          <label class="flbl">Target Date</label>
+          <label class="flbl">Target date</label>
           <input type="date" class="finp" name="pjTarget">
         </div>
         <div class="fgrp">
@@ -985,7 +988,7 @@
       </div>
       <div class="fact">
         <button type="button" class="btn-secondary" onclick="closeProjectModal()">Cancel</button>
-        <button type="submit" class="btn-primary" id="proj-submit-btn">Save Project</button>
+        <button type="submit" class="btn-primary" id="proj-submit-btn">Create project</button>
       </div>
     </form>
   </div>
@@ -1000,7 +1003,7 @@
         <div class="page-subtitle">The pipeline from first contact to signed proposal — before a Proposal exists.</div>
       </div>
       <div class="page-header-actions">
-        <button class="btn-primary" onclick="openOpportunityModal(null)">+ New Opportunity</button>
+        <button class="btn-primary" onclick="openOpportunityModal(null)"><span data-icon="plus" data-icon-size="14"></span> New opportunity</button>
       </div>
     </div>
     <div class="toolbar">
@@ -1037,6 +1040,7 @@
         <div class="rec-badges" id="od-badges"></div>
       </div>
       <div class="rec-actions">
+        <button class="btn-primary" onclick="recordNewMenu(event)" aria-haspopup="menu"><span data-icon="plus" data-icon-size="13"></span> New</button>
         <button class="btn-secondary" onclick="editCurrentOpportunity()">Edit</button>
         <button class="loc-nav rec-more" onclick="opportunityMoreMenu(event)" title="More" aria-label="More"><span data-icon="more" data-icon-size="16"></span></button>
       </div>
@@ -1060,7 +1064,7 @@
       <section class="card rec-side-card">
         <div class="rec-section-hd"><h2>Details</h2></div>
         <dl class="rec-props rec-props-edit">
-          <dt>Company</dt><dd><input id="od-company-inp" class="td-input" list="od-company-list" placeholder="No company" onchange="autoSaveOpportunityField('companyName',this.value)"><datalist id="od-company-list"></datalist></dd>
+          <dt>Company</dt><dd><input id="od-company-inp" class="td-input" placeholder="No company" onchange="autoSaveOpportunityField('companyName',this.value)"></dd>
           <dt>Stage</dt><dd><select id="od-stage-sel" class="td-select" onchange="changeCurrentOpportunityStage(this.value)"></select></dd>
           <dt>Owner</dt><dd><input id="od-owner-inp" class="td-input" placeholder="Add owner" list="team-names" onchange="autoSaveOpportunityField('owner',this.value)"></dd>
           <dt>Value</dt><dd><input id="od-value-inp" type="number" class="td-input" placeholder="0" onchange="autoSaveOpportunityNumber('estimatedValue',this.value)"></dd>
@@ -1076,17 +1080,17 @@
 <!-- OPPORTUNITY MODAL -->
 <div class="modal-ov" id="modal-opportunity" onclick="if(event.target===this)closeOpportunityModal()">
   <div class="modal">
-    <div class="modal-hd"><div class="modal-title" id="opp-modal-title">New Opportunity</div><button class="modal-close" onclick="closeOpportunityModal()">×</button></div>
+    <div class="modal-hd"><div class="modal-title" id="opp-modal-title">New opportunity</div><button class="modal-close" onclick="closeOpportunityModal()">×</button></div>
     <form id="opportunity-form" onsubmit="submitOpportunity(event)">
       <div class="fg">
         <div class="fgrp fgrp-full">
-          <label class="flbl">Opportunity Name *</label>
+          <label class="flbl">Name *</label>
           <input class="finp" name="oppName" required placeholder="e.g. Globex Saudization Workforce">
         </div>
         <div class="fgrp">
-          <label class="flbl">Company <span class="flbl-hint">(optional)</span></label>
-          <input class="finp" name="oppCompany" list="opp-company-list" oninput="refreshOppModalContacts(this.value)" placeholder="Client company...">
-          <datalist id="opp-company-list"></datalist>
+          <label class="flbl">Company</label>
+          <input class="finp" name="oppCompany" oninput="refreshOppModalContacts(this.value)" placeholder="Client company...">
+          
         </div>
         <div class="fgrp">
           <label class="flbl">Stage</label>
@@ -1101,15 +1105,15 @@
           <select class="finp" name="oppContacts" id="opp-contacts-sel" multiple size="3"></select>
         </div>
         <div class="fgrp">
-          <label class="flbl">Estimated Value (SAR)</label>
+          <label class="flbl">Estimated value (SAR)</label>
           <input class="finp" type="number" name="oppValue" placeholder="0">
         </div>
         <div class="fgrp">
-          <label class="flbl">Probability %</label>
+          <label class="flbl">Probability (%)</label>
           <input class="finp" type="number" min="0" max="100" name="oppProbability" placeholder="0-100">
         </div>
         <div class="fgrp">
-          <label class="flbl">Expected Close Date</label>
+          <label class="flbl">Expected close date</label>
           <input class="finp" type="date" name="oppCloseDate">
         </div>
         <div class="fgrp fgrp-full">
@@ -1119,7 +1123,7 @@
       </div>
       <div class="fact">
         <button type="button" class="btn-secondary" onclick="closeOpportunityModal()">Cancel</button>
-        <button type="submit" class="btn-primary">Save Opportunity</button>
+        <button type="submit" class="btn-primary" id="opp-submit-btn">Create opportunity</button>
       </div>
     </form>
   </div>
@@ -1370,7 +1374,7 @@
     <div class="page-header-actions">
       <button class="btn-sm" onclick="openCtListsModal()">Manage lists</button>
       <button class="btn-secondary" onclick="exportAcContacts()" title="Export the selected (or filtered) contacts as an ActiveCampaign import file">Export to ActiveCampaign</button>
-      <button class="btn-primary" onclick="openContactModal()"><span data-icon="plus" data-icon-size="13"></span> New contact</button>
+      <button class="btn-primary" onclick="openContactModal()"><span data-icon="plus" data-icon-size="14"></span> New contact</button>
     </div>
   </div>
   <div class="ct-people-banner" id="ct-people-banner" hidden></div>
@@ -1422,6 +1426,7 @@
       <div class="page-title">Companies</div>
       <div class="page-subtitle">Clients and prospects — proposals, contacts, files, and activity in one place.</div>
     </div>
+    <div class="page-header-actions"><button class="btn-primary" onclick="openNewCompanyModal()"><span data-icon="plus" data-icon-size="14"></span> New company</button></div>
   </div>
   <div class="co-list-view" id="co-list-view">
     <div class="co-review-queue" id="co-review-queue" style="display:none"></div>
@@ -1487,7 +1492,7 @@
         <div class="rec-badges" id="co-detail-meta"></div>
       </div>
       <div class="rec-actions">
-        <button class="btn-primary" onclick="companyNewMenu(event)"><span data-icon="plus" data-icon-size="13"></span> New</button>
+        <button class="btn-primary" onclick="companyNewMenu(event)" aria-haspopup="menu"><span data-icon="plus" data-icon-size="13"></span> New</button>
         <button class="btn-secondary" onclick="openEditCompanyModal()">Edit</button>
         <button class="loc-nav rec-more" onclick="companyMoreMenu(event)" title="More" aria-label="More"><span data-icon="more" data-icon-size="16"></span></button>
       </div>
@@ -2132,19 +2137,19 @@
 <!-- CONTACT MODAL -->
 <div class="modal-ov" id="modal-contact" onclick="if(event.target===this)closeContactModal()">
   <div class="modal modal-md">
-    <div class="modal-hd"><div class="modal-title" id="ct-modal-title">Add Contact</div><button class="modal-close" onclick="closeContactModal()">×</button></div>
+    <div class="modal-hd"><div class="modal-title" id="ct-modal-title">New contact</div><button class="modal-close" onclick="closeContactModal()">×</button></div>
     <form id="contact-form" onsubmit="submitContact(event)">
       <div class="fg">
-        <div class="fgrp fgrp-full"><label class="flbl">Full Name *</label><input class="finp" name="ct-name" required placeholder="e.g. Ahmed Al-Rashidi"></div>
-        <div class="fgrp"><label class="flbl">Client / Company *</label><input class="finp" name="ct-client" id="ct-modal-client" required placeholder="Must match an existing client name" list="ct-client-list"><datalist id="ct-client-list"></datalist></div>
-        <div class="fgrp"><label class="flbl">Role / Title</label><input class="finp" name="ct-role" placeholder="e.g. HR Director, CEO..."></div>
+        <div class="fgrp fgrp-full"><label class="flbl">Full name *</label><input class="finp" name="ct-name" required placeholder="e.g. Ahmed Al-Rashidi"></div>
+        <div class="fgrp"><label class="flbl">Company *</label><input class="finp" name="ct-client" id="ct-modal-client" required placeholder="Search or type a company"></div>
+        <div class="fgrp"><label class="flbl">Role</label><input class="finp" name="ct-role" placeholder="e.g. HR Director, CEO..."></div>
         <div class="fgrp"><label class="flbl">Email</label><input class="finp" type="email" name="ct-email" placeholder="ahmed@company.com"></div>
         <div class="fgrp"><label class="flbl">Phone</label><input class="finp" name="ct-phone" placeholder="+966 5x xxx xxxx"></div>
-        <div class="fgrp"><label class="flbl">WhatsApp Number</label><input class="finp" name="ct-wa" placeholder="+966 5x xxx xxxx"></div>
+        <div class="fgrp"><label class="flbl">WhatsApp</label><input class="finp" name="ct-wa" placeholder="+966 5x xxx xxxx"></div>
       </div>
       <div class="fact">
         <button type="button" class="btn-secondary" onclick="closeContactModal()">Cancel</button>
-        <button type="submit" class="btn-primary">Save Contact</button>
+        <button type="submit" class="btn-primary">Create contact</button>
       </div>
     </form>
   </div>
@@ -2200,10 +2205,10 @@
 <!-- NEW COMPANY MODAL -->
 <div class="modal-ov" id="modal-new-company" onclick="if(event.target===this)closeNewCompanyModal()">
   <div class="modal modal-md">
-    <div class="modal-hd"><div class="modal-title">New Company</div><button class="modal-close" onclick="closeNewCompanyModal()">×</button></div>
+    <div class="modal-hd"><div class="modal-title">New company</div><button class="modal-close" onclick="closeNewCompanyModal()">×</button></div>
     <form onsubmit="submitNewCompany(event)">
       <div class="fgrp">
-        <label class="flbl">Company Name *</label>
+        <label class="flbl">Name *</label>
         <input class="finp" id="new-co-name" required placeholder="e.g. Acme Holdings">
         <div class="form-hint">Creates an empty company you can attach proposals, contacts, and everything else to — most companies show up automatically the first time you reference them elsewhere, so this is only needed when you want the record to exist first.</div>
       </div>
@@ -2213,7 +2218,7 @@
       </div>
       <div class="fact">
         <button type="button" class="btn-secondary" onclick="closeNewCompanyModal()">Cancel</button>
-        <button type="submit" class="btn-primary">Create Company</button>
+        <button type="submit" class="btn-primary">Create company</button>
       </div>
     </form>
   </div>
@@ -2243,24 +2248,24 @@
 <!-- TODO MODAL -->
 <div class="modal-ov" id="modal-todo" onclick="if(event.target===this)closeTodoModal()">
   <div class="modal modal-md">
-    <div class="modal-hd"><div class="modal-title" id="todo-modal-title">New Task</div><button class="modal-close" onclick="closeTodoModal()">×</button></div>
+    <div class="modal-hd"><div class="modal-title" id="todo-modal-title">New task</div><button class="modal-close" onclick="closeTodoModal()">×</button></div>
     <form id="todo-form" onsubmit="submitTodo(event)">
       <div class="fg">
         <div class="fgrp fgrp-full">
-          <label class="flbl">Task Title *</label>
+          <label class="flbl">Title *</label>
           <input class="finp" name="todoTitle" required placeholder="What needs to be done?">
         </div>
         <div class="fgrp">
           <label class="flbl">Type</label>
           <select class="finp" name="todoType" onchange="toggleTodoClient(this.value)">
-            <option value="general">General MENA Task</option>
-            <option value="client">Client Request</option>
+            <option value="general">Internal task</option>
+            <option value="client">Client task</option>
           </select>
         </div>
         <div class="fgrp" id="todo-client-group" style="display:none">
-          <label class="flbl">Client</label>
-          <input class="finp" name="todoClient" list="todo-client-list" placeholder="Client name...">
-          <datalist id="todo-client-list"></datalist>
+          <label class="flbl">Company</label>
+          <input class="finp" name="todoClient" placeholder="Search or type a company">
+          
         </div>
         <div class="fgrp">
           <label class="flbl">Priority</label>
@@ -2271,7 +2276,7 @@
           </select>
         </div>
         <div class="fgrp">
-          <label class="flbl">Due Date</label>
+          <label class="flbl">Due date</label>
           <input type="date" class="finp" name="todoDue">
         </div>
         <div class="fgrp">
@@ -2292,13 +2297,13 @@
           </select>
         </div>
         <div class="fgrp">
-          <label class="flbl">Project <span class="flbl-hint">(optional)</span></label>
+          <label class="flbl">Project</label>
           <select class="finp" name="todoProject">
             <option value="">— No project —</option>
           </select>
         </div>
         <div class="fgrp">
-          <label class="flbl">Opportunity <span class="flbl-hint">(optional)</span></label>
+          <label class="flbl">Opportunity</label>
           <select class="finp" name="todoOpportunity">
             <option value="">— No opportunity —</option>
           </select>
@@ -2309,13 +2314,13 @@
           <div id="todo-tags-chips" class="tag-chip-input"></div>
         </div>
         <div class="fgrp fgrp-full">
-          <label class="flbl">Description / Notes</label>
+          <label class="flbl">Notes</label>
           <textarea class="finp" name="todoDesc" rows="2" placeholder="Additional details..."></textarea>
         </div>
       </div>
       <div class="fact">
         <button type="button" class="btn-secondary" onclick="closeTodoModal()">Cancel</button>
-        <button type="submit" class="btn-primary" id="todo-submit-btn">Save Task</button>
+        <button type="submit" class="btn-primary" id="todo-submit-btn">Create task</button>
       </div>
     </form>
   </div>

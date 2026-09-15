@@ -129,14 +129,18 @@ export function fmtDateFromIso(s: string | null | undefined): string {
 
 export function daysSince(s: string | null | undefined): number | null {
   if (!s) return null;
-  const d = new Date(s + 'T12:00:00');
-  return isNaN(d.getTime()) ? null : Math.floor((Date.now() - d.getTime()) / 86400000);
+  // Whole calendar days between that date and today (local), so "today" is 0 at any hour.
+  const d = new Date(s.slice(0, 10) + 'T00:00:00');
+  if (isNaN(d.getTime())) return null;
+  const now = new Date();
+  const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.round((todayMidnight.getTime() - d.getTime()) / 86400000);
 }
 
 export function daysUntil(s: string | null | undefined): number | null {
   if (!s) return null;
-  const d = new Date(s + 'T12:00:00');
-  return isNaN(d.getTime()) ? null : Math.floor((d.getTime() - Date.now()) / 86400000);
+  const since = daysSince(s);
+  return since == null ? null : 0 - since;
 }
 
 export function addMonths(dateStr: string | null | undefined, months: number | null | undefined): string | null {

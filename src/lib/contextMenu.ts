@@ -80,4 +80,8 @@ document.addEventListener('contextmenu', (e) => {
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') closeContextMenu();
 });
-document.addEventListener('scroll', () => closeContextMenu(), true);
+// A long menu scrolls; only scrolling something else closes it.
+document.addEventListener('scroll', (e) => {
+  if (e.target instanceof Element && e.target.closest('#ctx-menu')) return;
+  closeContextMenu();
+}, true);

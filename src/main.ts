@@ -1,12 +1,29 @@
 import './styles.css';
+
+// macOS app window: the title bar is transparent and overlays the page
+// (tauri.conf.json titleBarStyle "Overlay"), so the sidebar and location bar
+// run to the top edge with the native traffic lights over them. The class
+// makes room for the lights; the strip keeps the whole top edge draggable.
+// Not applied in a plain browser preview.
+if ('__TAURI_INTERNALS__' in window && /Mac/i.test(navigator.platform)) {
+  document.documentElement.classList.add('mac-window-chrome');
+  const strip = document.createElement('div');
+  strip.id = 'window-drag-strip';
+  strip.setAttribute('data-tauri-drag-region', '');
+  strip.setAttribute('aria-hidden', 'true');
+  document.body.prepend(strip);
+}
 import { S } from './lib/state';
 import { STATUSES } from './lib/constants';
 import { escHtml, getClients, expose } from './lib/utils';
 import { loadAllData, getCommercialSetup, getProjects, getAreas, getNoteTemplates, getAllTags, getInboxItems, getMeetings, getCompanies, getOpportunities, ms365Status, getSavedLists } from './lib/db';
 import { registerPeriodChangeHandler, populatePeriodSelector } from './lib/period';
-import { refreshAll, refreshBadges, getActiveTabId } from './lib/registry';
+import { refreshAll, refreshBadges, getActiveTabId, renderTab } from './lib/registry';
 import { markLoadedAsSaved } from './lib/persist';
 import { ownerName } from './lib/commercial';
+
+// Retry buttons in "couldn't load" states re-run a view's renderer.
+expose('renderTab', renderTab);
 
 // Core / cross-cutting logic
 import { switchTab } from './core/nav';

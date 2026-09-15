@@ -2,6 +2,7 @@ import { S } from '../lib/state';
 import { emptyState } from '../lib/ui';
 import { companyLink, recordLink } from '../lib/links';
 import { escHtml, expose, today, fmtDate, statusDot, nextTodoId, nextNoteId, showConfirm } from '../lib/utils';
+import { attachCompanySelector } from '../lib/companySelector';
 import { registerTabRenderer } from '../lib/registry';
 import {
   getIntelligenceItems, saveIntelligenceItem, deleteIntelligenceItem,
@@ -277,7 +278,8 @@ export function openIntelModal(id: number | null): void {
   S.intelEditId = id;
   const f = document.getElementById('intel-form') as HTMLFormElement;
   f.reset();
-  const dl = document.getElementById('intel-company-list'); if (dl) dl.innerHTML = getAllCompanies().map((c) => `<option value="${escHtml(c)}">`).join('');
+  const itCompany = document.querySelector<HTMLInputElement>('[name=itCompany]');
+  if (itCompany) attachCompanySelector(itCompany);
   const deleteBtn = document.getElementById('intel-delete-btn'); if (deleteBtn) deleteBtn.style.display = id === null ? 'none' : '';
 
   if (id !== null) {

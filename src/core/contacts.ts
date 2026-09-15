@@ -17,7 +17,6 @@ import type { Contact, SavedList } from '../lib/types';
 // ═══════════════ CONTACT MODAL ═══════════════
 
 function refreshClientDatalistAndSelector(): void {
-  const dl = document.getElementById('ct-client-list'); if (dl) dl.innerHTML = getClients().map((c) => `<option value="${escHtml(c)}">`).join('');
   const input = document.getElementById('ct-modal-client') as HTMLInputElement | null;
   if (input) attachCompanySelector(input);
 }
@@ -28,7 +27,7 @@ let contactModalCompany: { companyId: number | null; companyName: string | null 
 export function openContactModal(clientName?: string | null, companyId?: number | null): void {
   S.ctEditId = null;
   contactModalCompany = clientName ? { companyId: companyId ?? S.companies.find((c) => c.name === clientName)?.id ?? null, companyName: clientName } : null;
-  const t = document.getElementById('ct-modal-title'); if (t) t.textContent = 'Add Contact';
+  const t = document.getElementById('ct-modal-title'); if (t) t.textContent = 'New contact';
   const f = document.getElementById('contact-form') as HTMLFormElement;
   f.reset();
   if (clientName) (document.getElementById('ct-modal-client') as HTMLInputElement).value = clientName;
