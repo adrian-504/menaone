@@ -481,8 +481,9 @@ pub fn ms365_get_completed_emails(state: State<DbState>, limit: i64) -> CmdResul
 pub fn ms365_set_email_company(state: State<DbState>, id: i64, company_name: Option<String>) -> CmdResult<()> {
     let conn = state.0.lock().map_err(err)?;
     let val = company_name.filter(|s| !s.trim().is_empty());
+    let prior = crate::opportunities::prior_company(&conn, "emails", Some("company_name"), id).map_err(err)?;
     conn.execute("UPDATE emails SET company_name = ?1 WHERE id = ?2", params![val, id]).map_err(err)?;
-    crate::opportunities::link_company(&conn, "emails", id, val.as_deref()).map_err(err)?;
+    crate::opportunities::link_company(&conn, "emails", id, prior.as_ref(), None, val.as_deref()).map_err(err)?;
     Ok(())
 }
 

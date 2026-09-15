@@ -630,8 +630,8 @@ pub fn upsert_proposal_rows(conn: &mut Connection, items: &[Proposal]) -> rusqli
 
 pub fn upsert_proposal_rows_in(tx: &Connection, items: &[Proposal]) -> rusqlite::Result<()> {
     for p in items {
-        let hint = crate::opportunities::current_company_id(tx, "proposals", p.id)?.or(p.company_id);
-        let company_id = crate::opportunities::resolve_company_ref(tx, hint, Some(&p.client))?;
+        let prior = crate::opportunities::prior_company(tx, "proposals", Some("client"), p.id)?;
+        let company_id = crate::opportunities::company_for_save(tx, prior.as_ref(), p.company_id, Some(&p.client))?;
         tx.prepare_cached(&upsert_sql("proposals", PROPOSAL_COLS))?.execute(params![
             p.id, p.client, p.r#type, p.status, p.sent_date, p.dbl_signed_date, p.kickoff_date,
             p.finance, p.hubspot, p.owner, p.remarks, p.date_added, p.monthly_fee, p.contract_months,
@@ -683,8 +683,8 @@ pub fn upsert_contact_rows(conn: &mut Connection, items: &[Contact]) -> rusqlite
 
 pub fn upsert_contact_rows_in(tx: &Connection, items: &[Contact]) -> rusqlite::Result<()> {
     for c in items {
-        let hint = crate::opportunities::current_company_id(tx, "contacts", c.id)?.or(c.company_id);
-        let company_id = crate::opportunities::resolve_company_ref(tx, hint, c.client_name.as_deref())?;
+        let prior = crate::opportunities::prior_company(tx, "contacts", Some("client_name"), c.id)?;
+        let company_id = crate::opportunities::company_for_save(tx, prior.as_ref(), c.company_id, c.client_name.as_deref())?;
         tx.prepare_cached(&upsert_sql("contacts", CONTACT_COLS))?.execute(params![
             c.id, c.client_name, c.name, c.role, c.email, c.phone, c.whatsapp, c.service, company_id
         ])?;
@@ -728,8 +728,8 @@ pub fn upsert_agreement_rows(conn: &mut Connection, items: &[Agreement]) -> rusq
 
 pub fn upsert_agreement_rows_in(tx: &Connection, items: &[Agreement]) -> rusqlite::Result<()> {
     for a in items {
-        let hint = crate::opportunities::current_company_id(tx, "agreements", a.id)?.or(a.company_id);
-        let company_id = crate::opportunities::resolve_company_ref(tx, hint, a.client.as_deref())?;
+        let prior = crate::opportunities::prior_company(tx, "agreements", Some("client"), a.id)?;
+        let company_id = crate::opportunities::company_for_save(tx, prior.as_ref(), a.company_id, a.client.as_deref())?;
         tx.prepare_cached(&upsert_sql("agreements", AGREEMENT_COLS))?.execute(params![
             a.id, a.agr_ref, a.client, a.r#type, a.status, a.prepared_by, a.date_prepared,
             a.date_sent_to_client, a.date_client_signed, a.date_mena_signed, a.date_filed,
@@ -791,6 +791,7 @@ pub fn upsert_todo_rows_in(tx: &Connection, items: &[Todo]) -> rusqlite::Result<
                    OR todos.recurrence_rule IS NOT excluded.recurrence_rule OR todos.meeting_id IS NOT excluded.meeting_id
                    OR todos.due_time IS NOT excluded.due_time OR todos.someday IS NOT excluded.someday";
     for t in items {
+        let prior = crate::opportunities::prior_company(tx, "todos", Some("client"), t.id)?;
         tx.prepare_cached(sql)?.execute(params![
             t.id, t.title, t.r#type, t.client, t.priority, t.due_date, t.status, t.description,
             t.created_at, t.completed_at, t.project_id, t.parent_id, t.area_id, t.section,
@@ -803,7 +804,7 @@ pub fn upsert_todo_rows_in(tx: &Connection, items: &[Todo]) -> rusqlite::Result<
         for tag in &t.tags {
             tx.execute("INSERT OR IGNORE INTO entity_tags (entity_type, entity_id, tag) VALUES ('task', ?1, ?2)", params![t.id, tag])?;
         }
-        crate::opportunities::link_company(tx, "todos", t.id, t.client.as_deref())?;
+        crate::opportunities::link_company(tx, "todos", t.id, prior.as_ref(), t.company_id, t.client.as_deref())?;
         crate::v2_search::reindex_todo(tx, t.id)?;
     }
     Ok(())
@@ -832,6 +833,7 @@ pub fn upsert_note_rows(conn: &mut Connection, items: &[Note]) -> rusqlite::Resu
 
 pub fn upsert_note_rows_in(tx: &Connection, items: &[Note]) -> rusqlite::Result<()> {
     for n in items {
+        let prior = crate::opportunities::prior_company(tx, "notes", Some("client_name"), n.id)?;
         let tags_json = strings_json(&n.tags);
         tx.prepare_cached(&upsert_sql("notes", NOTE_COLS))?.execute(params![
             n.id, n.title, n.content, n.folder, n.client_name, tags_json, n.pinned as i64, n.created_at, n.updated_at
@@ -843,7 +845,7 @@ pub fn upsert_note_rows_in(tx: &Connection, items: &[Note]) -> rusqlite::Result<
         for tag in &n.tags {
             tx.execute("INSERT OR IGNORE INTO entity_tags (entity_type, entity_id, tag) VALUES ('note', ?1, ?2)", params![n.id, tag])?;
         }
-        crate::opportunities::link_company(tx, "notes", n.id, n.client_name.as_deref())?;
+        crate::opportunities::link_company(tx, "notes", n.id, prior.as_ref(), n.company_id, n.client_name.as_deref())?;
         crate::v2_search::reindex_note(tx, n.id)?;
     }
     crate::v2_search::rebuild_note_links(tx)?;

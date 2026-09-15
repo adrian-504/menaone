@@ -60,10 +60,17 @@ fn renamed_company_keeps_every_link_and_old_names_find_it() {
     assert_eq!(company_id(&conn, "contacts", 1), Some(alpha));
     assert_eq!(one::<i64>(&conn, "SELECT COUNT(*) FROM companies"), companies_before, "no company re-created from the old name");
 
+    assert!(integrity_report(&conn).unwrap().is_clean(), "{:?}", integrity_report(&conn).unwrap());
     // Someone deliberately creating a new company with the old name gets a new company.
     let new_alpha = create_company_named(&conn, "Alpha Test Co").unwrap().unwrap();
     assert_ne!(new_alpha, alpha);
-    assert!(integrity_report(&conn).unwrap().is_clean(), "{:?}", integrity_report(&conn).unwrap());
+    // Records still carrying the old name keep their link (the id wins); that their
+    // text now names the new company is reported for review, not re-pointed.
+    upsert_proposal_rows(&mut conn, &[Proposal { remarks: Some("edited".into()), ..proposal(1, "Alpha Test Co", "Drafting") }]).unwrap();
+    assert_eq!(company_id(&conn, "proposals", 1), Some(alpha));
+    let report = integrity_report(&conn).unwrap();
+    assert_eq!(report.count("proposals: company text doesn't match its linked company"), 1);
+    assert_eq!(report.count("contacts: company text doesn't match its linked company"), 1);
     drop(conn);
     let _ = std::fs::remove_file(path);
 }
@@ -348,4 +355,159 @@ fn real_database_copy_passes_the_integrity_checks() {
     println!("before {before:?} after {after:?}");
     assert_eq!(after[0], before[0] + 1, "one company added");
     assert!(integrity_report(&conn).unwrap().issues.len() <= report.issues.len());
+}
+
+// ── Foundation Lock, second pass: the id wins, conflicts are reported ─────────
+
+#[test]
+fn a_known_company_id_wins_over_unchanged_company_text() {
+    let (path, mut conn) = fresh_db("idwins");
+    let alpha = create_company_named(&conn, "Alpha Test Co").unwrap().unwrap();
+    let beta = create_company_named(&conn, "Beta Holdings").unwrap().unwrap();
+    upsert_contact_rows(&mut conn, &[Contact { id: 1, name: Some("Test Person".into()), client_name: Some("Alpha Test Co".into()), ..Default::default() }]).unwrap();
+    assert_eq!(company_id(&conn, "contacts", 1), Some(alpha));
+    // Someone links the contact to Beta by id (a review, a folder link) without changing the text.
+    conn.execute("UPDATE contacts SET company_id = ?1 WHERE id = 1", params![beta]).unwrap();
+
+    // Saving the contact with the same company text keeps the link: the id wins.
+    upsert_contact_rows(&mut conn, &[Contact { id: 1, name: Some("Test Person".into()), role: Some("CFO".into()), client_name: Some("Alpha Test Co".into()), company_id: Some(alpha), ..Default::default() }]).unwrap();
+    assert_eq!(company_id(&conn, "contacts", 1), Some(beta));
+    // The disagreement is kept as it is and reported, not silently resolved.
+    let report = integrity_report(&conn).unwrap();
+    assert_eq!(report.count("contacts: company text doesn't match its linked company"), 1);
+    assert_eq!(one::<String>(&conn, "SELECT client_name FROM contacts WHERE id = 1"), "Alpha Test Co");
+
+    // Editing the company text is a real change of company.
+    upsert_contact_rows(&mut conn, &[Contact { id: 1, name: Some("Test Person".into()), client_name: Some("Gamma Trading".into()), ..Default::default() }]).unwrap();
+    let gamma = company_id(&conn, "contacts", 1).unwrap();
+    assert!(gamma != alpha && gamma != beta);
+    assert!(integrity_report(&conn).unwrap().is_clean());
+
+    // A new record that arrives with a company id keeps it.
+    upsert_todo_rows(&mut conn, &[Todo { id: 5, title: "Call".into(), client: Some("Beta Holdings".into()), company_id: Some(beta), ..Default::default() }]).unwrap();
+    assert_eq!(company_id(&conn, "todos", 5), Some(beta));
+    drop(conn);
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
+fn legal_names_match_only_when_unique_and_look_alikes_are_flagged_not_merged() {
+    let (path, mut conn) = fresh_db("legal");
+    let acme = create_company_named(&conn, "Acme").unwrap().unwrap();
+    conn.execute("UPDATE companies SET legal_name = 'Acme Trading LLC' WHERE id = ?1", params![acme]).unwrap();
+    upsert_proposal_rows(&mut conn, &[proposal(1, "ACME TRADING LLC", "Drafting")]).unwrap();
+    assert_eq!(company_id(&conn, "proposals", 1), Some(acme), "the unique legal name finds the company");
+
+    // Two companies with the same legal name: ambiguous, so neither is guessed.
+    let other = create_company_named(&conn, "Acme Riyadh Branch").unwrap().unwrap();
+    conn.execute("UPDATE companies SET legal_name = 'Acme Trading LLC' WHERE id = ?1", params![other]).unwrap();
+    upsert_proposal_rows(&mut conn, &[proposal(2, "Acme Trading LLC", "Drafting")]).unwrap();
+    let p2 = company_id(&conn, "proposals", 2).unwrap();
+    assert!(p2 != acme && p2 != other);
+
+    // "Globex LLC" and "GLOBEX" are different companies, flagged as possible duplicates.
+    upsert_proposal_rows(&mut conn, &[proposal(3, "Globex LLC", "Drafting"), proposal(4, "GLOBEX", "Drafting")]).unwrap();
+    assert_ne!(company_id(&conn, "proposals", 3), company_id(&conn, "proposals", 4));
+    let groups = menabig_tracker_lib::integrity::possible_duplicate_companies(&conn).unwrap();
+    assert!(groups.iter().any(|g| g.len() == 2 && g.contains(&company_id(&conn, "proposals", 3).unwrap())));
+    drop(conn);
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
+fn contradicting_relationships_are_reported_and_left_untouched() {
+    let (path, mut conn) = fresh_db("contradictions");
+    let (co, opp, project, meeting) = build_work_graph(&mut conn, "Delta Test Co", 1);
+    let other = create_company_named(&conn, "Epsilon Test Co").unwrap().unwrap();
+    // The proposal the opportunity points at is moved to another company by id.
+    conn.execute("UPDATE proposals SET company_id = ?1, client = 'Epsilon Test Co' WHERE id = 1", params![other]).unwrap();
+    // A contact is linked to the other company through entity_links too.
+    conn.execute("INSERT INTO entity_links (from_type, from_id, to_type, to_id, created_at) VALUES ('contact', 1, 'company', ?1, '2026-09-15')", params![other]).unwrap();
+    let report = integrity_report(&conn).unwrap();
+    assert_eq!(report.count("opportunities whose proposal belongs to another company"), 1);
+    assert_eq!(report.count("links to a company that contradict the record's own company"), 1);
+    // Nothing was changed to make them agree.
+    assert_eq!(company_id(&conn, "opportunities", opp), Some(co));
+    assert_eq!(company_id(&conn, "contacts", 1), Some(co));
+    let _ = (project, meeting);
+    drop(conn);
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
+fn outlook_owned_meeting_fields_survive_a_stale_save() {
+    let (path, mut conn) = fresh_db("stale-meeting");
+    let event: menabig_tracker_lib::ms365::graph::GraphEvent = serde_json::from_value(serde_json::json!({
+        "id": "AAMk-stale-test", "subject": "Planning",
+        "start": { "dateTime": "2026-09-20T09:00:00.0000000", "timeZone": "UTC" },
+        "end": { "dateTime": "2026-09-20T10:00:00.0000000", "timeZone": "UTC" },
+        "attendees": [{ "emailAddress": { "name": "Guest", "address": "guest@example.test" } }]
+    })).unwrap();
+    upsert_meeting_from_event(&conn, &event, "2026-09-15T08:00:00Z").unwrap();
+    let loaded: Meeting = {
+        let id: i64 = one(&conn, "SELECT id FROM meetings");
+        Meeting { id, title: "Planning".into(), meeting_date: Some("2026-09-20".into()), attendees: vec!["Guest".into()], ..Default::default() }
+    };
+    // Outlook moves and renames the meeting while the page still holds the old copy…
+    let mut moved = event.clone();
+    moved.subject = Some("Planning (moved)".into());
+    moved.start = serde_json::from_value(serde_json::json!({ "dateTime": "2026-09-21T09:00:00.0000000", "timeZone": "UTC" })).unwrap();
+    upsert_meeting_from_event(&conn, &moved, "2026-09-15T09:00:00Z").unwrap();
+    // …then the user types an agenda on that old copy.
+    save_meeting_row(&mut conn, &Meeting { agenda: Some("1. Budget".into()), ..loaded }).unwrap();
+    let (title, date, agenda): (String, String, String) = conn.query_row("SELECT title, meeting_date, agenda FROM meetings", [], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?))).unwrap();
+    assert_eq!((title.as_str(), date.as_str(), agenda.as_str()), ("Planning (moved)", "2026-09-21", "1. Budget"));
+    drop(conn);
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
+fn migrations_run_in_version_order_even_when_listed_out_of_order() {
+    let (path, conn) = fresh_db("order");
+    let base: i64 = one::<String>(&conn, "SELECT value FROM app_meta WHERE key = 'schema_version'").parse().unwrap();
+    run_test_steps(&conn, &[
+        (base + 2, "INSERT INTO step_log (v) VALUES ('second');"),
+        (base + 1, "CREATE TABLE step_log (v TEXT); INSERT INTO step_log (v) VALUES ('first');"),
+    ]).unwrap();
+    let order: Vec<String> = conn.prepare("SELECT v FROM step_log ORDER BY rowid").unwrap().query_map([], |r| r.get(0)).unwrap().map(Result::unwrap).collect();
+    assert_eq!(order, ["first", "second"]);
+    assert_eq!(one::<String>(&conn, "SELECT value FROM app_meta WHERE key = 'schema_version'"), (base + 2).to_string());
+    // Running them again does nothing: the version is already there.
+    run_test_steps(&conn, &[(base + 1, "INSERT INTO step_log (v) VALUES ('again');")]).unwrap();
+    assert_eq!(one::<i64>(&conn, "SELECT COUNT(*) FROM step_log"), 2);
+    drop(conn);
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
+fn a_damaged_database_is_restored_from_its_backup() {
+    let dir = std::env::temp_dir().join(format!("menabig_foundation_restore_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let db = dir.join("menabig.sqlite3");
+    let mut conn = init_connection(&db).unwrap();
+    build_work_graph(&mut conn, "Zeta Restore Co", 1);
+    let counts = |c: &Connection| -> Vec<i64> {
+        ["companies", "contacts", "opportunities", "proposals", "projects", "meetings", "notes", "todos", "entity_links"]
+            .iter().map(|t| one::<i64>(c, &format!("SELECT COUNT(*) FROM {t}"))).collect()
+    };
+    let before = counts(&conn);
+    let backups = dir.join("backups");
+    let snapshot = ensure_daily_backup(&conn, &backups, 14).unwrap().unwrap();
+    // A half-written snapshot never counts as a backup.
+    std::fs::write(backups.join("daily-2099-01-01.partial"), b"half").unwrap();
+    assert!(menabig_tracker_lib::backups::list_backups(&backups).iter().all(|b| !b.file_name.ends_with(".partial")));
+    drop(conn);
+
+    // The database file is damaged.
+    std::fs::write(&db, b"this is not a database").unwrap();
+    assert!(init_connection(&db).is_err());
+
+    // Restore = put the snapshot back and open it the way the app does.
+    std::fs::copy(&snapshot, &db).unwrap();
+    let restored = init_connection(&db).unwrap();
+    assert_eq!(counts(&restored), before);
+    assert!(integrity_report(&restored).unwrap().is_clean());
+    drop(restored);
+    let _ = std::fs::remove_dir_all(&dir);
 }

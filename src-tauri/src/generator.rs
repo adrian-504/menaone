@@ -781,7 +781,8 @@ pub fn proposal_generate(state: State<DbState>, request: GenerateRequest) -> Cmd
         .folder_path
         .clone()
         .map(PathBuf::from)
-        .filter(|p| p.is_dir())
+        // A saved folder is only written to when it is inside OneDrive (it comes from the proposal record).
+        .filter(|p| p.is_dir() && crate::localfiles::is_within_onedrive(p))
         .or_else(|| root.as_ref().and_then(|r| crate::commercial::find_client_folder(r, &proposal.client)));
     let planned_folder = folder.clone().or_else(|| root.as_ref().map(|r| r.join(crate::commercial::safe_folder_name(&proposal.client))));
     let file_name = safe_file_name(&request.file_name);

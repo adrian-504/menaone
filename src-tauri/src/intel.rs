@@ -151,8 +151,9 @@ fn upsert(conn: &Connection, item: &IntelligenceItem) -> rusqlite::Result<i64> {
 #[tauri::command]
 pub fn save_intelligence_item(state: State<DbState>, item: IntelligenceItem) -> CmdResult<IntelligenceItem> {
     let conn = state.0.lock().map_err(err)?;
+    let prior = crate::opportunities::prior_company(&conn, "intelligence_items", Some("company_name"), item.id).map_err(err)?;
     let id = upsert(&conn, &item).map_err(err)?;
-    crate::opportunities::link_company(&conn, "intelligence_items", id, item.company_name.as_deref()).map_err(err)?;
+    crate::opportunities::link_company(&conn, "intelligence_items", id, prior.as_ref(), item.company_id, item.company_name.as_deref()).map_err(err)?;
     crate::v2_search::reindex_intelligence(&conn, id).map_err(err)?;
     let sql = format!("{ITEM_SELECT} WHERE id = ?1");
     conn.query_row(&sql, params![id], row_to_item).map_err(err)

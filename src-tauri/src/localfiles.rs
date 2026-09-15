@@ -72,7 +72,17 @@ fn onedrive_display_name(dir: &Path) -> String {
 }
 
 pub(crate) fn is_within_onedrive(path: &Path) -> bool {
-    onedrive_dirs().iter().any(|d| path.starts_with(d) || d.canonicalize().map(|c| path.starts_with(c)).unwrap_or(false))
+    // "OneDrive/../../elsewhere" starts with the OneDrive folder component by
+    // component, so `..` is refused outright, and an existing path is compared
+    // after resolving links.
+    if path.components().any(|c| matches!(c, std::path::Component::ParentDir)) {
+        return false;
+    }
+    let resolved = path.canonicalize().ok();
+    onedrive_dirs().iter().any(|d| {
+        let dirs = [Some(d.clone()), d.canonicalize().ok()];
+        dirs.iter().flatten().any(|dir| resolved.as_deref().map_or(path.starts_with(dir), |r| r.starts_with(dir)))
+    })
 }
 
 /// Every synced OneDrive account/tenant folder (there can be more than one —
@@ -358,4 +368,19 @@ pub fn files_stat_paths(paths: Vec<String>) -> CmdResult<Vec<LocalFileItem>> {
         });
     }
     Ok(out)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_within_onedrive;
+    use std::path::Path;
+
+    #[test]
+    fn parent_segments_never_count_as_inside_onedrive() {
+        for dir in super::onedrive_dirs() {
+            assert!(!is_within_onedrive(&dir.join("..").join("..").join("tmp")));
+        }
+        assert!(!is_within_onedrive(Path::new("/tmp/../etc")));
+        assert!(!is_within_onedrive(Path::new("/etc/passwd")));
+    }
 }

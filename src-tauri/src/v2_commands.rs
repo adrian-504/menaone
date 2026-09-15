@@ -132,8 +132,8 @@ pub fn save_project_row(conn: &mut Connection, project: &Project) -> CmdResult<P
     } else {
         None
     };
-    let hint = if project.id > 0 { crate::opportunities::current_company_id(&tx, "projects", project.id).map_err(err)? } else { None };
-    let company_id = crate::opportunities::resolve_company_ref(&tx, hint.or(project.company_id), project.company_name.as_deref()).map_err(err)?;
+    let prior = crate::opportunities::prior_company(&tx, "projects", Some("company_name"), project.id).map_err(err)?;
+    let company_id = crate::opportunities::company_for_save(&tx, prior.as_ref(), project.company_id, project.company_name.as_deref()).map_err(err)?;
     let id = if project.id > 0 {
         tx.execute(
             "UPDATE projects SET name=?2, type=?3, status=?4, priority=?5, owner=?6, description=?7,
@@ -308,11 +308,19 @@ pub fn save_meeting(state: State<DbState>, meeting: Meeting) -> CmdResult<Meetin
 pub fn save_meeting_row(conn: &mut Connection, meeting: &Meeting) -> CmdResult<Meeting> {
     let tx = conn.transaction().map_err(err)?;
     let now = crate::commands::now_iso();
+    let prior = crate::opportunities::prior_company(&tx, "meetings", Some("company_name"), meeting.id).map_err(err)?;
     let attendees_json = serde_json::to_string(&meeting.attendees).unwrap_or_else(|_| "[]".into());
     let id = if meeting.id > 0 {
+        // Title, date and attendees of an Outlook meeting belong to Outlook: a sync
+        // may have changed them since this copy was loaded, so they are only
+        // written for meetings made in MENA One (schedule edits go to Outlook).
         tx.execute(
-            "UPDATE meetings SET title=?2, meeting_date=?3, company_name=?4, project_id=?5, note_id=?6,
-                attendees_json=?7, agenda=?8, discussion=?9, decisions=?10, action_items=?11, follow_up=?12,
+            "UPDATE meetings SET
+                title = CASE WHEN outlook_event_id IS NULL THEN ?2 ELSE title END,
+                meeting_date = CASE WHEN outlook_event_id IS NULL THEN ?3 ELSE meeting_date END,
+                company_name=?4, project_id=?5, note_id=?6,
+                attendees_json = CASE WHEN outlook_event_id IS NULL THEN ?7 ELSE attendees_json END,
+                agenda=?8, discussion=?9, decisions=?10, action_items=?11, follow_up=?12,
                 next_meeting=?13, updated_at=?14, opportunity_id=?15 WHERE id=?1",
             params![meeting.id, meeting.title, meeting.meeting_date, meeting.company_name, meeting.project_id,
                 meeting.note_id, attendees_json, meeting.agenda, meeting.discussion, meeting.decisions,
@@ -330,7 +338,7 @@ pub fn save_meeting_row(conn: &mut Connection, meeting: &Meeting) -> CmdResult<M
         ).map_err(err)?;
         tx.last_insert_rowid()
     };
-    crate::opportunities::link_company(&tx, "meetings", id, meeting.company_name.as_deref()).map_err(err)?;
+    crate::opportunities::link_company(&tx, "meetings", id, prior.as_ref(), meeting.company_id, meeting.company_name.as_deref()).map_err(err)?;
     crate::v2_search::reindex_meeting(&tx, id).map_err(err)?;
     tx.commit().map_err(err)?;
     let conn2 = &*conn;
@@ -378,6 +386,7 @@ pub fn get_documents(state: State<DbState>) -> CmdResult<Vec<DocumentRecord>> {
 pub fn save_document(state: State<DbState>, doc: DocumentRecord) -> CmdResult<DocumentRecord> {
     let conn = state.0.lock().map_err(err)?;
     let now = crate::commands::now_iso();
+    let prior = crate::opportunities::prior_company(&conn, "documents", Some("company_name"), doc.id).map_err(err)?;
     let id = if doc.id > 0 {
         conn.execute(
             "UPDATE documents SET title=?2, link=?3, doc_type=?4, company_name=?5, project_id=?6,
@@ -395,7 +404,7 @@ pub fn save_document(state: State<DbState>, doc: DocumentRecord) -> CmdResult<Do
         ).map_err(err)?;
         conn.last_insert_rowid()
     };
-    crate::opportunities::link_company(&conn, "documents", id, doc.company_name.as_deref()).map_err(err)?;
+    crate::opportunities::link_company(&conn, "documents", id, prior.as_ref(), doc.company_id, doc.company_name.as_deref()).map_err(err)?;
     crate::v2_search::reindex_document(&conn, id).map_err(err)?;
     let sql = format!("{DOC_SELECT} WHERE id = ?1");
     conn.query_row(&sql, params![id], row_to_document).map_err(err)
