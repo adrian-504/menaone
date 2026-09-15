@@ -4,16 +4,16 @@ import { renderIcons } from '../core/chrome';
 import { skeleton, emptyState } from '../lib/ui';
 import { toast } from '../lib/ui';
 import { companyLink, recordLink } from '../lib/links';
-import { fmtDate, escHtml, expose, nextTodoId, nextNoteId, today, showConfirm, inCompany } from '../lib/utils';
+import { fmtDate, escHtml, expose, nextNoteId, today, showConfirm, inCompany } from '../lib/utils';
 import { registerTabRenderer, refreshAll, refreshBadges, notifyNavigated } from '../lib/registry';
-import { getMeetings, deleteMeeting, ms365CancelOutlookMeeting, setLinksFrom } from '../lib/db';
+import { getMeetings, deleteMeeting, ms365CancelOutlookMeeting, setLinksFrom, getLinksFor } from '../lib/db';
 import { getAllCompanies } from './companies';
 import { openOutlookMeetingModal } from './calendar';
 import { persistTodos, persistNotes, persistMeeting } from '../lib/persist';
 import { toggleTodoDone, deleteTodo, taskRowHtml } from './todo';
-import { switchTab } from '../core/nav';
-import { openNote } from './notes';
-import type { Meeting, Todo, Note, EntityLink } from '../lib/types';
+import type { Meeting, Note } from '../lib/types';
+import { addLinks, companyFromForm, contextFromCompany, contextFromMeeting, contextFromOpportunity, contextFromProject, inheritCompany, taskFields, EMPTY_CONTEXT, type WorkContext } from '../lib/workGraph';
+import { blankTask } from './todo';
 import { icon } from '../lib/icons';
 import { renderMeetingClientSection, meetingSuggestionsBanner, meetingSuggestionChip } from './meetingClient';
 
@@ -211,12 +211,8 @@ export function addMeetingTask(rawTitle: string): void {
   const title = rawTitle.trim();
   const m = currentMeeting();
   if (!title || !m) return;
-  const t: Todo = {
-    id: nextTodoId(), title, type: m.companyName ? 'client' : 'general', client: m.companyName || null,
-    priority: 'Medium', dueDate: null, status: 'Pending', description: `From meeting: ${m.title}`,
-    createdAt: today(), completedAt: null, projectId: m.projectId ?? null, parentId: null, areaId: null,
-    section: null, sortOrder: null, recurrenceRule: null, tags: [], meetingId: m.id,
-  };
+  // The task belongs to the meeting's company, project and opportunity.
+  const t = blankTask({ ...taskFields(contextFromMeeting(S, m)), title, description: `From meeting: ${m.title}` });
   S.todos.push(t);
   persistTodos();
   refreshBadges();
@@ -299,63 +295,96 @@ function compileMeetingNoteMarkdown(m: Meeting): string {
   if (m.discussion) parts.push(`## Discussion\n${m.discussion}`);
   if (m.decisions) parts.push(`## Decisions\n${m.decisions}`);
   if (m.followUp) parts.push(`## Follow-Up\n${m.followUp}`);
+  const tasks = S.todos.filter((t) => t.meetingId === m.id && t.parentId == null);
+  if (tasks.length) parts.push(`## Action Items\n${tasks.map((t) => `- [${t.status === 'Done' ? 'x' : ' '}] ${t.title.replace(/\n/g, ' ')}`).join('\n')}`);
   if (m.nextMeeting) parts.push(`## Next Meeting\n${fmtDate(m.nextMeeting)}`);
   return parts.join('\n\n');
 }
 
 /** Compiles the meeting's live-edited fields into a real Markdown Note (the
- * Phase 3 Notes system, with backlinks/relations/search — a meeting's own
- * fields participate in none of that) and links it to whichever Project is
- * currently set. Idempotent: re-pressing after more edits updates the same
- * Note (via the meeting's `noteId`, set the first time) rather than creating
- * a duplicate. Tasks are never touched here — they're already real, saved,
- * linked Todos the moment they're added. */
+ * Notes system, with backlinks/relations/search) that belongs to the meeting's
+ * company, project and opportunity. Idempotent: re-pressing after more edits
+ * updates the same Note (via the meeting's `noteId`) rather than creating a
+ * duplicate. Text written in the note itself is only replaced after asking.
+ * Tasks are never touched here — they're already real, saved, linked Todos. */
 export async function saveAndFileMeetingNotes(): Promise<void> {
   const m = currentMeeting();
   if (!m) return;
   const content = compileMeetingNoteMarkdown(m);
   if (!content.trim()) { toast('Add some notes before filing — there is nothing to save yet'); return; }
-
-  let noteId = m.noteId;
-  const existingNote = noteId != null ? S.notes.find((n) => n.id === noteId) : undefined;
-  if (existingNote) {
-    existingNote.content = content;
-    existingNote.clientName = m.companyName || '';
-    existingNote.updatedAt = today();
-  } else {
-    const newNote: Note = {
-      id: nextNoteId(), title: m.meetingDate ? `${m.title} — ${fmtDate(m.meetingDate)}` : m.title, content, folder: '',
-      clientName: m.companyName || '', tags: [], pinned: false, createdAt: today(), updatedAt: today(),
-    };
-    S.notes.unshift(newNote);
-    noteId = newNote.id;
-  }
-  persistNotes();
-
-  if (m.projectId != null && noteId != null) {
-    const links: EntityLink[] = [{ fromType: 'note', fromId: noteId, toType: 'project', toId: m.projectId }];
-    await setLinksFrom('note', noteId, links);
-  }
-
-  m.noteId = noteId;
-  await persistMeeting(m);
-
+  const existing = m.noteId != null ? S.notes.find((n) => n.id === m.noteId) : undefined;
+  // Ask only when the note holds text this page didn't write (edited in Notes, or filed before this session).
+  if (existing?.content?.trim() && existing.content.trim() !== content.trim() && existing.content !== lastFiledContent.get(m.id)
+    && !(await showConfirm(`Replace the text of the note "${existing.title || 'Untitled'}" with this meeting's notes? Anything written directly in that note will be replaced.`, { confirmLabel: 'Replace' }))) return;
+  const noteId = await fileMeetingNote(m, content);
+  if (noteId == null) return;
+  lastFiledContent.set(m.id, content);
   const saveConfirm = document.getElementById('md-save-confirm') as HTMLElement;
   saveConfirm.style.display = '';
 }
 expose('saveAndFileMeetingNotes', saveAndFileMeetingNotes);
 
+/** The note text this session last filed for each meeting. */
+const lastFiledContent = new Map<number, string>();
+
+/** Writes (or creates) the meeting's note with the meeting's context: company
+ * id, and links to its project and opportunity added to whatever the note is
+ * already linked to. Returns the note id. */
+async function fileMeetingNote(m: Meeting, content: string | null): Promise<number | null> {
+  const ctx = contextFromMeeting(S, m);
+  let note = m.noteId != null ? S.notes.find((n) => n.id === m.noteId) : undefined;
+  if (note) {
+    if (content != null) note.content = content;
+    if (ctx.companyName && !note.clientName) { note.clientName = ctx.companyName; note.companyId = ctx.companyId; }
+    note.updatedAt = today();
+  } else {
+    note = {
+      id: nextNoteId(), title: m.meetingDate ? `${m.title} — ${fmtDate(m.meetingDate)}` : m.title, content: content ?? '', folder: '',
+      clientName: ctx.companyName || '', companyId: ctx.companyId, tags: [], pinned: false, createdAt: today(), updatedAt: today(),
+    };
+    S.notes.unshift(note);
+  }
+  persistNotes();
+  const noteId = note.id;
+  if (m.projectId != null || m.opportunityId != null) {
+    const links = await getLinksFor('note', noteId);
+    await setLinksFrom('note', noteId, addLinks(links, 'note', noteId, [{ toType: 'project', toId: m.projectId }, { toType: 'opportunity', toId: m.opportunityId }]));
+  }
+  if (m.noteId !== noteId) {
+    m.noteId = noteId;
+    await persistMeeting(m);
+  }
+  return noteId;
+}
+
+/** "Meeting note": opens the meeting's note, creating it (with the meeting's
+ * company, project and opportunity) when there isn't one yet. */
+export async function openMeetingNote(id?: number): Promise<void> {
+  const m = id != null ? S.meetings.find((x) => x.id === id) : currentMeeting();
+  if (!m) return;
+  const existing = m.noteId != null && S.notes.some((n) => n.id === m.noteId);
+  const content = compileMeetingNoteMarkdown(m) || '## Notes\n\n\n## Action Items\n- [ ] ';
+  const noteId = existing ? m.noteId : await fileMeetingNote(m, content);
+  if (!existing && noteId != null) lastFiledContent.set(m.id, content);
+  if (noteId != null) (window as any).openRecord('note', noteId);
+}
+expose('openMeetingNote', openMeetingNote);
+
 export function viewMeetingNote(): void {
   const m = currentMeeting();
   if (!m || m.noteId == null) return;
-  closeMeetingDetail();
-  switchTab('notes');
-  openNote(m.noteId);
+  (window as any).openRecord('note', m.noteId);
 }
 expose('viewMeetingNote', viewMeetingNote);
 
-export function openMeetingModal(id: number | null): void {
-  S.meetingEditId = id;
+/** The meeting the dialog edits (null: a new meeting), and for a new meeting
+ * the context it was started from (company, project, opportunity). */
+let meetingModalEditId: number | null = null;
+let meetingModalContext: WorkContext | null = null;
+
+export function openMeetingModal(id: number | null, ctx: WorkContext | null = null): void {
+  meetingModalEditId = id;
+  meetingModalContext = id === null ? ctx : null;
   const f = document.getElementById('meeting-form') as HTMLFormElement;
   f.reset();
   const dl = document.getElementById('mt-company-list'); if (dl) dl.innerHTML = getAllCompanies().map((c) => `<option value="${escHtml(c)}">`).join('');
@@ -378,6 +407,12 @@ export function openMeetingModal(id: number | null): void {
     (f.elements.namedItem('mtAttendees') as HTMLInputElement).value = (m.attendees || []).join(', ');
   } else {
     (document.getElementById('meeting-modal-title') as HTMLElement).textContent = 'New Meeting';
+    if (ctx) {
+      (f.elements.namedItem('mtCompany') as HTMLInputElement).value = ctx.companyName || '';
+      if (projSel && ctx.projectId != null) projSel.value = String(ctx.projectId);
+      if (oppSel && ctx.opportunityId != null) oppSel.value = String(ctx.opportunityId);
+      (f.elements.namedItem('mtDate') as HTMLInputElement).value = today();
+    }
   }
   document.getElementById('modal-meeting')?.classList.add('open');
 }
@@ -393,7 +428,7 @@ export async function submitMeeting(e: Event): Promise<void> {
   const f = e.target as HTMLFormElement;
   const title = (f.elements.namedItem('mtTitle') as HTMLInputElement).value.trim();
   if (!title) return;
-  const existing = S.meetingEditId != null ? S.meetings.find((x) => x.id === S.meetingEditId) : null;
+  const existing = meetingModalEditId != null ? S.meetings.find((x) => x.id === meetingModalEditId) : null;
   const projVal = (f.elements.namedItem('mtProject') as HTMLSelectElement).value;
   const oppVal = (f.elements.namedItem('mtOpportunity') as HTMLSelectElement).value;
   const attendeesRaw = (f.elements.namedItem('mtAttendees') as HTMLInputElement).value;
@@ -408,13 +443,24 @@ export async function submitMeeting(e: Event): Promise<void> {
   const endAt = mtDate && mtEnd ? new Date(`${mtDate}T${mtEnd}`).toISOString() : null;
   if (startAt && endAt && new Date(endAt) <= new Date(startAt)) { toast('End time must be after start time', { tone: 'error' }); return; }
 
+  // Company: the one the meeting (or its context) had while the field still
+  // shows that name; a different typed name is an explicit reassignment; an
+  // empty field takes the chosen project's (or opportunity's) company.
+  const projectId = projVal ? Number(projVal) : null;
+  const opportunityId = oppVal ? Number(oppVal) : null;
+  const typed = (f.elements.namedItem('mtCompany') as HTMLInputElement).value;
+  const known = existing ? { companyId: existing.companyId ?? null, companyName: existing.companyName } : meetingModalContext;
+  const fromForm = { ...EMPTY_CONTEXT, ...companyFromForm(known, typed), projectId, opportunityId };
+  // Only a new meeting inherits; clearing an existing meeting's company is deliberate.
+  const company = existing ? fromForm : inheritCompany(S, fromForm);
   const draft: Meeting = {
     id: existing?.id ?? 0,
     title,
     meetingDate: mtDate || null,
-    companyName: (f.elements.namedItem('mtCompany') as HTMLInputElement).value.trim() || null,
-    projectId: projVal ? Number(projVal) : null,
-    opportunityId: oppVal ? Number(oppVal) : null,
+    companyName: company.companyName,
+    companyId: company.companyId,
+    projectId,
+    opportunityId,
     attendees: attendeesRaw.split(',').map((a) => a.trim()).filter(Boolean),
     // Content fields are edited live on the meeting detail page, not this
     // scheduling-only modal — carry them forward unchanged on an edit; a
@@ -445,10 +491,14 @@ export async function submitMeeting(e: Event): Promise<void> {
   const saved = await persistMeeting(draft);
   if (!saved) return;
   await loadMeetings();
+  const fromContext = meetingModalContext != null;
+  meetingModalContext = null;
   closeMeetingModal();
   renderMeetingList();
-  if (S.meetingEditId != null || document.getElementById('meeting-detail')?.classList.contains('open')) {
-    S.meetingEditId = saved.id;
+  if (!existing && (fromContext || document.getElementById('meeting-detail')?.classList.contains('open'))) {
+    // A new meeting from a company, project, opportunity or another meeting: open it.
+    (window as any).openRecord('meeting', saved.id);
+  } else if (existing && S.meetingEditId === saved.id && document.getElementById('meeting-detail')?.classList.contains('open')) {
     openMeetingDetail(saved.id);
   }
 }
@@ -481,13 +531,24 @@ expose('renderCoMeetingsSection', renderCoMeetingsSection);
 
 export function createMeetingForCurrentCompany(): void {
   if (!S.currentCompany) return;
-  const companyName = S.currentCompany;
-  openMeetingModal(null);
-  setTimeout(() => {
-    (document.querySelector('#meeting-form [name=mtCompany]') as HTMLInputElement).value = companyName;
-  }, 0);
+  const co = S.companies.find((c) => c.name === S.currentCompany);
+  openMeetingModal(null, co ? contextFromCompany(co) : { ...EMPTY_CONTEXT, companyName: S.currentCompany });
 }
 expose('createMeetingForCurrentCompany', createMeetingForCurrentCompany);
+
+/** New meeting for a project: its company and the project. */
+export function createMeetingForProject(projectId: number | null = S.currentProjectId): void {
+  const p = projectId != null ? S.projects.find((x) => x.id === projectId) : undefined;
+  if (p) openMeetingModal(null, contextFromProject(S, p));
+}
+expose('createMeetingForProject', createMeetingForProject);
+
+/** New meeting for an opportunity: its company and the opportunity. */
+export function createMeetingForOpportunity(opportunityId: number | null = S.currentOpportunityId): void {
+  const o = opportunityId != null ? S.opportunities.find((x) => x.id === opportunityId) : undefined;
+  if (o) openMeetingModal(null, contextFromOpportunity(S, o));
+}
+expose('createMeetingForOpportunity', createMeetingForOpportunity);
 
 // ── Follow-up meeting ─────────────────────────────────────────
 

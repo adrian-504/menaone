@@ -1049,6 +1049,7 @@
       <div class="card rec-section" id="od-contacts"></div>
       <div class="card rec-section" id="od-notes"></div>
       <div class="card rec-section" id="od-meetings"></div>
+      <div class="card rec-section" id="od-tasks"></div>
       <div class="card rec-section" id="od-proposal"></div>
       <div class="card rec-section" id="od-project"></div>
     </div>
@@ -2290,12 +2291,19 @@
             <option value="monthly">Monthly</option>
           </select>
         </div>
-        <div class="fgrp fgrp-full">
+        <div class="fgrp">
           <label class="flbl">Project <span class="flbl-hint">(optional)</span></label>
           <select class="finp" name="todoProject">
             <option value="">— No project —</option>
           </select>
         </div>
+        <div class="fgrp">
+          <label class="flbl">Opportunity <span class="flbl-hint">(optional)</span></label>
+          <select class="finp" name="todoOpportunity">
+            <option value="">— No opportunity —</option>
+          </select>
+        </div>
+        <div class="fgrp fgrp-full" id="todo-context" hidden></div>
         <div class="fgrp fgrp-full">
           <label class="flbl">Tags</label>
           <div id="todo-tags-chips" class="tag-chip-input"></div>

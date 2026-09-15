@@ -109,6 +109,10 @@ export function persistContacts(): void { void saveChanges(trackers.contacts); }
 export function persistAgreements(): void { void saveChanges(trackers.agreements); }
 export function persistTodos(): void { void saveChanges(trackers.todos); }
 export function persistNotes(): void { void saveChanges(trackers.notes); }
+/** Saves pending task / note changes and resolves once they are in the
+ * database — for writes that refer to a record just created (entity links). */
+export function saveTodosNow(): Promise<void> { return saveChanges(trackers.todos); }
+export function saveNotesNow(): Promise<void> { return saveChanges(trackers.notes); }
 // Folder and contact-list names are small lists saved whole; queued so a
 // quicker second save can never be overtaken by the first.
 let listsQueue: Promise<void> = Promise.resolve();

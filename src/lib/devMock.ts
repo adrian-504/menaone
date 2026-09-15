@@ -154,8 +154,8 @@ let projectActivityStore: ProjectActivity[] = [];
 let nextProjectId = 1000;
 let nextMilestoneId = 1;
 let nextMeetingId = 1;
-let nextCompanyId = 1;
-let nextOpportunityId = 1;
+let nextCompanyId = 100; // above the sample companies' ids
+let nextOpportunityId = 100; // above the sample opportunities' ids
 let nextOpportunityActivityId = 1;
 let nextProjectActivityId = 1;
 let nextMsFileId = 1;
@@ -461,7 +461,7 @@ export async function installDevMockIfNeeded(): Promise<void> {
             const idx = SAMPLE.todos.findIndex((x) => x.id === t.id);
             if (idx > -1) SAMPLE.todos[idx] = t; else SAMPLE.todos.push(t);
           }
-          return null;
+          return items.map((t) => ({ id: t.id, companyId: t.companyId ?? null }));
         }
         case 'delete_todos': {
           const ids = ((_payload as any)?.ids ?? []) as number[];
@@ -479,7 +479,7 @@ export async function installDevMockIfNeeded(): Promise<void> {
             const companyId = companiesStore.find((c) => c.name === (meeting.companyName || '').trim())?.id ?? null;
             if (idx > -1) { meetingsStore[idx] = { ...meeting, companyId, updatedAt: new Date().toISOString() }; return meetingsStore[idx]; }
           }
-          const created: Meeting = { ...meeting, id: ++nextMeetingId + 10, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+          const created: Meeting = { ...meeting, id: ++nextMeetingId + 100, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
           meetingsStore.push(created);
           return created;
         }
@@ -825,7 +825,8 @@ export async function installDevMockIfNeeded(): Promise<void> {
         }
         default:
           if (cmd.startsWith('save_') || cmd.startsWith('upsert_') || cmd.startsWith('set_') || cmd.startsWith('delete_') || cmd.startsWith('resolve_') || cmd.startsWith('rebuild_') || cmd.startsWith('add_')) {
-            return null; // fire-and-forget writes: no-op in the browser preview
+            // fire-and-forget writes: no-op in the browser preview (record upserts report no company changes)
+            return cmd.startsWith('upsert_') ? [] : null;
           }
           console.warn(`[devMock] unmocked Tauri command: ${cmd}`);
           return null;

@@ -19,6 +19,7 @@ import { AGR_STATUSES, AGR_TYPES, SERVICE_STATUSES } from '../lib/constants';
 import { renderLinesEditor } from '../lib/linesEditor';
 import { agrBadge, updateAgrStatus } from '../core/agreements';
 import { syncAgreementTotals, fmtMoney, currencyOf, agreementMonthly, teamMember, activeTeam, entityById, contractEndDate, lineTotals, isAgreementActive } from '../lib/commercial';
+import { proposalProject } from '../lib/workGraph';
 import type { Agreement } from '../lib/types';
 
 const w = window as any;
@@ -101,6 +102,9 @@ function renderProps(a: Agreement): void {
   const el = document.getElementById('agd-props');
   if (!el) return;
   const proposal = a.proposalId != null ? S.proposals.find((p) => p.id === a.proposalId) : undefined;
+  // Agreement → proposal → opportunity → project, by id.
+  const opportunity = proposal ? S.opportunities.find((o) => o.proposalId === proposal.id) : undefined;
+  const project = proposal ? proposalProject(S, proposal.id) : undefined;
   const people: [string, string][] = [['', 'Not set'], ...activeTeam().map((t) => [String(t.id), t.name] as [string, string])];
   if (!a.preparedById && a.preparedBy?.trim()) people.push([`legacy:${a.preparedBy}`, `${a.preparedBy} (not in team)`]);
   el.innerHTML = [
@@ -112,6 +116,8 @@ function renderProps(a: Agreement): void {
     ['Entity', select('businessEntityId', [['', 'Not set'], ...S.businessEntities.map((e) => [String(e.id), e.name] as [string, string])], a.businessEntityId ? String(a.businessEntityId) : '')],
     ['Currency', select('currency', [...new Set(['SAR', 'EUR', 'USD', ...S.businessEntities.map((e) => e.currency)])].map((c) => [c, c] as [string, string]), currencyOf(a))],
     ['Proposal', proposal ? recordLink('proposal', proposal.id, `SL# ${proposal.id} · ${proposal.type || 'Proposal'}`) : '<span class="rec-muted">Not linked</span>'],
+    ...(opportunity ? [['Opportunity', recordLink('opportunity', opportunity.id, opportunity.name)]] : []),
+    ...(project ? [['Project', recordLink('project', project.id, project.name)]] : []),
     ['In HubSpot', select('hubspot', [['', 'Not set'], ['Yes', 'Yes'], ['No', 'No'], ['Maybe', 'Maybe']], a.hubspot || '')],
     ['Document', input('docLink', 'url', a.docLink || '', 'OneDrive or SharePoint link')],
     ['Remarks', `<textarea class="td-input pr-remarks" rows="2" onchange="${onChange('remarks')}">${escHtml(a.remarks || '')}</textarea>`],

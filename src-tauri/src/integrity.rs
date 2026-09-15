@@ -54,6 +54,8 @@ pub const CROSS_RECORD_COMPANY_CHECKS: &[(&str, &str)] = &[
      "SELECT COUNT(*) FROM meetings m JOIN projects p ON p.id = m.project_id WHERE m.company_id IS NOT NULL AND p.company_id IS NOT NULL AND m.company_id <> p.company_id"),
     ("meetings whose opportunity belongs to another company",
      "SELECT COUNT(*) FROM meetings m JOIN opportunities o ON o.id = m.opportunity_id WHERE m.company_id IS NOT NULL AND o.company_id IS NOT NULL AND m.company_id <> o.company_id"),
+    ("tasks whose opportunity belongs to another company",
+     "SELECT COUNT(*) FROM todos t JOIN opportunities o ON o.id = t.opportunity_id WHERE t.company_id IS NOT NULL AND o.company_id IS NOT NULL AND t.company_id <> o.company_id"),
     ("tasks whose project belongs to another company",
      "SELECT COUNT(*) FROM todos t JOIN projects p ON p.id = t.project_id WHERE t.company_id IS NOT NULL AND p.company_id IS NOT NULL AND t.company_id <> p.company_id"),
 ];

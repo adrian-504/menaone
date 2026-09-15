@@ -700,7 +700,39 @@ const CODE_MIGRATIONS: &[(i64, fn(&Connection) -> rusqlite::Result<()>)] = &[
     (29, migrate_foundation_lock),
     // Company notes follow the company by id (they were keyed by its name).
     (30, migrate_company_notes_ids),
+    // Work Graph: tasks can belong to an opportunity; task activity carries it.
+    (31, migrate_task_opportunities),
 ];
+
+fn migrate_task_opportunities(conn: &Connection) -> rusqlite::Result<()> {
+    let has_col = conn.prepare("PRAGMA table_info(todos)")?
+        .query_map([], |r| r.get::<_, String>(1))?
+        .collect::<rusqlite::Result<Vec<_>>>()?
+        .iter()
+        .any(|c| c == "opportunity_id");
+    if !has_col {
+        conn.execute_batch("ALTER TABLE todos ADD COLUMN opportunity_id INTEGER REFERENCES opportunities(id) ON DELETE SET NULL;")?;
+    }
+    conn.execute_batch(
+        r#"CREATE INDEX IF NOT EXISTS idx_todos_opportunity ON todos(opportunity_id);
+        DROP TRIGGER IF EXISTS act_task_insert;
+        DROP TRIGGER IF EXISTS act_task_done;
+        CREATE TRIGGER act_task_insert AFTER INSERT ON todos
+        WHEN NOT EXISTS (SELECT 1 FROM app_meta WHERE key = 'activity_muted' AND value = '1')
+        BEGIN
+          INSERT INTO activity (created_at, action, entity_type, entity_id, entity_label, company_id, project_id, opportunity_id)
+          VALUES (strftime('%Y-%m-%dT%H:%M:%fZ','now'), 'created', 'task', NEW.id, NEW.title, NEW.company_id, NEW.project_id, NEW.opportunity_id);
+        END;
+        CREATE TRIGGER act_task_done AFTER UPDATE OF status ON todos
+        WHEN NEW.status = 'Done' AND OLD.status IS NOT 'Done' AND NOT EXISTS (SELECT 1 FROM app_meta WHERE key = 'activity_muted' AND value = '1')
+        BEGIN
+          INSERT INTO activity (created_at, action, entity_type, entity_id, entity_label, company_id, project_id, opportunity_id)
+          VALUES (strftime('%Y-%m-%dT%H:%M:%fZ','now'), 'completed', 'task', NEW.id, NEW.title, NEW.company_id, NEW.project_id, NEW.opportunity_id);
+        END;
+        CREATE TRIGGER IF NOT EXISTS act_link_todo_opportunity AFTER UPDATE OF opportunity_id ON todos WHEN NEW.opportunity_id IS NOT NULL
+        BEGIN UPDATE activity SET opportunity_id = NEW.opportunity_id WHERE entity_type = 'task' AND entity_id = NEW.id AND opportunity_id IS NULL; END;"#,
+    )
+}
 
 fn migrate_company_notes_ids(conn: &Connection) -> rusqlite::Result<()> {
     let has_col = conn.prepare("PRAGMA table_info(company_notes)")?

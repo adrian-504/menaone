@@ -1179,8 +1179,8 @@ expose('companyAddToListMenu', companyAddToListMenu);
 export function createOpportunityForCurrentCompany(): void {
   const name = S.currentCompany;
   if (!name) return;
-  (window as any).openOpportunityModal?.(null);
-  setTimeout(() => { const el = document.querySelector<HTMLInputElement>('#opportunity-form [name=oppCompany]'); if (el) el.value = name; }, 0);
+  const co = S.companies.find((c) => c.name === name);
+  (window as any).openOpportunityModal?.(null, { companyId: co?.id ?? null, companyName: name, projectId: null, opportunityId: null, meetingId: null, noteId: null });
 }
 expose('createOpportunityForCurrentCompany', createOpportunityForCurrentCompany);
 

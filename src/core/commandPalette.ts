@@ -6,9 +6,7 @@ import { latestOnly } from '../lib/latest';
 import { switchTab } from './nav';
 import { openRecord, recentRecords, currentPlace, recordTitle } from './router';
 import type { RecordKind } from '../lib/navHistory';
-import { getActiveTabId } from '../lib/registry';
-import { createTodoForCurrentProject } from '../tabs/todo';
-import { createProposalForOpportunity, createProjectForOpportunity, createNoteForOpportunity } from '../tabs/opportunities';
+import { contextCreateActions } from './contextActions';
 import type { EntityKind, SearchResult } from '../lib/types';
 
 type Action = { id: string; label: string; group: string; iconName: string; run: () => void };
@@ -24,32 +22,11 @@ type Action = { id: string; label: string; group: string; iconName: string; run:
  * related commands" example. Calls functions that already exist (built in
  * Stage 2) — this only adds a new entry point, not new logic. */
 function contextualActions(): Action[] {
-  const tab = getActiveTabId();
-  const place = currentPlace();
-  if (place.kind === 'company' && S.currentCompany) {
-    const name = S.currentCompany;
-    const w = window as any;
-    return [
-      { id: 'ctx-co-task', label: `New Task for ${name}`, group: 'This Company', iconName: 'plus', run: () => w.createTodoForCompany(name) },
-      { id: 'ctx-co-note', label: `New Note for ${name}`, group: 'This Company', iconName: 'plus', run: () => w.createNoteForCompany(name) },
-      { id: 'ctx-co-meeting', label: `New Meeting for ${name}`, group: 'This Company', iconName: 'plus', run: () => w.createMeetingForCurrentCompany() },
-      { id: 'ctx-co-project', label: `New Project for ${name}`, group: 'This Company', iconName: 'plus', run: () => w.createProjectForCurrentCompany() },
-      { id: 'ctx-co-edit', label: `Edit ${name}`, group: 'This Company', iconName: 'edit', run: () => w.openEditCompanyModal() },
-    ];
+  const actions: Action[] = contextCreateActions();
+  if (currentPlace().kind === 'company' && S.currentCompany) {
+    actions.push({ id: 'ctx-co-edit', label: `Edit ${S.currentCompany}`, group: 'This Company', iconName: 'edit', run: () => (window as any).openEditCompanyModal() });
   }
-  if (tab === 'projects' && S.currentProjectId != null) {
-    return [
-      { id: 'ctx-new-task', label: 'New Task in this Project', group: 'This Project', iconName: 'plus', run: () => createTodoForCurrentProject() },
-    ];
-  }
-  if (tab === 'opportunities' && S.currentOpportunityId != null) {
-    return [
-      { id: 'ctx-new-proposal', label: 'Create Proposal for this Opportunity', group: 'This Opportunity', iconName: 'plus', run: () => createProposalForOpportunity() },
-      { id: 'ctx-new-project', label: 'Create Project for this Opportunity', group: 'This Opportunity', iconName: 'plus', run: () => createProjectForOpportunity() },
-      { id: 'ctx-new-note', label: 'New Note for this Opportunity', group: 'This Opportunity', iconName: 'plus', run: () => { void createNoteForOpportunity(); } },
-    ];
-  }
-  return [];
+  return actions;
 }
 
 function quickActions(): Action[] {

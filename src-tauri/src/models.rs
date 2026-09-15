@@ -309,6 +309,9 @@ pub struct Todo {
     // Live Meeting Notes: which meeting (if any) this task was added from.
     #[serde(default)]
     pub meeting_id: Option<i64>,
+    /// The opportunity this task is part of, when it is sales work.
+    #[serde(default)]
+    pub opportunity_id: Option<i64>,
     /// "HH:MM" on `due_date`, when the task has a time.
     #[serde(default)]
     pub due_time: Option<String>,

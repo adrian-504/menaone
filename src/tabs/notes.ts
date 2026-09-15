@@ -9,7 +9,9 @@ import { toast, emptyState } from '../lib/ui';
 import { companyLink, recordLink } from '../lib/links';
 import { today, fmtDate, escHtml, nextNoteId, expose, positionFloatingPopup, showTextPrompt, showConfirm, debounce, inCompany } from '../lib/utils';
 import { showContextMenu, showMenuAt, type ContextMenuItem } from '../lib/contextMenu';
-import { persistNotes, persistNoteFolders } from '../lib/persist';
+import { persistNotes, persistNoteFolders, persistTodos, saveNotesNow, saveTodosNow } from '../lib/persist';
+import { contextFromNote, replaceLinks, taskFields, unconvertedActionItems, actionItems } from '../lib/workGraph';
+import { blankTask } from './todo';
 import { registerTabRenderer, refreshProjectViewIfOpen, notifyNavigated, getActiveTabId } from '../lib/registry';
 import {
   getNoteBacklinks, getLinksFor, setLinksFrom, saveNoteTemplate, updateNoteTemplate, deleteNoteTemplate,
@@ -26,7 +28,7 @@ import {
   insertLinePrefix, insertCodeBlock, insertDivider,
 } from '../lib/markdownEditor';
 import type { EditorView } from '@codemirror/view';
-import type { Note, EntityLink } from '../lib/types';
+import type { Note, EntityLink, Todo } from '../lib/types';
 
 // ── Nested folders: "/"-delimited path strings (e.g. "Clients/Acme Holdings")
 // in the flat noteFolders list — the tree is derived here.
@@ -454,6 +456,8 @@ function updatePinButton(n: Note): void {
 // ── Properties under the title ──────────────────────────────────────────────
 
 let noteProjectId: number | null = null;
+/** The open note's entity links, both directions (project, opportunity, tasks from it…). */
+let noteLinks: EntityLink[] = [];
 
 function renderNoteProps(n: Note): void {
   const el = document.getElementById('notes-props');
@@ -474,7 +478,8 @@ async function loadNoteProjectLink(noteId: number): Promise<void> {
   const links = await getLinksFor('note', noteId);
   if (S.currentNoteId !== noteId) return;
   noteProjectLoadedFor = noteId;
-  noteProjectId = links.find((l) => l.fromType === 'note' && l.toType === 'project')?.toId ?? null;
+  noteLinks = links;
+  noteProjectId = links.find((l) => l.fromType === 'note' && l.fromId === noteId && l.toType === 'project')?.toId ?? null;
   const n = currentNote();
   if (n) { renderNoteProps(n); void renderRelationsPanel(n); }
 }
@@ -508,8 +513,11 @@ export function noteProjectPicker(anchor: HTMLElement): void {
   const n = currentNote();
   if (!n) return;
   const setProject = async (projectId: number | null) => {
-    const links: EntityLink[] = projectId != null ? [{ fromType: 'note', fromId: n.id, toType: 'project', toId: projectId }] : [];
-    await setLinksFrom('note', n.id, links);
+    // Replaces only the project link: the note's opportunity and other links stay.
+    const links = await getLinksFor('note', n.id);
+    const outgoing = replaceLinks(links, 'note', n.id, 'project', projectId != null ? [projectId] : []);
+    await setLinksFrom('note', n.id, outgoing);
+    noteLinks = [...links.filter((l) => !(l.fromType === 'note' && l.fromId === n.id)), ...outgoing];
     noteProjectId = projectId;
     renderNoteProps(n);
     void renderRelationsPanel(n);
@@ -542,7 +550,8 @@ export function noteClientPicker(anchor: HTMLElement): void {
   const input = document.getElementById('note-client-input') as HTMLInputElement;
   const commit = (name: string) => {
     pop?.classList.remove('open');
-    if ((n.clientName || '') !== name) setNoteField((x) => { x.clientName = name; });
+    // An explicit reassignment: the backend resolves the new name to a company.
+    if ((n.clientName || '') !== name) setNoteField((x) => { x.clientName = name; x.companyId = null; });
   };
   attachCompanySelector(input, { onSelect: (name) => commit(name) });
   input.addEventListener('keydown', (e) => {
@@ -578,6 +587,7 @@ export function createNewNote(templateId?: number | null): void {
   if (focusMode) toggleNotesFocus();
   renderNotesSidebar();
   noteProjectId = null;
+  noteLinks = [];
   noteProjectLoadedFor = newNote.id;
   openNote(newNote.id);
   closeNewNoteMenu();
@@ -659,6 +669,8 @@ export function saveCurrentNote(): void {
   n.content = noteEditorView?.state.doc.toString() || '';
   n.updatedAt = today();
   persistNotes();
+  // A checklist line added or removed changes the "Create tasks" offer.
+  if (renderedActionItems.noteId === n.id && actionItems(n.content).length !== renderedActionItems.count) void renderRelationsPanel(n);
   S.noteChanged = false;
   const status = document.getElementById('notes-save-status');
   if (status) { status.textContent = 'Saved'; setTimeout(() => { if (status.textContent === 'Saved') status.textContent = ''; }, 1500); }
@@ -789,16 +801,80 @@ async function renderRelationsPanel(n: Note): Promise<void> {
   if (S.currentNoteId !== n.id) return;
   const meetings = S.meetings.filter((m) => m.noteId === n.id);
   const project = noteProjectId != null ? S.projects.find((p) => p.id === noteProjectId) : null;
+  const links = noteProjectLoadedFor === n.id ? noteLinks : [];
+  const opportunities = links.filter((l) => l.fromType === 'note' && l.fromId === n.id && l.toType === 'opportunity')
+    .map((l) => S.opportunities.find((o) => o.id === l.toId)).filter((o): o is NonNullable<typeof o> => !!o);
+  const tasks = noteTasks(n, links);
+  const pending = noteProjectLoadedFor === n.id ? unconvertedActionItems(n.content, tasks) : [];
+  renderedActionItems = { noteId: n.id, count: actionItems(n.content).length };
   const group = (label: string, chips: string[]) => chips.length ? `<div class="relations-group"><div class="relations-group-label">${label}</div><div class="relations-chips">${chips.join('')}</div></div>` : '';
   const html = [
     group('Client', n.clientName ? [companyLink(n.companyId, n.clientName, { chip: true })] : []),
     group('Project', project ? [recordLink('project', project.id, project.name, { chip: true })] : []),
+    group('Opportunity', opportunities.map((o) => recordLink('opportunity', o.id, o.name, { chip: true }))),
     group('Meetings', meetings.map((m) => recordLink('meeting', m.id, m.title || 'Untitled meeting', { chip: true }))),
+    group('Tasks', tasks.map((t) => recordLink('task', t.id, `${t.status === 'Done' ? '✓ ' : ''}${t.title}`, { chip: true }))),
     group('Links to', outNotes.map((o) => recordLink('note', o.id, o.title || 'Untitled', { chip: true }))),
     group('Linked from', backlinks.map((b) => recordLink('note', b.id, b.title || 'Untitled', { chip: true }))),
   ].join('');
-  el.innerHTML = html ? `<div class="relations-title">Connections</div>${html}` : '';
+  const convert = pending.length
+    ? `<div class="relations-group"><div class="relations-group-label">Action items</div><div class="relations-chips"><button class="btn-sm" onclick="createTasksFromNoteActionItems()" title="${escHtml(pending.join('\n'))}">Create ${pending.length === 1 ? 'a task' : `${pending.length} tasks`} from action items</button></div></div>`
+    : '';
+  el.innerHTML = html || convert ? `<div class="relations-title">Connections</div>${html}${convert}` : '';
 }
+
+let renderedActionItems = { noteId: 0, count: 0 };
+
+/** Tasks that came from a note: linked to it (task → note), or added in the
+ * meeting whose notes it holds. */
+function noteTasks(n: Note, links: EntityLink[]): Todo[] {
+  const linked = new Set(links.filter((l) => l.fromType === 'task' && l.toType === 'note' && l.toId === n.id).map((l) => l.fromId));
+  const meetingIds = new Set(S.meetings.filter((m) => m.noteId === n.id).map((m) => m.id));
+  return S.todos.filter((t) => linked.has(t.id) || (t.meetingId != null && meetingIds.has(t.meetingId)));
+}
+
+/** Turns the note's unchecked action items ("- [ ] Send the model") into
+ * tasks that belong to the note's company, project, opportunity and meeting,
+ * each linked back to the note. Items that already have a task are skipped. */
+export async function createTasksFromNoteActionItems(): Promise<void> {
+  const n = currentNote();
+  if (!n) return;
+  if (S.noteChanged) saveCurrentNote();
+  await saveNotesNow();
+  const links = await getLinksFor('note', n.id);
+  if (S.currentNoteId !== n.id) return;
+  noteLinks = links; noteProjectLoadedFor = n.id;
+  const existing = noteTasks(n, links);
+  const titles = unconvertedActionItems(n.content, existing);
+  if (!titles.length) { toast(actionItems(n.content).length ? 'Every action item already has a task' : 'No open action items — add lines like “- [ ] Send the proposal”'); return; }
+  const ctx = contextFromNote(S, n, links);
+  const created: Todo[] = [];
+  for (const title of titles) {
+    // blankTask numbers from S.todos, so each is added before the next is made.
+    const t = blankTask({ ...taskFields(ctx), title, description: `From note: ${n.title || 'Untitled'}` });
+    S.todos.push(t);
+    created.push(t);
+  }
+  persistTodos();
+  await saveTodosNow();
+  for (const t of created) await setLinksFrom('task', t.id, [{ fromType: 'task', fromId: t.id, toType: 'note', toId: n.id }]);
+  noteLinks = [...links, ...created.map((t) => ({ fromType: 'task' as const, fromId: t.id, toType: 'note' as const, toId: n.id }))];
+  refreshProjectViewIfOpen();
+  (window as any).updateTodoBadge?.();
+  toast(created.length === 1 ? `Task created: ${created[0].title}` : `${created.length} tasks created`, { detail: [ctx.companyName, ctx.projectId != null ? S.projects.find((p) => p.id === ctx.projectId)?.name : null].filter(Boolean).join(' · ') || undefined });
+  void renderRelationsPanel(n);
+}
+expose('createTasksFromNoteActionItems', createTasksFromNoteActionItems);
+
+/** New task from a note: the note's company, project, opportunity and meeting,
+ * linked back to the note once saved. */
+export async function createTodoForNote(noteId: number | null = S.currentNoteId): Promise<void> {
+  const n = noteId != null ? S.notes.find((x) => x.id === noteId) : undefined;
+  if (!n) return;
+  const links = await getLinksFor('note', n.id);
+  (window as any).openTodoModal?.(null, contextFromNote(S, n, links));
+}
+expose('createTodoForNote', createTodoForNote);
 
 // ── Floating toolbar on selection ───────────────────────────────────────────
 
@@ -1073,6 +1149,7 @@ export function createNoteForCompany(clientName: string): void {
   const n = currentNote();
   if (!n) return;
   n.clientName = clientName;
+  n.companyId = S.companies.find((c) => c.name === clientName)?.id ?? null;
   persistNotes();
   renderNoteProps(n);
   void renderRelationsPanel(n);

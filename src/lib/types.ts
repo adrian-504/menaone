@@ -233,8 +233,11 @@ export interface Todo {
   dueTime?: string | null;
   /** Parked out of Today/Upcoming/Anytime. */
   someday?: boolean;
-  /** Resolved server-side from `client` on every save — read-only. */
+  /** Kept when the task is created with a company id and `client` is that
+   * company's name; otherwise resolved server-side from `client`. */
   companyId?: number | null;
+  /** The opportunity this task belongs to (Work Graph). */
+  opportunityId?: number | null;
 }
 
 export interface Note {

@@ -14,15 +14,16 @@ import { skeleton, toast } from '../lib/ui';
 import { companyLink, recordLink } from '../lib/links';
 import { fmtDate, escHtml, expose, nextNoteId, today, debounce, showConfirm, daysSince, daysUntil, companyRef, inCompany, sameCompany } from '../lib/utils';
 import { registerTabRenderer, refreshAll, notifyNavigated } from '../lib/registry';
+import { onChange, touches } from '../lib/changes';
 import { registerDragSource, registerDropTarget } from '../lib/dnd';
 import { activityItem, renderFeed } from '../lib/activityFeed';
 import { createListNav } from '../lib/listNav';
 import { getPipelineFacts, getOpportunities, getOpportunityActivity, getLinksFor, setLinksFrom, getActivity, proposalFolderLookup, filesOpen } from '../lib/db';
 import { getAllCompanies } from './companies';
 import { openProjectModal } from './projects';
-import { persistNotes, persistOpportunity } from '../lib/persist';
-import { switchTab } from '../core/nav';
-import { openNote } from './notes';
+import { persistNotes, persistOpportunity, saveNotesNow } from '../lib/persist';
+import { companyFromForm, contextFromOpportunity, opportunityTasks, type WorkContext } from '../lib/workGraph';
+import { taskRowHtml } from './todo';
 import { icon } from '../lib/icons';
 import { showContextMenu, type ContextMenuItem } from '../lib/contextMenu';
 import { attachCompanySelector } from '../lib/companySelector';
@@ -243,8 +244,9 @@ export async function refreshOppModalContacts(companyName: string): Promise<void
   const ref = name ? companyRef(name) : null;
   const candidates = ref ? S.contacts.filter((c) => inCompany(ref, c.companyId, c.clientName)) : [];
   let linkedIds: number[] = [];
-  if (S.currentOpportunityId != null) {
-    const links = await getLinksFor('opportunity', S.currentOpportunityId);
+  // Only the opportunity being edited has contacts to pre-select (not the one open behind a new-opportunity dialog).
+  if (oppModalEditId != null) {
+    const links = await getLinksFor('opportunity', oppModalEditId);
     linkedIds = links.filter((l) => l.fromType === 'contact' && l.toType === 'opportunity').map((l) => l.fromId);
   }
   sel.innerHTML = candidates.length > 0
@@ -253,8 +255,15 @@ export async function refreshOppModalContacts(companyName: string): Promise<void
 }
 expose('refreshOppModalContacts', refreshOppModalContacts);
 
-export function openOpportunityModal(id: number | null): void {
-  S.currentOpportunityId = id;
+/** For a new opportunity: the company it was started from. */
+let oppModalContext: WorkContext | null = null;
+let oppModalEditId: number | null = null;
+
+export function openOpportunityModal(id: number | null, ctx: WorkContext | null = null): void {
+  // A new opportunity leaves the open one (if any) as it is.
+  if (id !== null) S.currentOpportunityId = id;
+  oppModalEditId = id;
+  oppModalContext = id === null ? ctx : null;
   const f = document.getElementById('opportunity-form') as HTMLFormElement;
   f.reset();
   const dl = document.getElementById('opp-company-list'); if (dl) dl.innerHTML = getAllCompanies().map((c) => `<option value="${escHtml(c)}">`).join('');
@@ -277,7 +286,8 @@ export function openOpportunityModal(id: number | null): void {
     (f.elements.namedItem('oppDescription') as HTMLTextAreaElement).value = o.description || '';
     void refreshOppModalContacts(o.companyName || '');
   } else {
-    void refreshOppModalContacts('');
+    (f.elements.namedItem('oppCompany') as HTMLInputElement).value = ctx?.companyName || '';
+    void refreshOppModalContacts(ctx?.companyName || '');
     (document.getElementById('opp-modal-title') as HTMLElement).textContent = 'New Opportunity';
     stageSel.value = 'Lead';
   }
@@ -295,15 +305,17 @@ export async function submitOpportunity(e: Event): Promise<void> {
   const f = e.target as HTMLFormElement;
   const name = (f.elements.namedItem('oppName') as HTMLInputElement).value.trim();
   if (!name) return;
-  const existing = S.currentOpportunityId != null ? S.opportunities.find((x) => x.id === S.currentOpportunityId) : null;
+  const existing = oppModalEditId != null ? S.opportunities.find((x) => x.id === oppModalEditId) : null;
+  const known = existing ? { companyId: existing.companyId, companyName: existing.companyName } : oppModalContext;
+  const company = companyFromForm(known, (f.elements.namedItem('oppCompany') as HTMLInputElement).value);
   const valueEl = f.elements.namedItem('oppValue') as HTMLInputElement;
   const probEl = f.elements.namedItem('oppProbability') as HTMLInputElement;
 
   const draft: Opportunity = {
     id: existing?.id ?? 0,
     name,
-    companyId: null,
-    companyName: (f.elements.namedItem('oppCompany') as HTMLInputElement).value.trim() || null,
+    companyId: company.companyId,
+    companyName: company.companyName,
     owner: (f.elements.namedItem('oppOwner') as HTMLInputElement).value.trim() || null,
     stage: (f.elements.namedItem('oppStage') as HTMLSelectElement).value,
     status: existing?.status ?? 'Open',
@@ -334,7 +346,8 @@ export async function submitOpportunity(e: Event): Promise<void> {
   closeOpportunityModal();
   renderOpportunitiesList();
   refreshAll();
-  await openOpportunityDetail(saved.id);
+  // Through the router, so it opens in Opportunities from wherever it was created.
+  (window as any).openRecord('opportunity', saved.id);
 }
 expose('submitOpportunity', submitOpportunity);
 
@@ -395,6 +408,7 @@ async function renderOpportunityDetail(): Promise<void> {
   await renderOpportunityContacts(o);
   await renderOpportunityNotes(o.id);
   renderOpportunityMeetings(o.id);
+  renderOpportunityTasks(o.id);
   renderOpportunityProposalSection(o);
   renderOpportunityProjectSection(o);
   void renderOpportunityFiles(o);
@@ -481,15 +495,16 @@ async function renderOpportunityNotes(oppId: number): Promise<void> {
 export async function createNoteForOpportunity(): Promise<void> {
   const o = currentOpportunity();
   if (!o) return;
+  const ctx = contextFromOpportunity(S, o);
   const newNote: Note = {
-    id: nextNoteId(), title: o.name, content: '', folder: '', clientName: o.companyName || '',
+    id: nextNoteId(), title: o.name, content: '', folder: '', clientName: ctx.companyName || '', companyId: ctx.companyId,
     tags: [], pinned: false, createdAt: today(), updatedAt: today(),
   };
   S.notes.unshift(newNote);
   persistNotes();
+  await saveNotesNow();
   await setLinksFrom('note', newNote.id, [{ fromType: 'note', fromId: newNote.id, toType: 'opportunity', toId: o.id }]);
-  switchTab('notes');
-  openNote(newNote.id);
+  (window as any).openRecord('note', newNote.id);
 }
 expose('createNoteForOpportunity', createNoteForOpportunity);
 
@@ -499,14 +514,34 @@ function renderOpportunityMeetings(oppId: number): void {
   const el = document.getElementById('od-meetings');
   if (!el) return;
   const meetings = S.meetings.filter((m) => m.opportunityId === oppId);
-  el.innerHTML = `<div class="rec-section-hd"><h2>Meetings</h2><span class="rec-count">${meetings.length || ''}</span></div>` +
+  el.innerHTML = `<div class="rec-section-hd"><h2>Meetings</h2><span class="rec-count">${meetings.length || ''}</span><div class="rec-section-actions"><button class="btn-sm" onclick="createMeetingForOpportunity()">+ New</button></div></div>` +
     (meetings.length === 0
-      ? `<div class="feed-empty">No meetings linked yet — choose this opportunity when creating or editing a meeting.</div>`
+      ? `<div class="feed-empty">No meetings yet.</div>`
       : `<div class="rec-list">${meetings.map((m) => `<div class="rec-row" onclick="openRecord('meeting', ${m.id})">
           <span class="rec-row-icon">${icon('meeting', 15)}</span>
           <div class="rec-row-main"><div class="rec-row-title">${escHtml(m.title)}</div></div>
           <span class="rec-row-date">${m.meetingDate ? fmtDate(m.meetingDate) : ''}</span>
         </div>`).join('')}</div>`);
+}
+
+// Tasks and meetings saved anywhere (a task completed in this section, a
+// meeting created from here) show on the open opportunity straight away.
+onChange((changes) => {
+  const id = S.currentOpportunityId;
+  if (id == null || !document.getElementById('opp-detail')?.classList.contains('open')) return;
+  if (touches(changes, 'task')) renderOpportunityTasks(id);
+  if (touches(changes, 'meeting')) renderOpportunityMeetings(id);
+});
+
+/** Tasks for the opportunity: linked to it directly or from one of its meetings. */
+function renderOpportunityTasks(oppId: number): void {
+  const el = document.getElementById('od-tasks');
+  if (!el) return;
+  const tasks = opportunityTasks(S, oppId).filter((t) => t.parentId == null)
+    .sort((a, b) => Number(a.status === 'Done') - Number(b.status === 'Done') || (a.dueDate || '9999').localeCompare(b.dueDate || '9999'));
+  const open = tasks.filter((t) => t.status !== 'Done').length;
+  el.innerHTML = `<div class="rec-section-hd"><h2>Tasks</h2><span class="rec-count">${open || ''}</span><div class="rec-section-actions"><button class="btn-sm" onclick="createTodoForOpportunity()">+ New</button></div></div>` +
+    (tasks.length === 0 ? `<div class="feed-empty">No tasks yet.</div>` : `<div class="task-group">${tasks.map((t) => taskRowHtml(t, { compact: true })).join('')}</div>`);
 }
 
 // ── Proposal / Project lifecycle ─────────────────────────────────────────────────

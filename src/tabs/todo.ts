@@ -8,7 +8,9 @@ import { S } from '../lib/state';
 import { toast, undoToast, emptyState } from '../lib/ui';
 import { companyLink, recordLink } from '../lib/links';
 import { fmtDate, escHtml, nextTodoId, getClients, expose, positionFloatingPopup, inCompany } from '../lib/utils';
-import { persistTodos } from '../lib/persist';
+import { persistTodos, saveTodosNow } from '../lib/persist';
+import { getLinksFor, setLinksFrom } from '../lib/db';
+import { addLinks, companyFromForm, companyOf, contextFromMeeting, contextFromOpportunity, contextFromProject, inheritCompany, taskFields, EMPTY_CONTEXT, type WorkContext } from '../lib/workGraph';
 import { registerTabRenderer, registerBadgeUpdater, refreshProjectViewIfOpen, refreshCompanyViewIfOpen, notifyNavigated, getActiveTabId } from '../lib/registry';
 import { renderTagChips } from '../lib/tagChips';
 import { icon } from '../lib/icons';
@@ -527,9 +529,12 @@ function listDefaults(list: string): Partial<Todo> {
   if (list === 'someday') return { someday: true };
   if (list.startsWith('project:')) {
     const p = S.projects.find((x) => x.id === Number(list.slice(8)));
-    return { projectId: p?.id ?? null, ...(p?.companyName ? { type: 'client', client: p.companyName } : {}) };
+    return p ? taskFields(contextFromProject(S, p)) : {};
   }
-  if (list.startsWith('company:')) return { type: 'client', client: companyRefFromKey(list.slice(8)).name };
+  if (list.startsWith('company:')) {
+    const ref = companyRefFromKey(list.slice(8));
+    return { type: 'client', client: ref.name, companyId: ref.id };
+  }
   if (list.startsWith('tag:')) return { tags: [list.slice(4)] };
   return {};
 }
@@ -581,7 +586,8 @@ export function addTaskFromText(raw: string, defaults: Partial<Todo> = {}): Todo
     ...(p.someday ? { someday: true, dueDate: null } : {}),
     ...(p.priority ? { priority: p.priority } : {}),
     ...(p.projectId != null ? { projectId: p.projectId } : {}),
-    ...(p.companyName ? { type: 'client', client: p.companyName } : {}),
+    // A company typed in the line replaces the list's; its id only stays when it is the same company.
+    ...(p.companyName ? { type: 'client', client: p.companyName, companyId: companyFromForm({ companyId: defaults.companyId ?? null, companyName: defaults.client ?? null }, p.companyName).companyId } : {}),
     ...(p.recurrence ? { recurrenceRule: p.recurrence } : {}),
     tags: [...new Set([...(defaults.tags || []), ...p.tags])],
   });
@@ -1057,6 +1063,9 @@ function renderTaskDetail(): void {
   const projects = S.projects.filter((p) => !p.archived || p.id === t.projectId);
   const sections = [...new Set(S.todos.filter((x) => x.projectId != null && x.projectId === t.projectId && x.section).map((x) => x.section as string))];
   const meeting = t.meetingId != null ? S.meetings.find((m) => m.id === t.meetingId) : null;
+  const opportunities = S.opportunities.filter((o) => !o.archived || o.id === t.opportunityId);
+  if (taskNotesFor?.taskId !== t.id) { taskNotesFor = { taskId: t.id, noteIds: [] }; void loadTaskNotes(t.id); }
+  const fromNotes = taskNotesFor.noteIds.map((id) => S.notes.find((n) => n.id === id)).filter((n): n is NonNullable<typeof n> => !!n);
   const seg = (field: string, value: string | null, options: [string, string][]) =>
     `<div class="segmented td-seg">${options.map(([v, label]) => `<button class="${(value || options[0][0]) === v ? 'active' : ''}" onclick="taskDetailSet('${field}','${v}')">${label}</button>`).join('')}</div>`;
   panel.innerHTML = `
@@ -1103,7 +1112,11 @@ function renderTaskDetail(): void {
         <dd><select class="td-select" onchange="taskDetailSet('recurrenceRule', this.value)">${[['', 'Never'], ['daily', 'Every day'], ['weekly', 'Every week'], ['monthly', 'Every month']].map(([v, l]) => `<option value="${v}"${(t.recurrenceRule || '') === v ? ' selected' : ''}>${l}</option>`).join('')}</select></dd>
         <dt>Tags</dt>
         <dd><div id="td-tags" class="tag-chip-input td-tags"></div></dd>
+        <dt>Opportunity</dt>
+        <dd><select class="td-select" onchange="taskDetailSet('opportunityId', this.value)"><option value="">No opportunity</option>${opportunities.map((o) => `<option value="${o.id}"${o.id === t.opportunityId ? ' selected' : ''}>${escHtml(o.name)}</option>`).join('')}</select>
+          ${t.opportunityId != null ? recordLink('opportunity', t.opportunityId, 'Open', { className: 'td-open-link' }) : ''}</dd>
         ${meeting ? `<dt>Meeting</dt><dd>${recordLink('meeting', meeting.id, meeting.title)}</dd>` : ''}
+        ${fromNotes.length ? `<dt>From note</dt><dd>${fromNotes.map((n) => recordLink('note', n.id, n.title || 'Untitled')).join(', ')}</dd>` : ''}
       </dl>
       <div class="td-foot">Created ${fmtDate(t.createdAt)}${t.completedAt ? ` · Completed ${fmtDate(t.completedAt)}` : ''}</div>
     </div>`;
@@ -1157,13 +1170,22 @@ export function taskDetailSet(field: string, value: string): void {
       if (value === 'Done') { if (isOpenTask(t)) markDone(t); }
       else { t.status = value; t.completedAt = null; }
       break;
-    case 'projectId': t.projectId = value ? Number(value) : null; t.section = null; break;
+    case 'projectId':
+      t.projectId = value ? Number(value) : null; t.section = null;
+      inheritTaskCompany(t);
+      break;
+    case 'opportunityId':
+      t.opportunityId = value ? Number(value) : null;
+      inheritTaskCompany(t);
+      break;
     case 'section': t.section = value.trim() || null; break;
     case 'recurrenceRule': t.recurrenceRule = value || null; break;
     case 'client': {
       const name = value.trim();
       if ((t.client || '') === name) return;
+      // An explicit reassignment: the backend resolves the new name to a company.
       t.client = name || null;
+      t.companyId = null;
       t.type = name ? 'client' : 'general';
       break;
     }
@@ -1173,10 +1195,36 @@ export function taskDetailSet(field: string, value: string): void {
 }
 expose('taskDetailSet', taskDetailSet);
 
+/** A task without a company takes the company of its project or opportunity;
+ * a company already set is never replaced. */
+function inheritTaskCompany(t: Todo): void {
+  if (t.client) return;
+  const ctx = inheritCompany(S, { ...EMPTY_CONTEXT, projectId: t.projectId, opportunityId: t.opportunityId ?? null });
+  if (!ctx.companyName) return;
+  t.client = ctx.companyName;
+  t.companyId = ctx.companyId;
+  t.type = 'client';
+}
+
+/** Records that a task came from a note (entity link task → note). */
+export async function linkTaskToNote(taskId: number, noteId: number): Promise<void> {
+  await saveTodosNow();
+  const links = await getLinksFor('task', taskId);
+  await setLinksFrom('task', taskId, addLinks(links, 'task', taskId, [{ toType: 'note', toId: noteId }]));
+}
+
+let taskNotesFor: { taskId: number; noteIds: number[] } | null = null;
+/** The notes a task came from, loaded once per opened task. */
+async function loadTaskNotes(taskId: number): Promise<void> {
+  const links = await getLinksFor('task', taskId);
+  taskNotesFor = { taskId, noteIds: links.filter((l) => l.fromType === 'task' && l.fromId === taskId && l.toType === 'note').map((l) => l.toId) };
+  if (S.taskDetailId === taskId) refreshDetailChrome();
+}
+
 export function addSubtask(title: string): void {
   const parent = detailTask();
   if (!parent || !title.trim()) return;
-  S.todos.push(blankTask({ title: title.trim(), parentId: parent.id, projectId: parent.projectId, type: parent.type, client: parent.client, sortOrder: null }));
+  S.todos.push(blankTask({ title: title.trim(), parentId: parent.id, projectId: parent.projectId, type: parent.type, client: parent.client, companyId: parent.companyId ?? null, opportunityId: parent.opportunityId ?? null, sortOrder: null }));
   afterTodoListChange();
   renderTaskDetail();
   (document.getElementById('td-add-sub') as HTMLInputElement | null)?.focus();
@@ -1200,51 +1248,91 @@ expose('renameSubtask', renameSubtask);
 // ── New-task dialog (used from other modules) ───────────────────────────────
 
 let modalTaskTags: string[] = [];
+/** The context a new task was started from (company, project, opportunity, meeting, note). */
+let todoModalContext: WorkContext | null = null;
 
-/** Existing tasks open in the detail panel; `null` opens the new-task dialog. */
-export function openTodoModal(id: number | null): void {
+/** Existing tasks open in the detail panel; `null` opens the new-task dialog,
+ * prefilled from `ctx` when given (every field can still be changed). */
+export function openTodoModal(id: number | null, ctx: WorkContext | null = null): void {
   if (id !== null) { (window as any).openRecord('task', id); return; }
   S.todoEditId = null;
+  todoModalContext = ctx;
   const f = document.getElementById('todo-form') as HTMLFormElement;
   f.reset();
   const dl = document.getElementById('todo-client-list'); if (dl) dl.innerHTML = getClients().map((c) => `<option value="${escHtml(c)}">`).join('');
   const projSel = f.elements.namedItem('todoProject') as HTMLSelectElement | null;
   if (projSel) {
     projSel.innerHTML = `<option value="">— No project —</option>` +
-      S.projects.filter((p) => !p.archived).map((p) => `<option value="${p.id}">${escHtml(p.name)}${p.type === 'internal' ? ' (Internal)' : ''}</option>`).join('');
+      S.projects.filter((p) => !p.archived || p.id === ctx?.projectId).map((p) => `<option value="${p.id}">${escHtml(p.name)}${p.type === 'internal' ? ' (Internal)' : ''}</option>`).join('');
+    projSel.value = ctx?.projectId != null ? String(ctx.projectId) : '';
+  }
+  const oppSel = f.elements.namedItem('todoOpportunity') as HTMLSelectElement | null;
+  if (oppSel) {
+    oppSel.innerHTML = `<option value="">— No opportunity —</option>` +
+      S.opportunities.filter((o) => !o.archived || o.id === ctx?.opportunityId).map((o) => `<option value="${o.id}">${escHtml(o.name)}</option>`).join('');
+    oppSel.value = ctx?.opportunityId != null ? String(ctx.opportunityId) : '';
   }
   const parent = S.todoParentId != null ? S.todos.find((x) => x.id === S.todoParentId) : null;
   const title = document.getElementById('todo-modal-title');
   if (title) title.textContent = parent ? `New Subtask of "${parent.title}"` : 'New Task';
   const btn = document.getElementById('todo-submit-btn'); if (btn) btn.textContent = 'Save Task';
-  toggleTodoClient('general');
+  const type = ctx?.companyName ? 'client' : 'general';
+  (f.elements.namedItem('todoType') as HTMLSelectElement).value = type;
+  (f.elements.namedItem('todoClient') as HTMLInputElement).value = ctx?.companyName || '';
+  toggleTodoClient(type);
+  const meeting = ctx?.meetingId != null ? S.meetings.find((m) => m.id === ctx.meetingId) : undefined;
+  const note = ctx?.noteId != null ? S.notes.find((n) => n.id === ctx.noteId) : undefined;
+  const ctxEl = document.getElementById('todo-context');
+  if (ctxEl) {
+    const parts = [meeting ? `meeting “${escHtml(meeting.title)}”` : '', note ? `note “${escHtml(note.title || 'Untitled')}”` : ''].filter(Boolean);
+    ctxEl.hidden = parts.length === 0;
+    ctxEl.innerHTML = parts.length ? `<span class="flbl-hint">From ${parts.join(' and ')}</span>` : '';
+  }
   modalTaskTags = [];
   const tagsContainer = document.getElementById('todo-tags-chips');
   if (tagsContainer) renderTagChips(tagsContainer, modalTaskTags, (tags) => { modalTaskTags = tags; }, { placeholder: 'Add tag...', suggestions: S.allTags });
   document.getElementById('modal-todo')?.classList.add('open');
+  (f.elements.namedItem('todoTitle') as HTMLInputElement | null)?.focus();
 }
 expose('openTodoModal', openTodoModal);
 
 export function openSubtaskModal(parentId: number): void {
   S.todoParentId = parentId;
-  openTodoModal(null);
+  const parent = S.todos.find((x) => x.id === parentId);
+  openTodoModal(null, parent ? contextFromTask(parent) : null);
 }
 expose('openSubtaskModal', openSubtaskModal);
 
+/** A task's own context, for subtasks. */
+function contextFromTask(t: Todo): WorkContext {
+  return { ...EMPTY_CONTEXT, ...companyOf(S, t.companyId, t.client), projectId: t.projectId, opportunityId: t.opportunityId ?? null, meetingId: t.meetingId };
+}
+
+/** New task in the open project: the project and its company. */
 export function createTodoForCurrentProject(): void {
-  if (S.currentProjectId == null) return;
-  const id = S.currentProjectId;
-  openTodoModal(null);
-  setTimeout(() => {
-    const projSel = document.querySelector('#todo-form [name=todoProject]') as HTMLSelectElement | null;
-    if (projSel) projSel.value = String(id);
-  }, 0);
+  const p = S.currentProjectId != null ? S.projects.find((x) => x.id === S.currentProjectId) : undefined;
+  if (p) openTodoModal(null, contextFromProject(S, p));
 }
 expose('createTodoForCurrentProject', createTodoForCurrentProject);
+
+/** New task for an opportunity: the opportunity and its company. */
+export function createTodoForOpportunity(opportunityId: number | null = S.currentOpportunityId): void {
+  const o = opportunityId != null ? S.opportunities.find((x) => x.id === opportunityId) : undefined;
+  if (o) openTodoModal(null, contextFromOpportunity(S, o));
+}
+expose('createTodoForOpportunity', createTodoForOpportunity);
+
+/** New task from a meeting: its company, project, opportunity and the meeting. */
+export function createTodoForMeeting(meetingId: number | null = S.meetingEditId): void {
+  const m = meetingId != null ? S.meetings.find((x) => x.id === meetingId) : undefined;
+  if (m) openTodoModal(null, contextFromMeeting(S, m));
+}
+expose('createTodoForMeeting', createTodoForMeeting);
 
 export function closeTodoModal(): void {
   document.getElementById('modal-todo')?.classList.remove('open');
   S.todoParentId = null;
+  todoModalContext = null;
 }
 expose('closeTodoModal', closeTodoModal);
 
@@ -1259,24 +1347,39 @@ export function submitTodo(e: Event): void {
   const f = e.target as HTMLFormElement;
   const type = (f.elements.namedItem('todoType') as HTMLSelectElement).value;
   const projVal = (f.elements.namedItem('todoProject') as HTMLSelectElement | null)?.value || '';
+  const oppVal = (f.elements.namedItem('todoOpportunity') as HTMLSelectElement | null)?.value || '';
   const status = (f.elements.namedItem('todoStatus') as HTMLSelectElement).value;
+  const ctx = todoModalContext;
+  // Company: kept by id while the field shows the context's company; another
+  // typed name is an explicit reassignment; a general task with a project or
+  // opportunity takes that record's company.
+  const typed = type === 'client' ? (f.elements.namedItem('todoClient') as HTMLInputElement).value : '';
+  const fromForm = {
+    ...EMPTY_CONTEXT, ...companyFromForm(ctx, typed),
+    projectId: projVal ? Number(projVal) : null,
+    opportunityId: oppVal ? Number(oppVal) : null,
+    meetingId: ctx?.meetingId ?? null,
+  };
+  // A company the dialog offered and the person removed stays removed.
+  const removedCompany = !!ctx?.companyName && !typed.trim();
+  const graph = removedCompany ? fromForm : inheritCompany(S, fromForm);
   const task = blankTask({
+    ...taskFields(graph),
     title: (f.elements.namedItem('todoTitle') as HTMLInputElement).value.trim(),
-    type,
-    client: type === 'client' ? (f.elements.namedItem('todoClient') as HTMLInputElement).value.trim() || null : null,
     priority: (f.elements.namedItem('todoPriority') as HTMLSelectElement).value,
     dueDate: (f.elements.namedItem('todoDue') as HTMLInputElement).value || null,
     recurrenceRule: (f.elements.namedItem('todoRecurrence') as HTMLSelectElement).value || null,
     description: (f.elements.namedItem('todoDesc') as HTMLTextAreaElement).value.trim() || null,
-    projectId: projVal ? Number(projVal) : null,
     parentId: S.todoParentId,
     tags: [...modalTaskTags],
   });
   if (!task.title) return;
   S.todos.push(task);
   if (status === 'Done') markDone(task); else task.status = status;
+  const noteId = ctx?.noteId ?? null;
   closeTodoModal();
   afterTodoListChange();
+  if (noteId != null) void linkTaskToNote(task.id, noteId);
 }
 expose('submitTodo', submitTodo);
 

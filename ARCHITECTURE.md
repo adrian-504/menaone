@@ -382,7 +382,16 @@ Full audit: `docs/foundation-lock-audit.md`.
 - **Work graph**: deleting a record removes its `entity_links`; migration 29 removed existing orphans. Outlook meeting and email re-syncs leave unchanged rows untouched.
 - **Integrity report** (`integrity.rs`, command `get_integrity_report`): foreign keys, orphan links, unlinked or dangling company links, capital-only duplicate companies, uuids, stale tombstones, duplicate activity, dangling opportunity/agreement links, duplicate Outlook events.
 - **Security**: Chart.js bundled (no CDN); `write_text_file`/`read_text_file` replaced by `save_text_file_dialog` (the Rust side shows the dialog); attachment names reduced to a file name; Content Security Policy set with `dangerousDisableAssetCspModification` for scripts/styles (inline handlers need `unsafe-inline`); `withGlobalTauri` off.
-- **Tests**: `tests/foundation.rs` (identity, persistence, versions, tombstones, activity, work graph end to end, restore, Outlook re-sync, migration rollback, backups, fake legacy data; opt-in run on a copy of a real database), `src/lib/persistNotes.test.ts`.
+- **Tests**: `tests/work_graph.rs` (Phase 2 acceptance scenario), `tests/foundation.rs` (identity, persistence, versions, tombstones, activity, work graph end to end, restore, Outlook re-sync, migration rollback, backups, fake legacy data; opt-in run on a copy of a real database), `src/lib/persistNotes.test.ts`.
+
+## Work Graph and core workflow (Phase 2)
+
+Full notes: `docs/work-graph.md`.
+
+- **Context**: `src/lib/workGraph.ts` holds the pure rules — what a record created from a company, opportunity, project, meeting or note inherits (`contextFrom*`, `taskFields`), when a context's `company_id` is sent (`companyFromForm`: only while the field still shows that company), when a missing company is inherited (`inheritCompany`, never replacing one), link merging (`replaceLinks`, `addLinks`), action items and derived relationships (`projectChain`, `proposalProject`, `opportunityTasks`).
+- **Creation**: meetings from projects and opportunities, tasks from projects, opportunities, meetings and notes, notes from meetings (`openMeetingNote`), action items → tasks (`createTasksFromNoteActionItems`, linked task → note). Dialogs take a context and stay editable. `src/core/contextActions.ts` is the one list of create actions for the open record, used by "+ New" and the palette.
+- **Schema 31**: `todos.opportunity_id` (SET NULL), task activity carries it; integrity check "tasks whose opportunity belongs to another company".
+- **Pages**: opportunity Tasks section; project origin shows opportunity, proposal, agreement and contacts; agreement page shows opportunity and project; task panel shows opportunity, meeting and source note; note connections show opportunity and tasks. Filing meeting notes adds links instead of replacing them and asks before replacing note text it didn't write.
 
 ## Tests
 

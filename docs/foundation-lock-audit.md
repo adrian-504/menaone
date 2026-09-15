@@ -248,6 +248,8 @@ Verified by test: uuids stable across updates, restores and renames; version inc
 | Proposal → Agreement | `agreements.proposal_id` | Works | Company mismatch reported |
 | Project → Meeting / Opportunity → Meeting | `meetings.project_id` / `opportunity_id` (SET NULL) | Works | Company mismatch reported |
 | Meeting → Task | `todos.meeting_id` (SET NULL) | Works | — |
+| Opportunity → Task (Phase 2) | `todos.opportunity_id` (SET NULL) | Works | Company mismatch reported |
+| Note → Task (Phase 2) | `entity_links` task → note | Works | Cleaned on delete |
 | Project → Task | `todos.project_id` (SET NULL) | Works | Company mismatch reported |
 | Note → Project / File | `entity_links` | Works | Cleaned on delete |
 | Meeting → Note | `meetings.note_id` (SET NULL) | Works | — |

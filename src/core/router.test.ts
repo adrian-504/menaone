@@ -12,7 +12,7 @@ import { S } from '../lib/state';
 import { notifyNavigated } from '../lib/registry';
 import { currentPlace, openRecord, navBack, navForward, closeCurrentRecord, openRecordLink, placeCompany, navBackFromRecord } from './router';
 import { placeKey } from '../lib/navHistory';
-import type { Company, Meeting, Opportunity, Project, Proposal } from '../lib/types';
+import type { Company, Meeting, Note, Opportunity, Project, Proposal, Todo } from '../lib/types';
 
 const w = window as any;
 const tick = () => new Promise((r) => setTimeout(r, 0));
@@ -31,7 +31,7 @@ function page(detailId: string, set: (id: number | null) => void, exists: (id: n
 
 beforeEach(() => {
   document.body.innerHTML = `<div id="loc-crumbs"></div><button id="loc-back"></button><button id="loc-fwd"></button>
-    ${['co-detail', 'opp-detail', 'pr-detail', 'proj-detail', 'meeting-detail'].map((id) => `<div id="${id}"></div>`).join('')}`;
+    ${['co-detail', 'opp-detail', 'pr-detail', 'proj-detail', 'meeting-detail', 'note-editor', 'task-detail'].map((id) => `<div id="${id}"></div>`).join('')}`;
   S.companies = [{ id: 1, name: 'Globex Test Co' } as Company];
   S.opportunities = [{ id: 5, name: 'Workforce deal', companyId: 1, companyName: 'Globex Test Co' } as Opportunity];
   S.proposals = [
@@ -40,7 +40,10 @@ beforeEach(() => {
     { id: 9, client: 'Unsaved Test Co', companyId: null } as Proposal,
   ];
   S.projects = [{ id: 11, name: 'Rollout', companyId: 1, companyName: 'Globex Test Co' } as Project];
-  S.meetings = [{ id: 13, title: 'Kickoff', companyId: 1, companyName: 'Globex Test Co' } as Meeting];
+  S.meetings = [{ id: 13, title: 'Kickoff', companyId: 1, companyName: 'Globex Test Co', projectId: 11, noteId: 17 } as Meeting];
+  S.notes = [{ id: 17, title: 'Kickoff notes', companyId: 1, clientName: 'Globex Test Co' } as Note];
+  S.todos = [{ id: 19, title: 'Send the model', companyId: 1, client: 'Globex (old name)', projectId: 11, meetingId: 13 } as Todo];
+  S.currentNoteId = null; S.taskDetailId = null;
   S.currentTab = 'myday';
   S.currentCompany = null; S.currentOpportunityId = null; S.currentProposalId = null; S.currentProjectId = null; S.meetingEditId = null;
   w.switchTab = (tab: string) => { S.currentTab = tab; notifyNavigated(); };
@@ -55,6 +58,10 @@ beforeEach(() => {
   w.openProjectDetail = project.open; w.closeProjectDetail = project.close;
   const meeting = page('meeting-detail', (id) => { S.meetingEditId = id; }, (id) => S.meetings.some((m) => m.id === id));
   w.openMeetingDetail = meeting.open; w.closeMeetingDetail = meeting.close;
+  const note = page('note-editor', (id) => { S.currentNoteId = id; }, (id) => S.notes.some((n) => n.id === id));
+  w.openNote = note.open;
+  const task = page('task-detail', (id) => { S.taskDetailId = id; }, (id) => S.todos.some((t) => t.id === id));
+  w.openTaskDetail = task.open; w.closeTaskDetail = task.close;
 });
 
 async function walkWorkflow(): Promise<void> {
@@ -127,6 +134,24 @@ describe('router: cross-module workflow', () => {
     // Links to the deleted records do nothing harmful either.
     openRecord('opportunity', 5); await tick();
     expect(currentPlace().key).toBeUndefined();
+  });
+});
+
+describe('router: work graph both ways', () => {
+  it('Project → Meeting → Note → Task → Company, then back through each', async () => {
+    w.switchTab('projects'); await tick();
+    openRecord('project', 11); await tick();
+    openRecord('meeting', 13); await tick();
+    openRecord('note', 17); await tick();
+    openRecord('task', 19); await tick();
+    // The task shows its linked company under its current name, not its stale text.
+    const ctx = document.querySelector('#loc-crumbs .loc-context a') as HTMLAnchorElement;
+    expect([ctx.textContent, ctx.dataset.rid]).toEqual(['Globex Test Co', '1']);
+    openRecordLink(new Event('click'), ctx); await tick();
+    expect(where()).toBe('companies/company/1');
+    const back: string[] = [];
+    for (let i = 0; i < 4; i++) { navBack(); await tick(); back.push(where()); }
+    expect(back).toEqual(['todo/task/19', 'notes/note/17', 'meetings/meeting/13', 'projects/project/11']);
   });
 });
 

@@ -10,15 +10,14 @@ import { fmtDate, escHtml, expose, statusDot, showConfirm, nextNoteId, today, in
 import { registerTabRenderer, registerProjectViewRefresher, refreshAll, notifyNavigated } from '../lib/registry';
 import { createListNav } from '../lib/listNav';
 import { getProjects, getMilestones, getLinksFor, setLinksFrom, filesGetByIds, getActivity } from '../lib/db';
-import { persistProject, persistMilestones, persistOpportunity, persistNotes } from '../lib/persist';
+import { persistProject, persistMilestones, persistOpportunity, persistNotes, saveNotesNow } from '../lib/persist';
+import { companyFromForm, contextFromOpportunity, contextFromProject, projectChain } from '../lib/workGraph';
 import { getAllCompanies } from './companies';
 import { taskRowHtml, createTodoForCurrentProject } from './todo';
 import { renderLinkedEmails } from '../core/emailLinks';
 import { icon } from '../lib/icons';
 import { showContextMenu } from '../lib/contextMenu';
 import { attachCompanySelector } from '../lib/companySelector';
-import { switchTab } from '../core/nav';
-import { openNote } from './notes';
 import type { Project, Milestone, Note } from '../lib/types';
 
 const STATUS_COLOR: Record<string, { c: string }> = {
@@ -191,7 +190,7 @@ async function renderProjectDetail(): Promise<void> {
   renderProjectTasks(p.id);
   void renderLinkedNotes(p.id);
   renderProjectMeetings(p.id);
-  renderProjectOrigin(p.id);
+  void renderProjectOrigin(p.id);
   void renderProjectActivity(p.id);
   void renderLinkedEmails('project', p.id, 'pd-emails');
   void renderLinkedFiles(p.id);
@@ -241,15 +240,16 @@ async function renderLinkedNotes(projectId: number): Promise<void> {
 export async function createNoteForProject(): Promise<void> {
   const p = S.projects.find((x) => x.id === S.currentProjectId);
   if (!p) return;
+  const ctx = contextFromProject(S, p);
   const newNote: Note = {
-    id: nextNoteId(), title: p.name, content: '', folder: '', clientName: p.companyName || '',
+    id: nextNoteId(), title: p.name, content: '', folder: '', clientName: ctx.companyName || '', companyId: ctx.companyId,
     tags: [], pinned: false, createdAt: today(), updatedAt: today(),
   };
   S.notes.unshift(newNote);
   persistNotes();
+  await saveNotesNow();
   await setLinksFrom('note', newNote.id, [{ fromType: 'note', fromId: newNote.id, toType: 'project', toId: p.id }]);
-  switchTab('notes');
-  openNote(newNote.id);
+  (window as any).openRecord('note', newNote.id);
 }
 expose('createNoteForProject', createNoteForProject);
 
@@ -261,9 +261,9 @@ function renderProjectMeetings(projectId: number): void {
   const el = document.getElementById('pd-meetings');
   if (!el) return;
   const meetings = S.meetings.filter((m) => m.projectId === projectId);
-  el.innerHTML = `<div class="rec-section-hd"><h2>Meetings</h2><span class="rec-count">${meetings.length || ''}</span></div>` +
+  el.innerHTML = `<div class="rec-section-hd"><h2>Meetings</h2><span class="rec-count">${meetings.length || ''}</span><div class="rec-section-actions"><button class="btn-sm" onclick="createMeetingForProject()">+ New</button></div></div>` +
     (meetings.length === 0
-      ? `<div class="feed-empty">No meetings linked yet — choose this project when creating or editing a meeting.</div>`
+      ? `<div class="feed-empty">No meetings yet.</div>`
       : `<div class="rec-list">${meetings.map((m) => `<div class="rec-row" onclick="openRecord('meeting', ${m.id})">
           <span class="rec-row-icon">${icon('meeting', 15)}</span>
           <div class="rec-row-main"><div class="rec-row-title">${escHtml(m.title)}</div></div>
@@ -271,21 +271,30 @@ function renderProjectMeetings(projectId: number): void {
         </div>`).join('')}</div>`);
 }
 
-// Originating Opportunity — pure client-side reverse lookup of
-// Opportunity.projectId (already loaded in S.opportunities at boot); no
-// migration or backend call needed, mirrors renderOpportunityProjectSection
-// in the opposite direction.
-function renderProjectOrigin(projectId: number): void {
+// The engagement chain the project came from: opportunity → proposal →
+// agreement, and the opportunity's contacts. Derived from ids already loaded
+// (Opportunity.projectId / proposalId, Agreement.proposalId) plus one link
+// lookup for the contacts.
+async function renderProjectOrigin(projectId: number): Promise<void> {
   const el = document.getElementById('pd-origin');
   if (!el) return;
   const o = S.opportunities.find((x) => x.projectId === projectId);
   if (!o) { el.innerHTML = ''; el.style.display = 'none'; return; }
+  const links = await getLinksFor('opportunity', o.id).catch(() => []);
+  if (S.currentProjectId !== projectId) return;
+  const { proposal, agreement, contacts } = projectChain(S, projectId, links);
+  const row = (kind: 'opportunity' | 'proposal' | 'agreement', id: number, iconName: string, label: string, title: string, sub: string) => `<div class="rec-row" onclick="openRecord('${kind}', ${id})">
+      <span class="rec-row-icon">${icon(iconName, 15)}</span>
+      <div class="rec-row-main"><div class="rec-row-title">${recordLink(kind, id, title)}</div><div class="rec-row-sub">${escHtml([label, sub].filter(Boolean).join(' · '))}</div></div>
+    </div>`;
   el.style.display = '';
   el.innerHTML = `<div class="rec-section-hd"><h2>Started from</h2></div>
-    <div class="rec-row" onclick="openRecord('opportunity', ${o.id})">
-      <span class="rec-row-icon">${icon('briefcase', 15)}</span>
-      <div class="rec-row-main"><div class="rec-row-title">${recordLink('opportunity', o.id, o.name)}</div><div class="rec-row-sub">${escHtml(o.stage)}</div></div>
-    </div>`;
+    <div class="rec-list">
+      ${row('opportunity', o.id, 'briefcase', 'Opportunity', o.name, o.stage)}
+      ${proposal ? row('proposal', proposal.id, 'database', 'Proposal', `${proposal.type && proposal.type !== '—' ? proposal.type : 'Proposal'} · SL#${proposal.id}`, proposal.status || '') : ''}
+      ${agreement ? row('agreement', agreement.id, 'document', 'Agreement', agreement.agrRef || `Agreement #${agreement.id}`, agreement.status || '') : ''}
+    </div>
+    ${contacts.length ? `<div class="rec-row-sub" style="margin-top:8px">Contacts: ${contacts.map((c) => recordLink('contact', c.id, c.name || c.email || 'Contact')).join(', ')}</div>` : ''}`;
 }
 
 async function renderProjectActivity(projectId: number): Promise<void> {
@@ -498,7 +507,15 @@ export async function submitProject(e: Event): Promise<void> {
     priority: (f.elements.namedItem('pjPriority') as HTMLSelectElement).value,
     owner: (f.elements.namedItem('pjOwner') as HTMLInputElement).value.trim() || null,
     description: (f.elements.namedItem('pjDesc') as HTMLTextAreaElement).value.trim() || null,
-    companyName: type === 'client' ? ((f.elements.namedItem('pjCompany') as HTMLInputElement).value.trim() || null) : null,
+    // A project started from an opportunity keeps that opportunity's company
+    // (by id) while the field still shows its name.
+    ...(() => {
+      if (type !== 'client') return { companyName: null, companyId: null };
+      const typed = (f.elements.namedItem('pjCompany') as HTMLInputElement).value;
+      const pendingOpp = !existing && S.opportunityLinkPending != null && S.opportunityLinkPendingKind === 'project' ? S.opportunities.find((o) => o.id === S.opportunityLinkPending) : undefined;
+      const known = existing ? { companyId: existing.companyId ?? null, companyName: existing.companyName } : pendingOpp ? contextFromOpportunity(S, pendingOpp) : null;
+      return companyFromForm(known, typed);
+    })(),
     areaId: existing?.areaId ?? null,
     startDate: (f.elements.namedItem('pjStart') as HTMLInputElement).value || null,
     targetDate: (f.elements.namedItem('pjTarget') as HTMLInputElement).value || null,
@@ -533,8 +550,7 @@ export async function submitProject(e: Event): Promise<void> {
     }
     renderProjects();
     refreshAll();
-    (window as any).switchTab('opportunities');
-    (window as any).openOpportunityDetail?.(oppId);
+    (window as any).openRecord('opportunity', oppId);
     return;
   }
 

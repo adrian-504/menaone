@@ -5,6 +5,7 @@
 // commercials, the client's OneDrive folder and documents, what it's linked
 // to, notes and activity.
 
+import { companyFromForm, contextFromOpportunity } from '../lib/workGraph';
 import { S } from '../lib/state';
 import { escHtml, expose, fmtDate, today, nextId, nextCtId, showConfirm, showTextPrompt, debounce, strColor } from '../lib/utils';
 import { icon } from '../lib/icons';
@@ -873,10 +874,16 @@ export async function submitProposalBuilder(e: Event): Promise<void> {
   if (draftLines.some((l) => !l.serviceName.trim())) { toast('Choose a service for every line, or remove the empty line', { tone: 'error' }); return; }
   if (status !== PS.REQUEST && lines.length === 0) { toast('Add at least one service', { tone: 'error', detail: 'Only a request that hasn’t been started can be saved without services.' }); return; }
 
+  // From an opportunity: the proposal keeps the opportunity's company by id
+  // while the client field still shows that company.
+  const oppId = val('prb-opportunity') ? Number(val('prb-opportunity')) : null;
+  const opp = oppId != null ? S.opportunities.find((o) => o.id === oppId) : undefined;
+  const { companyId } = companyFromForm(opp ? contextFromOpportunity(S, opp) : null, client);
+
   // A new contact is created first so the proposal can point at it.
   let primaryContactId: number | null = val('prb-contact') && val('prb-contact') !== 'new' ? Number(val('prb-contact')) : null;
   if (val('prb-contact') === 'new' && val('prb-ct-name')) {
-    const contact = { id: nextCtId(), clientName: client, name: val('prb-ct-name'), role: val('prb-ct-role') || null, email: val('prb-ct-email') || null, phone: val('prb-ct-phone') || null, whatsapp: null, service: null, lists: [] };
+    const contact = { id: nextCtId(), clientName: client, companyId, name: val('prb-ct-name'), role: val('prb-ct-role') || null, email: val('prb-ct-email') || null, phone: val('prb-ct-phone') || null, whatsapp: null, service: null, lists: [] };
     S.contacts.push(contact);
     persistContacts();
     primaryContactId = contact.id;
@@ -888,7 +895,7 @@ export async function submitProposalBuilder(e: Event): Promise<void> {
   const reviewerId = val('prb-reviewer') ? Number(val('prb-reviewer')) : null;
   const sent = status === PS.SENT ? val('prb-sent') || td : null;
   const p: Proposal = {
-    id: nextId(), client, type: null, status,
+    id: nextId(), client, companyId, type: null, status,
     sentDate: sent, dblSignedDate: null, kickoffDate: null, finance: null, hubspot: null,
     owner: teamMember(ownerId)?.name ?? null, remarks: val('prb-remarks') || null, dateAdded: received,
     monthlyFee: null, contractMonths: val('prb-months') ? Number(val('prb-months')) : null, winLossReason: null, docLink: null,
@@ -906,8 +913,6 @@ export async function submitProposalBuilder(e: Event): Promise<void> {
   S.proposals.push(p);
   persistProposals();
 
-  const oppId = val('prb-opportunity') ? Number(val('prb-opportunity')) : null;
-  const opp = oppId != null ? S.opportunities.find((o) => o.id === oppId) : undefined;
   if (opp) {
     opp.proposalId = p.id;
     void saveOpportunity(opp).then((saved) => {

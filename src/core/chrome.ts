@@ -2,7 +2,7 @@ import { S } from '../lib/state';
 import { expose } from '../lib/utils';
 import { icon } from '../lib/icons';
 import { showMenuAt, type ContextMenuItem } from '../lib/contextMenu';
-import { currentPlace, placeCompany } from './router';
+import { contextCreateActions, contextRecordCompany } from './contextActions';
 
 /** Renders every `[data-icon]` placeholder in the current DOM using the
  * shared icon set (src/lib/icons.ts) — keeps SVG path data in one place
@@ -54,37 +54,19 @@ const NEW_ITEM_TYPES: { label: string; iconName: string; run: () => void }[] = [
   { label: 'Note', iconName: 'note', run: () => { (window as any).switchTab?.('notes'); (window as any).createNewNote?.(null); } },
 ];
 
-/** Company the open record belongs to (or the open company itself), by its
- * current name. The forms below still take the company as text; the backend
- * links it to this company by name and former names (Foundation Lock). */
-function contextCompany(): string | null {
-  const p = currentPlace();
-  if (p.kind === 'company') return S.currentCompany;
-  if (p.kind === 'project' || p.kind === 'opportunity' || p.kind === 'meeting') return placeCompany(p)?.name ?? null;
-  return null;
-}
-
-/** "+ New" starts from where you are: on Globex's page (or one of Globex's
- * projects, opportunities or meetings) the menu leads with items for Globex. */
+/** "+ New" starts from where you are: the open record's own create actions
+ * (a meeting from a project, a task from a meeting…), each inheriting its
+ * context — then, inside a company's record, a contact or opportunity for
+ * that company. */
 function contextNewItems(): ContextMenuItem[] {
   const w = window as any;
-  const items: ContextMenuItem[] = [];
-  const place = currentPlace();
-  if (place.kind === 'project') {
-    items.push({ label: 'Task in this project', iconName: 'check', run: () => w.createTodoForCurrentProject?.() });
-  }
-  const company = contextCompany();
+  const items: ContextMenuItem[] = contextCreateActions().map((a) => ({ label: a.label.replace(/^New |^Create /, ''), iconName: a.iconName, run: a.run }));
+  const company = contextRecordCompany();
   if (company) {
-    const fill = (selector: string) => setTimeout(() => {
-      const el = document.querySelector<HTMLInputElement>(selector);
-      if (el) el.value = company;
-    }, 0);
+    const ctx = { companyId: company.id, companyName: company.name, projectId: null, opportunityId: null, meetingId: null, noteId: null };
     items.push(
-      { label: `Task for ${company}`, iconName: 'check', run: () => w.createTodoForCompany?.(company) },
-      { label: `Note for ${company}`, iconName: 'note', run: () => w.createNoteForCompany?.(company) },
-      { label: `Meeting with ${company}`, iconName: 'meeting', run: () => { w.openMeetingModal?.(null); fill('#meeting-form [name=mtCompany]'); } },
-      { label: `Opportunity for ${company}`, iconName: 'briefcase', run: () => { w.openOpportunityModal?.(null); fill('#opportunity-form [name=oppCompany]'); } },
-      { label: `Contact at ${company}`, iconName: 'people', run: () => w.openContactModal?.(company) },
+      { label: `Opportunity for ${company.name}`, iconName: 'briefcase', run: () => w.openOpportunityModal?.(null, ctx) },
+      { label: `Contact at ${company.name}`, iconName: 'people', run: () => w.openContactModal?.(company.name, company.id) },
     );
   }
   if (items.length) items.push({ label: '', run: () => {}, separator: true });

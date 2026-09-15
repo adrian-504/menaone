@@ -11,6 +11,7 @@ import { showContextMenu, showMenuAt } from '../lib/contextMenu';
 import { shownColumns, sortState, setSort, sortRows, headerCells, openColumnPicker, agoLabel, type Column, type SortState } from '../lib/tableColumns';
 import { companyLists, smartContactLists, companyNamesInList, contactsInCompanyList, createSavedList, renameSavedList, removeSavedList, updateSmartListFilters, exportToActiveCampaign, listById, sameFilters, cleanFilters, listChipLabel, newContactList, renameContactList, addContactsToList, removeContactsFromList } from './lists';
 import { attachCompanySelector } from '../lib/companySelector';
+import { companyFromForm } from '../lib/workGraph';
 import type { Contact, SavedList } from '../lib/types';
 
 // ═══════════════ CONTACT MODAL ═══════════════
@@ -21,8 +22,12 @@ function refreshClientDatalistAndSelector(): void {
   if (input) attachCompanySelector(input);
 }
 
-export function openContactModal(clientName?: string | null): void {
+/** The company a new contact was started from (a company page). */
+let contactModalCompany: { companyId: number | null; companyName: string | null } | null = null;
+
+export function openContactModal(clientName?: string | null, companyId?: number | null): void {
   S.ctEditId = null;
+  contactModalCompany = clientName ? { companyId: companyId ?? S.companies.find((c) => c.name === clientName)?.id ?? null, companyName: clientName } : null;
   const t = document.getElementById('ct-modal-title'); if (t) t.textContent = 'Add Contact';
   const f = document.getElementById('contact-form') as HTMLFormElement;
   f.reset();
@@ -59,7 +64,9 @@ export function submitContact(e: Event): void {
     const idx = S.contacts.findIndex((c) => c.id === S.ctEditId);
     if (idx > -1) S.contacts[idx] = { ...S.contacts[idx], ...obj };
   } else {
-    S.contacts.push({ id: nextCtId(), ...obj, service: '', lists: [] });
+    // Kept by id while the field still shows the company it was started from.
+    const { companyId } = companyFromForm(contactModalCompany, obj.clientName);
+    S.contacts.push({ id: nextCtId(), ...obj, companyId, service: '', lists: [] });
   }
   persistContacts();
   closeContactModal();
