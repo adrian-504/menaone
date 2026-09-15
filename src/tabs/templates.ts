@@ -9,9 +9,9 @@ import { escHtml, expose, localIsoDate, showConfirm } from '../lib/utils';
 import { icon } from '../lib/icons';
 import { emptyState, toast } from '../lib/ui';
 import { templatesList, templateInspect, templateDetail, templateSave, templateDelete, templateTokens, proposalGenerate, proposalLibrary, filesOpen, proposalFolderLookup } from '../lib/db';
-import { persistProposals } from '../lib/persist';
+import { persistProposals, proposalsAndAgreementsSaved } from '../lib/persist';
 import { renderIcons } from '../core/chrome';
-import { lineTotals, nextDocumentId, suggestedFileName, entityById } from '../lib/commercial';
+import { lineTotals, nextDeckFileName, entityById, applyGeneratedDocument, proposalDecks } from '../lib/commercial';
 import type { ProposalTemplate, SlideRule, TemplateDetail, TemplateInspection, TokenInfo, GenerateResult } from '../lib/types';
 
 const w = window as any;
@@ -295,7 +295,7 @@ export async function openGenerateProposal(proposalId: number): Promise<void> {
   const folder = await proposalFolderLookup(p.client, p.folderPath ?? null).catch(() => null);
   const services = lineTotals(p.lines, p.contractMonths).serviceNames.join(' & ') || p.type || 'Services';
   const name = document.getElementById('gen-file-name') as HTMLInputElement | null;
-  if (name) name.value = suggestedFileName(p.client, services, localIsoDate(new Date()), (folder?.files || []).map((f) => f.name));
+  if (name) name.value = nextDeckFileName(p, services, localIsoDate(new Date()), (folder?.files || []).map((f) => f.name));
   const logos = (folder?.files || []).filter((f) => !f.isFolder && /\.(png|jpe?g)$/i.test(f.name));
   const likely = logos.filter((f) => /logo/i.test(f.name));
   const logoSel = document.getElementById('gen-logo') as HTMLSelectElement | null;
@@ -349,7 +349,12 @@ function renderGeneratePreview(): void {
   const keep = generating.keep!;
   const filled = Object.entries(pv.values).filter(([, v]) => v);
   const empty = Object.entries(pv.values).filter(([, v]) => !v).map(([k]) => k);
+  const errors = pv.errors || [];
+  const confirm = document.getElementById('gen-confirm') as HTMLButtonElement | null;
+  if (confirm) { confirm.disabled = errors.length > 0; confirm.title = errors.length ? 'Fix what is missing first' : ''; }
   body.innerHTML = `
+    ${errors.length ? `<div class="gen-errors" role="alert"><div class="gen-errors-title">${icon('warning', 13)} Cannot generate this proposal. Missing:</div><ul>${errors.map((e) => `<li>${escHtml(e)}</li>`).join('')}</ul></div>` : ''}
+    <div class="gen-basis">${icon('document', 13)}<span id="gen-version-note">${versionNote()}</span></div>
     ${[...pv.warnings, ...(pv.report?.smart?.warnings || [])].length ? `<div class="gen-warnings">${[...pv.warnings, ...(pv.report?.smart?.warnings || [])].map((x) => `<div>${icon('warning', 13)} ${escHtml(x)}</div>`).join('')}</div>` : ''}
     ${pv.baseTemplate ? `<div class="gen-basis">${icon('document', 13)} Starts from <b>${escHtml(pv.baseTemplate)}</b>${pv.servicesTitle ? ` · cover reads <b>${escHtml(pv.servicesTitle)}</b>` : ''}</div>` : ''}
     ${pv.report?.smart?.filled.length ? `<div class="gen-filled">${pv.report.smart.filled.map((x) => `<span class="rec-badge tone-green">${icon('check', 11)} ${escHtml(x)}</span>`).join('')}</div>` : ''}
@@ -402,32 +407,59 @@ export function toggleGenerateSlide(index: number, on: boolean): void {
 }
 expose('toggleGenerateSlide', toggleGenerateSlide);
 
+/** "Will be saved as V3 — the 2 earlier versions stay as they are", matching the version the generator records. */
+function versionNote(): string {
+  if (!generating) return '';
+  const decks = proposalDecks(S.proposals.find((x) => x.id === generating!.proposalId) || {});
+  const fileName = (document.getElementById('gen-file-name') as HTMLInputElement | null)?.value || '';
+  const named = Number((fileName.match(/_V(\d+)\.pptx$/i) || [])[1] || 0);
+  const version = Math.max(Math.max(0, ...decks.map((d) => d.version ?? 0)) + 1, named);
+  const kept = decks.length === 0 ? '' : decks.length === 1 ? ` — V${decks[0].version} stays as it is` : ` — the ${decks.length} earlier versions stay as they are`;
+  return `Will be saved as <b>V${version}</b>${kept}`;
+}
+
+export function updateGenerateVersionNote(): void {
+  const el = document.getElementById('gen-version-note');
+  if (el) el.innerHTML = versionNote();
+}
+expose('updateGenerateVersionNote', updateGenerateVersionNote);
+
 export async function confirmGenerateProposal(): Promise<void> {
   if (!generating) return;
+  const proposalId = generating.proposalId;
   const btn = document.getElementById('gen-confirm') as HTMLButtonElement | null;
   if (btn) { btn.disabled = true; btn.textContent = 'Generating…'; }
+  let generated = false;
   try {
+    // The generator reads the proposal from the database: save any pending edits first,
+    // so the deck matches the page and a queued save can't drop the new version.
+    persistProposals();
+    await proposalsAndAgreementsSaved();
     const result = await proposalGenerate(request(false));
-    const p = S.proposals.find((x) => x.id === generating!.proposalId);
-    if (p && result.path) {
-      const version = result.fileName.match(/_V(\d+)\./i);
-      p.documents = [...(p.documents || []), { id: nextDocumentId(), kind: 'proposal', version: version ? Number(version[1]) : 1, fileName: result.fileName, path: result.path, url: null, notes: result.baseTemplate ? `Generated from the service templates (starting from ${result.baseTemplate})` : `Generated from ${(document.getElementById('gen-template') as HTMLSelectElement).selectedOptions[0]?.textContent || 'template'}`, createdAt: localIsoDate(new Date()) }];
-      if (result.folder && !p.folderPath) p.folderPath = result.folder;
+    const p = S.proposals.find((x) => x.id === proposalId);
+    if (!result.document || !result.path) throw new Error('The proposal was not recorded.');
+    if (p) {
+      applyGeneratedDocument(p, result.document, result.folder);
       persistProposals();
     }
+    generated = true;
     closeGenerateProposal();
-    const missing = [...(result.report?.missingTokens || []), ...(result.report?.smart?.checks?.length ? [`${result.report.smart.checks.length} sentences to read`] : []), ...(result.report?.smart?.feesToCheck.length ? [`${result.report.smart.feesToCheck.length} amounts to check`] : [])];
-    toast(`${result.fileName} saved${result.report ? ` · ${result.report.slidesAfter} slides` : ''}`, {
-      tone: missing.length ? 'neutral' : 'success',
-      detail: missing.length ? `Still to fill by hand: ${missing.join(', ')}` : undefined,
-      action: result.path ? { label: 'Open', run: () => void filesOpen(result.path!) } : undefined,
+    const missing = [...(result.report?.smart?.checks?.length ? [`${result.report.smart.checks.length} sentences to read`] : []), ...(result.report?.smart?.feesToCheck.length ? [`${result.report.smart.feesToCheck.length} amounts to check`] : [])];
+    toast(`V${result.document.version} generated`, {
+      tone: 'success',
+      detail: `${result.fileName}${result.report ? ` · ${result.report.slidesAfter} slides` : ''}${missing.length ? `\nCheck in PowerPoint: ${missing.join(', ')}` : ''}`,
+      action: { label: 'Open', run: () => void filesOpen(result.path!) },
       duration: 8000,
     });
     w.renderProposalPage?.();
+    requestAnimationFrame(() => document.querySelector(`[data-doc-id="${result.document!.id}"]`)?.classList.add('just-added'));
   } catch (err) {
-    toast('Could not generate the proposal', { tone: 'error', detail: String(err) });
+    // Nothing was recorded: earlier versions are unchanged. Keep the dialog open to fix and retry.
+    toast('Could not generate the proposal', { tone: 'error', detail: String(err).replace(/^Error: /, '') });
+    if (generating) void refreshGeneratePreview();
   } finally {
-    if (btn) { btn.disabled = false; btn.textContent = 'Generate'; }
+    if (btn && !generated) { btn.disabled = false; btn.textContent = 'Generate'; }
+    if (btn && generated) btn.textContent = 'Generate';
   }
 }
 expose('confirmGenerateProposal', confirmGenerateProposal);

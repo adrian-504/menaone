@@ -48,6 +48,12 @@ impl Package {
         Ok(Package { order, parts })
     }
 
+    /// A package from its parts, in name order (tests and tools that build decks in memory).
+    pub fn from_parts(parts: Parts) -> Package {
+        let order = parts.keys().cloned().collect();
+        Package { order, parts }
+    }
+
     pub fn write(&self, path: &Path) -> Result<(), String> {
         let file = std::fs::File::create(path).map_err(|e| format!("Could not write the proposal: {e}"))?;
         self.write_to(file)

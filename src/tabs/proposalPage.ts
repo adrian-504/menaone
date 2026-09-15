@@ -6,6 +6,7 @@
 // to, notes and activity.
 
 import { statusBadge } from '../lib/statusTone';
+import { proposalDeckRows } from '../lib/proposalDocuments';
 import { companyFromForm, contextFromOpportunity } from '../lib/workGraph';
 import { S } from '../lib/state';
 import { escHtml, expose, fmtDate, today, nextId, nextCtId, showConfirm, showTextPrompt, debounce, strColor } from '../lib/utils';
@@ -14,7 +15,7 @@ import { companyLink, recordLink } from '../lib/links';
 import { emptyState, toast, undoToast } from '../lib/ui';
 import { persistProposals, persistContacts } from '../lib/persist';
 import { notifyNavigated, refreshAll, refreshCompanyViewIfOpen } from '../lib/registry';
-import { getActivity, saveOpportunity, filesOpen, filesRevealInFinder, proposalFolderLookup, proposalFolderCreate } from '../lib/db';
+import { getActivity, saveOpportunity, filesOpen, filesRevealInFinder, filesStatPaths, proposalFolderLookup, proposalFolderCreate } from '../lib/db';
 import { attachCompanySelector } from '../lib/companySelector';
 import { showMenuAt, type ContextMenuItem } from '../lib/contextMenu';
 import { activityItem, renderFeed } from '../lib/activityFeed';
@@ -25,7 +26,7 @@ import { changeProposalStatus, recordReview, openWlModal, updateStatus, archiveP
 import {
   PS, PROPOSAL_STAGES, stageIndex, isWon, isLost, isWithdrawn, isClosed, lineTotals, syncProposalTotals, fmtMoney, currencyOf,
   teamMember, reviewers, defaultReviewer, activeTeam, ownerName, entityById, defaultEntity, activeServices, newLine,
-  suggestedFileName, nextDocumentId, nextLineId,
+  suggestedFileName, nextDocumentId, nextLineId, nextDeckFileName,
 } from '../lib/commercial';
 import type { Proposal, CommercialLine, ProposalFolder, Opportunity, LocalFileItem } from '../lib/types';
 
@@ -507,7 +508,7 @@ async function renderDocuments(p: Proposal): Promise<void> {
     const tb = document.getElementById('prd-toolbar'); if (tb) renderIcons(tb);
   }
   const serviceLabel = lineTotals(p.lines, p.contractMonths).serviceNames.join(' & ') || p.type || 'Services';
-  const suggested = suggestedFileName(p.client, serviceLabel, today(), info.files.map((f) => f.name));
+  const suggested = nextDeckFileName(p, serviceLabel, today(), info.files.map((f) => f.name));
   if (actions) actions.innerHTML = info.exists ? `<button class="btn-sm" onclick="proposalRevealFile('${escHtml((info.path || '').replace(/'/g, "\\'"))}')">Show in Finder</button>` : '';
   if (!info.root) {
     folderEl.innerHTML = `<div class="pr-folder-line rec-muted">${icon('folder', 14)} No Proposals folder found in OneDrive. Choose it in Settings → Proposals.</div>`;
@@ -518,8 +519,10 @@ async function renderDocuments(p: Proposal): Promise<void> {
       <div class="pr-next-name"><span class="rec-muted">Next file name</span><code>${escHtml(suggested)}</code><button class="rec-icon-btn" onclick="copyText('${escHtml(suggested.replace(/'/g, "\\'"))}','File name copied')" title="Copy file name" aria-label="Copy file name">${icon('copy', 13)}</button></div>`;
   }
 
-  const recorded = p.documents || [];
-  const recordedPaths = new Set(recorded.map((d) => d.path).filter(Boolean));
+  // Generated decks: their own version history above; everything else is supporting.
+  renderDeckHistory(p);
+  const recorded = (p.documents || []).filter((d) => d.kind !== 'proposal');
+  const recordedPaths = new Set((p.documents || []).map((d) => d.path).filter(Boolean));
   const files = info.files.filter((f) => !f.isFolder && DOC_EXT.test(f.name) && !recordedPaths.has(f.path))
     .sort((a, b) => (b.modifiedAt || '').localeCompare(a.modifiedAt || ''));
   const kindLabel = { proposal: 'Proposal', commercials: 'Commercials', supporting: 'Supporting' } as const;
@@ -537,10 +540,42 @@ async function renderDocuments(p: Proposal): Promise<void> {
   }
   for (const f of files.slice(0, 12)) rows.push(folderFileRow(f));
   const count = document.getElementById('prd-docs-count'); if (count) count.textContent = recorded.length ? String(recorded.length) : '';
-  docsEl.innerHTML = rows.length ? rows.join('') : emptyState({ icon: 'document', title: 'No documents yet', body: info.exists ? 'Files saved in the client folder show up here.' : 'Create the client folder, then save the proposal deck there.', compact: true });
+  docsEl.innerHTML = rows.length ? rows.join('') : emptyState({ icon: 'document', title: 'No supporting documents', body: info.exists ? 'Other files saved in the client folder show up here.' : 'Create the client folder to keep commercials and supporting files with the proposal.', compact: true });
   renderIcons(docsEl);
   renderIcons(folderEl);
 }
+
+/** Which generated decks' files are still in place, per proposal (checked once per render of their paths). */
+let deckFiles: { key: string; status: Map<string, boolean> } | null = null;
+
+function renderDeckHistory(p: Proposal): void {
+  const el = document.getElementById('prd-decks');
+  if (!el) return;
+  const decks = (p.documents || []).filter((d) => d.kind === 'proposal');
+  const count = document.getElementById('prd-decks-count'); if (count) count.textContent = decks.length ? String(decks.length) : '';
+  if (!decks.length) {
+    el.innerHTML = emptyState({ icon: 'document', title: 'No proposal generated yet', body: 'Generate the deck from this proposal; each generation is kept as its own version.', compact: true, action: { label: 'Generate proposal', onclick: `openGenerateProposal(${p.id})` } });
+    renderIcons(el);
+    return;
+  }
+  const paths = decks.map((d) => d.path).filter((x): x is string => !!x);
+  const key = `${p.id}:${paths.join('|')}`;
+  const status = deckFiles?.key === key ? deckFiles.status : new Map<string, boolean>();
+  el.innerHTML = proposalDeckRows(p, status);
+  renderIcons(el);
+  if (deckFiles?.key !== key) {
+    deckFiles = { key, status };
+    void filesStatPaths(paths).then((items) => {
+      for (const it of items) status.set(it.path, it.exists);
+      if (S.currentProposalId === p.id && deckFiles?.key === key) { el.innerHTML = proposalDeckRows(p, status); renderIcons(el); }
+    }).catch(() => { /* unknown status: rows stay openable */ });
+  }
+}
+
+export function generateCurrentProposal(): void {
+  if (S.currentProposalId != null) void (window as any).openGenerateProposal?.(S.currentProposalId);
+}
+expose('generateCurrentProposal', generateCurrentProposal);
 
 function folderFileRow(f: LocalFileItem): string {
   const path = escHtml(f.path.replace(/'/g, "\\'"));
@@ -573,11 +608,15 @@ export function proposalAttachFile(path: string): void {
   if (!p || !file) return;
   const isDeck = /\.(pptx|ppt|key|pdf)$/i.test(file.name) && /proposal/i.test(file.name);
   const isCommercials = /\.(xlsx|xls)$/i.test(file.name) || /commercial|pricing|quotation/i.test(file.name);
-  const version = file.name.match(/_V(\d+)\./i);
+  const named = file.name.match(/_V(\d+)\./i);
   const docs = p.documents || [];
+  // A deck keeps the version in its name unless that number is already taken; otherwise it is the next one.
+  const taken = docs.filter((d) => d.kind === 'proposal').map((d) => d.version ?? 0);
+  const wanted = named ? Number(named[1]) : 1;
+  const version = taken.includes(wanted) ? Math.max(0, ...taken) + 1 : wanted;
   docs.push({
     id: nextDocumentId(), kind: isDeck ? 'proposal' : isCommercials ? 'commercials' : 'supporting',
-    version: isDeck ? (version ? Number(version[1]) : 1) : null, fileName: file.name, path: file.path, url: null, notes: null, createdAt: today(),
+    version: isDeck ? version : null, fileName: file.name, path: file.path, url: null, notes: null, createdAt: today(),
   });
   p.documents = docs;
   commit(p);

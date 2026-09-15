@@ -242,6 +242,29 @@ let templatesStore: NoteTemplate[] = [
 ];
 let nextTemplateId = 100;
 let nextAttachmentId = 1;
+/** The preview part of a mock generation (slides, values, report). */
+function mockBuildDeck(r: any): any {
+          if (r.fromLibrary) {
+            const src = (i: number) => (i >= 11 && i <= 13 ? 'Labor Law - HR - Manpower Consultancy Services Proposal Template' : 'Accountancy & VAT Service Proposal Template');
+            const titles = ['Cover', 'Attn: Acme Holdings', 'AGENDA', 'Detailed Approach & Project Fees', 'ACCOUNTANCY SERVICES', 'Detailed Approach', 'Detailed Approach', 'Detailed Approach', 'ACCOUNTANCY FEES BREAKDOWN', 'Value Based', 'LABOR LAW & EMPLOYMENT', 'Detailed Approach', 'Value Based', 'Terms & Conditions, and Acceptance', 'Terms', 'Applicable Law', 'We believe that this proposal', 'About MENA BIG', '50+ Clients', 'Selected References', 'MENA - BIG'];
+            return {
+              slides: titles.map((t, i) => ({ index: i + 1, slideId: String(256 + i), title: t, included: true, reason: i >= 4 && i <= 9 ? 'For Accountancy & VAT' : i >= 10 && i <= 12 ? 'For Labor Law Consultancy' : 'Standard slide', source: src(i + 1) })),
+              values: { client_name: 'Acme Holdings', proposal_date_ordinal: '14th September 2026' },
+              report: { slidesBefore: 21, slidesAfter: 21, partsRemoved: 0, tokensFilled: 0, missingTokens: [], smart: { filled: ['Client name in 15 places', 'Agenda page numbers recounted', 'Date on 2 slides'], feesToCheck: ['Slide 10: 2,250 SAR — Acct – bookkeeping + E-Invoicing'], warnings: [] } },
+              folder: `${COMMERCIAL.proposalsRoot}/Acme Holdings`, folderExists: true, path: r.dryRun ? null : `${COMMERCIAL.proposalsRoot}/Acme Holdings/${r.fileName}`,
+              fileName: r.fileName, warnings: [], baseTemplate: 'Accountancy & VAT Service Proposal Template', servicesTitle: 'Accountancy & VAT and Labor Law Consultancy Services',
+            };
+          }
+          return {
+            slides: MOCK_INSPECTION.slides.map((sl: any) => ({ index: sl.index, slideId: sl.slideId, title: sl.title, included: sl.tags.services.length === 0 || sl.tags.services.includes('Payroll'), reason: sl.tags.services.length ? `Only for ${sl.tags.services.join(', ')}` : 'Always included' })),
+            values: { client_name: 'Acme Holdings', proposal_date_ordinal: '13th September 2026', services: 'Payroll and PRO', monthly_total: 'SAR 15,000', contact_name: '' },
+            report: { slidesBefore: 6, slidesAfter: 4, partsRemoved: 12, tokensFilled: 9, missingTokens: [], smart: { filled: ['Client name in 3 places', 'Date on 2 slides', ...(r.logoPath ? ['Client logo placed'] : []), 'Agenda page numbers recounted', '1 fee amount updated from the proposal\'s services'], feesToCheck: ['Slide 5: 9% — a percentage; set it by hand', 'Slide 5: 12.000 SAR — Recruitment fee'], warnings: r.logoPath ? [] : ['No client logo was chosen, so the "Logo" box was removed.'] } },
+            folder: `${COMMERCIAL.proposalsRoot}/Acme Holdings`, folderExists: true, path: r.dryRun ? null : `${COMMERCIAL.proposalsRoot}/Acme Holdings/${r.fileName}`,
+            fileName: r.fileName, warnings: ['No primary contact is set; contact fields will be blank.'],
+          };
+        }
+const generatedDecks: { proposalId: number; fileName: string; version: number }[] = [];
+
 const attachmentDataStore = new Map<number, string>();
 const appMetaStore = new Map<string, string>();
 let entityLinksStore: EntityLink[] = [];
@@ -316,24 +339,20 @@ export async function installDevMockIfNeeded(): Promise<void> {
           ] };
         case 'proposal_generate': {
           const r = (_payload as any).request;
-          if (r.fromLibrary) {
-            const src = (i: number) => (i >= 11 && i <= 13 ? 'Labor Law - HR - Manpower Consultancy Services Proposal Template' : 'Accountancy & VAT Service Proposal Template');
-            const titles = ['Cover', 'Attn: Acme Holdings', 'AGENDA', 'Detailed Approach & Project Fees', 'ACCOUNTANCY SERVICES', 'Detailed Approach', 'Detailed Approach', 'Detailed Approach', 'ACCOUNTANCY FEES BREAKDOWN', 'Value Based', 'LABOR LAW & EMPLOYMENT', 'Detailed Approach', 'Value Based', 'Terms & Conditions, and Acceptance', 'Terms', 'Applicable Law', 'We believe that this proposal', 'About MENA BIG', '50+ Clients', 'Selected References', 'MENA - BIG'];
-            return {
-              slides: titles.map((t, i) => ({ index: i + 1, slideId: String(256 + i), title: t, included: true, reason: i >= 4 && i <= 9 ? 'For Accountancy & VAT' : i >= 10 && i <= 12 ? 'For Labor Law Consultancy' : 'Standard slide', source: src(i + 1) })),
-              values: { client_name: 'Acme Holdings', proposal_date_ordinal: '14th September 2026' },
-              report: { slidesBefore: 21, slidesAfter: 21, partsRemoved: 0, tokensFilled: 0, missingTokens: [], smart: { filled: ['Client name in 15 places', 'Agenda page numbers recounted', 'Date on 2 slides'], feesToCheck: ['Slide 10: 2,250 SAR — Acct – bookkeeping + E-Invoicing'], warnings: [] } },
-              folder: `${COMMERCIAL.proposalsRoot}/Acme Holdings`, folderExists: true, path: r.dryRun ? null : `${COMMERCIAL.proposalsRoot}/Acme Holdings/${r.fileName}`,
-              fileName: r.fileName, warnings: [], baseTemplate: 'Accountancy & VAT Service Proposal Template', servicesTitle: 'Accountancy & VAT and Labor Law Consultancy Services',
-            };
-          }
-          return {
-            slides: MOCK_INSPECTION.slides.map((sl: any) => ({ index: sl.index, slideId: sl.slideId, title: sl.title, included: sl.tags.services.length === 0 || sl.tags.services.includes('Payroll'), reason: sl.tags.services.length ? `Only for ${sl.tags.services.join(', ')}` : 'Always included' })),
-            values: { client_name: 'Acme Holdings', proposal_date_ordinal: '13th September 2026', services: 'Payroll and PRO', monthly_total: 'SAR 15,000', contact_name: '' },
-            report: { slidesBefore: 6, slidesAfter: 4, partsRemoved: 12, tokensFilled: 9, missingTokens: [], smart: { filled: ['Client name in 3 places', 'Date on 2 slides', ...(r.logoPath ? ['Client logo placed'] : []), 'Agenda page numbers recounted', '1 fee amount updated from the proposal\'s services'], feesToCheck: ['Slide 5: 9% — a percentage; set it by hand', 'Slide 5: 12.000 SAR — Recruitment fee'], warnings: r.logoPath ? [] : ['No client logo was chosen, so the "Logo" box was removed.'] } },
-            folder: `${COMMERCIAL.proposalsRoot}/Acme Holdings`, folderExists: true, path: r.dryRun ? null : `${COMMERCIAL.proposalsRoot}/Acme Holdings/${r.fileName}`,
-            fileName: r.fileName, warnings: ['No primary contact is set; contact fields will be blank.'],
-          };
+          const built = mockBuildDeck(r);
+          if (r.dryRun) return { ...built, path: null, errors: [], document: null };
+          // Like the real generator: an existing file name or a failure records nothing.
+          const taken = generatedDecks.some((d) => d.fileName === r.fileName) || /acme holdings_payroll & pro proposal_08\.01\.2026(_v2)?\.pptx$/i.test(r.fileName);
+          if (taken) throw `${r.fileName} already exists in the client folder. Choose another name.`;
+          if (/fail/i.test(r.fileName)) throw 'Could not save the proposal: the client folder is read-only.';
+          const own = generatedDecks.filter((d) => d.proposalId === r.proposalId).map((d) => d.version);
+          const recorded = Math.max(0, ...own, ...((SAMPLE.proposals.find((x: any) => x.id === r.proposalId)?.documents || []) as any[]).filter((d) => d.kind === 'proposal').map((d) => d.version || 0));
+          const named = Number((r.fileName.match(/_V(\d+)\.pptx$/i) || [])[1] || 0);
+          const version = Math.max(recorded + 1, named);
+          const id = 900 + generatedDecks.length + 1;
+          const document = { id, kind: 'proposal', version, fileName: r.fileName, path: built.path, url: null, notes: `Generated from ${built.baseTemplate || 'Standard deck'}`, createdAt: new Date().toISOString().slice(0, 10) };
+          generatedDecks.push({ proposalId: r.proposalId, fileName: r.fileName, version });
+          return { ...built, errors: [], document };
         }
         case 'get_commercial_setup':
           return COMMERCIAL;

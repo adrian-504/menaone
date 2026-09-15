@@ -723,6 +723,10 @@ export interface GenerateResult {
   path: string | null;
   fileName: string;
   warnings: string[];
+  /** Problems that stop the deck from being saved. */
+  errors: string[];
+  /** The version recorded on the proposal after a successful save. */
+  document: ProposalDocument | null;
   baseTemplate?: string | null;
   servicesTitle?: string | null;
 }

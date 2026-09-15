@@ -2181,3 +2181,17 @@ dd:has(> .md-rel-link:not(:empty)) > select{flex:1;min-width:0}
 
 /* Keyboard focus is always visible (mouse clicks don't show it). Low specificity so components can refine it. */
 :where(button,a,[role=button],[tabindex]:not([tabindex="-1"]),summary):focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* Proposal documents: version history and generation errors (Phase 4). */
+.pr-deck{align-items:flex-start}
+.pr-deck .rec-row-title{white-space:normal;overflow-wrap:anywhere;line-height:1.35}
+.pr-deck-meta{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:4px}
+.pr-deck-meta .rec-row-sub{white-space:normal}
+.pr-deck .rec-row-actions{align-self:center}
+.pr-deck-version{flex:none;min-width:34px;text-align:center;font-size:var(--type-secondary);font-weight:700;color:var(--accent);background:var(--accent-bg);border-radius:7px;padding:3px 6px}
+.pr-deck.just-added{animation:deck-added 1.6s var(--ease-out)}
+@keyframes deck-added{0%{background:var(--accent-bg)}100%{background:transparent}}
+@media (prefers-reduced-motion:reduce){.pr-deck.just-added{animation:none}}
+.gen-errors{padding:10px 12px;border-radius:9px;background:var(--red-bg);color:var(--red);font-size:var(--type-secondary);margin-bottom:10px;border:1px solid var(--red-border)}
+.gen-errors-title{display:flex;gap:6px;align-items:center;font-weight:600}
+.gen-errors ul{margin:6px 0 0 18px;padding:0;line-height:1.6}

@@ -289,6 +289,32 @@ export function suggestedFileName(client: string, serviceLabel: string, isoDate:
   return next <= 1 ? `${base}.pptx` : `${base}_V${next}.pptx`;
 }
 
+/** The proposal's generated decks, newest version first. */
+export function proposalDecks(p: Pick<Proposal, 'documents'>): NonNullable<Proposal['documents']> {
+  return (p.documents || []).filter((d) => d.kind === 'proposal').sort((a, b) => (b.version ?? 0) - (a.version ?? 0) || b.id - a.id);
+}
+
+/** Puts a deck the generator recorded onto the proposal as the app holds it
+ * (replacing a copy with the same id), and remembers the client folder. */
+export function applyGeneratedDocument(p: Proposal, doc: NonNullable<Proposal['documents']>[number], folder: string | null): void {
+  p.documents = [...(p.documents || []).filter((d) => d.id !== doc.id), doc];
+  if (folder && !p.folderPath) p.folderPath = folder;
+}
+
+/** The file name for the proposal's next deck: past the files in the client
+ * folder and past every version already recorded on the proposal (a recorded
+ * V2 whose file was moved still counts), so it matches the version the
+ * generator records. */
+export function nextDeckFileName(p: Pick<Proposal, 'client' | 'documents'>, serviceLabel: string, isoDate: string, folderFiles: string[]): string {
+  const decks = proposalDecks(p);
+  const name = suggestedFileName(p.client, serviceLabel, isoDate, [...folderFiles, ...decks.map((d) => d.fileName)]);
+  const recorded = Math.max(0, ...decks.map((d) => d.version ?? 0));
+  const m = name.match(/_V(\d+)\.pptx$/i);
+  const version = m ? Number(m[1]) : 1;
+  if (version > recorded) return name;
+  return name.replace(/(_V\d+)?\.pptx$/i, `_V${recorded + 1}.pptx`);
+}
+
 // ── Dates ──────────────────────────────────────────────────────────────────
 
 function localToday(): string {

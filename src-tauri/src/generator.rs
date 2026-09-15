@@ -8,12 +8,13 @@
 
 use crate::commands::read_all_data;
 use crate::db::DbState;
-use crate::models::{CommercialLine, Proposal};
+use crate::models::{CommercialLine, Proposal, ProposalDocument};
 use crate::pptx::{self, BuildReport, Package, TemplateInspection};
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeSet, HashMap};
 use std::path::{Path, PathBuf};
+use std::sync::Mutex;
 use tauri::State;
 
 type CmdResult<T> = Result<T, String>;
@@ -549,6 +550,10 @@ pub struct GenerateResult {
     pub path: Option<String>,
     pub file_name: String,
     pub warnings: Vec<String>,
+    /// Problems that stop the deck from being saved (it would be incomplete).
+    pub errors: Vec<String>,
+    /// The document recorded on the proposal after a successful save.
+    pub document: Option<ProposalDocument>,
     /// Library builds: the template the deck starts from and the services line on its cover.
     pub base_template: Option<String>,
     pub services_title: Option<String>,
@@ -595,8 +600,30 @@ fn automatic_exclusion(text: &str, lines: &[CommercialLine], categories: &[Optio
 
 #[tauri::command]
 pub fn proposal_generate(state: State<DbState>, request: GenerateRequest) -> CmdResult<GenerateResult> {
+    generate_proposal(&state.0, &request, OutputPolicy::OneDriveOnly)
+}
+
+/// Where a generated deck may be written. The app only writes inside OneDrive;
+/// tests write to a temporary folder.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OutputPolicy {
+    OneDriveOnly,
+    AnyFolder,
+}
+
+impl OutputPolicy {
+    fn allows(self, path: &Path) -> bool {
+        self == OutputPolicy::AnyFolder || crate::localfiles::is_within_onedrive(path)
+    }
+}
+
+/// Builds the proposal's deck (a preview when `dry_run`), and on a real run
+/// saves it as a new file and records it as the proposal's next document
+/// version. Nothing is written or recorded when the deck would be incomplete
+/// (`errors`), and a failed save leaves earlier versions untouched.
+pub fn generate_proposal(db: &Mutex<Connection>, request: &GenerateRequest, policy: OutputPolicy) -> CmdResult<GenerateResult> {
     let (template, proposal, deck, categories, root, library, line_cards, standards, master) = {
-        let conn = state.0.lock().map_err(err)?;
+        let conn = db.lock().map_err(err)?;
         let master = if request.from_master {
             let configured: Option<String> = conn.query_row("SELECT value FROM app_meta WHERE key = 'proposal_master_path'", [], |r| r.get(0)).optional().map_err(err)?;
             Some(crate::master::locate(library_dir(&conn).map_err(err)?.as_deref(), configured).ok_or("The 2026 proposal master (MENA BIG Proposal Master 2026.pptx) wasn't found in Proposals Templates.")?)
@@ -771,9 +798,12 @@ pub fn proposal_generate(state: State<DbState>, request: GenerateRequest) -> Cmd
     if proposal.client.chars().count() > 40 {
         warnings.push("The client name is long and may not fit on the cover.".into());
     }
+    // Fields the template uses that are blank on this proposal come out empty: worth a look, not a blocker.
     for token in inspection.tokens.iter().filter(|_| master.is_none()) {
-        if !token.starts_with("line.") && !TOKENS.iter().any(|t| t.token == token) {
-            warnings.push(format!("The template uses {{{{{token}}}}}, which MENA One doesn't know."));
+        if let Some(info) = TOKENS.iter().find(|t| t.token == token && !t.token.starts_with("line.")) {
+            if token != "client_name" && deck.values.get(token.as_str()).map(|v| v.trim().is_empty()).unwrap_or(false) && !(token.starts_with("contact_") && warnings.iter().any(|w| w.starts_with("No primary contact"))) {
+                warnings.push(format!("{} is blank on this proposal, so it will be empty in the deck.", info.label));
+            }
         }
     }
 
@@ -782,7 +812,7 @@ pub fn proposal_generate(state: State<DbState>, request: GenerateRequest) -> Cmd
         .clone()
         .map(PathBuf::from)
         // A saved folder is only written to when it is inside OneDrive (it comes from the proposal record).
-        .filter(|p| p.is_dir() && crate::localfiles::is_within_onedrive(p))
+        .filter(|p| p.is_dir() && policy.allows(p))
         .or_else(|| root.as_ref().and_then(|r| crate::commercial::find_client_folder(r, &proposal.client)));
     let planned_folder = folder.clone().or_else(|| root.as_ref().map(|r| r.join(crate::commercial::safe_folder_name(&proposal.client))));
     let file_name = safe_file_name(&request.file_name);
@@ -854,9 +884,13 @@ pub fn proposal_generate(state: State<DbState>, request: GenerateRequest) -> Cmd
     } else {
         pptx::build_with_smart_fields(&mut pkg, &pptx::BuildInput { keep: &keep, values: &deck.values, lines: &deck.lines, replacements: &replacements }, smart)?
     };
+    result.errors = generation_errors(&proposal, &report);
     if request.dry_run {
         result.report = Some(report);
         return Ok(result);
+    }
+    if !result.errors.is_empty() {
+        return Err(format!("Cannot generate the proposal. Missing:\n- {}", result.errors.join("\n- ")));
     }
 
     let root = root.ok_or("No Proposals folder was found in OneDrive. Choose one in Settings first.")?;
@@ -864,7 +898,7 @@ pub fn proposal_generate(state: State<DbState>, request: GenerateRequest) -> Cmd
         Some(f) => f,
         None => {
             let name = crate::commercial::safe_folder_name(&proposal.client);
-            if name.is_empty() || !crate::localfiles::is_within_onedrive(&root) {
+            if name.is_empty() || !policy.allows(&root) {
                 return Err("The client folder couldn't be created.".into());
             }
             let target = root.join(name);
@@ -872,18 +906,107 @@ pub fn proposal_generate(state: State<DbState>, request: GenerateRequest) -> Cmd
             target
         }
     };
+    // Decks are only ever written inside OneDrive, whichever way the client folder was found.
+    if !policy.allows(&folder) {
+        return Err(format!("The client folder {} is outside OneDrive, so the proposal wasn't saved.", folder.to_string_lossy()));
+    }
     let out = folder.join(&file_name);
     if out.exists() {
         return Err(format!("{file_name} already exists in the client folder. Choose another name."));
     }
     let tmp = folder.join(format!(".{file_name}.partial"));
-    pkg.write(&tmp)?;
-    std::fs::rename(&tmp, &out).map_err(|e| format!("Could not save the proposal: {e}"))?;
-    result.folder = Some(folder.to_string_lossy().to_string());
+    if let Err(e) = pkg.write(&tmp) {
+        let _ = std::fs::remove_file(&tmp);
+        return Err(e);
+    }
+    if let Err(e) = std::fs::rename(&tmp, &out) {
+        let _ = std::fs::remove_file(&tmp);
+        return Err(format!("Could not save the proposal: {e}"));
+    }
+    let notes = match (&result.base_template, &template) {
+        (Some(base), _) => format!("Generated from {base}"),
+        (None, Some(t)) => format!("Generated from {}", t.name),
+        _ => "Generated".to_string(),
+    };
+    let folder_text = folder.to_string_lossy().to_string();
+    let path_text = out.to_string_lossy().to_string();
+    let recorded = db.lock().map_err(err).and_then(|mut conn| {
+        record_generated_document(&mut conn, proposal.id, &file_name, &path_text, &notes, &request.date, &folder_text).map_err(err)
+    });
+    let document = match recorded {
+        Ok(d) => d,
+        Err(e) => {
+            // A deck nobody can find from the proposal is a failed generation: don't leave it behind.
+            let _ = std::fs::remove_file(&out);
+            return Err(format!("The proposal couldn't be recorded, so the file was not kept: {e}"));
+        }
+    };
+    result.folder = Some(folder_text);
     result.folder_exists = true;
-    result.path = Some(out.to_string_lossy().to_string());
+    result.path = Some(path_text);
+    result.document = Some(document);
     result.report = Some(report);
     Ok(result)
+}
+
+/// What stops a deck from being saved: no client to address it to, or fields
+/// the template needs that MENA One can't fill (they would stay in the deck as
+/// `{{placeholders}}`). Blank optional fields are warnings, not errors.
+pub fn generation_errors(proposal: &Proposal, report: &BuildReport) -> Vec<String> {
+    let mut errors = Vec::new();
+    if proposal.client.trim().is_empty() {
+        errors.push("Client name (the proposal has no client)".to_string());
+    }
+    for token in &report.missing_tokens {
+        let label = TOKENS.iter().find(|t| t.token == token).map(|t| t.label.to_string()).unwrap_or_else(|| match token.split('.').next() {
+            Some("fee") => "A fee amount (set the service price on the proposal)".to_string(),
+            Some("row") => "A fee table row (set the service rates on the proposal)".to_string(),
+            _ => "A template field MENA One can't fill".to_string(),
+        });
+        errors.push(format!("{label} — {{{{{token}}}}}"));
+    }
+    errors
+}
+
+/// The next version of a proposal's deck: one after the highest recorded, or
+/// the `_V<n>` in the file name when that is higher.
+pub fn next_document_version(conn: &Connection, proposal_id: i64, file_name: &str) -> rusqlite::Result<i64> {
+    let recorded: i64 = conn.query_row(
+        "SELECT COALESCE(MAX(version), 0) FROM proposal_documents WHERE proposal_id = ?1 AND kind = 'proposal'",
+        params![proposal_id],
+        |r| r.get(0),
+    )?;
+    Ok((recorded + 1).max(version_in_name(file_name).unwrap_or(0)))
+}
+
+/// "Acme_Payroll Proposal_13.09.2026_V3.pptx" → 3.
+pub fn version_in_name(file_name: &str) -> Option<i64> {
+    let lower = file_name.to_lowercase();
+    let stem = lower.strip_suffix(".pptx").unwrap_or(&lower);
+    let at = stem.rfind("_v")?;
+    let digits = &stem[at + 2..];
+    (!digits.is_empty() && digits.chars().all(|c| c.is_ascii_digit())).then(|| digits.parse().ok()).flatten()
+}
+
+/// Records a saved deck as the proposal's next version, in one transaction:
+/// earlier versions are never touched. Also remembers the client folder when
+/// the proposal has none yet.
+pub fn record_generated_document(conn: &mut Connection, proposal_id: i64, file_name: &str, path: &str, notes: &str, date: &str, folder: &str) -> rusqlite::Result<ProposalDocument> {
+    let tx = conn.transaction()?;
+    let exists: bool = tx.query_row("SELECT EXISTS(SELECT 1 FROM proposals WHERE id = ?1)", params![proposal_id], |r| r.get(0))?;
+    if !exists {
+        return Err(rusqlite::Error::QueryReturnedNoRows);
+    }
+    let version = next_document_version(&tx, proposal_id, file_name)?;
+    let id: i64 = tx.query_row("SELECT COALESCE(MAX(id), 0) + 1 FROM proposal_documents", [], |r| r.get(0))?;
+    let created_at = date.get(0..10).unwrap_or(date).to_string();
+    tx.execute(
+        "INSERT INTO proposal_documents (id, proposal_id, kind, version, file_name, path, url, notes, created_at) VALUES (?1, ?2, 'proposal', ?3, ?4, ?5, NULL, ?6, ?7)",
+        params![id, proposal_id, version, file_name, path, notes, created_at],
+    )?;
+    tx.execute("UPDATE proposals SET folder_path = ?2 WHERE id = ?1 AND (folder_path IS NULL OR folder_path = '')", params![proposal_id, folder])?;
+    tx.commit()?;
+    Ok(ProposalDocument { id, kind: "proposal".into(), version: Some(version), file_name: file_name.to_string(), path: Some(path.to_string()), url: None, notes: Some(notes.to_string()), created_at: Some(created_at) })
 }
 
 #[cfg(test)]

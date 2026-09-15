@@ -1788,8 +1788,12 @@
         <div class="rec-section-hd"><h2>Commercials</h2><span class="rec-count" id="prd-lines-count"></span></div>
         <div id="prd-lines"></div>
       </section>
+      <section class="rec-section card" id="prd-decks-sec">
+        <div class="rec-section-hd"><h2>Proposal documents</h2><span class="rec-count" id="prd-decks-count"></span><div class="rec-section-actions"><button class="btn-sm" onclick="generateCurrentProposal()"><span data-icon="bolt" data-icon-size="12"></span> Generate proposal</button></div></div>
+        <div class="rec-list" id="prd-decks"></div>
+      </section>
       <section class="rec-section card" id="prd-documents-sec">
-        <div class="rec-section-hd"><h2>Documents</h2><span class="rec-count" id="prd-docs-count"></span><div class="rec-section-actions" id="prd-docs-actions"></div></div>
+        <div class="rec-section-hd"><h2>Supporting documents</h2><span class="rec-count" id="prd-docs-count"></span><div class="rec-section-actions" id="prd-docs-actions"></div></div>
         <div id="prd-folder"></div>
         <div class="rec-list" id="prd-docs"></div>
       </section>
@@ -2027,8 +2031,8 @@
   <div class="modal modal-lg">
     <div class="modal-hd"><div class="modal-title">Generate proposal</div><button class="modal-close" onclick="closeGenerateProposal()">×</button></div>
     <div class="fg">
-      <div class="fgrp"><label class="flbl" for="gen-template">Design</label><select class="finp" id="gen-template" onchange="refreshGeneratePreview(true)"></select></div>
-      <div class="fgrp"><label class="flbl" for="gen-file-name">File name</label><input class="finp" id="gen-file-name"></div>
+      <div class="fgrp"><label class="flbl" for="gen-template">Template</label><select class="finp" id="gen-template" onchange="refreshGeneratePreview(true)"></select></div>
+      <div class="fgrp"><label class="flbl" for="gen-file-name">File name</label><input class="finp" id="gen-file-name" oninput="updateGenerateVersionNote()"></div>
       <div class="fgrp fgrp-full"><label class="flbl" for="gen-logo">Client logo</label>
         <div class="btn-row"><select class="finp" id="gen-logo" onchange="refreshGeneratePreview()"></select><button class="btn-secondary" type="button" onclick="chooseGenerateLogo()">Choose…</button></div>
       </div>

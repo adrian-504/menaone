@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { S } from './state';
-import {
+import { nextDeckFileName, proposalDecks,
   lineTotals, syncProposalTotals, isAgreementActive, activeMrr, toReporting, fmtMoneyByCurrency, missingRates,
   suggestedFileName, latestVersion, contractEndDate, isClosed, isInPreparation, PS,
 } from './commercial';
@@ -59,6 +59,21 @@ describe('commercial rules', () => {
     expect(latestVersion(existing)).toBe(2);
     expect(suggestedFileName('Adatum', 'Recruitment Services', '2026-09-13', existing)).toBe('Adatum_Recruitment Services Proposal_13.09.2026_V3.pptx');
     expect(suggestedFileName('Adatum', 'Payroll', '2026-09-13', existing)).toBe('Adatum_Payroll Proposal_13.09.2026.pptx');
+  });
+
+  it('names the next deck past recorded versions too', () => {
+    const doc = (id: number, version: number, fileName: string) => ({ id, kind: 'proposal' as const, version, fileName, path: null, url: null, notes: null, createdAt: null });
+    const p = { client: 'Adatum', documents: [] as ReturnType<typeof doc>[] };
+    expect(nextDeckFileName(p, 'Recruitment', '2026-09-15', [])).toBe('Adatum_Recruitment Proposal_15.09.2026.pptx');
+    p.documents = [doc(1, 1, 'Adatum_Recruitment Proposal_15.09.2026.pptx')];
+    expect(nextDeckFileName(p, 'Recruitment', '2026-09-15', [])).toBe('Adatum_Recruitment Proposal_15.09.2026_V2.pptx');
+    // V2 recorded but its file moved out of the folder: still V3 next.
+    p.documents.push(doc(2, 2, 'Adatum_Recruitment Proposal_15.09.2026_V2.pptx'));
+    expect(nextDeckFileName(p, 'Recruitment', '2026-09-16', ['Adatum_Recruitment Proposal_15.09.2026.pptx'])).toBe('Adatum_Recruitment Proposal_16.09.2026_V3.pptx');
+    // A recorded version whose name follows another pattern still moves the number on.
+    p.documents = [doc(1, 4, 'Renamed deck.pptx')];
+    expect(nextDeckFileName(p, 'Recruitment', '2026-09-15', [])).toBe('Adatum_Recruitment Proposal_15.09.2026_V5.pptx');
+    expect(proposalDecks({ documents: [doc(1, 1, 'a'), { ...doc(2, 3, 'b') }, { ...doc(3, 2, 'c'), kind: 'supporting' as never }] }).map((d) => d.version)).toEqual([3, 1]);
   });
 
   it('works out contract end dates and status groups', () => {

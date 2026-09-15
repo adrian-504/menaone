@@ -405,6 +405,14 @@ Conventions: `docs/ux-conventions.md`.
 - **Status and lists**: `lib/statusTone.ts` gives every status one colour meaning for badges; Meetings list has a filter/search toolbar; empty opportunity-board stages collapse; muted text colours meet contrast targets.
 - **Fixes**: `daysSince`/`daysUntil` count calendar days (today was -1 before or after midday); one lifecycle badge on opportunities; Company 360 tiles show meetings and open tasks.
 
+## Proposal documents (Phase 4)
+
+Details: `docs/proposal-documents.md`.
+
+- `generator::generate_proposal` saves the deck, then records it in `proposal_documents` as the proposal's next version in one transaction (file removed if recording fails); an existing file name is refused; decks are written only inside OneDrive.
+- Errors (no client, template fields MENA One can't fill) block generation; blank optional fields are warnings.
+- The proposal page has a "Proposal documents" version history (Latest, Generated / Added from folder / File missing, Open, Show in Finder) above "Supporting documents"; the dialog shows the version it will save.
+
 ## Tests
 
 - `npm test`: Vitest (`src/**/*.test.ts`), covering the company picker (scrolling, keyboard), day counts, change tracking, company matching, agreement references, the task quick-add parser, drag-and-drop reordering, and commercial rules (line totals, MRR, currencies, file names).
