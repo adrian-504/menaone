@@ -64,13 +64,17 @@ fn renamed_company_keeps_every_link_and_old_names_find_it() {
     // Someone deliberately creating a new company with the old name gets a new company.
     let new_alpha = create_company_named(&conn, "Alpha Test Co").unwrap().unwrap();
     assert_ne!(new_alpha, alpha);
-    // Records still carrying the old name keep their link (the id wins); that their
-    // text now names the new company is reported for review, not re-pointed.
+    // Records still carrying the old name keep their link (the id wins), and the
+    // opportunity saved from a copy that still shows the old name stays too. The
+    // name now meaning two companies is reported as an ambiguity, not guessed.
     upsert_proposal_rows(&mut conn, &[Proposal { remarks: Some("edited".into()), ..proposal(1, "Alpha Test Co", "Drafting") }]).unwrap();
     assert_eq!(company_id(&conn, "proposals", 1), Some(alpha));
-    let report = integrity_report(&conn).unwrap();
-    assert_eq!(report.count("proposals: company text doesn't match its linked company"), 1);
-    assert_eq!(report.count("contacts: company text doesn't match its linked company"), 1);
+    let stale_again = Opportunity { company_name: Some("Alpha Test Co".into()), description: Some("edited".into()), ..opp.clone() };
+    assert_eq!(save_opportunity_row(&mut conn, &stale_again).unwrap().company_id, Some(alpha));
+    // New text with that name means the company that has it now.
+    upsert_proposal_rows(&mut conn, &[proposal(2, "Alpha Test Co", "Drafting")]).unwrap();
+    assert_eq!(company_id(&conn, "proposals", 2), Some(new_alpha));
+    assert_eq!(integrity_report(&conn).unwrap().count("former company names that are also a current name"), 1);
     drop(conn);
     let _ = std::fs::remove_file(path);
 }
@@ -398,12 +402,16 @@ fn legal_names_match_only_when_unique_and_look_alikes_are_flagged_not_merged() {
     upsert_proposal_rows(&mut conn, &[proposal(1, "ACME TRADING LLC", "Drafting")]).unwrap();
     assert_eq!(company_id(&conn, "proposals", 1), Some(acme), "the unique legal name finds the company");
 
-    // Two companies with the same legal name: ambiguous, so neither is guessed.
+    // Two companies with the same legal name: ambiguous, so neither is guessed —
+    // the new record stays unlinked and the name goes to the review queue.
     let other = create_company_named(&conn, "Acme Riyadh Branch").unwrap().unwrap();
     conn.execute("UPDATE companies SET legal_name = 'Acme Trading LLC' WHERE id = ?1", params![other]).unwrap();
     upsert_proposal_rows(&mut conn, &[proposal(2, "Acme Trading LLC", "Drafting")]).unwrap();
-    let p2 = company_id(&conn, "proposals", 2).unwrap();
-    assert!(p2 != acme && p2 != other);
+    assert_eq!(company_id(&conn, "proposals", 2), None);
+    assert_eq!(one::<i64>(&conn, "SELECT COUNT(*) FROM company_review_queue WHERE status = 'pending'"), 1);
+    // …while the proposal already linked keeps its company.
+    upsert_proposal_rows(&mut conn, &[Proposal { remarks: Some("edited".into()), ..proposal(1, "ACME TRADING LLC", "Drafting") }]).unwrap();
+    assert_eq!(company_id(&conn, "proposals", 1), Some(acme));
 
     // "Globex LLC" and "GLOBEX" are different companies, flagged as possible duplicates.
     upsert_proposal_rows(&mut conn, &[proposal(3, "Globex LLC", "Drafting"), proposal(4, "GLOBEX", "Drafting")]).unwrap();
@@ -510,4 +518,140 @@ fn a_damaged_database_is_restored_from_its_backup() {
     assert!(integrity_report(&restored).unwrap().is_clean());
     drop(restored);
     let _ = std::fs::remove_dir_all(&dir);
+}
+
+// ── Final closure: the company invariant on every entity ─────────────────────
+
+/// Links a record of every kind to `company` by id while its text names another
+/// existing company, saves an unrelated field on each, and returns the ids.
+#[test]
+fn saving_unrelated_fields_never_moves_any_record_to_another_company() {
+    let (path, mut conn) = fresh_db("invariant");
+    let (x, opp, project, meeting) = build_work_graph(&mut conn, "Kappa Test Co", 1);
+    let y = create_company_named(&conn, "Lambda Test Co").unwrap().unwrap();
+    // Every record's company text now names Y, while its company_id stays X.
+    for (table, col) in [("contacts", "client_name"), ("proposals", "client"), ("projects", "company_name"), ("meetings", "company_name"), ("notes", "client_name"), ("todos", "client")] {
+        conn.execute(&format!("UPDATE {table} SET {col} = 'Lambda Test Co' WHERE company_id = ?1"), params![x]).unwrap();
+    }
+    let loaded = read_all_data(&conn).unwrap();
+    let p = loaded.proposals.iter().find(|p| p.id == 1).unwrap().clone();
+    let c = loaded.contacts.iter().find(|c| c.id == 1).unwrap().clone();
+    let t = loaded.todos.iter().find(|t| t.id == 1).unwrap().clone();
+    let n = loaded.notes.iter().find(|n| n.id == 1).unwrap().clone();
+
+    upsert_proposal_rows(&mut conn, &[Proposal { status: "Sent to Client".into(), remarks: Some("Chased".into()), monthly_fee: Some(9000.0), ..p }]).unwrap();
+    upsert_contact_rows(&mut conn, &[Contact { role: Some("CFO".into()), phone: Some("+000".into()), ..c }]).unwrap();
+    upsert_todo_rows(&mut conn, &[Todo { title: "Send the plan today".into(), due_date: Some("2026-09-20".into()), status: Some("Done".into()), ..t }]).unwrap();
+    upsert_note_rows(&mut conn, &[Note { title: Some("Kickoff notes v2".into()), content: Some("Decisions".into()), ..n }]).unwrap();
+    let proj = Project {
+        id: project, name: "Rollout (phase 2)".into(), r#type: "client".into(), status: "In Progress".into(), priority: "High".into(),
+        company_name: Some("Lambda Test Co".into()), description: Some("changed".into()), ..Default::default()
+    };
+    save_project_row(&mut conn, &proj).unwrap();
+    let mt = Meeting { id: meeting, title: "Kickoff (moved)".into(), company_name: Some("Lambda Test Co".into()), agenda: Some("1. Scope".into()), project_id: Some(project), ..Default::default() };
+    save_meeting_row(&mut conn, &mt).unwrap();
+    let o = Opportunity { id: opp, name: "Workforce deal".into(), company_name: Some("Kappa Test Co".into()), stage: "Negotiation".into(), status: "Open".into(), estimated_value: Some(50000.0), ..Default::default() };
+    save_opportunity_row(&mut conn, &o).unwrap();
+
+    for (table, id) in [("proposals", 1), ("contacts", 1), ("todos", 1), ("notes", 1), ("projects", project), ("meetings", meeting), ("opportunities", opp)] {
+        assert_eq!(company_id(&conn, table, id), Some(x), "{table}: an unrelated edit must not change the company");
+    }
+    assert_eq!(one::<i64>(&conn, &format!("SELECT COUNT(*) FROM proposals WHERE company_id = {y}")), 0);
+    // The disagreement between text and link is reported, not resolved.
+    assert!(integrity_report(&conn).unwrap().count("proposals: company text doesn't match its linked company") == 1);
+    drop(conn);
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
+fn renaming_a_company_keeps_every_link_and_shows_the_new_name() {
+    let (path, mut conn) = fresh_db("rename-display");
+    let (x, opp, _project, _meeting) = build_work_graph(&mut conn, "Acme", 1);
+    rename_company_row(&conn, x, "Acme International").unwrap();
+    assert_eq!(company_id(&conn, "opportunities", opp), Some(x));
+    let shown: String = conn.query_row("SELECT c.name FROM opportunities o JOIN companies c ON c.id = o.company_id WHERE o.id = ?1", params![opp], |r| r.get(0)).unwrap();
+    assert_eq!(shown, "Acme International");
+    // The old name is a former name: it finds the same company and creates nothing.
+    let companies: i64 = one(&conn, "SELECT COUNT(*) FROM companies");
+    assert_eq!(menabig_tracker_lib::opportunities::match_company_name(&conn, "Acme").unwrap(), menabig_tracker_lib::opportunities::CompanyMatch::One(x));
+    upsert_contact_rows(&mut conn, &[Contact { id: 77, name: Some("New Person".into()), client_name: Some("Acme".into()), ..Default::default() }]).unwrap();
+    assert_eq!(company_id(&conn, "contacts", 77), Some(x));
+    assert_eq!(one::<i64>(&conn, "SELECT COUNT(*) FROM companies"), companies);
+    drop(conn);
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
+fn ambiguous_names_keep_the_existing_link_or_go_to_review() {
+    let (path, mut conn) = fresh_db("ambiguous");
+    let a = create_company_named(&conn, "Mu Trading").unwrap().unwrap();
+    let b = create_company_named(&conn, "Mu Contracting").unwrap().unwrap();
+    conn.execute("UPDATE companies SET legal_name = 'Mu Group LLC' WHERE id IN (?1, ?2)", params![a, b]).unwrap();
+    let companies: i64 = one(&conn, "SELECT COUNT(*) FROM companies");
+
+    // A linked record whose company text is edited to the ambiguous name keeps its link.
+    upsert_proposal_rows(&mut conn, &[proposal(1, "Mu Trading", "Drafting")]).unwrap();
+    upsert_proposal_rows(&mut conn, &[proposal(1, "Mu Group LLC", "Drafting")]).unwrap();
+    assert_eq!(company_id(&conn, "proposals", 1), Some(a));
+
+    // An unlinked record with the ambiguous name stays unlinked and goes to the review queue.
+    upsert_contact_rows(&mut conn, &[Contact { id: 9, name: Some("Someone".into()), client_name: Some("Mu Group LLC".into()), ..Default::default() }]).unwrap();
+    assert_eq!(company_id(&conn, "contacts", 9), None);
+    assert_eq!(one::<i64>(&conn, "SELECT COUNT(*) FROM company_review_queue WHERE raw_name = 'Mu Group LLC' AND status = 'pending'"), 1);
+    assert_eq!(one::<i64>(&conn, "SELECT COUNT(*) FROM companies"), companies, "no company invented for an ambiguous name");
+    // A second record with the same name doesn't add a second review entry.
+    upsert_todo_rows(&mut conn, &[Todo { id: 3, title: "Call".into(), client: Some("Mu Group LLC".into()), ..Default::default() }]).unwrap();
+    assert_eq!(one::<i64>(&conn, "SELECT COUNT(*) FROM company_review_queue WHERE raw_name = 'Mu Group LLC'"), 1);
+    drop(conn);
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
+fn choosing_another_company_does_move_the_record() {
+    let (path, mut conn) = fresh_db("reassign");
+    let (x, opp, project, meeting) = build_work_graph(&mut conn, "Nu Test Co", 1);
+    let y = create_company_named(&conn, "Xi Test Co").unwrap().unwrap();
+    let o: Opportunity = Opportunity { id: opp, name: "Workforce deal".into(), company_id: Some(x), company_name: Some("Xi Test Co".into()), stage: "Proposal".into(), status: "Open".into(), ..Default::default() };
+    assert_eq!(save_opportunity_row(&mut conn, &o).unwrap().company_id, Some(y));
+    let loaded = read_all_data(&conn).unwrap();
+    let p = loaded.proposals.iter().find(|p| p.id == 1).unwrap().clone();
+    upsert_proposal_rows(&mut conn, &[Proposal { client: "Xi Test Co".into(), ..p }]).unwrap();
+    assert_eq!(company_id(&conn, "proposals", 1), Some(y));
+    save_project_row(&mut conn, &Project { id: project, name: "Rollout".into(), r#type: "client".into(), status: "Active".into(), priority: "Medium".into(), company_name: Some("Xi Test Co".into()), ..Default::default() }).unwrap();
+    assert_eq!(company_id(&conn, "projects", project), Some(y));
+    // Clearing the company removes the link.
+    save_meeting_row(&mut conn, &Meeting { id: meeting, title: "Kickoff".into(), company_name: None, ..Default::default() }).unwrap();
+    assert_eq!(company_id(&conn, "meetings", meeting), None);
+    // A brand-new company typed in still works (legacy free-text behaviour).
+    upsert_contact_rows(&mut conn, &[Contact { id: 50, name: Some("New".into()), client_name: Some("Omicron Test Co".into()), ..Default::default() }]).unwrap();
+    assert!(company_id(&conn, "contacts", 50).is_some());
+    drop(conn);
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
+fn company_notes_follow_the_company_id_through_renames_and_merges() {
+    let (path, mut conn) = fresh_db("company-notes");
+    let pi = create_company_named(&conn, "Pi Test Co").unwrap().unwrap();
+    menabig_tracker_lib::commands::save_company_note_row(&conn, "Pi Test Co", "Prefers email").unwrap();
+    assert_eq!(one::<Option<i64>>(&conn, "SELECT company_id FROM company_notes"), Some(pi));
+    rename_company_row(&conn, pi, "Pi Holdings").unwrap();
+    let notes = read_all_data(&conn).unwrap().company_notes;
+    assert_eq!(notes.get("Pi Holdings").map(String::as_str), Some("Prefers email"));
+    assert!(!notes.contains_key("Pi Test Co"));
+    menabig_tracker_lib::commands::save_company_note_row(&conn, "Pi Holdings", "Prefers email and calls").unwrap();
+    assert_eq!(one::<i64>(&conn, "SELECT COUNT(*) FROM company_notes"), 1);
+
+    // Merging into a company without notes carries them over.
+    let rho = create_company_named(&conn, "Rho Test Co").unwrap().unwrap();
+    merge_company_links_core(&mut conn, "Pi Holdings", "Rho Test Co").unwrap();
+    assert_eq!(one::<Option<i64>>(&conn, "SELECT company_id FROM company_notes"), Some(rho));
+    assert_eq!(read_all_data(&conn).unwrap().company_notes.get("Rho Test Co").map(String::as_str), Some("Prefers email and calls"));
+
+    // Notes saved under a name no company has stay readable by that name, unlinked.
+    menabig_tracker_lib::commands::save_company_note_row(&conn, "Unknown Name Co", "Legacy note").unwrap();
+    assert_eq!(read_all_data(&conn).unwrap().company_notes.get("Unknown Name Co").map(String::as_str), Some("Legacy note"));
+    assert_eq!(integrity_report(&conn).unwrap().count("company notes not linked to a company"), 1);
+    drop(conn);
+    let _ = std::fs::remove_file(path);
 }

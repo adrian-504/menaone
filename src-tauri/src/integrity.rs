@@ -155,6 +155,10 @@ pub fn integrity_report(conn: &Connection) -> rusqlite::Result<IntegrityReport> 
         count(conn, "SELECT COALESCE(SUM(n - 1), 0) FROM (SELECT COUNT(*) n FROM companies GROUP BY name COLLATE NOCASE HAVING n > 1)")?,
     );
     add(
+        "company notes not linked to a company".into(),
+        count(conn, "SELECT COUNT(*) FROM company_notes WHERE company_id IS NULL AND TRIM(COALESCE(note_text, '')) <> ''")?,
+    );
+    add(
         "former company names that are also a current name".into(),
         count(conn, "SELECT COUNT(*) FROM company_aliases a JOIN companies c ON c.name = a.alias COLLATE NOCASE AND c.id <> a.company_id")?,
     );

@@ -124,12 +124,13 @@ pub fn rename_company_row(conn: &Connection, id: i64, name: &str) -> Result<(), 
     .map_err(err)?;
     conn.execute("DELETE FROM company_aliases WHERE alias = ?1", params![name]).map_err(err)?;
     crate::opportunities::remember_company_alias(conn, id, &old).map_err(err)?;
-    // The company's notes are kept under its name; they follow the rename.
+    // Company notes are linked by id; keep their stored name tidy too.
     conn.execute(
-        "UPDATE OR IGNORE company_notes SET company_name = ?1 WHERE company_name = ?2",
-        params![name, old],
+        "UPDATE OR IGNORE company_notes SET company_name = ?1 WHERE company_id = ?2 OR (company_id IS NULL AND company_name = ?3)",
+        params![name, id, old],
     )
     .map_err(err)?;
+    crate::db::link_company_notes(conn).map_err(err)?;
     Ok(())
 }
 

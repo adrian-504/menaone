@@ -325,8 +325,15 @@ fn read_contact_lists(conn: &Connection) -> rusqlite::Result<Vec<String>> {
 /// get_all_data load fail on one row (this app-crashing case actually
 /// happened once from a direct-DB data-population script; write_company_industries
 /// now always seeds '' explicitly, but this read stays defensive regardless).
+/// Company notes by the company's current name. Notes are stored against the
+/// company id; notes whose name matches no single company are still returned
+/// under the name they were saved with (linked notes win a name clash).
 fn read_company_notes(conn: &Connection) -> rusqlite::Result<HashMap<String, String>> {
-    let mut stmt = conn.prepare("SELECT company_name, note_text FROM company_notes")?;
+    let mut stmt = conn.prepare(
+        "SELECT COALESCE(c.name, n.company_name), n.note_text, n.company_id IS NOT NULL
+         FROM company_notes n LEFT JOIN companies c ON c.id = n.company_id
+         ORDER BY n.company_id IS NOT NULL",
+    )?;
     let rows = stmt.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, Option<String>>(1)?)))?;
     let mut map = HashMap::new();
     for row in rows {
@@ -576,6 +583,7 @@ pub fn write_company_notes_in(tx: &Connection, items: &HashMap<String, String>) 
         "DELETE FROM company_notes WHERE (note_text IS NULL OR note_text = '') AND (industries IS NULL OR industries = '[]')",
         [],
     )?;
+    crate::db::link_company_notes(tx)?;
     Ok(())
 }
 
@@ -975,6 +983,25 @@ pub fn save_company_note_row(conn: &Connection, company_name: &str, text: &str) 
     let name = company_name.trim();
     if name.is_empty() {
         return Ok(());
+    }
+    // The page names the company by its current name; the note is kept against its id.
+    if let crate::opportunities::CompanyMatch::One(id) = crate::opportunities::match_company_name(conn, name)? {
+        let current: String = conn.query_row("SELECT name FROM companies WHERE id = ?1", params![id], |r| r.get(0))?;
+        if current.eq_ignore_ascii_case(name) {
+            if text.trim().is_empty() {
+                conn.execute("UPDATE company_notes SET note_text = NULL WHERE company_id = ?1", params![id])?;
+                conn.execute("DELETE FROM company_notes WHERE company_id = ?1 AND (industries IS NULL OR industries = '[]')", params![id])?;
+                return Ok(());
+            }
+            if conn.execute("UPDATE company_notes SET note_text = ?1 WHERE company_id = ?2", params![text, id])? == 0 {
+                conn.execute(
+                    "INSERT INTO company_notes (company_name, note_text, company_id) VALUES (?1, ?2, ?3)
+                     ON CONFLICT(company_name) DO UPDATE SET note_text = excluded.note_text, company_id = excluded.company_id",
+                    params![current, text, id],
+                )?;
+            }
+            return Ok(());
+        }
     }
     if text.trim().is_empty() {
         conn.execute("UPDATE company_notes SET note_text = NULL WHERE company_name = ?1", params![name])?;

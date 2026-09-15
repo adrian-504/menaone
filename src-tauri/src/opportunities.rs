@@ -87,7 +87,45 @@ pub fn name_refers_to(conn: &Connection, company_id: i64, name: &str) -> rusqlit
     )
 }
 
-/// The company a name refers to, without creating anything.
+/// What a company name matches.
+#[derive(Debug, Clone, PartialEq)]
+pub enum CompanyMatch {
+    /// Exactly one company.
+    One(i64),
+    /// More than one company, with nothing to choose between them.
+    Ambiguous(Vec<i64>),
+    None,
+}
+
+/// The company a name refers to, without creating anything. Strongest first:
+/// exact name; the same name ignoring capitals; legal name; former name. Two
+/// companies matching at the same strength is ambiguous — never guessed.
+pub fn match_company_name(conn: &Connection, name: &str) -> rusqlite::Result<CompanyMatch> {
+    let name = name.trim();
+    if name.is_empty() {
+        return Ok(CompanyMatch::None);
+    }
+    if let Some(id) = conn.query_row("SELECT id FROM companies WHERE name = ?1", params![name], |r| r.get(0)).optional()? {
+        return Ok(CompanyMatch::One(id));
+    }
+    let ids = |sql: &str| -> rusqlite::Result<Vec<i64>> { conn.prepare(sql)?.query_map(params![name], |r| r.get(0))?.collect() };
+    for sql in [
+        "SELECT id FROM companies WHERE name = ?1 COLLATE NOCASE ORDER BY id",
+        "SELECT id FROM companies WHERE legal_name = ?1 COLLATE NOCASE ORDER BY id",
+        "SELECT company_id FROM company_aliases WHERE alias = ?1",
+    ] {
+        let found = ids(sql)?;
+        match found.len() {
+            0 => continue,
+            1 => return Ok(CompanyMatch::One(found[0])),
+            _ => return Ok(CompanyMatch::Ambiguous(found)),
+        }
+    }
+    Ok(CompanyMatch::None)
+}
+
+/// The company a name refers to (preferring `hint` when the name is one of its
+/// names), without creating anything. None when nothing or several match.
 pub fn find_company(conn: &Connection, hint: Option<i64>, name: Option<&str>) -> rusqlite::Result<Option<i64>> {
     let Some(name) = trimmed(name) else { return Ok(None) };
     if let Some(id) = hint {
@@ -95,42 +133,44 @@ pub fn find_company(conn: &Connection, hint: Option<i64>, name: Option<&str>) ->
             return Ok(Some(id));
         }
     }
-    if let Some(id) = find_company_by_name(conn, name)? {
-        return Ok(Some(id));
-    }
-    conn.query_row("SELECT company_id FROM company_aliases WHERE alias = ?1", params![name], |r| r.get(0)).optional()
-}
-
-fn find_company_by_name(conn: &Connection, name: &str) -> rusqlite::Result<Option<i64>> {
-    if let Some(id) = conn.query_row("SELECT id FROM companies WHERE name = ?1", params![name], |r| r.get(0)).optional()? {
-        return Ok(Some(id));
-    }
-    if let Some(id) = conn.query_row("SELECT id FROM companies WHERE name = ?1 COLLATE NOCASE ORDER BY id LIMIT 1", params![name], |r| r.get(0)).optional()? {
-        return Ok(Some(id));
-    }
-    // A legal name counts only when exactly one company has it.
-    let ids: Vec<i64> = conn
-        .prepare("SELECT id FROM companies WHERE legal_name = ?1 COLLATE NOCASE LIMIT 2")?
-        .query_map(params![name], |r| r.get(0))?
-        .collect::<rusqlite::Result<_>>()?;
-    Ok(if ids.len() == 1 { Some(ids[0]) } else { None })
+    Ok(match match_company_name(conn, name)? {
+        CompanyMatch::One(id) => Some(id),
+        _ => None,
+    })
 }
 
 fn insert_company(conn: &Connection, name: &str) -> rusqlite::Result<i64> {
+    // Former names stay: records linked to the renamed company keep meaning it
+    // (the link is checked first), while new text finds this company by its name.
     conn.execute("INSERT INTO companies (name, created_at) VALUES (?1, ?2)", params![name, crate::commands::now_iso()])?;
-    // A name that now belongs to a real company is no longer someone's former name.
-    conn.execute("DELETE FROM company_aliases WHERE alias = ?1", params![name])?;
     Ok(conn.last_insert_rowid())
 }
 
 /// Resolves company text (see the rules above); `hint` is the company the
-/// record is linked to now. Empty name => no company.
+/// record is linked to now. Empty name => no company. An ambiguous name keeps
+/// the current link; with no link it is queued for review and left unlinked.
 pub fn resolve_company_ref(conn: &Connection, hint: Option<i64>, name: Option<&str>) -> rusqlite::Result<Option<i64>> {
     let Some(name) = trimmed(name) else { return Ok(None) };
-    if let Some(id) = find_company(conn, hint, Some(name))? {
-        return Ok(Some(id));
+    let hint = match hint {
+        Some(id) if company_exists(conn, id)? => Some(id),
+        _ => None,
+    };
+    if let Some(id) = hint {
+        if name_refers_to(conn, id, name)? {
+            return Ok(Some(id));
+        }
     }
-    insert_company(conn, name).map(Some)
+    match match_company_name(conn, name)? {
+        CompanyMatch::One(id) => Ok(Some(id)),
+        CompanyMatch::Ambiguous(candidates) => {
+            if hint.is_some() {
+                return Ok(hint);
+            }
+            crate::company_migration::queue_for_review(conn, name, candidates.first().copied(), &crate::commands::now_iso())?;
+            Ok(None)
+        }
+        CompanyMatch::None => insert_company(conn, name).map(Some),
+    }
 }
 
 /// Find-or-create by name alone, for records with no link at all (imports,
@@ -144,10 +184,16 @@ pub(crate) fn resolve_company(conn: &Connection, name: Option<&str>) -> rusqlite
 /// new company, not the one that used to be called that.
 pub fn create_company_named(conn: &Connection, name: &str) -> rusqlite::Result<Option<i64>> {
     let Some(name) = trimmed(Some(name)) else { return Ok(None) };
-    if let Some(id) = find_company_by_name(conn, name)? {
+    if let Some(id) = conn.query_row("SELECT id FROM companies WHERE name = ?1", params![name], |r| r.get(0)).optional()? {
         return Ok(Some(id));
     }
-    insert_company(conn, name).map(Some)
+    let same: Vec<i64> = conn.prepare("SELECT id FROM companies WHERE name = ?1 COLLATE NOCASE")?.query_map(params![name], |r| r.get(0))?.collect::<rusqlite::Result<_>>()?;
+    match same.len() {
+        0 => insert_company(conn, name).map(Some),
+        1 => Ok(Some(same[0])),
+        // Several companies differ from it only by capitals: don't pick one, don't add another.
+        _ => Ok(None),
+    }
 }
 
 /// A record's company as stored before a save.
@@ -289,7 +335,7 @@ pub fn create_company(state: State<DbState>, name: String) -> CmdResult<Company>
     let conn = state.0.lock().map_err(err)?;
     let id = create_company_named(&conn, &name)
         .map_err(err)?
-        .ok_or_else(|| "Company name cannot be empty.".to_string())?;
+        .ok_or_else(|| if name.trim().is_empty() { "Company name cannot be empty.".to_string() } else { "More than one company already has that name (ignoring capitals) — open the existing one instead.".to_string() })?;
     let sql = format!("SELECT {COMPANY_COLUMNS} FROM companies WHERE id = ?1");
     conn.query_row(&sql, params![id], row_to_company_base).map_err(err)
 }
@@ -394,6 +440,12 @@ pub fn merge_company_links_core(conn: &mut Connection, old_name: &str, new_name:
             tx.execute("UPDATE OR IGNORE company_list_members SET company_id = ?1 WHERE company_id = ?2", params![nid, oid]).map_err(err)?;
             // The merged-away name (and its own former names) now mean the company it went into.
             tx.execute("UPDATE company_aliases SET company_id = ?1 WHERE company_id = ?2", params![nid, oid]).map_err(err)?;
+            // Notes of the merged-away company move over unless the surviving one has its own
+            // (the Merge dialog has already combined the text into it).
+            tx.execute(
+                "UPDATE company_notes SET company_id = ?1 WHERE company_id = ?2 AND NOT EXISTS (SELECT 1 FROM company_notes WHERE company_id = ?1)",
+                params![nid, oid],
+            ).map_err(err)?;
             tx.execute("DELETE FROM company_list_members WHERE company_id = ?1", params![oid]).map_err(err)?;
             tx.execute("DELETE FROM companies WHERE id = ?1", params![oid]).map_err(err)?;
             remember_company_alias(&tx, nid, &old_name).map_err(err)?;

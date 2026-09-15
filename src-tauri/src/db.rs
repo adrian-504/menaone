@@ -698,7 +698,44 @@ const CODE_MIGRATIONS: &[(i64, fn(&Connection) -> rusqlite::Result<()>)] = &[
     (28, crate::lists::migrate_saved_lists),
     // Foundation Lock: former company names, and links to records that no longer exist.
     (29, migrate_foundation_lock),
+    // Company notes follow the company by id (they were keyed by its name).
+    (30, migrate_company_notes_ids),
 ];
+
+fn migrate_company_notes_ids(conn: &Connection) -> rusqlite::Result<()> {
+    let has_col = conn.prepare("PRAGMA table_info(company_notes)")?
+        .query_map([], |r| r.get::<_, String>(1))?
+        .collect::<rusqlite::Result<Vec<_>>>()?
+        .iter()
+        .any(|c| c == "company_id");
+    if !has_col {
+        conn.execute_batch("ALTER TABLE company_notes ADD COLUMN company_id INTEGER REFERENCES companies(id) ON DELETE SET NULL;")?;
+    }
+    conn.execute_batch("CREATE UNIQUE INDEX IF NOT EXISTS idx_company_notes_company ON company_notes(company_id) WHERE company_id IS NOT NULL;")?;
+    link_company_notes(conn)?;
+    Ok(())
+}
+
+/// Gives company notes that aren't linked yet the company their name
+/// unambiguously refers to. A company that already has linked notes, or a
+/// name matching several companies, is left as it is (still readable by name).
+pub fn link_company_notes(conn: &Connection) -> rusqlite::Result<usize> {
+    let rows: Vec<String> = conn
+        .prepare("SELECT company_name FROM company_notes WHERE company_id IS NULL")?
+        .query_map([], |r| r.get(0))?
+        .collect::<rusqlite::Result<_>>()?;
+    let mut linked = 0;
+    for name in rows {
+        if let crate::opportunities::CompanyMatch::One(id) = crate::opportunities::match_company_name(conn, &name)? {
+            linked += conn.execute(
+                "UPDATE company_notes SET company_id = ?1 WHERE company_name = ?2 AND company_id IS NULL
+                   AND NOT EXISTS (SELECT 1 FROM company_notes WHERE company_id = ?1)",
+                rusqlite::params![id, name],
+            )?;
+        }
+    }
+    Ok(linked)
+}
 
 fn migrate_foundation_lock(conn: &Connection) -> rusqlite::Result<()> {
     conn.execute_batch(FOUNDATION_LOCK_MIGRATION)?;

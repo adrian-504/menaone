@@ -158,7 +158,7 @@ struct ExistingCompany {
     norm: String,
 }
 
-fn queue_for_review(tx: &Connection, raw_name: &str, suggested: Option<i64>, now: &str) -> rusqlite::Result<bool> {
+pub(crate) fn queue_for_review(tx: &Connection, raw_name: &str, suggested: Option<i64>, now: &str) -> rusqlite::Result<bool> {
     let exists: Option<i64> = tx
         .query_row(
             "SELECT id FROM company_review_queue WHERE raw_name = ?1 AND status = 'pending'",

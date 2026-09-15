@@ -286,3 +286,26 @@ Canonical: `activity` (triggers on every module; muted during restore/migration)
 | `files_get_or_create_msfile` records any path string | Low | Accepted (opening/listing still validated) |
 | `template_inspect(path)` reads any .pptx | Low | Accepted |
 | First pass items (CDN script, any-path file commands, attachment names, CSP) | — | Verified still fixed |
+
+---
+
+# Final closure (15 September 2026)
+
+**Invariant:** once a record has a valid `company_id`, only an explicit change of its company changes it.
+
+| Situation | Result |
+|---|---|
+| Unrelated field edited (title, status, value, dates, notes, owner…) | `company_id` unchanged — company text unchanged, so the link is kept without looking at the name (all entities, tested) |
+| Company text still shows a renamed company's old name (stale copy) | Old name is a former name of the linked company → kept |
+| Company renamed | Every link kept; lists show the new name through the link |
+| Old or former name typed for a new record | Existing company; nothing created |
+| Name matching several companies at the same strength (capitals-only duplicates, shared legal name, a former name of several) | Linked record keeps its link; unlinked record stays unlinked and the name goes to the existing company review queue — never guessed, no company created |
+| User picks or types another company | Record moves to that company (explicit) |
+| Company text cleared | Link removed |
+| A brand-new name | New company (legacy free-text behaviour) |
+
+Changes: `match_company_name` (strength order: exact name → same name ignoring capitals → legal name → former name, ambiguity at any step reported); `resolve_company_ref` keeps the link or queues the name on ambiguity; `insert_company` no longer deletes former names (the link is checked first, new text finds the current name); `create_company_named` refuses to add a company when several already differ only by capitals.
+
+**Company notes** now follow the company id (migration 30: `company_notes.company_id`, unique when set, linked from the stored name when it matches exactly one company; live data: 107 of 107 linked). The page still addresses notes by the company's current name; the backend stores them against the id, so renames and merges carry them. Notes whose name matches no single company stay readable under that name and are reported ("company notes not linked to a company").
+
+Name usages after closure: display (lists, exports, documents, location bar) — A; typed company fields — B, resolved only when edited; legacy import, folder wizard, company migration — C; `match_company_name` / `resolve_company_ref` — D, only for edited text or records without a link; dangerous relationship logic — none remaining.
