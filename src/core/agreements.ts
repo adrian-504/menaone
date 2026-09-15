@@ -1,4 +1,5 @@
 import { S } from '../lib/state';
+import { statusBadge } from '../lib/statusTone';
 import { companyLink } from '../lib/links';
 import { AGR_STATUSES, AGR_TYPES, AGR_ST, SERVICE_STATUSES } from '../lib/constants';
 import { today, fmtDate, daysUntil, escHtml, nextAgrId, expose, kpiCard, showConfirm } from '../lib/utils';
@@ -117,13 +118,12 @@ export function renderAgreements(): void {
     const services = a.lines?.length ? [...new Set(a.lines.map((l) => l.serviceName))] : (a.type ? [a.type] : []);
     const monthly = agreementMonthly(a);
     const endSoon = a.endDate && a.serviceStatus === 'Active' && a.endDate >= todayIso && (daysUntil(a.endDate) ?? 999) <= 60;
-    const serviceTone = a.serviceStatus === 'Active' ? 'tone-green' : a.serviceStatus === 'Kickoff scheduled' ? 'tone-accent' : a.serviceStatus === 'Ended' ? '' : '';
     return `<tr class="rec-tr" data-agreement-id="${a.id}" onclick="if(!event.target.closest('a,button,select,input'))openRecord('agreement', ${a.id})">
       <td class="agr-ref">${escHtml(a.agrRef || '—')}${a.proposalId ? `<div class="agr-prop-ref">SL# ${a.proposalId}</div>` : ''}</td>
       <td class="td-c strong" title="${escHtml(a.client)}">${companyLink(a.companyId, a.client)}</td>
       <td class="db-services">${services.map((sv) => `<span class="chip">${escHtml(sv)}</span>`).join(' ') || '—'}</td>
       <td><select class="ssel status-select" style="color:${sc.ch || sc.c}" onchange="updateAgrStatus(${a.id},this.value)" aria-label="Status">${stOpts}</select></td>
-      <td>${a.serviceStatus ? `<span class="rec-badge ${serviceTone}">${escHtml(a.serviceStatus)}</span>` : '<span class="t-muted">—</span>'}</td>
+      <td>${a.serviceStatus ? statusBadge('service', a.serviceStatus) : '<span class="t-muted">—</span>'}</td>
       <td class="t-sub">${escHtml(preparedByName(a) || '—')}</td>
       <td class="td-d">${fmtDate(a.startDate)}</td>
       <td class="td-d">${a.endDate ? `<span class="${endSoon ? 'tone-amber fw-600' : ''}">${fmtDate(a.endDate)}</span>` : '—'}</td>

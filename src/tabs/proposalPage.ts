@@ -5,6 +5,7 @@
 // commercials, the client's OneDrive folder and documents, what it's linked
 // to, notes and activity.
 
+import { statusBadge } from '../lib/statusTone';
 import { companyFromForm, contextFromOpportunity } from '../lib/workGraph';
 import { S } from '../lib/state';
 import { escHtml, expose, fmtDate, today, nextId, nextCtId, showConfirm, showTextPrompt, debounce, strColor } from '../lib/utils';
@@ -79,7 +80,6 @@ function commit(p: Proposal, rerender = true): void {
   if (rerender) renderProposalPage();
 }
 
-const statusTone = (status: string) => (status === PS.WON ? 'green' : status === PS.LOST ? 'red' : status === PS.WITHDRAWN ? 'muted' : status === PS.SENT || status === PS.CLIENT_SIGNED ? 'amber' : 'accent');
 
 export function renderProposalPage(): void {
   const p = currentProposal();
@@ -94,7 +94,7 @@ export function renderProposalPage(): void {
   const owner = ownerName(p);
   const badges = document.getElementById('prd-badges');
   if (badges) badges.innerHTML = [
-    `<span class="rec-badge tone-${statusTone(p.status)}">${escHtml(p.status)}</span>`,
+    statusBadge('proposal', p.status),
     p.archived ? '<span class="rec-badge">Archived</span>' : '',
     isSnoozed(p) ? `<span class="rec-badge tone-amber">Snoozed until ${fmtDate(p.snoozedUntil)}</span>` : '',
     entity ? `<span class="rec-meta">${escHtml(entity.name)} · ${escHtml(currencyOf(p))}</span>` : `<span class="rec-meta">${escHtml(currencyOf(p))}</span>`,

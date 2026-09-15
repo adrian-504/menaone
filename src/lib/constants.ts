@@ -65,9 +65,10 @@ export const WQ_STATUSES = [
 export interface WqCfgEntry { step: number; c: string; ch?: string; label: string }
 
 export const WQ_CFG: Record<string, WqCfgEntry> = {
-  "Proposal Request Received": { step: 1, c: "#1D4ED8", label: "Request received" },
-  "Drafting": { step: 2, c: "#92400E", label: "Drafting" },
-  "In Internal Review": { step: 3, c: "#C2410C", label: "In review" },
+  // Same colours as these statuses everywhere else (ST above).
+  "Proposal Request Received": { step: 1, ...ST["Proposal Request Received"], label: "Request received" },
+  "Drafting": { step: 2, ...ST["Drafting"], label: "Drafting" },
+  "In Internal Review": { step: 3, ...ST["In Internal Review"], label: "In review" },
 };
 
 // ── Agreements ──

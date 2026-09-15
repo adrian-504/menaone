@@ -3,6 +3,7 @@
 // signature trail and activity. Active agreements make a company an active
 // client and count towards MRR; the end date drives renewal alerts.
 
+import { statusBadge } from '../lib/statusTone';
 import { S } from '../lib/state';
 import { escHtml, expose, fmtDate, today, showConfirm } from '../lib/utils';
 import { icon } from '../lib/icons';
@@ -61,7 +62,6 @@ function commit(a: Agreement, rerender = true): void {
   if (rerender) renderAgreementPage();
 }
 
-const serviceTone = (s: string | null | undefined) => (s === 'Active' ? 'green' : s === 'Kickoff scheduled' ? 'accent' : s === 'Ended' ? 'muted' : 'amber');
 
 export function renderAgreementPage(): void {
   const a = current();
@@ -71,8 +71,8 @@ export function renderAgreementPage(): void {
   const monthly = agreementMonthly(a);
   const badges = document.getElementById('agd-badges');
   if (badges) badges.innerHTML = [
-    `<span class="rec-badge tone-${a.status === 'Signed' ? 'green' : a.status === 'Canceled' ? 'red' : 'amber'}">${escHtml(a.status || 'No status')}</span>`,
-    a.serviceStatus ? `<span class="rec-badge tone-${serviceTone(a.serviceStatus)}">Service ${escHtml(a.serviceStatus.toLowerCase())}</span>` : '',
+    statusBadge('agreement', a.status),
+    a.serviceStatus ? statusBadge('service', a.serviceStatus, `Service ${a.serviceStatus.toLowerCase()}`) : '',
     monthly ? `<span class="rec-meta">${fmtMoney(monthly, currencyOf(a))}/mo</span>` : '',
     a.endDate ? `<span class="rec-meta">Ends ${fmtDate(a.endDate)}</span>` : '',
   ].filter(Boolean).join('');

@@ -6,6 +6,7 @@
 // Notes/Contacts are linked through the existing entity_links Work Graph,
 // not new relationship fields — Meetings/Documents use a direct FK, same
 // convention Project already uses for those two.
+import { statusBadge } from '../lib/statusTone';
 import { addMoney, fmtMoneyByCurrency, type MoneyByCurrency } from '../lib/commercial';
 import { opportunityHealth } from '../lib/pipeline';
 import { openOutcomeDialog } from '../core/proposals';
@@ -130,11 +131,15 @@ function oppCardHtml(o: Opportunity): string {
 function renderOpportunityBoard(filtered: Opportunity[]): void {
   const el = document.getElementById('opp-board');
   if (!el) return;
+  // Empty stages collapse to a slim strip (they widen while a card is dragged),
+  // so the stages that have opportunities fit on screen without sideways scrolling.
+  const collapseEmpty = filtered.length > 0;
   el.innerHTML = `<div class="board-columns opp-board">` + OPPORTUNITY_STAGES.map((stage) => {
     const items = filtered.filter((o) => o.stage === stage);
     const totals: MoneyByCurrency = {};
     items.forEach((o) => addMoney(totals, (o.currency || 'SAR').toUpperCase(), o.estimatedValue || null));
-    return `<div class="board-column" data-stage="${stage}" data-drop="opp-stage" data-drop-value="${stage}">
+    const empty = collapseEmpty && items.length === 0;
+    return `<div class="board-column${empty ? ' is-empty' : ''}" data-stage="${stage}" data-drop="opp-stage" data-drop-value="${stage}"${empty ? ` title="${stage} — no opportunities" aria-label="${stage}, no opportunities"` : ''}>
       <div class="board-column-hd">${stage}<span class="board-column-count">${items.length}</span></div>
       ${Object.keys(totals).length ? `<div class="board-column-total">${fmtMoneyByCurrency(totals)}</div>` : ''}
       ${items.length === 0 ? `<div class="board-empty">No opportunities</div>` : items.map(oppCardHtml).join('')}
@@ -385,7 +390,7 @@ async function renderOpportunityDetail(): Promise<void> {
   (document.getElementById('od-name') as HTMLElement).textContent = o.name;
   (document.getElementById('od-badges') as HTMLElement).innerHTML = [
     // One lifecycle badge: the stage, coloured by the outcome it means (the status is derived from the stage).
-    `<span class="rec-badge tone-${o.status === 'Won' ? 'green' : o.status === 'Lost' ? 'red' : o.status === 'On Hold' ? 'amber' : 'accent'}">${escHtml(o.stage)}</span>`,
+    statusBadge('opportunity', o.status, o.stage),
     indicatorChips(o),
     o.winLossReason && (o.stage === 'Won' || o.stage === 'Lost') ? `<span class="rec-meta">${escHtml(o.winLossReason)}</span>` : '',
   ].filter(Boolean).join('');

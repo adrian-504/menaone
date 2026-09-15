@@ -402,6 +402,7 @@ Conventions: `docs/ux-conventions.md`.
 - **Creation**: record headers (company, opportunity, project, meeting) have a New menu from `contextActions.ts` — the same list as "+ New" and the palette. Dialog titles and buttons follow "New x / Edit x", "Create x / Save changes".
 - **Company fields**: every company field uses the shared picker (all matches, keyboard navigation); the old `<datalist>` suggestions are gone.
 - **States**: `loadInto`/`loadFailedState` (`lib/ui.ts`) for list loads; dialogs restore focus on close; global `:focus-visible` style.
+- **Status and lists**: `lib/statusTone.ts` gives every status one colour meaning for badges; Meetings list has a filter/search toolbar; empty opportunity-board stages collapse; muted text colours meet contrast targets.
 - **Fixes**: `daysSince`/`daysUntil` count calendar days (today was -1 before or after midday); one lifecycle badge on opportunities; Company 360 tiles show meetings and open tasks.
 
 ## Tests

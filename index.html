@@ -137,7 +137,7 @@
   <div class="cmdk-box">
     <div class="cmdk-input-row">
       <span class="icon" data-icon="search"></span>
-      <input class="cmdk-input" id="cmdk-input" placeholder="Search everything, or jump to a page..." autocomplete="off" oninput="onPaletteInput(this.value)">
+      <input class="cmdk-input" id="cmdk-input" placeholder="Search everything, or jump to a page…" autocomplete="off" oninput="onPaletteInput(this.value)">
     </div>
     <div class="cmdk-list" id="cmdk-list"></div>
   </div>
@@ -375,7 +375,7 @@
         </div>
         <div class="fgrp">
           <label class="flbl">Attendees <span class="flbl-hint">(comma separated emails)</span></label>
-          <input class="finp" name="omAttendees" placeholder="jane@client.com, ...">
+          <input class="finp" name="omAttendees" placeholder="jane@client.com, …">
         </div>
         <div class="fgrp">
           <label class="flbl">Company</label>
@@ -449,7 +449,7 @@
         </div>
         <div class="fgrp">
           <label class="flbl">Status <span class="flbl-hint">(optional)</span></label>
-          <input class="finp" name="itStatus" placeholder="e.g. confirmed, draft, consultation...">
+          <input class="finp" name="itStatus" placeholder="e.g. confirmed, draft, consultation…">
         </div>
         <div class="fgrp">
           <label class="flbl">Effective Date <span class="flbl-hint">(optional)</span></label>
@@ -457,7 +457,7 @@
         </div>
         <div class="fgrp">
           <label class="flbl">Source Name *</label>
-          <input class="finp" name="itSourceName" required placeholder="e.g. GOSI, Ministry of Human Resources...">
+          <input class="finp" name="itSourceName" required placeholder="e.g. GOSI, Ministry of Human Resources…">
         </div>
         <div class="fgrp">
           <label class="flbl">Published <span class="flbl-hint">(optional)</span></label>
@@ -465,7 +465,7 @@
         </div>
         <div class="fgrp fgrp-full">
           <label class="flbl">Source URL *</label>
-          <input type="url" class="finp" name="itSourceUrl" required placeholder="https://...">
+          <input type="url" class="finp" name="itSourceUrl" required placeholder="https://…">
         </div>
         <div class="fgrp">
           <label class="flbl">Who's Affected <span class="flbl-hint">(optional)</span></label>
@@ -583,6 +583,15 @@
         <div class="page-subtitle">Attendees, decisions, and action items — never lost in someone's inbox.</div>
       </div>
       <div class="page-header-actions"><button class="btn-primary" onclick="openMeetingModal(null)"><span data-icon="plus" data-icon-size="14"></span> New meeting</button></div>
+    </div>
+    <div class="toolbar">
+      <div class="segmented" id="meeting-when-seg">
+        <button class="active" data-when="all" onclick="setMeetingFilter('all')">All</button>
+        <button data-when="upcoming" onclick="setMeetingFilter('upcoming')">Upcoming</button>
+        <button data-when="past" onclick="setMeetingFilter('past')">Past</button>
+      </div>
+      <input type="text" class="f-search" id="meeting-search" placeholder="Search title, company, attendee…" oninput="renderMeetingsTab()" aria-label="Search meetings">
+      <span class="rcnt" id="meeting-count"></span>
     </div>
     <div id="meeting-list"></div>
   </div>
@@ -852,7 +861,7 @@
         <option value="progress">Sort: Progress</option>
         <option value="status">Sort: Status</option>
       </select>
-      <input type="text" class="f-search" id="proj-search" placeholder="Search projects..." oninput="renderProjects()">
+      <input type="text" class="f-search" id="proj-search" placeholder="Search projects…" oninput="renderProjects()">
       <span class="rcnt" id="proj-cnt">0 projects</span>
     </div>
     <div class="project-grid" id="proj-grid"></div>
@@ -948,7 +957,7 @@
         </div>
         <div class="fgrp" id="pj-company-group">
           <label class="flbl">Company</label>
-          <input class="finp" name="pjCompany" placeholder="Client company...">
+          <input class="finp" name="pjCompany" placeholder="Client company…">
           
         </div>
         <div class="fgrp">
@@ -967,7 +976,7 @@
         </div>
         <div class="fgrp">
           <label class="flbl">Owner</label>
-          <input class="finp" name="pjOwner" placeholder="Owner name...">
+          <input class="finp" name="pjOwner" placeholder="Owner name…">
         </div>
         <div class="fgrp">
           <label class="flbl">Start date</label>
@@ -1017,7 +1026,7 @@
         <option>Solution Design</option><option>Proposal</option><option>Negotiation</option>
         <option>Verbal Commitment</option><option>Won</option><option>Lost</option><option>On Hold</option>
       </select>
-      <input type="text" class="f-search" id="opp-search" placeholder="Search opportunities..." oninput="opportunitySearchChanged()">
+      <input type="text" class="f-search" id="opp-search" placeholder="Search opportunities…" oninput="opportunitySearchChanged()">
       <span class="rcnt" id="opp-cnt">0 opportunities</span>
     </div>
     <div id="opp-board"></div>
@@ -1089,7 +1098,7 @@
         </div>
         <div class="fgrp">
           <label class="flbl">Company</label>
-          <input class="finp" name="oppCompany" oninput="refreshOppModalContacts(this.value)" placeholder="Client company...">
+          <input class="finp" name="oppCompany" oninput="refreshOppModalContacts(this.value)" placeholder="Client company…">
           
         </div>
         <div class="fgrp">
@@ -1098,7 +1107,7 @@
         </div>
         <div class="fgrp">
           <label class="flbl">Owner</label>
-          <input class="finp" name="oppOwner" placeholder="Owner...">
+          <input class="finp" name="oppOwner" placeholder="Owner…">
         </div>
         <div class="fgrp fgrp-full">
           <label class="flbl">Contacts <span class="flbl-hint">(optional — type a company above to see its contacts)</span></label>
@@ -1304,7 +1313,7 @@
   </div>
   <nav class="pr-views" data-pr-views aria-label="Proposal views"></nav>
   <div class="fbar">
-    <input type="text" class="f-search" id="wq-search" placeholder="Search client, type, owner..." oninput="renderPending()">
+    <input type="text" class="f-search" id="wq-search" placeholder="Search client, type, owner…" oninput="renderPending()">
     <select class="fsel" id="wq-filter-status" onchange="renderPending()">
       <option value="">All stages</option>
       <option value="Proposal Request Received">Request received</option>
@@ -1432,7 +1441,7 @@
     <div class="co-review-queue" id="co-review-queue" style="display:none"></div>
     <div class="co-quality-bar" id="co-quality-bar"></div>
     <div class="co-search-bar">
-      <input type="text" class="f-search" id="co-search" placeholder="Search companies..." oninput="renderCompanyList()">
+      <input type="text" class="f-search" id="co-search" placeholder="Search companies…" oninput="renderCompanyList()">
       <select class="fsel" id="co-filter-status" onchange="renderCompanyList()" aria-label="Relationship">
         <option value="">Any relationship</option>
         <option value="client">Active clients</option>
@@ -1515,7 +1524,7 @@
     </div>
     <div class="fg">
       <div class="fgrp"><label class="flbl">Legal Name</label><input class="finp" id="edit-co-legal-name" placeholder="Full registered name"></div>
-      <div class="fgrp"><label class="flbl">Website</label><input class="finp" id="edit-co-website" placeholder="https://..."></div>
+      <div class="fgrp"><label class="flbl">Website</label><input class="finp" id="edit-co-website" placeholder="https://…"></div>
       <div class="fgrp"><label class="flbl">Country</label><input class="finp" id="edit-co-country" placeholder="Country"></div>
       <div class="fgrp"><label class="flbl">City</label><input class="finp" id="edit-co-city" placeholder="City"></div>
       <div class="fgrp">
@@ -1543,7 +1552,7 @@
     </div>
     <div class="fgrp">
       <label class="flbl">Description</label>
-      <textarea class="finp" id="edit-co-description" rows="2" placeholder="What this company is / does..."></textarea>
+      <textarea class="finp" id="edit-co-description" rows="2" placeholder="What this company is / does…"></textarea>
     </div>
     <div class="fact">
       <button class="btn-secondary" onclick="closeEditCompanyModal()">Cancel</button>
@@ -2108,7 +2117,7 @@
     </div>
     <div class="fgrp">
       <label class="flbl">Additional Notes (optional)</label>
-      <textarea class="finp" id="wl-note" rows="2" placeholder="Any further context..."></textarea>
+      <textarea class="finp" id="wl-note" rows="2" placeholder="Any further context…"></textarea>
     </div>
     <div class="fact">
       <button class="btn-secondary" onclick="closeWlModal()">Cancel</button>
@@ -2125,7 +2134,7 @@
     <div class="activity-notes-list" id="activity-notes-list"></div>
     <div class="fgrp">
       <label class="flbl">Add New Note</label>
-      <textarea class="finp" id="notes-input" rows="2" placeholder="Log a call, email, meeting outcome..."></textarea>
+      <textarea class="finp" id="notes-input" rows="2" placeholder="Log a call, email, meeting outcome…"></textarea>
     </div>
     <div class="fact">
       <button class="btn-secondary" onclick="closeNotesModal()">Close</button>
@@ -2142,7 +2151,7 @@
       <div class="fg">
         <div class="fgrp fgrp-full"><label class="flbl">Full name *</label><input class="finp" name="ct-name" required placeholder="e.g. Ahmed Al-Rashidi"></div>
         <div class="fgrp"><label class="flbl">Company *</label><input class="finp" name="ct-client" id="ct-modal-client" required placeholder="Search or type a company"></div>
-        <div class="fgrp"><label class="flbl">Role</label><input class="finp" name="ct-role" placeholder="e.g. HR Director, CEO..."></div>
+        <div class="fgrp"><label class="flbl">Role</label><input class="finp" name="ct-role" placeholder="e.g. HR Director, CEO…"></div>
         <div class="fgrp"><label class="flbl">Email</label><input class="finp" type="email" name="ct-email" placeholder="ahmed@company.com"></div>
         <div class="fgrp"><label class="flbl">Phone</label><input class="finp" name="ct-phone" placeholder="+966 5x xxx xxxx"></div>
         <div class="fgrp"><label class="flbl">WhatsApp</label><input class="finp" name="ct-wa" placeholder="+966 5x xxx xxxx"></div>
@@ -2315,7 +2324,7 @@
         </div>
         <div class="fgrp fgrp-full">
           <label class="flbl">Notes</label>
-          <textarea class="finp" name="todoDesc" rows="2" placeholder="Additional details..."></textarea>
+          <textarea class="finp" name="todoDesc" rows="2" placeholder="Additional details…"></textarea>
         </div>
       </div>
       <div class="fact">

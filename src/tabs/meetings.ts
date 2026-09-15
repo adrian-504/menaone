@@ -1,4 +1,5 @@
 import { S } from '../lib/state';
+import { statusBadge } from '../lib/statusTone';
 import { showContextMenu } from '../lib/contextMenu';
 import { renderIcons } from '../core/chrome';
 import { loadInto, emptyState } from '../lib/ui';
@@ -43,10 +44,34 @@ async function renderMeetingsTab(): Promise<void> {
 registerTabRenderer('meetings', () => { void renderMeetingsTab(); });
 expose('renderMeetingsTab', () => { if (document.getElementById('meeting-detail')?.classList.contains('open')) return; renderMeetingList(); });
 
+let meetingWhen: 'all' | 'upcoming' | 'past' = 'all';
+
+export function setMeetingFilter(when: 'all' | 'upcoming' | 'past'): void {
+  meetingWhen = when;
+  document.querySelectorAll<HTMLElement>('#meeting-when-seg button').forEach((b) => b.classList.toggle('active', b.dataset.when === when));
+  renderMeetingList();
+}
+expose('setMeetingFilter', setMeetingFilter);
+
 function renderMeetingList(): void {
   const el = document.getElementById('meeting-list');
   if (!el) return;
-  const sorted = [...S.meetings].sort((a, b) => (b.meetingDate || '').localeCompare(a.meetingDate || ''));
+  const q = ((document.getElementById('meeting-search') as HTMLInputElement | null)?.value || '').trim().toLowerCase();
+  const todayIso = today();
+  const shown = S.meetings.filter((m) => {
+    if (meetingWhen === 'upcoming' && !((m.meetingDate || '') >= todayIso)) return false;
+    if (meetingWhen === 'past' && !(m.meetingDate && m.meetingDate < todayIso)) return false;
+    return !q || [m.title, m.companyName, ...(m.attendees || [])].some((v) => (v || '').toLowerCase().includes(q));
+  });
+  // Upcoming: soonest first. Otherwise most recent first.
+  const sorted = shown.sort((a, b) => meetingWhen === 'upcoming' ? (a.meetingDate || '').localeCompare(b.meetingDate || '') : (b.meetingDate || '').localeCompare(a.meetingDate || ''));
+  const count = document.getElementById('meeting-count');
+  if (count) count.textContent = `${sorted.length} meeting${sorted.length === 1 ? '' : 's'}`;
+  if (sorted.length === 0 && S.meetings.length > 0) {
+    el.innerHTML = `<div class="card">${emptyState({ icon: 'search', title: 'No meetings match', body: q ? 'Try another name, company or attendee.' : meetingWhen === 'upcoming' ? 'Nothing scheduled from today on.' : 'No past meetings yet.', compact: true })}</div>`;
+    renderIcons(el);
+    return;
+  }
   if (sorted.length === 0) {
     el.innerHTML = `<div class="card">${emptyState({ icon: 'meeting', title: 'No meetings logged yet', body: 'Capture attendees, decisions and action items so nothing gets lost.', action: { label: 'New meeting', onclick: 'openMeetingModal(null)' } })}</div>`;
     renderIcons(el);
@@ -74,9 +99,10 @@ export function openMeetingDetail(id: number): void {
   S.meetingEditId = id;
   (document.getElementById('md-title') as HTMLElement).textContent = m.title;
   (document.getElementById('md-badges') as HTMLElement).innerHTML = [
-    m.meetingDate ? `<span class="chip">${fmtDate(m.meetingDate)}</span>` : '',
-    m.startAt ? `<span class="chip">${escHtml(fmtTimeRange(m.startAt, m.endAt))}</span>` : '',
-    ...(m.attendees || []).map((a) => `<span class="chip">${escHtml(a)}</span>`),
+    m.isCancelled ? statusBadge('meeting', 'Cancelled') : '',
+    m.source === 'outlook' ? '<span class="rec-badge">Outlook</span>' : '',
+    m.meetingDate ? `<span class="rec-meta">${fmtDate(m.meetingDate)}${m.startAt ? ` · ${escHtml(fmtTimeRange(m.startAt, m.endAt))}` : ''}</span>` : '',
+    (m.attendees || []).length ? `<span class="rec-meta" title="${escHtml(m.attendees.join(', '))}">${icon('people', 12)} ${m.attendees.length} attendee${m.attendees.length === 1 ? '' : 's'}</span>` : '',
   ].filter(Boolean).join('');
 
   const projSel = document.getElementById('md-project-sel') as HTMLSelectElement;

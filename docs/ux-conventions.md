@@ -21,9 +21,19 @@ How MENA One's screens are meant to behave, as implemented. Use these when addin
 
 - List pages: `page-header` with the title, a subtitle, and actions on the right. The primary action is `btn-primary` with a plus icon and "New <record>" (sentence case).
 - Record pages share `rec-header`: an icon or avatar, an eyebrow with the record type, the title, and badges (status first). Actions sit on the right: **New** (a menu), Edit, and "…" for the rest.
-- A record's lifecycle shows as one badge coloured by meaning: green for won/signed/done, red for lost/cancelled, amber for on hold, accent for in progress.
+- Status colours have one meaning everywhere (`src/lib/statusTone.ts`, `statusBadge()`): green done (won, signed, completed, active service), red ended badly (lost, cancelled), amber waiting or at risk (with the client, on hold, at risk), accent moving (in progress, being prepared), muted not started or ended. Record headers show the status first as a badge; pipeline lists keep their per-stage dot colours (`ST`, `AGR_ST`), and a status has the same dot colour in every list (Pending reuses `ST`). The project header shows status only in its editable field.
 - Relationships are links: the location bar shows the record's company ("in Globex"); record details list Company, Project, Opportunity and Note (meeting), or the origin chain (project) as links.
 - Company 360 overview tiles answer "what's happening": contacts, open opportunities, active proposals, active projects, signed agreements, meetings (last date), and open tasks (with overdue). Each jumps to its section; commercial facts (MRR, retainer, agreement end) are in Key facts.
+
+## Lists
+
+- List pages share one toolbar (`.toolbar` / `.fbar`): segmented view filter where it helps, selects, search (placeholders end in "…"), and a count on the right. Meetings has All / Upcoming / Past plus search by title, company or attendee.
+- The opportunity board collapses empty stages into slim labelled strips so stages with opportunities fit without scrolling sideways; while a card is dragged, the strips widen again as drop targets.
+- At the minimum window size (1080×680) no page scrolls sideways, and every creation dialog fits or scrolls with its Create button reachable.
+
+## Colour and contrast
+
+- `--muted` (dates, captions, secondary details) is at least 4.5:1 against the background in Light, Dark, Graphite and Ocean, and about 4:1 in Sepia and Forest; `--sub` stays darker than `--muted` so the two text levels remain distinct.
 
 ## Creating records
 
