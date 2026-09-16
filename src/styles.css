@@ -1,7 +1,7 @@
 [hidden]{display:none!important}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{color-scheme:light}
-body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);font-size:var(--type-body);line-height:1.48;-webkit-font-smoothing:antialiased}
+body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);font-size:var(--type-body);line-height:1.52;-webkit-font-smoothing:antialiased}
 
 /* ═══════════════════════════ DESIGN TOKENS ═══════════════════════════
    Restrained macOS-native palette. `:root` holds the Light theme's values as
@@ -9,12 +9,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Robot
    override block below, set explicitly by src/core/theme.ts's picker — none
    of them follow prefers-color-scheme, each is a fixed, chosen palette. */
 :root{
-  --bg:#F5F4FB;
+  --bg:#F3F2EF;
   --surface:#FFFFFF;
-  --surface-2:#F7F6FC;
+  --surface-2:#FAF9F7;
   --sidebar-bg:#FFFFFF;
-  --border:#ECEAF4;
-  --border2:#DEDBEA;
+  --border:#E9E7E2;
+  --border2:#DAD7D0;
   --accent:#2A5FE0;
   --accent-bg:#EEF2FE;
   --accent-border:#C7D5FB;
@@ -29,9 +29,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Robot
   --amber:#B4740E;--amber-bg:#FCF3E3;--amber-border:#F0D6A0;
   --amber-deep:#C2740E;
   --orange:#F97316;--orange-bg:#FFF7ED;--orange-border:#FDDCAE;
-  --shadow:0 1px 2px rgba(30,27,60,.04),0 2px 6px rgba(30,27,60,.06);
-  --shadow-md:0 8px 24px rgba(30,27,60,.10),0 2px 8px rgba(30,27,60,.05);
-  --overlay:rgba(30,27,50,.35);
+  --shadow:0 1px 2px rgba(40,36,28,.05),0 3px 10px rgba(40,36,28,.05);
+  --shadow-md:0 10px 28px rgba(40,36,28,.10),0 2px 8px rgba(40,36,28,.05);
+  --overlay:rgba(35,32,26,.34);
   --radius:13px;
   --radius-sm:9px;
   --radius-lg:18px;
@@ -55,25 +55,25 @@ body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Robot
   --space-2:8px;
   --space-3:12px;
   --space-4:16px;
-  --space-5:24px;
+  --space-5:22px;
   --space-6:32px;
 
   /* Type scale — named by role, not by pixel value, so every screen draws
      from the same hierarchy instead of ad hoc font-sizes. Sizes reflect what
      was already in real use across the app; this formalizes it rather than
      inventing a new scale. Pair with the weights noted per role. */
-  --type-title:22px;        /* window/view title — weight 700 */
-  --type-section:15px;      /* large section heading — weight 700 */
-  --type-heading:13px;      /* card/subsection heading — weight 600 */
-  --type-body:13px;         /* default body text — weight 400 */
-  --type-secondary:12px;    /* secondary/supporting text — weight 400 */
-  --type-meta:11px;         /* metadata (dates, counts, tags) — weight 500 */
-  --type-caption:10px;      /* smallest labels — weight 600, uppercase+tracked */
-  --type-label:11px;        /* form field labels — weight 600 */
+  --type-title:23px;        /* window/view title — weight 700 */
+  --type-section:16px;      /* large section heading — weight 700 */
+  --type-heading:14px;      /* card/subsection heading — weight 600 */
+  --type-body:14px;         /* default body text — weight 400 */
+  --type-secondary:13px;    /* secondary/supporting text — weight 400 */
+  --type-meta:12px;         /* metadata (dates, counts, tags) — weight 500 */
+  --type-caption:11px;      /* smallest labels — weight 600, uppercase+tracked */
+  --type-label:12px;        /* form field labels — weight 600 */
   --type-mono:12.5px;
-  --type-large:17px;        /* dialog titles, emphasised amounts — weight 600–700 */
-  --type-stat:20px;         /* numbers in stat tiles — weight 700 */
-  --type-display:26px;      /* record page titles — weight 700 */
+  --type-large:18px;        /* dialog titles, emphasised amounts — weight 600–700 */
+  --type-stat:22px;         /* numbers in stat tiles — weight 700 */
+  --type-display:28px;      /* record page titles — weight 700 */
   --type-hero:30px;         /* document titles (notes) — weight 700 */       /* monospaced/data text — ui-monospace */
 }
 :root[data-theme="dark"]{
@@ -149,7 +149,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Robot
 .icon{display:inline-block;vertical-align:middle;flex-shrink:0}
 
 .tab{display:none}.tab.active{display:block}
-.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:var(--space-4);box-shadow:var(--shadow)}
+.card{background:var(--surface);border:1px solid transparent;border-radius:var(--radius);padding:var(--space-5);box-shadow:var(--shadow)}
 .card-hd{font-size:var(--type-heading);font-weight:600;color:var(--text);display:flex;align-items:center}
 .card-hd{margin-bottom:var(--space-3);gap:var(--space-2)}
 .kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px}
@@ -291,7 +291,7 @@ input[type=text]:focus,input[type=date]:focus,input[type=number]:focus,select.fs
 .co-state.tone-blue{color:var(--accent)}
 .co-stat-n{font-weight:700;color:var(--text)}
 .co-mrr{font-size:var(--type-secondary);font-weight:700;color:var(--green)}
-.co-footer{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:auto;padding-top:9px;border-top:1px solid var(--border)}
+.co-footer{display:flex;flex-direction:column;align-items:flex-start;gap:5px;margin-top:auto;padding-top:9px;border-top:1px solid var(--border)}
 
 /* Company detail page */
 .co-detail{display:none}
@@ -1086,7 +1086,7 @@ main.workspace .tab.active{animation:none}
 .rec-notes{font:inherit;width:100%;min-height:96px;resize:none;overflow:hidden;border:1px solid transparent;border-radius:8px;background:var(--surface-2);padding:10px 12px;font-size:var(--type-body);line-height:1.6;color:var(--text);outline:none;transition:border-color var(--dur-base) var(--ease-out),background var(--dur-base) var(--ease-out)}
 .rec-notes:focus{background:var(--surface);border-color:var(--accent-border)}
 .rec-list{display:flex;flex-direction:column}
-.rec-row{display:flex;align-items:center;gap:12px;padding:9px 8px;border-radius:9px;cursor:pointer;transition:background var(--dur-fast) var(--ease-out)}
+.rec-row{display:flex;align-items:center;gap:12px;padding:12px 10px;border-radius:9px;cursor:pointer;transition:background var(--dur-fast) var(--ease-out)}
 .rec-row + .rec-row{box-shadow:0 -1px 0 var(--border)}
 .rec-row:hover{background:color-mix(in srgb,var(--text) 4%,transparent);box-shadow:none}
 .rec-row:hover + .rec-row{box-shadow:none}
