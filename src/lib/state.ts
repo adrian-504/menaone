@@ -84,7 +84,7 @@ export const S = {
   noteFolderCollapsed: new Set<string>(),
 
   // Todo tab
-  todoFilter: 'today',
+  todoFilter: 'anytime',
   /** Task open in the detail panel beside the list. */
   taskDetailId: null as number | null,
   /** Contact whose page is open in Contacts. */

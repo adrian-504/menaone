@@ -1355,11 +1355,14 @@ tbody tr:hover{background:color-mix(in srgb,var(--text) 3%,var(--surface))}
 .board-card-flags{display:flex;gap:4px;flex-wrap:wrap;margin-top:6px}
 .opp-board{overflow-x:auto}
 .opp-board .board-column{min-width:230px;flex-shrink:0}
-.opp-board .board-column.is-empty{min-width:40px;flex:0 0 40px;padding:10px 4px;align-items:center;transition:flex-basis var(--dur-base) var(--ease-out),min-width var(--dur-base) var(--ease-out)}
-.opp-board .board-column.is-empty .board-column-hd{writing-mode:vertical-rl;padding:0;gap:8px;justify-content:flex-start;white-space:nowrap}
-.opp-board .board-column.is-empty .board-empty{display:none}
-body.dnd-active .opp-board .board-column.is-empty{flex-basis:200px;min-width:200px}
-body.dnd-active .opp-board .board-column.is-empty .board-column-hd{writing-mode:horizontal-tb;justify-content:space-between;padding:2px 4px 6px}
+.opp-board .board-column.stage-hidden{display:none}
+/* While a card is being dragged every stage comes back, so an empty one can still be dropped into. */
+body.dnd-active .opp-board .board-column.stage-hidden{display:flex}
+.board-stages-bar{display:flex;align-items:center;gap:10px;margin:0 0 8px;font-size:var(--type-meta);color:var(--muted)}
+.board-stages-btn{border:0;background:none;padding:0;font:inherit;font-size:var(--type-meta);color:var(--accent);cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+.board-stages-btn:hover{opacity:.82}
+.list-divider{display:flex;align-items:center;gap:10px;margin:14px 2px 8px;font-size:var(--type-meta);letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.list-divider::after{content:"";flex:1;height:1px;background:var(--border)}
 .board-column-total{font-size:var(--type-meta);color:var(--sub);padding:0 2px 6px}
 .board-card[data-drag-kind]{cursor:grab}
 .grid-full{grid-column:1/-1}

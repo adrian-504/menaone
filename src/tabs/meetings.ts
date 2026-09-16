@@ -1,5 +1,6 @@
 import { S } from '../lib/state';
 import { statusBadge } from '../lib/statusTone';
+import { orderMeetings } from '../lib/meetingOrder';
 import { showContextMenu } from '../lib/contextMenu';
 import { renderIcons } from '../core/chrome';
 import { loadInto, emptyState } from '../lib/ui';
@@ -63,8 +64,10 @@ function renderMeetingList(): void {
     if (meetingWhen === 'past' && !(m.meetingDate && m.meetingDate < todayIso)) return false;
     return !q || [m.title, m.companyName, ...(m.attendees || [])].some((v) => (v || '').toLowerCase().includes(q));
   });
-  // Upcoming: soonest first. Otherwise most recent first.
-  const sorted = shown.sort((a, b) => meetingWhen === 'upcoming' ? (a.meetingDate || '').localeCompare(b.meetingDate || '') : (b.meetingDate || '').localeCompare(a.meetingDate || ''));
+  // What's coming first (soonest at the top), history below — the order the
+  // Calendar already uses, so the two modules can't disagree.
+  const { upcoming, past } = orderMeetings(shown, meetingWhen, todayIso);
+  const sorted = [...upcoming, ...past];
   const count = document.getElementById('meeting-count');
   if (count) count.textContent = `${sorted.length} meeting${sorted.length === 1 ? '' : 's'}`;
   if (sorted.length === 0 && S.meetings.length > 0) {
@@ -77,7 +80,7 @@ function renderMeetingList(): void {
     renderIcons(el);
     return;
   }
-  el.innerHTML = meetingSuggestionsBanner() + sorted.map((m) => `<div class="meeting-row${m.isCancelled ? ' is-cancelled' : ''}" onclick="openMeetingDetail(${m.id})">
+  const row = (m: Meeting) => `<div class="meeting-row${m.isCancelled ? ' is-cancelled' : ''}" onclick="openMeetingDetail(${m.id})">
     <div class="meeting-row-top">
       <div class="meeting-title">${m.source === 'outlook' ? icon('calendar', 13) + ' ' : ''}${escHtml(m.title)}${m.isCancelled ? ' (Cancelled)' : ''}</div>
       <div class="meeting-date">${m.meetingDate ? fmtDate(m.meetingDate) : 'No date'}</div>
@@ -88,7 +91,11 @@ function renderMeetingList(): void {
       (m.attendees || []).length ? `${m.attendees.length} attendee${m.attendees.length !== 1 ? 's' : ''}` : '',
       meetingSuggestionChip(m),
     ].filter(Boolean).join(' · ')}</div>
-  </div>`).join('');
+  </div>`;
+  // In "All" the two groups are separated, so a meeting tomorrow can't end up
+  // below one next month.
+  const divider = upcoming.length && past.length ? `<div class="list-divider">Earlier</div>` : '';
+  el.innerHTML = meetingSuggestionsBanner() + upcoming.map(row).join('') + divider + past.map(row).join('');
   renderIcons(el);
 }
 
@@ -541,7 +548,8 @@ export function renderCoMeetingsSection(d: { name: string; companyId: number | n
   if (!container) return;
   void loadMeetings().then(() => {
     const ref = { id: d.companyId, name: d.name };
-    const companyMeetings = S.meetings.filter((m) => inCompany(ref, m.companyId, m.companyName)).sort((a, b) => (b.meetingDate || '').localeCompare(a.meetingDate || ''));
+    const groups = orderMeetings(S.meetings.filter((m) => inCompany(ref, m.companyId, m.companyName)), 'all', today());
+    const companyMeetings = [...groups.upcoming, ...groups.past];
     const cnt = document.getElementById('co-meetings-tab-count');
     if (cnt) cnt.textContent = companyMeetings.length ? String(companyMeetings.length) : '';
     if (companyMeetings.length === 0) {

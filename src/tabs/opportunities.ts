@@ -131,21 +131,41 @@ function oppCardHtml(o: Opportunity): string {
 function renderOpportunityBoard(filtered: Opportunity[]): void {
   const el = document.getElementById('opp-board');
   if (!el) return;
-  // Empty stages collapse to a slim strip (they widen while a card is dragged),
-  // so the stages that have opportunities fit on screen without sideways scrolling.
-  const collapseEmpty = filtered.length > 0;
-  el.innerHTML = `<div class="board-columns opp-board">` + OPPORTUNITY_STAGES.map((stage) => {
+  // A stage with nothing in it is hidden rather than shown as an empty column,
+  // so the board shows where the work actually is. Hidden columns stay in the
+  // DOM (CSS hides them) so they reappear while a card is being dragged and can
+  // still be dropped into.
+  const hideEmpty = !showAllStages && filtered.length > 0;
+  let hidden = 0;
+  const columns = OPPORTUNITY_STAGES.map((stage) => {
     const items = filtered.filter((o) => o.stage === stage);
     const totals: MoneyByCurrency = {};
     items.forEach((o) => addMoney(totals, (o.currency || 'SAR').toUpperCase(), o.estimatedValue || null));
-    const empty = collapseEmpty && items.length === 0;
-    return `<div class="board-column${empty ? ' is-empty' : ''}" data-stage="${stage}" data-drop="opp-stage" data-drop-value="${stage}"${empty ? ` title="${stage} — no opportunities" aria-label="${stage}, no opportunities"` : ''}>
+    const empty = hideEmpty && items.length === 0;
+    if (empty) hidden += 1;
+    return `<div class="board-column${empty ? ' stage-hidden' : ''}" data-stage="${stage}" data-drop="opp-stage" data-drop-value="${stage}">
       <div class="board-column-hd">${stage}<span class="board-column-count">${items.length}</span></div>
       ${Object.keys(totals).length ? `<div class="board-column-total">${fmtMoneyByCurrency(totals)}</div>` : ''}
       ${items.length === 0 ? `<div class="board-empty">No opportunities</div>` : items.map(oppCardHtml).join('')}
     </div>`;
-  }).join('') + `</div>`;
+  }).join('');
+  const bar = hidden || showAllStages
+    ? `<div class="board-stages-bar">
+        <span>${hidden ? `${hidden} empty stage${hidden === 1 ? '' : 's'} hidden` : 'All stages shown'}</span>
+        <button type="button" class="board-stages-btn" onclick="toggleAllStages()">${showAllStages ? 'Hide empty stages' : 'Show all stages'}</button>
+      </div>`
+    : '';
+  el.innerHTML = bar + `<div class="board-columns opp-board">` + columns + `</div>`;
 }
+
+/** Empty stages are hidden by default; this shows them for the rest of the session. */
+let showAllStages = false;
+
+export function toggleAllStages(): void {
+  showAllStages = !showAllStages;
+  renderOpportunitiesList();
+}
+expose('toggleAllStages', toggleAllStages);
 
 registerDragSource('opportunity');
 registerDropTarget('opp-stage', {
