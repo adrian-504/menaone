@@ -294,3 +294,109 @@ BEGIN UPDATE activity SET company_id = NEW.company_id WHERE entity_type = 'note'
 CREATE TRIGGER IF NOT EXISTS act_link_meeting AFTER UPDATE OF company_id ON meetings WHEN NEW.company_id IS NOT NULL
 BEGIN UPDATE activity SET company_id = NEW.company_id WHERE entity_type = 'meeting' AND entity_id = NEW.id AND company_id IS NULL; END;
 "#;
+
+// ═══════════════════ Company notes as a dated log ═══════════════════
+// A company's notes are entries, not one text box: each is written on a date
+// and stays there, so a note from March is still readable after one added in
+// September. Entries follow the company by id (schema 32).
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CompanyNoteEntry {
+    pub id: i64,
+    pub company_id: Option<i64>,
+    pub company_name: Option<String>,
+    pub body: String,
+    /// The note that existed before entries; its real date was never recorded.
+    pub is_legacy: bool,
+    pub created_at: String,
+    pub updated_at: Option<String>,
+}
+
+fn row_to_entry(r: &rusqlite::Row) -> rusqlite::Result<CompanyNoteEntry> {
+    Ok(CompanyNoteEntry {
+        id: r.get(0)?,
+        company_id: r.get(1)?,
+        company_name: r.get(2)?,
+        body: r.get(3)?,
+        is_legacy: r.get::<_, i64>(4)? != 0,
+        created_at: r.get(5)?,
+        updated_at: r.get(6)?,
+    })
+}
+
+const ENTRY_SELECT: &str =
+    "SELECT id, company_id, company_name, body, is_legacy, created_at, updated_at FROM company_note_entries";
+
+/// A company's notes, newest first. Matches by id, and by name as well so a
+/// company that was never linked still shows what was written about it.
+#[tauri::command]
+pub fn company_note_entries(state: State<DbState>, company_id: Option<i64>, company_name: Option<String>) -> CmdResult<Vec<CompanyNoteEntry>> {
+    let conn = state.0.lock().map_err(err)?;
+    let mut stmt = conn
+        .prepare(&format!(
+            "{ENTRY_SELECT} WHERE (?1 IS NOT NULL AND company_id = ?1)
+                OR (?2 IS NOT NULL AND company_id IS NULL AND company_name = ?2)
+             ORDER BY created_at DESC, id DESC"
+        ))
+        .map_err(err)?;
+    let rows = stmt.query_map(params![company_id, company_name], |r| row_to_entry(r)).map_err(err)?;
+    rows.collect::<rusqlite::Result<_>>().map_err(err)
+}
+
+#[tauri::command]
+pub fn add_company_note_entry(state: State<DbState>, company_id: Option<i64>, company_name: Option<String>, body: String) -> CmdResult<CompanyNoteEntry> {
+    let body = body.trim().to_string();
+    if body.is_empty() {
+        return Err("Write something first.".into());
+    }
+    let conn = state.0.lock().map_err(err)?;
+    conn.execute(
+        "INSERT INTO company_note_entries (company_id, company_name, body, is_legacy, created_at) VALUES (?1,?2,?3,0,?4)",
+        params![company_id, company_name, body, crate::commands::now_iso()],
+    )
+    .map_err(err)?;
+    let id = conn.last_insert_rowid();
+    conn.query_row(&format!("{ENTRY_SELECT} WHERE id = ?1"), params![id], |r| row_to_entry(r)).map_err(err)
+}
+
+/// Editing an entry keeps its original date and stamps `updated_at`, so the
+/// log still says when the note was first written.
+#[tauri::command]
+pub fn update_company_note_entry(state: State<DbState>, id: i64, body: String) -> CmdResult<CompanyNoteEntry> {
+    let body = body.trim().to_string();
+    if body.is_empty() {
+        return Err("A note can't be empty — delete it instead.".into());
+    }
+    let conn = state.0.lock().map_err(err)?;
+    conn.execute(
+        "UPDATE company_note_entries SET body = ?1, updated_at = ?2 WHERE id = ?3",
+        params![body, crate::commands::now_iso(), id],
+    )
+    .map_err(err)?;
+    conn.query_row(&format!("{ENTRY_SELECT} WHERE id = ?1"), params![id], |r| row_to_entry(r)).map_err(err)
+}
+
+#[tauri::command]
+pub fn delete_company_note_entry(state: State<DbState>, id: i64) -> CmdResult<()> {
+    let conn = state.0.lock().map_err(err)?;
+    conn.execute("DELETE FROM company_note_entries WHERE id = ?1", params![id]).map_err(err)?;
+    Ok(())
+}
+
+/// Moves a company's notes when it is renamed or merged into another: every
+/// entry keeps its own date rather than being concatenated into one blob.
+pub fn retarget_company_notes(conn: &Connection, old_name: &str, new_name: &str, new_id: Option<i64>) -> rusqlite::Result<()> {
+    conn.execute(
+        "UPDATE company_note_entries SET company_name = ?1, company_id = COALESCE(?2, company_id)
+         WHERE company_name = ?3 OR (?2 IS NOT NULL AND company_id = ?2)",
+        params![new_name, new_id, old_name],
+    )?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn move_company_note_entries(state: State<DbState>, old_name: String, new_name: String, new_id: Option<i64>) -> CmdResult<()> {
+    let conn = state.0.lock().map_err(err)?;
+    retarget_company_notes(&conn, &old_name, &new_name, new_id).map_err(err)
+}

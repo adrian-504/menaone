@@ -4,7 +4,7 @@ import { S } from '../lib/state';
 import { toast, undoToast } from '../lib/ui';
 import { renderBulkBar } from '../lib/bulkBar';
 import { STATUSES, ST, AGR_ST, CC } from '../lib/constants';
-import { today, fmtDate, escHtml, expose, statusDot, showTextPrompt, getClients, companyRef, inCompany, daysSince, daysUntil, strColor, type CompanyRef } from '../lib/utils';
+import { today, fmtDate, escHtml, expose, showConfirm, statusDot, showTextPrompt, getClients, companyRef, inCompany, daysSince, daysUntil, strColor, type CompanyRef } from '../lib/utils';
 import { shownColumns, sortState, setSort, sortRows, headerCells, openColumnPicker, agoLabel, type Column, type SortState } from '../lib/tableColumns';
 import { companyLists, companyNamesInList, contactsInCompanyList, contactsAtCompanies, createSavedList, renameSavedList, removeSavedList, updateSmartListFilters, addCompaniesToList, removeCompaniesFromList, addToCompanyListChoices, exportToActiveCampaign, listById, sameFilters, cleanFilters, listChipLabel, listsForCompany } from '../core/lists';
 import { emptyState } from '../lib/ui';
@@ -22,7 +22,7 @@ import { openNotesModal } from '../core/proposals';
 import { renderCoNotesSection, createNoteForCompany } from './notes';
 import { renderCoTodosSection, createTodoForCompany } from './todo';
 import { renderLinkedEmailsForCompany } from '../core/emailLinks';
-import { getLinksFor, filesGetByIds, getCompanies, mergeCompanyLinks, saveMeeting, saveProject, saveCompany, getReviewQueue, resolveReviewQueueEntry, renameCompany, getActivity } from '../lib/db';
+import { getLinksFor, filesGetByIds, getCompanies, mergeCompanyLinks, saveMeeting, saveProject, saveCompany, getReviewQueue, resolveReviewQueueEntry, renameCompany, getActivity, companyNoteEntries, addCompanyNoteEntryDb, updateCompanyNoteEntryDb, deleteCompanyNoteEntryDb, moveCompanyNoteEntries, type CompanyNoteEntry} from '../lib/db';
 import { switchTab } from '../core/nav';
 import { normalizeCompanyNameForMatch } from '../lib/companySelector';
 import { INDUSTRY_TAXONOMY } from '../lib/types';
@@ -124,11 +124,8 @@ async function reassignCompanyName(oldName: string, newName: string): Promise<vo
 
 export async function saveEditCompany(): Promise<void> {
   const newName = (document.getElementById('edit-co-name') as HTMLInputElement).value.trim();
-  const notesVal = (S.currentCompany ? S.companyNotes[S.currentCompany] : '')?.trim() || '';
   if (!newName) return;
   const oldName = S.currentCompany;
-  if (notesVal) S.companyNotes[newName] = notesVal;
-  else delete S.companyNotes[newName];
   if (oldName !== newName && oldName) {
     // Rename the company record itself first, keeping its id, so every record
     // linked to it stays linked; the free-text names then follow.
@@ -142,8 +139,9 @@ export async function saveEditCompany(): Promise<void> {
         return;
       }
     }
-    delete S.companyNotes[oldName];
     await reassignCompanyName(oldName, newName);
+    // Notes are dated entries now: they follow the company, each keeping its date.
+    try { await moveCompanyNoteEntries(oldName, newName, S.companies.find((c) => c.name === newName)?.id ?? null); } catch (e) { console.error('[company rename] notes follow-up failed:', e); }
     if (!record) {
       try { await mergeCompanyLinks(oldName, newName); } catch (e) { console.error('[company rename] link reconciliation failed:', e); }
     }
@@ -301,12 +299,9 @@ export async function confirmMergeCompanies(): Promise<void> {
 
   await reassignCompanyName(source, target);
 
-  const srcNotes = S.companyNotes[source];
-  const tgtNotes = S.companyNotes[target];
-  if (srcNotes && tgtNotes) S.companyNotes[target] = `${tgtNotes}\n\n---\n\n${srcNotes}`;
-  else if (srcNotes) S.companyNotes[target] = srcNotes;
-  delete S.companyNotes[source];
-  persistCompanyNotes();
+  // Both companies' notes end up in one log, each entry keeping its own date —
+  // better than the old behaviour, which glued two blobs of text together.
+  try { await moveCompanyNoteEntries(source, target, S.companies.find((c) => c.name === target)?.id ?? null); } catch (e) { console.error('[merge] notes follow-up failed:', e); }
 
 
   try {
@@ -1025,11 +1020,7 @@ function renderCompanyDetail(): void {
   ].join('');
 
   renderCompanyFacts(d);
-  const notesText = document.getElementById('co-notes-text') as HTMLTextAreaElement | null;
-  if (notesText && document.activeElement !== notesText) {
-    notesText.value = S.companyNotes[d.name] || '';
-    autoGrowNotes(notesText);
-  }
+  void loadCompanyNoteEntries();
   if (d.companyId != null) void renderLinkedEmailsForCompany(d.companyId, 'co-emails');
 
   renderCompanySectionNav({
@@ -1093,10 +1084,55 @@ function renderCompanySectionNav(counts: Record<string, number | null>): void {
   if (!nav) return;
   nav.innerHTML = COMPANY_SECTIONS.map(([id, label]) => {
     const n = counts[id];
-    return `<button class="rec-section-link" data-target="${id}" onclick="scrollToCompanySection('${id}')">${label}${n ? `<span>${n}</span>` : ''}</button>`;
+    return `<button class="rec-section-link${counts[id] === 0 ? ' is-empty' : ''}" data-target="${id}" onclick="scrollToCompanySection('${id}')">${label}${n ? `<span>${n}</span>` : ''}</button>`;
   }).join('');
+  applyCompanySectionLayout(counts);
   updateCompanySectionSpy();
 }
+
+/**
+ * What this company actually has comes first. A section with nothing in it
+ * collapses to a single line and moves below the ones with content, so a
+ * client with proposals and agreements isn't two screens of "No opportunities
+ * yet" before you reach them.
+ *
+ * Nothing is removed: the collapsed line keeps its + New button, and clicking
+ * it opens the section.
+ */
+function applyCompanySectionLayout(counts: Record<string, number | null>): void {
+  const anchor = document.getElementById('co-sec-files');
+  const host = anchor?.parentElement;
+  if (!host || !anchor) return;
+  const movable = COMPANY_SECTIONS.filter(([id]) => !['overview', 'activity', 'files'].includes(id));
+  const empties: HTMLElement[] = [];
+  for (const [id] of movable) {
+    const el = document.getElementById(`co-sec-${id}`);
+    if (!el) continue;
+    const empty = counts[id] === 0;
+    el.classList.toggle('is-empty', empty);
+    const hd = el.querySelector('.rec-section-hd');
+    let hint = el.querySelector<HTMLElement>('.rec-empty-hint');
+    if (empty && !hint && hd) {
+      hint = document.createElement('span');
+      hint.className = 'rec-empty-hint';
+      hint.textContent = 'None yet';
+      hint.title = 'Click to open this section';
+      hint.onclick = () => expandCompanySection(id);
+      hd.insertBefore(hint, hd.querySelector('.rec-section-actions'));
+    } else if (!empty && hint) {
+      hint.remove();
+    }
+    if (empty) empties.push(el);
+    else host.insertBefore(el, anchor); // sections with content keep their order, above Files
+  }
+  for (const el of empties) host.insertBefore(el, anchor); // then the empty ones, together
+}
+
+/** Clicking a collapsed section opens it for this visit. */
+export function expandCompanySection(id: string): void {
+  document.getElementById(`co-sec-${id}`)?.classList.remove('is-empty');
+}
+expose('expandCompanySection', expandCompanySection);
 
 export function scrollToCompanySection(id: string): void {
   const el = document.getElementById(`co-sec-${id}`);
@@ -1124,22 +1160,141 @@ function autoGrowNotes(el: HTMLTextAreaElement): void {
   el.style.height = `${Math.max(96, el.scrollHeight)}px`;
 }
 
-let companyNotesTimer: number | undefined;
-export function companyNotesInput(value: string): void {
-  const name = S.currentCompany;
-  if (!name) return;
-  const el = document.getElementById('co-notes-text') as HTMLTextAreaElement | null;
-  if (el) autoGrowNotes(el);
-  const state = document.getElementById('co-notes-state');
-  if (state) state.textContent = 'Editing…';
-  window.clearTimeout(companyNotesTimer);
-  companyNotesTimer = window.setTimeout(() => {
-    if (value.trim()) S.companyNotes[name] = value; else delete S.companyNotes[name];
-    persistCompanyNotes();
-    if (state) { state.textContent = 'Saved'; window.setTimeout(() => { if (state.textContent === 'Saved') state.textContent = ''; }, 1500); }
-  }, 500);
+// ── Company notes: a dated log ───────────────────────────────────────────────
+// Notes used to be one text box that each edit overwrote. They are entries
+// now: write one, press Enter, and it is kept with its date. What was written
+// in March is still there after a note added in September.
+
+let noteEntries: CompanyNoteEntry[] = [];
+let editingEntryId: number | null = null;
+
+function noteTarget(): { id: number | null; name: string | null } {
+  const name = S.currentCompany || null;
+  const rec = name ? S.companies.find((c) => c.name === name) : undefined;
+  return { id: rec?.id ?? null, name };
 }
-expose('companyNotesInput', companyNotesInput);
+
+export async function loadCompanyNoteEntries(): Promise<void> {
+  const { id, name } = noteTarget();
+  if (!name && id == null) return;
+  try {
+    noteEntries = await companyNoteEntries(id, name);
+  } catch (e) {
+    console.error('[company notes] could not load entries:', e);
+    noteEntries = [];
+  }
+  renderCompanyNoteLog();
+}
+
+function renderCompanyNoteLog(): void {
+  const log = document.getElementById('co-notes-log');
+  if (!log) return;
+  const count = document.getElementById('co-notes-entry-count');
+  if (count) count.textContent = noteEntries.length ? String(noteEntries.length) : '';
+  if (noteEntries.length === 0) {
+    log.innerHTML = `<div class="conote-none">No notes yet. The first one you write is kept with today's date.</div>`;
+    return;
+  }
+  log.innerHTML = noteEntries.map((n) => {
+    const when = n.isLegacy ? 'Written before notes were dated' : fmtDate(n.createdAt.slice(0, 10));
+    const edited = n.updatedAt && !n.isLegacy ? ` · edited ${fmtDate(n.updatedAt.slice(0, 10))}` : '';
+    if (editingEntryId === n.id) {
+      return `<div class="conote-entry editing">
+        <textarea class="rec-notes conote-input" id="conote-edit-${n.id}">${escHtml(n.body)}</textarea>
+        <div class="conote-entry-actions">
+          <button class="btn-sm" onclick="cancelCompanyNoteEdit()">Cancel</button>
+          <button class="btn-sm btn-primary" onclick="saveCompanyNoteEdit(${n.id})">Save</button>
+        </div>
+      </div>`;
+    }
+    return `<div class="conote-entry">
+      <div class="conote-meta"><span>${escHtml(when)}${escHtml(edited)}</span>
+        <span class="conote-entry-actions">
+          <button class="rec-icon-btn" title="Edit" aria-label="Edit note" onclick="editCompanyNoteEntry(${n.id})">${icon('edit', 13)}</button>
+          <button class="rec-icon-btn" title="Delete" aria-label="Delete note" onclick="removeCompanyNoteEntry(${n.id})">${icon('trash', 13)}</button>
+        </span>
+      </div>
+      <div class="conote-body">${escHtml(n.body)}</div>
+    </div>`;
+  }).join('');
+  renderIcons(log);
+}
+
+export function companyNoteComposerInput(el: HTMLTextAreaElement): void {
+  autoGrowNotes(el);
+}
+expose('companyNoteComposerInput', companyNoteComposerInput);
+
+/** Enter saves the note; Shift+Enter starts a new line. */
+export function companyNoteComposerKey(e: KeyboardEvent): void {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    void addCompanyNoteEntry();
+  }
+}
+expose('companyNoteComposerKey', companyNoteComposerKey);
+
+export async function addCompanyNoteEntry(): Promise<void> {
+  const el = document.getElementById('co-notes-text') as HTMLTextAreaElement | null;
+  const body = (el?.value || '').trim();
+  if (!body) return;
+  const { id, name } = noteTarget();
+  try {
+    const entry = await addCompanyNoteEntryDb(id, name, body);
+    noteEntries.unshift(entry);
+  } catch (err) {
+    toast('Could not save the note', { tone: 'error', detail: String(err) });
+    return;
+  }
+  if (el) { el.value = ''; autoGrowNotes(el); }
+  renderCompanyNoteLog();
+}
+expose('addCompanyNoteEntry', addCompanyNoteEntry);
+
+export function editCompanyNoteEntry(id: number): void {
+  editingEntryId = id;
+  renderCompanyNoteLog();
+  document.getElementById(`conote-edit-${id}`)?.focus();
+}
+expose('editCompanyNoteEntry', editCompanyNoteEntry);
+
+export function cancelCompanyNoteEdit(): void {
+  editingEntryId = null;
+  renderCompanyNoteLog();
+}
+expose('cancelCompanyNoteEdit', cancelCompanyNoteEdit);
+
+export async function saveCompanyNoteEdit(id: number): Promise<void> {
+  const el = document.getElementById(`conote-edit-${id}`) as HTMLTextAreaElement | null;
+  const body = (el?.value || '').trim();
+  if (!body) return;
+  try {
+    const saved = await updateCompanyNoteEntryDb(id, body);
+    const i = noteEntries.findIndex((n) => n.id === id);
+    if (i > -1) noteEntries[i] = saved;
+  } catch (err) {
+    toast('Could not save the note', { tone: 'error', detail: String(err) });
+    return;
+  }
+  editingEntryId = null;
+  renderCompanyNoteLog();
+}
+expose('saveCompanyNoteEdit', saveCompanyNoteEdit);
+
+export async function removeCompanyNoteEntry(id: number): Promise<void> {
+  const entry = noteEntries.find((n) => n.id === id);
+  if (!entry) return;
+  if (!(await showConfirm('This note will be removed from the company\'s log.', { title: 'Delete this note?', confirmLabel: 'Delete' }))) return;
+  try {
+    await deleteCompanyNoteEntryDb(id);
+  } catch (err) {
+    toast('Could not delete the note', { tone: 'error', detail: String(err) });
+    return;
+  }
+  noteEntries = noteEntries.filter((n) => n.id !== id);
+  renderCompanyNoteLog();
+}
+expose('removeCompanyNoteEntry', removeCompanyNoteEntry);
 
 /** The header's "New" menu — the shared list for the open record (core/contextActions). */
 export function companyNewMenu(e: MouseEvent): void {

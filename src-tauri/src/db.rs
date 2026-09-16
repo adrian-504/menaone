@@ -702,7 +702,42 @@ const CODE_MIGRATIONS: &[(i64, fn(&Connection) -> rusqlite::Result<()>)] = &[
     (30, migrate_company_notes_ids),
     // Work Graph: tasks can belong to an opportunity; task activity carries it.
     (31, migrate_task_opportunities),
+    // Company notes become a dated log instead of one overwritable text box.
+    (32, migrate_company_note_entries),
 ];
+
+/// A company's notes were one text field that every edit overwrote. They become
+/// dated entries, so what was written in March survives a note added in
+/// September. The existing text is kept as the first entry of that company's
+/// log, marked `is_legacy` because its real date was never recorded, and the
+/// old `company_notes` rows are left untouched as a fallback.
+fn migrate_company_note_entries(conn: &Connection) -> rusqlite::Result<()> {
+    conn.execute_batch(
+        r#"CREATE TABLE IF NOT EXISTS company_note_entries (
+          id           INTEGER PRIMARY KEY,
+          company_id   INTEGER REFERENCES companies(id) ON DELETE CASCADE,
+          company_name TEXT,
+          body         TEXT NOT NULL,
+          is_legacy    INTEGER NOT NULL DEFAULT 0,
+          created_at   TEXT NOT NULL,
+          updated_at   TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_company_note_entries_company ON company_note_entries(company_id);
+        CREATE INDEX IF NOT EXISTS idx_company_note_entries_name ON company_note_entries(company_name);"#,
+    )?;
+    let already: i64 = conn.query_row("SELECT COUNT(*) FROM company_note_entries", [], |r| r.get(0))?;
+    if already > 0 {
+        return Ok(());
+    }
+    conn.execute(
+        "INSERT INTO company_note_entries (company_id, company_name, body, is_legacy, created_at)
+         SELECT n.company_id, COALESCE(c.name, n.company_name), n.note_text, 1, strftime('%Y-%m-%dT%H:%M:%fZ','now')
+         FROM company_notes n LEFT JOIN companies c ON c.id = n.company_id
+         WHERE n.note_text IS NOT NULL AND TRIM(n.note_text) <> ''",
+        [],
+    )?;
+    Ok(())
+}
 
 fn migrate_task_opportunities(conn: &Connection) -> rusqlite::Result<()> {
     let has_col = conn.prepare("PRAGMA table_info(todos)")?

@@ -74,3 +74,56 @@ fn restore_is_silent_and_rename_keeps_links() {
 
     let _ = std::fs::remove_file(&path);
 }
+
+/// Company notes are a dated log: an old note is still readable after a new
+/// one, editing keeps the original date, and a rename or merge carries every
+/// entry across with its own date rather than gluing the text together.
+#[test]
+fn company_notes_are_dated_entries_that_survive_the_next_one() {
+    use menabig_tracker_lib::activity::retarget_company_notes;
+    let (path, conn) = fresh_db("company_notes");
+
+    conn.execute("INSERT INTO companies (id, name) VALUES (1, 'Globex Industrial'), (2, 'Contoso Logistics')", []).unwrap();
+    let add = |company_id: i64, name: &str, body: &str, created: &str| {
+        conn.execute(
+            "INSERT INTO company_note_entries (company_id, company_name, body, is_legacy, created_at) VALUES (?1,?2,?3,0,?4)",
+            rusqlite::params![company_id, name, body, created],
+        )
+        .unwrap();
+    };
+    add(1, "Globex Industrial", "Finance signs off above SAR 50k.", "2026-03-02T09:00:00Z");
+    add(1, "Globex Industrial", "New HR director from September.", "2026-09-16T09:00:00Z");
+
+    let entries = |conn: &Connection, id: i64| -> Vec<(String, String)> {
+        let mut stmt = conn
+            .prepare("SELECT created_at, body FROM company_note_entries WHERE company_id = ?1 ORDER BY created_at DESC")
+            .unwrap();
+        stmt.query_map([id], |r| Ok((r.get(0)?, r.get(1)?))).unwrap().collect::<rusqlite::Result<_>>().unwrap()
+    };
+
+    // Writing a second note doesn't replace the first.
+    let log = entries(&conn, 1);
+    assert_eq!(log.len(), 2);
+    assert!(log[0].1.contains("New HR director"), "newest first");
+    assert!(log[1].1.contains("Finance signs off"), "the older note is still there");
+
+    // Editing keeps the entry's original date.
+    conn.execute(
+        "UPDATE company_note_entries SET body = ?1, updated_at = ?2 WHERE created_at = '2026-03-02T09:00:00Z'",
+        rusqlite::params!["Finance signs off above SAR 60k.", "2026-09-16T10:00:00Z"],
+    )
+    .unwrap();
+    let edited = entries(&conn, 1);
+    assert_eq!(edited[1].0, "2026-03-02T09:00:00Z", "an edit must not re-date the note");
+    assert!(edited[1].1.contains("60k"));
+
+    // A merge moves entries over, each keeping its own date.
+    add(2, "Contoso Logistics", "Pays late, chase at day 25.", "2026-06-01T09:00:00Z");
+    retarget_company_notes(&conn, "Contoso Logistics", "Globex Industrial", Some(1)).unwrap();
+    let merged = entries(&conn, 1);
+    assert_eq!(merged.len(), 3, "both companies' notes end up in one log");
+    assert!(merged.iter().any(|(at, b)| at.starts_with("2026-06-01") && b.contains("Pays late")));
+    assert!(entries(&conn, 2).is_empty());
+
+    let _ = std::fs::remove_file(&path);
+}

@@ -1361,6 +1361,29 @@ body.dnd-active .opp-board .board-column.stage-hidden{display:flex}
 .board-stages-bar{display:flex;align-items:center;gap:10px;margin:0 0 8px;font-size:var(--type-meta);color:var(--muted)}
 .board-stages-btn{border:0;background:none;padding:0;font:inherit;font-size:var(--type-meta);color:var(--accent);cursor:pointer;text-decoration:underline;text-underline-offset:2px}
 .board-stages-btn:hover{opacity:.82}
+/* Company notes as a dated log: write, press Enter, it stays with its date. */
+.conote-composer{display:flex;flex-direction:column;gap:6px}
+.conote-input{min-height:52px;resize:vertical}
+.conote-composer-actions{display:flex;justify-content:flex-end}
+.conote-log{display:flex;flex-direction:column;gap:2px;margin-top:12px}
+.conote-none{font-size:var(--type-meta);color:var(--muted);padding:8px 2px}
+.conote-entry{padding:9px 0;border-top:1px solid var(--border)}
+.conote-entry:first-child{border-top:0}
+.conote-meta{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:var(--type-meta);color:var(--muted)}
+.conote-entry-actions{display:flex;gap:2px;opacity:0;transition:opacity .12s}
+.conote-entry:hover .conote-entry-actions,.conote-entry.editing .conote-entry-actions{opacity:1}
+.conote-entry.editing .conote-entry-actions{justify-content:flex-end;margin-top:6px}
+.conote-body{white-space:pre-wrap;margin-top:3px;color:var(--text)}
+/* Contextual sections: what a record actually has comes first. An empty
+   section collapses to its header and sits below the ones with content. */
+.rec-section.is-empty{padding-top:10px;padding-bottom:10px}
+.rec-section.is-empty > *:not(.rec-section-hd){display:none}
+.rec-section.is-empty .rec-section-hd{margin-bottom:0}
+.rec-section.is-empty .rec-count{display:none}
+.rec-section.is-empty h2{font-weight:500;color:var(--sub)}
+.rec-empty-hint{font-size:var(--type-meta);color:var(--muted);cursor:pointer;margin-left:2px}
+.rec-empty-hint:hover{color:var(--accent)}
+.rec-section-link.is-empty{opacity:.55}
 /* Action Required — the task just created from an email, edited in place. */
 .ar-task-draft{margin-top:8px;padding:10px 12px;background:var(--accent-bg);border:1px solid var(--accent-border);border-radius:9px}
 .ar-task-draft-hd{display:flex;align-items:center;gap:6px;font-size:var(--type-meta);font-weight:600;color:var(--accent)}

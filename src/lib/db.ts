@@ -285,3 +285,11 @@ export async function persistReturning<T>(label: string, fn: () => Promise<T>): 
 function showSaveErrorToast(label: string) {
   toast(`Couldn't save ${label}`, { tone: 'error', detail: 'Your change may not have been kept — please try again.' });
 }
+
+// ── Company notes (dated entries) ────────────────────────────────────────────
+export interface CompanyNoteEntry { id: number; companyId: number | null; companyName: string | null; body: string; isLegacy: boolean; createdAt: string; updatedAt: string | null; }
+export async function companyNoteEntries(companyId: number | null, companyName: string | null): Promise<CompanyNoteEntry[]> { return invoke<CompanyNoteEntry[]>('company_note_entries', { companyId, companyName }); }
+export async function addCompanyNoteEntryDb(companyId: number | null, companyName: string | null, body: string): Promise<CompanyNoteEntry> { return invoke<CompanyNoteEntry>('add_company_note_entry', { companyId, companyName, body }); }
+export async function updateCompanyNoteEntryDb(id: number, body: string): Promise<CompanyNoteEntry> { return invoke<CompanyNoteEntry>('update_company_note_entry', { id, body }); }
+export async function deleteCompanyNoteEntryDb(id: number): Promise<void> { await invoke('delete_company_note_entry', { id }); }
+export async function moveCompanyNoteEntries(oldName: string, newName: string, newId: number | null): Promise<void> { await invoke('move_company_note_entries', { oldName, newName, newId }); }

@@ -128,6 +128,11 @@ function todaysMockMeetings(): Meeting[] {
 }
 let companiesStore: Company[] = [];
 let savedListsStore: SavedList[] = [];
+/** Company notes as dated entries (schema 32). */
+const companyNoteEntriesStore: any[] = [
+  { id: 8001, companyId: 1, companyName: 'Acme Holdings', body: 'Finance signs off on anything above SAR 50k — allow an extra week.', isLegacy: false, createdAt: '2026-07-14T09:12:00Z', updatedAt: null },
+  { id: 8002, companyId: 1, companyName: 'Acme Holdings', body: 'Prefers everything by email; the HR director is the real decision maker.', isLegacy: true, createdAt: '2026-05-02T08:00:00Z', updatedAt: null },
+];
 let nextSavedListId = 0;
 function makeMockCompany(id: number, name: string): Company {
   return {
@@ -757,6 +762,33 @@ export async function installDevMockIfNeeded(): Promise<void> {
               completedLogStore.unshift({ id: removed.id, messageId: removed.messageId, subject: removed.subject, senderName: removed.senderName, senderEmail: removed.senderEmail, completedAt: new Date().toISOString() });
             }
           }
+          return null;
+        }
+        case 'company_note_entries': {
+          const p = _payload as any;
+          return companyNoteEntriesStore.filter((n) => (p?.companyId != null && n.companyId === p.companyId) || (p?.companyName && n.companyName === p.companyName));
+        }
+        case 'add_company_note_entry': {
+          const p = _payload as any;
+          const entry = { id: Date.now(), companyId: p?.companyId ?? null, companyName: p?.companyName ?? null, body: String(p?.body || ''), isLegacy: false, createdAt: new Date().toISOString(), updatedAt: null };
+          companyNoteEntriesStore.unshift(entry);
+          return entry;
+        }
+        case 'update_company_note_entry': {
+          const p = _payload as any;
+          const n = companyNoteEntriesStore.find((x) => x.id === p?.id);
+          if (n) { n.body = String(p?.body || ''); n.updatedAt = new Date().toISOString(); }
+          return n ?? null;
+        }
+        case 'delete_company_note_entry': {
+          const p = _payload as any;
+          const i = companyNoteEntriesStore.findIndex((x) => x.id === p?.id);
+          if (i > -1) companyNoteEntriesStore.splice(i, 1);
+          return null;
+        }
+        case 'move_company_note_entries': {
+          const p = _payload as any;
+          companyNoteEntriesStore.forEach((n) => { if (n.companyName === p?.oldName) { n.companyName = p?.newName ?? n.companyName; if (p?.newId != null) n.companyId = p.newId; } });
           return null;
         }
         case 'ms365_reflag_email': {

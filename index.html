@@ -1560,8 +1560,12 @@
     </div>
   </div></div>
         <div class="card rec-notes-card">
-          <div class="rec-section-hd"><h2>Company notes</h2><span class="rec-save-state" id="co-notes-state"></span></div>
-          <textarea class="rec-notes" id="co-notes-text" placeholder="Background, preferences, who decides — anything the team should know." oninput="companyNotesInput(this.value)"></textarea>
+          <div class="rec-section-hd"><h2>Company notes</h2><span class="rec-count" id="co-notes-entry-count"></span></div>
+          <div class="conote-composer">
+            <textarea class="rec-notes conote-input" id="co-notes-text" rows="2" placeholder="What's new with this client? Enter to save, Shift+Enter for a new line." oninput="companyNoteComposerInput(this)" onkeydown="companyNoteComposerKey(event)"></textarea>
+            <div class="conote-composer-actions"><button class="btn-sm btn-primary" onclick="addCompanyNoteEntry()">Add note</button></div>
+          </div>
+          <div class="conote-log" id="co-notes-log"></div>
         </div>
       </div>
       <div class="card" id="co-emails" style="display:none"></div>
