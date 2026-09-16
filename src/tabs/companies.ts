@@ -902,7 +902,8 @@ export function renderCompanyList(): void {
           ${stat(d.contacts.length, 'contact', 'contacts')}
           ${stat(d.proposals.length, 'proposal', 'proposals')}
           ${showAgreements ? stat(d.agreements.length, 'agreement', 'agreements') : ''}
-          ${!showAgreements && opportunityCount > 0 ? stat(opportunityCount, 'opportunity', 'opportunities') : ''}
+          ${opportunityCount > 0 ? stat(opportunityCount, 'opportunity', 'opportunities') : ''}
+          ${projectCount > 0 ? stat(projectCount, 'project', 'projects') : ''}
         </span>
         <span class="co-state tone-${rel.tone}">${escHtml(rel.label)}${mrrStr ? ` · ${mrrStr}` : ''}</span>
       </div>
