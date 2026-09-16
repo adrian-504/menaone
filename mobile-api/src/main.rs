@@ -216,6 +216,93 @@ async fn client(State(app): State<Shared>, Path(id): Path<i64>) -> Result<Json<V
     })))
 }
 
+
+// ── search ──────────────────────────────────────────────────────────────────
+
+/// One search across everything, using the full-text index the desktop app
+/// already maintains. On a phone this matters more than a menu: you know the
+/// name, you want the record, and you have one hand.
+async fn search(State(app): State<Shared>, Path(q): Path<String>) -> Result<Json<Vec<Value>>, (StatusCode, String)> {
+    let q = q.trim();
+    if q.len() < 2 {
+        return Ok(Json(vec![]));
+    }
+    let db = app.db.lock().map_err(err)?;
+    // FTS5 is picky about punctuation, so the term is quoted and given a prefix star.
+    let term = format!("\"{}\"*", q.replace('"', " "));
+    let mut stmt = db
+        .prepare(
+            "SELECT entity_type, entity_id, title, snippet(search_index, 3, '', '', '…', 8)
+             FROM search_index WHERE search_index MATCH ?1
+             ORDER BY rank LIMIT 40",
+        )
+        .map_err(err)?;
+    let rows = stmt
+        .query_map(params![term], |r| {
+            Ok(json!({ "kind": r.get::<_,String>(0)?, "id": r.get::<_,i64>(1)?,
+                       "title": r.get::<_,String>(2)?, "snippet": r.get::<_,String>(3)? }))
+        })
+        .map_err(err)?
+        .collect::<rusqlite::Result<Vec<_>>>()
+        .map_err(err)?;
+    Ok(Json(rows))
+}
+
+// ── meeting brief ───────────────────────────────────────────────────────────
+
+/// What you want on the way in: who is coming, what was said last time, and
+/// what is open with this client. The desktop calls this a meeting brief; on a
+/// phone it is the whole reason to open the app.
+async fn meeting(State(app): State<Shared>, Path(id): Path<i64>) -> Result<Json<Value>, (StatusCode, String)> {
+    let db = app.db.lock().map_err(err)?;
+    let (title, date, start, attendees, agenda, company_id, company): (String, Option<String>, Option<String>, Option<String>, Option<String>, Option<i64>, Option<String>) = db
+        .query_row(
+            "SELECT m.title, m.meeting_date, m.start_at, m.attendees_json, m.agenda, m.company_id,
+                    COALESCE(c.name, m.company_name)
+             FROM meetings m LEFT JOIN companies c ON c.id = m.company_id WHERE m.id = ?1",
+            params![id],
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?, r.get(5)?, r.get(6)?)),
+        )
+        .map_err(|_| (StatusCode::NOT_FOUND, "no such meeting".to_string()))?;
+
+    let people: Vec<String> = attendees
+        .and_then(|j| serde_json::from_str::<Vec<String>>(&j).ok())
+        .unwrap_or_default();
+
+    let mut last_notes = vec![];
+    let mut open = vec![];
+    if let Some(cid) = company_id {
+        let mut stmt = db
+            .prepare("SELECT body, created_at FROM company_note_entries WHERE company_id = ?1 ORDER BY created_at DESC LIMIT 3")
+            .map_err(err)?;
+        last_notes = stmt
+            .query_map(params![cid], |r| Ok(json!({ "body": r.get::<_,String>(0)?, "at": r.get::<_,String>(1)? })))
+            .map_err(err)?
+            .collect::<rusqlite::Result<Vec<_>>>()
+            .map_err(err)?;
+        let mut stmt = db
+            .prepare(
+                "SELECT 'proposal', id, COALESCE(type,''), COALESCE(status,'') FROM proposals
+                 WHERE company_id = ?1 AND status NOT IN ('Lost','Signed by Both Parties') AND COALESCE(archived,0)=0
+                 UNION ALL
+                 SELECT 'task', id, title, COALESCE(due_date,'') FROM todos WHERE company_id = ?1 AND status <> 'Done'",
+            )
+            .map_err(err)?;
+        open = stmt
+            .query_map(params![cid], |r| {
+                Ok(json!({ "kind": r.get::<_,String>(0)?, "id": r.get::<_,i64>(1)?,
+                           "what": r.get::<_,String>(2)?, "detail": r.get::<_,String>(3)? }))
+            })
+            .map_err(err)?
+            .collect::<rusqlite::Result<Vec<_>>>()
+            .map_err(err)?;
+    }
+
+    Ok(Json(json!({ "id": id, "title": title, "date": date, "startAt": start, "company": company,
+                    "companyId": company_id, "attendees": people, "agenda": agenda,
+                    "lastNotes": last_notes, "open": open })))
+}
+
 // ── capture ─────────────────────────────────────────────────────────────────
 
 #[derive(Deserialize)]
@@ -269,6 +356,8 @@ async fn main() {
         .route("/api/today", get(today))
         .route("/api/clients", get(clients))
         .route("/api/clients/:id", get(client))
+        .route("/api/search/:q", get(search))
+        .route("/api/meetings/:id", get(meeting))
         .route("/api/capture", post(capture).get(captured))
         .fallback_service(ServeDir::new(ui).append_index_html_on_directories(true))
         .layer(CorsLayer::permissive())

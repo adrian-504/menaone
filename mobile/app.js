@@ -50,10 +50,10 @@ async function today() {
   subEl.textContent = new Date(d.date + 'T00:00').toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' });
 
   const meetings = d.meetings.length
-    ? card(d.meetings.map((m) => `<div class="row">
+    ? card(d.meetings.map((m) => `<button class="row" data-meeting="${m.id}">
         <div class="row-flex"><span class="row-title">${esc(m.title)}</span><span class="when">${esc(time(m.startAt))}</span></div>
         <div class="row-sub">${[m.company, place(m.location)].filter(Boolean).map(esc).join(' · ') || 'No client linked'}</div>
-      </div>`).join(''))
+      </button>`).join(''))
     : empty('Nothing in the calendar today');
 
   const attention = d.attention.length
@@ -82,24 +82,56 @@ async function today() {
     <p class="skeleton-note">Skeleton — reading your real data, nothing can be changed from here yet.</p>`;
 }
 
-// ── Clients ─────────────────────────────────────────────────────────────────
+// ── Search (everything, not just clients) ──────────────────────────────────
+// On a phone you know the name and want the record. One box across companies,
+// contacts, proposals, agreements and meetings, using the same full-text index
+// the desktop search uses.
+const KIND_LABEL = { company: 'Client', contact: 'Contact', proposal: 'Proposal', agreement: 'Agreement', meeting: 'Meeting', opportunity: 'Opportunity', project: 'Project', note: 'Note', task: 'Task' };
+
+let searchTimer;
 async function clients() {
-  titleEl.textContent = 'Clients';
+  titleEl.textContent = 'Search';
   const list = await get('/api/clients');
-  subEl.textContent = `${list.length} companies`;
-  const draw = (q = '') => {
+  subEl.textContent = `${list.length} clients`;
+  screenEl.innerHTML = `<input class="search" id="q" type="search" placeholder="Client, contact, proposal…" autocomplete="off" enterkeyhint="search">
+    <div id="results"></div>`;
+  const results = document.getElementById('results');
+
+  const showClients = (q = '') => {
     const shown = q ? list.filter((c) => c.name.toLowerCase().includes(q.toLowerCase())) : list;
-    document.getElementById('client-list').innerHTML = shown.length
+    results.innerHTML = shown.length
       ? card(shown.slice(0, 60).map((c) => `<button class="row" data-client="${c.id}">
           <div class="row-flex"><span class="row-title">${esc(c.name)}</span>
             ${c.agreements ? `<span class="pill green">client</span>` : ''}</div>
           <div class="row-sub">${[c.city, c.contacts ? `${c.contacts} contact${c.contacts === 1 ? '' : 's'}` : ''].filter(Boolean).map(esc).join(' · ') || 'No details yet'}</div>
         </button>`).join(''))
-      : empty('No company by that name');
+      : '';
+    return shown.length;
   };
-  screenEl.innerHTML = `<input class="search" id="q" type="search" placeholder="Search clients" autocomplete="off"><div id="client-list"></div>`;
-  draw();
-  document.getElementById('q').addEventListener('input', (e) => draw(e.target.value));
+  showClients();
+
+  document.getElementById('q').addEventListener('input', (e) => {
+    const q = e.target.value.trim();
+    clearTimeout(searchTimer);
+    if (q.length < 2) { showClients(); return; }
+    // Clients first, instantly, from the list already in hand; everything else
+    // a moment later, from the index.
+    const clientHits = showClients(q);
+    searchTimer = setTimeout(async () => {
+      let hits = [];
+      try { hits = await get(`/api/search/${encodeURIComponent(q)}`); } catch { return; }
+      // Company hits are already shown above from the list in hand; news items
+      // from Watch are noise when you are looking for a client on a phone.
+      const others = hits.filter((h) => h.kind !== 'company' && h.kind !== 'intelligence');
+      if (!others.length && !clientHits) { results.innerHTML = empty('Nothing found'); return; }
+      results.innerHTML = (clientHits ? results.innerHTML : '')
+        + (others.length ? `<div class="section-hd">Also found</div>` + card(others.slice(0, 25).map((h) => `<div class="row">
+            <div class="row-flex"><span class="row-title">${esc(h.title)}</span>
+              <span class="pill grey">${esc(KIND_LABEL[h.kind] || h.kind)}</span></div>
+            ${h.snippet ? `<div class="row-sub">${esc(h.snippet)}</div>` : ''}
+          </div>`).join('')) : '');
+    }, 220);
+  });
 }
 
 async function clientPage(id) {
@@ -107,6 +139,8 @@ async function clientPage(id) {
   titleEl.textContent = 'Client';
   subEl.textContent = '';
   backEl.hidden = false;
+  backEl.textContent = '‹ Search';
+  backEl.dataset.to = 'clients';
   const phone = c.contacts.find((x) => x.phone)?.phone || '';
   const wa = (c.contacts.find((x) => x.whatsapp)?.whatsapp || phone).replace(/[^0-9]/g, '');
   const mail = c.contacts.find((x) => x.email)?.email || '';
@@ -141,6 +175,47 @@ async function clientPage(id) {
     ${c.tasks.length ? `<div class="section-hd">Open tasks</div>${card(c.tasks.map((t) => `<div class="row">
         <div class="row-flex"><span class="row-title">${esc(t.title)}</span><span class="when">${esc(t.dueDate ? day(t.dueDate) : '')}</span></div>
       </div>`).join(''))}` : ''}`;
+}
+
+
+/** The brief: who is coming, what was said last time, what is still open.
+ *  This is the screen that justifies the app existing. */
+async function meetingPage(id) {
+  const m = await get(`/api/meetings/${id}`);
+  titleEl.textContent = 'Meeting';
+  subEl.textContent = [m.date ? day(m.date) : '', time(m.startAt)].filter(Boolean).join(' · ');
+  backEl.hidden = false;
+  backEl.textContent = '‹ Today';
+  backEl.dataset.to = 'today';
+
+  const proposals = (m.open || []).filter((o) => o.kind === 'proposal');
+  const tasks = (m.open || []).filter((o) => o.kind === 'task');
+
+  screenEl.innerHTML = `
+    ${card(`<div class="client-hd">
+      <div class="client-name">${esc(m.title)}</div>
+      <div class="client-meta">${esc(m.company || 'No client linked')}</div>
+    </div>
+    ${m.companyId ? `<div class="actions"><button class="act" data-client="${m.companyId}">Open client</button></div>` : ''}`)}
+
+    ${(m.attendees || []).length ? `<div class="section-hd">Attending</div>${card(m.attendees.map((a) => `<div class="row">
+        <div class="row-title">${esc(a)}</div></div>`).join(''))}` : ''}
+
+    ${m.agenda ? `<div class="section-hd">Agenda</div>${card(`<div class="note">${esc(m.agenda)}</div>`)}` : ''}
+
+    ${(m.lastNotes || []).length ? `<div class="section-hd">What we know</div>${card(m.lastNotes.map((n) => `<div class="note">
+        <div class="note-when">${esc(day((n.at || '').slice(0, 10)))}</div>${esc(n.body)}</div>`).join(''))}` : ''}
+
+    ${proposals.length ? `<div class="section-hd">Open proposals</div>${card(proposals.map((p) => `<div class="row">
+        <div class="row-flex"><span class="row-title">SL# ${p.id}</span><span class="when">${esc(p.detail)}</span></div>
+        <div class="row-sub">${esc(p.what)}</div></div>`).join(''))}` : ''}
+
+    ${tasks.length ? `<div class="section-hd">Open tasks</div>${card(tasks.map((t) => `<div class="row">
+        <div class="row-flex"><span class="row-title">${esc(t.what)}</span><span class="when">${esc(t.detail ? day(t.detail) : '')}</span></div>
+      </div>`).join(''))}` : ''}
+
+    ${!(m.lastNotes || []).length && !proposals.length && !tasks.length
+      ? empty('Nothing on file for this client yet') : ''}`;
 }
 
 // ── Tasks ───────────────────────────────────────────────────────────────────
@@ -205,8 +280,10 @@ async function show(name) {
 }
 document.querySelectorAll('.tab').forEach((t) => t.addEventListener('click', () => show(t.dataset.screen)));
 document.addEventListener('click', (e) => {
-  const row = e.target.closest('[data-client]');
-  if (row) clientPage(row.dataset.client);
+  const client = e.target.closest('[data-client]');
+  if (client) { clientPage(client.dataset.client); return; }
+  const meeting = e.target.closest('[data-meeting]');
+  if (meeting) meetingPage(meeting.dataset.meeting);
 });
-backEl.addEventListener('click', () => show('clients'));
+backEl.addEventListener('click', () => show(backEl.dataset.to || 'clients'));
 show('today');
