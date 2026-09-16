@@ -285,6 +285,8 @@ pub fn run() {
             generator::proposal_library,
             commercial::get_commercial_setup,
             commercial::save_service,
+            commercial::merge_services,
+            commercial::service_usage,
             commercial::save_rate_card,
             commercial::save_business_entity,
             commercial::save_team_member,

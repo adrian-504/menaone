@@ -80,6 +80,10 @@ pub struct Service {
     pub active: bool,
     #[serde(default)]
     pub sort_order: Option<i64>,
+    /// Set when this service was merged into another: the row stays so old
+    /// proposals still resolve, and points at the service that survives.
+    #[serde(default)]
+    pub merged_into: Option<i64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -873,7 +877,7 @@ pub fn create_agreements_core(conn: &Connection) -> rusqlite::Result<Vec<i64>> {
 
 pub fn read_services(conn: &Connection) -> rusqlite::Result<Vec<Service>> {
     let mut stmt = conn.prepare(
-        "SELECT id, name, category, description, agreement_type, billing, default_price, rate_card_id, template_key, active, sort_order
+        "SELECT id, name, category, description, agreement_type, billing, default_price, rate_card_id, template_key, active, sort_order, merged_into
          FROM services ORDER BY COALESCE(sort_order, 1e9), name",
     )?;
     let rows = stmt.query_map([], |r| {
@@ -889,6 +893,7 @@ pub fn read_services(conn: &Connection) -> rusqlite::Result<Vec<Service>> {
             template_key: r.get(8)?,
             active: r.get::<_, i64>(9)? != 0,
             sort_order: r.get(10)?,
+            merged_into: r.get(11)?,
         })
     })?;
     rows.collect()
@@ -1332,4 +1337,74 @@ mod tests {
         assert_eq!(folder_key("Al-Futtaim L.L.C."), folder_key("al futtaim llc"));
         assert_eq!(safe_folder_name("A/B: Co."), "A B Co");
     }
+}
+
+// ═══════════════════ Merging services ═══════════════════
+// The catalogue grew the same service under several names (Company
+// Constitution / Business Setup, Workforce / Employer of Record, PRO / Admin
+// PRO). Merging points every line at the surviving service while leaving the
+// line's own `service_name` text alone, so a proposal sent two years ago still
+// reads exactly as it was sent. The retired service keeps its row (marked
+// inactive, pointing at the survivor) — nothing is deleted.
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ServiceMergeResult {
+    pub proposal_lines: usize,
+    pub agreement_lines: usize,
+    pub survivor: Service,
+}
+
+/// How many records still name a service — shown before a merge is confirmed.
+#[tauri::command]
+pub fn service_usage(state: State<DbState>, id: i64) -> CmdResult<(i64, i64)> {
+    let conn = state.0.lock().map_err(err)?;
+    let name: String = conn.query_row("SELECT name FROM services WHERE id = ?1", params![id], |r| r.get(0)).map_err(err)?;
+    let proposals: i64 = conn
+        .query_row("SELECT COUNT(*) FROM proposal_lines WHERE service_id = ?1 OR service_name = ?2", params![id, name], |r| r.get(0))
+        .map_err(err)?;
+    let agreements: i64 = conn
+        .query_row("SELECT COUNT(*) FROM agreement_lines WHERE service_id = ?1 OR service_name = ?2", params![id, name], |r| r.get(0))
+        .map_err(err)?;
+    Ok((proposals, agreements))
+}
+
+#[tauri::command]
+pub fn merge_services(state: State<DbState>, from_id: i64, to_id: i64) -> CmdResult<ServiceMergeResult> {
+    if from_id == to_id {
+        return Err("Pick a different service to merge into.".into());
+    }
+    let conn = state.0.lock().map_err(err)?;
+    let from_name: String = conn
+        .query_row("SELECT name FROM services WHERE id = ?1", params![from_id], |r| r.get(0))
+        .map_err(|_| "That service no longer exists.".to_string())?;
+    let to_name: String = conn
+        .query_row("SELECT name FROM services WHERE id = ?1", params![to_id], |r| r.get(0))
+        .map_err(|_| "The service to merge into no longer exists.".to_string())?;
+
+    // Lines keep the name they were written with; only the link moves.
+    let proposal_lines = conn
+        .execute(
+            "UPDATE proposal_lines SET service_id = ?1 WHERE service_id = ?2 OR (service_id IS NULL AND service_name = ?3)",
+            params![to_id, from_id, from_name],
+        )
+        .map_err(err)?;
+    let agreement_lines = conn
+        .execute(
+            "UPDATE agreement_lines SET service_id = ?1 WHERE service_id = ?2 OR (service_id IS NULL AND service_name = ?3)",
+            params![to_id, from_id, from_name],
+        )
+        .map_err(err)?;
+    conn.execute(
+        "UPDATE services SET active = 0, merged_into = ?1, updated_at = ?2 WHERE id = ?3",
+        params![to_id, now_iso(), from_id],
+    )
+    .map_err(err)?;
+
+    let survivor = read_services(&conn)
+        .map_err(err)?
+        .into_iter()
+        .find(|s| s.id == to_id)
+        .ok_or_else(|| format!("\"{to_name}\" could not be read back after the merge."))?;
+    Ok(ServiceMergeResult { proposal_lines, agreement_lines, survivor })
 }

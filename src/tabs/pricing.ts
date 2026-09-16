@@ -1,12 +1,13 @@
 import type { PricingService } from '../lib/constants';
 import { S } from '../lib/state';
 import { emptyState, toast } from '../lib/ui';
-import { escHtml, expose } from '../lib/utils';
+import { escHtml, expose, showConfirm, showTextPrompt } from '../lib/utils';
 import { registerTabRenderer } from '../lib/registry';
-import { saveService, saveRateCard, getCommercialSetup } from '../lib/db';
+import { saveService, saveRateCard, getCommercialSetup, mergeServices, serviceUsage } from '../lib/db';
 import { AGR_TYPES } from '../lib/constants';
 import { priceRange, fmtMoney } from '../lib/commercial';
 import { renderIcons } from '../core/chrome';
+import { pendingDecisions, decisionSummary } from '../lib/serviceCatalog';
 import { renderTemplatesView } from './templates';
 import type { RateCard, Service } from '../lib/types';
 
@@ -38,9 +39,9 @@ function fmtSarRange(min: number, max: number): string {
 function renderRateCard(svc: PricingService): string {
   let body = '';
   if (svc.hasTranches && svc.tranches) {
-    body += `<table class="price-mini-table"><thead><tr><th>${escHtml(svc.trancheLabel || 'Tier')}</th><th>Without Comm.</th><th>With Comm.</th>${svc.tranches.some((t) => t.volMin) ? '<th>Volume</th>' : ''}</tr></thead><tbody>`;
+    body += `<table class="price-mini-table"><thead><tr><th>${escHtml(svc.trancheLabel || 'Tier')}</th><th>Standard</th><th>With comm.</th>${svc.tranches.some((t) => t.volMin) ? '<th>Volume</th>' : ''}</tr></thead><tbody>`;
     svc.tranches.forEach((tr) => {
-      const commRange = tr.commMin ? fmtSarRange(tr.commMin, tr.commMax!) : '<span class="t-muted">N/A</span>';
+      const commRange = tr.commMin ? fmtSarRange(tr.commMin, tr.commMax!) : '<span class="t-muted">—</span>';
       const volCell = svc.tranches!.some((t) => t.volMin) ? `<td>${tr.volMin ? `SAR ${tr.volMin.toLocaleString()}` : '<span class="t-muted">—</span>'}</td>` : '';
       body += `<tr><td>${escHtml(tr.label)}</td><td class="price-range">${fmtSarRange(tr.noCommMin, tr.noCommMax)}</td><td>${commRange}</td>${volCell}</tr>`;
     });
@@ -56,59 +57,197 @@ function renderRateCard(svc: PricingService): string {
     const standard = svc.standard != null ? `<div class="price-flat-sub">Standard SAR ${svc.standard.toLocaleString()}</div>` : '';
     body += `<div><div class="price-flat-range">${fmtSarRange(svc.noCommMin, svc.noCommMax)}${!svc.oneTime ? '<span class="t-meta t-sub fw-400">/mo</span>' : ''}</div>${standard}${commLine}</div>`;
   }
-  const notes = [
-    svc.showBands ? `Proposals show ${svc.showBands} bands around the client's` : '',
-    svc.perPerson ? 'Per person per month' : '',
-    svc.minimumMonths ? `${svc.minimumMonths}-month minimum` : '',
-  ].filter(Boolean);
+  const notes = svc.perPerson ? ['Per person per month'] : [];
   if (svc.rows?.length) body += `<table class="price-mini-table"><thead><tr><th>Proposal rows</th><th>Range</th><th>Standard</th></tr></thead><tbody>${svc.rows.map((r) => `<tr><td>${escHtml(r.label)}</td><td>${r.percent ? `${r.min}–${r.max}%` : fmtSarRange(r.min, r.max)}</td><td>${r.percent ? `${r.standard}%` : `SAR ${r.standard.toLocaleString()}`}</td></tr>`).join('')}</tbody></table>`;
   if (svc.perCountry) body += '<div class="price-flat-sub">Priced per country on each proposal</div>';
   if (svc.milestones?.length) body += `<ul class="price-milestones">${svc.milestones.map((m) => `<li>${escHtml(m)}</li>`).join('')}</ul>`;
   if (notes.length) body += `<div class="price-flat-sub">${notes.map(escHtml).join(' · ')}</div>`;
-  const bundleStrip = svc.bundles && svc.bundles.length > 0
-    ? `<div class="price-bundle-strip">${svc.bundles.map((b) => `<span class="price-bundle">${escHtml(b.name)}: SAR ${b.price.toLocaleString()}</span>`).join('')}</div>`
+  // The small plans were loose chips at the bottom of a card with nothing
+  // saying what they were; they get a heading of their own.
+  const plans = svc.bundles && svc.bundles.length > 0
+    ? `<div class="price-plans"><h5>Small plans</h5>${svc.bundles.map((b) => `<div class="price-plan"><span>${escHtml(b.name)}</span><b>${b.price.toLocaleString()}</b></div>`).join('')}</div>`
     : '';
+  // Every card is the same frame, whatever shape the pricing inside takes:
+  // name, how it is priced, the price block, small plans, then the footer.
+  const how = svc.percent ? 'Percentage of the annual package'
+    : svc.hasTranches ? 'Monthly, by employee band'
+    : svc.hasPackages ? 'Monthly packages'
+    : svc.perCountry ? 'Priced per country'
+    : svc.oneTime ? 'One-time, with milestone payments'
+    : svc.perPerson ? 'Monthly, per person'
+    : 'Flat monthly retainer';
+  const usedBy = S.services.filter((x) => S.rateCards.find((r) => r.id === x.rateCardId)?.name === svc.name).length;
+  const footNotes = [
+    usedBy ? `Used by ${usedBy} service${usedBy === 1 ? '' : 's'}` : 'Not linked to a service yet',
+    svc.showBands ? `proposals show ${svc.showBands} bands` : '',
+    svc.minimumMonths ? `${svc.minimumMonths}-month minimum` : '',
+  ].filter(Boolean);
   return `<div class="price-card">
     <div class="price-card-hd">
-      <div><div class="price-card-name">${escHtml(svc.name)}</div><div class="price-card-cat">${escHtml(svc.cat || '')}</div></div>
-      ${svc.oneTime ? '<span class="price-card-onetime">One-time</span>' : ''}
+      <div class="price-card-name">${escHtml(svc.name)}</div>
+      <button class="btn-sm price-card-edit" onclick="event.stopPropagation();openRateCardEditorByName('${escHtml(svc.name).replace(/'/g, "\\'")}')">Edit</button>
     </div>
-    <div class="price-card-body">${body}${bundleStrip}</div>
+    <div class="price-card-how">${escHtml(how)}</div>
+    <div class="price-card-body">${body}${plans}</div>
+    <div class="price-card-ft">${footNotes.map(escHtml).join(' · ')}</div>
   </div>`;
 }
+
+/** The Edit button on a rate card (the card itself is still clickable). */
+export function openRateCardEditorByName(name: string): void {
+  const card = S.rateCards.find((r) => r.name === name);
+  if (card) openRateCardEditor(card.id);
+}
+expose('openRateCardEditorByName', openRateCardEditorByName);
 
 function usage(service: Service): number {
   return S.proposals.filter((p) => (p.lines || []).some((l) => l.serviceId === service.id || l.serviceName === service.name)).length;
 }
 
+/** How a service is priced, in the words the catalogue can actually justify. */
+function pricingShape(s: Service): string {
+  const card = S.rateCards.find((r) => r.id === s.rateCardId);
+  const p: any = card?.pricing;
+  if (p?.percent) return 'percentage of the annual package';
+  if (p?.hasTranches) return 'by employee band';
+  if (p?.hasPackages) return 'monthly packages';
+  if (p?.perCountry) return 'per country';
+  if (s.billing === 'one_time') return 'one-time';
+  return 'flat retainer';
+}
+
+/** The price shown on a catalogue row, with what it is per. */
+function catalogPrice(s: Service): string {
+  const card = S.rateCards.find((r) => r.id === s.rateCardId);
+  const pct = (card?.pricing as any)?.percent;
+  if (pct) return `<span class="svc-price">${pct.standard}%<small>of annual package</small></span>`;
+  const range = priceRange(s);
+  const value = range
+    ? (range.min === range.max ? fmtMoney(range.min) : `SAR ${range.min.toLocaleString()}–${range.max.toLocaleString()}`)
+    : s.defaultPrice != null ? fmtMoney(s.defaultPrice) : '';
+  if (!value) return '';
+  return `<span class="svc-price">${value}<small>${s.billing === 'one_time' ? 'one time' : 'per month'}</small></span>`;
+}
+
 function renderCatalog(search: string, cat: string): string {
   const showInactive = (document.getElementById('svc-show-inactive') as HTMLInputElement | null)?.checked || false;
   const services = S.services.filter((s) => (showInactive || s.active) && (!cat || s.category === cat) && (!search || `${s.name} ${s.category || ''} ${s.agreementType || ''}`.toLowerCase().includes(search)));
-  if (!services.length) return emptyState({ icon: 'search', title: 'No services match', body: 'Try a different search or category.', compact: true });
+  const review = renderCatalogueReview();
+  if (!services.length) return review + emptyState({ icon: 'search', title: 'No services match', body: 'Try a different search or category.', compact: true });
   const groups = new Map<string, Service[]>();
   for (const s of services) {
     const c = s.category || 'Other';
     if (!groups.has(c)) groups.set(c, []);
     groups.get(c)!.push(s);
   }
-  return [...groups.entries()].map(([category, list]) => `<section class="card svc-group">
+  return review + [...groups.entries()].map(([category, list]) => `<section class="card svc-group">
     <div class="rec-section-hd"><h2>${escHtml(category)}</h2><span class="rec-count">${list.length}</span></div>
+    <div class="svc-colhd"><span>Service</span><span>Price</span><span>On proposals</span><span></span></div>
     <div class="rec-list">${list.map((s) => {
-      const range = priceRange(s);
-      const pct = S.rateCards.find((r) => r.id === s.rateCardId)?.pricing?.percent;
-      const card = S.rateCards.find((r) => r.id === s.rateCardId);
       const used = usage(s);
-      return `<div class="rec-row${s.active ? '' : ' is-unavailable'}" onclick="openServiceEditor(${s.id})">
-        <span class="rec-row-icon">${escHtml(s.name.slice(0, 1))}</span>
-        <div class="rec-row-main">
-          <div class="rec-row-title">${escHtml(s.name)}${s.active ? '' : ' <span class="rec-badge">Retired</span>'}</div>
-          <div class="rec-row-sub">${[s.billing === 'one_time' ? 'One-time' : 'Monthly', s.agreementType ? `${s.agreementType} agreement` : '', card ? `Rate card: ${card.name}` : 'No rate card', used ? `On ${used} proposal${used === 1 ? '' : 's'}` : ''].filter(Boolean).map(escHtml).join(' · ')}</div>
+      const mergedTarget = s.mergedInto != null ? S.services.find((x) => x.id === s.mergedInto) : undefined;
+      return `<div class="svc-row${s.active ? '' : ' is-unavailable'}" onclick="openServiceEditor(${s.id})">
+        <div class="svc-row-main">
+          <div class="svc-row-title">${escHtml(s.name)}${mergedTarget ? ` <span class="rec-badge">Merged into ${escHtml(mergedTarget.name)}</span>` : s.active ? '' : ' <span class="rec-badge">Retired</span>'}</div>
+          <div class="svc-row-sub">${[s.agreementType ? `${s.agreementType} agreement` : 'No agreement type', pricingShape(s)].map(escHtml).join(' · ')}</div>
         </div>
-        <span class="rec-row-value">${pct ? `${pct.standard}% (${pct.min}–${pct.max}%)` : range ? (range.min === range.max ? fmtMoney(range.min) : `SAR ${range.min.toLocaleString()}–${range.max.toLocaleString()}`) : s.defaultPrice != null ? fmtMoney(s.defaultPrice) : ''}</span>
+        <div class="svc-row-price">${catalogPrice(s)}</div>
+        <div class="svc-row-use">${used || '<span class="t-muted">0</span>'}</div>
+        <div class="svc-row-actions">
+          <button class="btn-sm" onclick="event.stopPropagation();openServiceEditor(${s.id})">Edit</button>
+          <button class="btn-sm" onclick="event.stopPropagation();openServiceMerge(${s.id})" title="Merge this service into another">Merge…</button>
+        </div>
       </div>`;
     }).join('')}</div>
   </section>`).join('');
 }
+
+/**
+ * The catalogue decisions from the owner session, offered one at a time.
+ * Applying is always a click: renaming and merging change real records, so the
+ * app proposes and the owner confirms.
+ */
+function renderCatalogueReview(): string {
+  const pending = pendingDecisions(S.services);
+  if (!pending.length) return '';
+  return `<section class="card svc-review">
+    <div class="rec-section-hd"><h2>Catalogue clean-up</h2><span class="rec-count">${pending.length}</span></div>
+    <p class="svc-review-lede">From the service session on 16 September. Each one is applied only when you say so; old names are kept so proposals already sent still read the same.</p>
+    <div class="rec-list">${pending.map((d, i) => `<div class="svc-review-row">
+      <div class="svc-row-main">
+        <div class="svc-row-title">${escHtml(decisionSummary(d))}</div>
+        <div class="svc-row-sub">${escHtml(d.why)}</div>
+      </div>
+      <div class="svc-row-actions">
+        ${d.action === 'review' ? '<span class="t-muted t-meta">Needs a decision per proposal</span>'
+          : d.blocked ? '<span class="t-muted t-meta">Create the service first</span>'
+          : `<button class="btn-sm btn-primary" onclick="applyCatalogueDecision(${i})">${d.action === 'rename' ? 'Rename' : 'Merge'}</button>`}
+      </div>
+    </div>`).join('')}</div>
+  </section>`;
+}
+
+/** Applies one decision after the owner confirms what it will touch. */
+export async function applyCatalogueDecision(index: number): Promise<void> {
+  const d = pendingDecisions(S.services)[index];
+  if (!d || d.blocked || d.action === 'review') return;
+  try {
+    if (d.action === 'rename') {
+      const ok = await showConfirm(`Clients will see "${d.to}" from now on. Proposals already sent keep the wording they were written with.`, { title: `Rename ${d.from}?`, confirmLabel: 'Rename' });
+      if (!ok) return;
+      const saved = await saveService({ ...d.service, name: d.to });
+      const i = S.services.findIndex((x) => x.id === saved.id);
+      if (i > -1) S.services[i] = saved;
+      toast(`Renamed to ${saved.name}`);
+    } else {
+      const [proposals, agreements] = await serviceUsage(d.service.id);
+      const ok = await showConfirm(
+        `${proposals} proposal line${proposals === 1 ? '' : 's'} and ${agreements} agreement line${agreements === 1 ? '' : 's'} will point at "${d.to}". They keep the service name they were written with, and "${d.from}" stays in the catalogue as retired.`,
+        { title: `Merge ${d.from} into ${d.to}?`, confirmLabel: 'Merge' },
+      );
+      if (!ok) return;
+      const res = await mergeServices(d.service.id, d.target!.id);
+      S.services = (await getCommercialSetup()).services;
+      toast(`Merged into ${res.survivor.name}`, { detail: `${res.proposalLines} proposal lines moved` });
+    }
+  } catch (e) {
+    toast('Could not apply that change', { tone: 'error', detail: String(e) });
+    return;
+  }
+  renderPricingTab();
+}
+expose('applyCatalogueDecision', applyCatalogueDecision);
+
+/** Merging a service chosen from the catalogue row, rather than from the review list. */
+export async function openServiceMerge(id: number): Promise<void> {
+  const from = S.services.find((s) => s.id === id);
+  if (!from) return;
+  const options = S.services.filter((s) => s.id !== id && s.active && s.mergedInto == null);
+  const target = await showTextPrompt({
+    title: `Merge ${from.name} into…`,
+    label: 'The service that survives — its name is what clients see. This one is kept as retired so old proposals still read correctly.',
+    placeholder: options.map((o) => o.name).slice(0, 3).join(', '),
+  });
+  if (!target) return;
+  const to = options.find((s) => s.name.trim().toLowerCase() === target.trim().toLowerCase());
+  if (!to) { toast(`No service called "${target}"`, { tone: 'error' }); return; }
+  const [proposals, agreements] = await serviceUsage(id);
+  const ok = await showConfirm(
+    `${proposals} proposal line${proposals === 1 ? '' : 's'} and ${agreements} agreement line${agreements === 1 ? '' : 's'} will point at "${to.name}".`,
+    { title: `Merge ${from.name} into ${to.name}?`, confirmLabel: 'Merge' },
+  );
+  if (!ok) return;
+  try {
+    const res = await mergeServices(id, to.id);
+    S.services = (await getCommercialSetup()).services;
+    toast(`Merged into ${res.survivor.name}`);
+  } catch (e) {
+    toast('Could not merge', { tone: 'error', detail: String(e) });
+    return;
+  }
+  renderPricingTab();
+}
+expose('openServiceMerge', openServiceMerge);
 
 function renderRates(search: string, cat: string): string {
   const cards = S.rateCards.filter((r) => r.pricing && (!cat || r.category === cat) && (!search || r.name.toLowerCase().includes(search)));
@@ -191,6 +330,7 @@ export async function submitServiceEditor(e: Event): Promise<void> {
   const get = (name: string) => ((f.elements.namedItem(name) as HTMLInputElement | HTMLSelectElement | null)?.value || '').trim();
   const existing = editingId != null ? S.services.find((x) => x.id === editingId) : undefined;
   const service: Service = {
+    mergedInto: existing?.mergedInto ?? null,
     id: existing?.id ?? 0,
     name: get('svcName'),
     category: get('svcCategory') || null,

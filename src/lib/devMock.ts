@@ -292,7 +292,7 @@ const COMMERCIAL: CommercialSetup = {
   rateCards: catalogSeed.rateCards.map((r, i) => ({ id: i + 1, name: r.name, category: r.category, pricing: r.pricing as any, addons: r.addons, sortOrder: r.sortOrder })),
   services: catalogSeed.services.map((sv, i) => ({
     id: i + 1, name: sv.name, category: sv.category, description: null, agreementType: sv.agreementType, billing: sv.billing as 'monthly' | 'one_time',
-    defaultPrice: null, rateCardId: sv.rateCard ? catalogSeed.rateCards.findIndex((r) => r.name === sv.rateCard) + 1 : null, templateKey: null, active: true, sortOrder: sv.sortOrder,
+    defaultPrice: null, rateCardId: sv.rateCard ? catalogSeed.rateCards.findIndex((r) => r.name === sv.rateCard) + 1 : null, templateKey: null, active: true, sortOrder: sv.sortOrder, mergedInto: null,
   })),
   businessEntities: [
     { id: 1, code: 'KSA', name: 'MENA BIG KSA', currency: 'SAR', vatRate: 15, country: 'Saudi Arabia', active: true, sortOrder: 0 },

@@ -704,7 +704,27 @@ const CODE_MIGRATIONS: &[(i64, fn(&Connection) -> rusqlite::Result<()>)] = &[
     (31, migrate_task_opportunities),
     // Company notes become a dated log instead of one overwritable text box.
     (32, migrate_company_note_entries),
+    // Services can be merged: the retired name stays, pointing at the survivor.
+    (33, migrate_service_merges),
 ];
+
+/// The catalogue carried the same service under several names (Company
+/// Constitution / Business Setup, Workforce / Employer of Record, PRO / Admin
+/// PRO). Merging one into another keeps the retired row — so proposals that
+/// were sent under the old name still read correctly — and points it at the
+/// service that survives.
+fn migrate_service_merges(conn: &Connection) -> rusqlite::Result<()> {
+    let has_col = conn
+        .prepare("PRAGMA table_info(services)")?
+        .query_map([], |r| r.get::<_, String>(1))?
+        .collect::<rusqlite::Result<Vec<_>>>()?
+        .iter()
+        .any(|c| c == "merged_into");
+    if !has_col {
+        conn.execute_batch("ALTER TABLE services ADD COLUMN merged_into INTEGER REFERENCES services(id) ON DELETE SET NULL;")?;
+    }
+    conn.execute_batch("CREATE INDEX IF NOT EXISTS idx_services_merged_into ON services(merged_into);")
+}
 
 /// A company's notes were one text field that every edit overwrote. They become
 /// dated entries, so what was written in March survives a note added in

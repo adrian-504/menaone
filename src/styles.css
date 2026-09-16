@@ -1361,6 +1361,40 @@ body.dnd-active .opp-board .board-column.stage-hidden{display:flex}
 .board-stages-bar{display:flex;align-items:center;gap:10px;margin:0 0 8px;font-size:var(--type-meta);color:var(--muted)}
 .board-stages-btn{border:0;background:none;padding:0;font:inherit;font-size:var(--type-meta);color:var(--accent);cursor:pointer;text-decoration:underline;text-underline-offset:2px}
 .board-stages-btn:hover{opacity:.82}
+/* Services — one frame for every service, whatever shape its pricing takes. */
+.svc-colhd{display:grid;grid-template-columns:1fr 150px 92px 150px;gap:12px;padding:4px 12px;font-size:var(--type-meta);
+  letter-spacing:.04em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border)}
+.svc-colhd span:nth-child(2),.svc-colhd span:nth-child(3){text-align:right}
+.svc-row{display:grid;grid-template-columns:1fr 150px 92px 150px;gap:12px;align-items:center;padding:10px 12px;
+  border-bottom:1px solid var(--border);cursor:pointer}
+.svc-row:last-child{border-bottom:0}
+.svc-row:hover{background:var(--surface-hover,rgba(0,0,0,.02))}
+.svc-row-title{font-weight:560}
+.svc-row-sub{font-size:var(--type-meta);color:var(--muted);margin-top:2px}
+.svc-row-price{text-align:right}
+.svc-price{font-weight:600;color:var(--green);font-variant-numeric:tabular-nums}
+.svc-price small{display:block;font-weight:400;color:var(--muted);font-size:var(--type-meta);font-variant-numeric:normal}
+.svc-row-use{text-align:right;color:var(--sub);font-variant-numeric:tabular-nums;font-size:var(--type-meta)}
+.svc-row-actions{display:flex;gap:6px;justify-content:flex-end}
+.svc-row-actions .btn-sm{opacity:0;transition:opacity .12s}
+.svc-row:hover .svc-row-actions .btn-sm,.svc-review-row .svc-row-actions .btn-sm{opacity:1}
+.svc-review-lede{font-size:var(--type-meta);color:var(--sub);margin:0 0 10px}
+.svc-review-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 12px;border-bottom:1px solid var(--border)}
+.svc-review-row:last-child{border-bottom:0}
+.price-cards{align-items:stretch}
+.price-card{display:flex;flex-direction:column;height:100%}
+.price-card-hd{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.price-card-edit{opacity:0;transition:opacity .12s}
+.price-card-wrap:hover .price-card-edit{opacity:1}
+.price-card-how{font-size:var(--type-meta);color:var(--muted);margin:2px 0 10px}
+.price-card-body{flex:1}
+.price-plans{margin-top:10px;padding-top:9px;border-top:1px solid var(--border)}
+.price-plans h5{margin:0 0 5px;font-size:var(--type-meta);letter-spacing:.04em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.price-plan{display:flex;justify-content:space-between;gap:10px;padding:2px 0;font-size:var(--type-body)}
+.price-plan b{font-variant-numeric:tabular-nums}
+.price-card-ft{margin-top:10px;padding-top:8px;border-top:1px solid var(--border);font-size:var(--type-meta);color:var(--muted)}
+.price-mini-table td,.price-mini-table th{white-space:nowrap}
+@media (max-width:860px){.svc-colhd,.svc-row{grid-template-columns:1fr 120px}.svc-row-use,.svc-row-actions,.svc-colhd span:nth-child(3),.svc-colhd span:nth-child(4){display:none}}
 /* Company notes as a dated log: write, press Enter, it stays with its date. */
 .conote-composer{display:flex;flex-direction:column;gap:6px}
 .conote-input{min-height:52px;resize:vertical}

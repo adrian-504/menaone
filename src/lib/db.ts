@@ -293,3 +293,7 @@ export async function addCompanyNoteEntryDb(companyId: number | null, companyNam
 export async function updateCompanyNoteEntryDb(id: number, body: string): Promise<CompanyNoteEntry> { return invoke<CompanyNoteEntry>('update_company_note_entry', { id, body }); }
 export async function deleteCompanyNoteEntryDb(id: number): Promise<void> { await invoke('delete_company_note_entry', { id }); }
 export async function moveCompanyNoteEntries(oldName: string, newName: string, newId: number | null): Promise<void> { await invoke('move_company_note_entries', { oldName, newName, newId }); }
+
+/** Merges a service into another: lines repoint, the retired row stays and points at the survivor. */
+export async function mergeServices(fromId: number, toId: number): Promise<{ proposalLines: number; agreementLines: number; survivor: Service }> { return invoke('merge_services', { fromId, toId }); }
+export async function serviceUsage(id: number): Promise<[number, number]> { return invoke<[number, number]>('service_usage', { id }); }

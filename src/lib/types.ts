@@ -109,6 +109,8 @@ export interface Service {
   templateKey: string | null;
   active: boolean;
   sortOrder: number | null;
+  /** Set when this service was merged into another; the row stays so old proposals still resolve. */
+  mergedInto: number | null;
 }
 
 export interface RateCard {

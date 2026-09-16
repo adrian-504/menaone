@@ -47,6 +47,26 @@ function cardFor(line: CommercialLine): PricingService | null {
 
 const n = (v: number) => v.toLocaleString();
 
+/**
+ * Two services are really one service with a part switched off (owner session,
+ * 16 September): Payroll is normally sold with GOSI, and Accountancy with VAT.
+ * The option lives on the line and decides the name the client reads, rather
+ * than being a second entry in the catalogue.
+ */
+const LINE_OPTIONS: { match: RegExp; label: string; withName: string; withoutName: string }[] = [
+  { match: /^payroll( and gosi)?$/i, label: 'Includes GOSI', withName: 'Payroll and GOSI', withoutName: 'Payroll' },
+  { match: /^accountancy( and vat)?$/i, label: 'Includes VAT', withName: 'Accountancy and VAT', withoutName: 'Accountancy' },
+];
+
+function lineOption(line: CommercialLine) {
+  return LINE_OPTIONS.find((o) => o.match.test((line.serviceName || '').trim())) ?? null;
+}
+
+/** On by default: the usual sale includes the option. */
+function optionOn(line: CommercialLine, opt: { withName: string }): boolean {
+  return (line.serviceName || '').trim().toLowerCase() === opt.withName.toLowerCase();
+}
+
 function isWorkforce(line: CommercialLine): boolean {
   const service = serviceById(line.serviceId) || serviceByName(line.serviceName);
   return /workforce/i.test(`${line.serviceName} ${service?.category || ''}`) && !/mobili/i.test(line.serviceName);
@@ -164,6 +184,7 @@ export function renderLinesEditor(key: string, containerId: string, ctx: LinesEd
         <select class="td-select le-service-sel" aria-label="Service" onchange="linesEdit('${k}', ${l.id}, 'service', this.value)">${serviceOptions(l.serviceId, l.serviceName)}</select>
         ${!byRows && kind ? `<div class="le-pricing-row"><button type="button" class="le-use" onclick="linesEdit('${k}', ${l.id}, 'useRows', '')">Price by ${kind === 'category' ? 'categories' : kind === 'percent' ? 'staff type' : kind === 'country' ? 'country' : ROW_NOUN[kind] + 's'}</button></div>` : ''}
         ${!byRows && hasCommissionPrices(card) ? `<div class="le-pricing-row"><label class="le-comm"><input type="checkbox"${l.commission ? ' checked' : ''} onchange="linesEdit('${k}', ${l.id}, 'commission', this.checked ? '1' : '')"> With commission</label></div>` : ''}
+        ${lineOption(l) ? `<div class="le-pricing-row"><label class="le-comm" title="What the client reads on the proposal"><input type="checkbox"${optionOn(l, lineOption(l)!) ? ' checked' : ''} onchange="linesEdit('${k}', ${l.id}, 'serviceOption', this.checked ? '1' : '')"> ${escHtml(lineOption(l)!.label)}</label></div>` : ''}
         <input class="td-input le-desc" value="${escHtml(l.description || '')}" placeholder="Scope or notes (optional)" aria-label="Description" onchange="linesEdit('${k}', ${l.id}, 'description', this.value)">
       </td>
       <td><select class="td-select le-billing-sel" aria-label="Billing" onchange="linesEdit('${k}', ${l.id}, 'billing', this.value)">
@@ -274,6 +295,13 @@ export function linesEdit(key: string, lineId: number, field: string, value: str
     }
     case 'employeeCount': l.employeeCount = value.trim() === '' ? null : Math.max(0, Math.round(Number(value) || 0)) || null; syncValue(l); break;
     case 'withRecruitment': l.withRecruitment = value === '1'; break;
+    // Switching the option renames the line, because that is what the client
+    // reads on the proposal ("Payroll and GOSI" or plain "Payroll").
+    case 'serviceOption': {
+      const opt = lineOption(l);
+      if (opt) l.serviceName = value === '1' ? opt.withName : opt.withoutName;
+      break;
+    }
     case 'useRows': l.rates = defaultRates(cardFor(l), l.commission, l.employeeCount); syncValue(l); break;
     case 'billing': l.billing = value === 'one_time' ? 'one_time' : 'monthly'; break;
     case 'quantity': l.quantity = Math.max(1, Number(value) || 1); break;

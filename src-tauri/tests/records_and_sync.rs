@@ -28,7 +28,7 @@ fn sync_state(conn: &Connection, table: &str, id: i64) -> (String, i64) {
 fn upserts_track_identity_versions_and_tombstones() {
     let (path, mut conn) = fresh_db("identity");
     let v: String = conn.query_row("SELECT value FROM app_meta WHERE key='schema_version'", [], |r| r.get(0)).unwrap();
-    assert_eq!(v, "32");
+    assert_eq!(v, "33");
 
     upsert_proposal_rows(&mut conn, &[proposal(1, "Acme Test Co", "Lead")]).unwrap();
     let (uuid1, ver1) = sync_state(&conn, "proposals", 1);
