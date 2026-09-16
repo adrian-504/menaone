@@ -160,7 +160,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Robot
 .kpi[onclick]:hover{box-shadow:var(--shadow-md);transform:translateY(-1px)}
 .kpi-lbl{font-size:var(--type-meta);font-weight:500;color:var(--sub);margin-bottom:7px;display:flex;align-items:center;gap:6px}
 .kpi-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
-.kpi-val{font-size:var(--type-title);font-weight:600;line-height:1.15;margin-bottom:3px;letter-spacing:-.01em;color:var(--text)}
+.kpi-val{font-size:var(--type-title);font-weight:600;line-height:1.15;margin-bottom:3px;letter-spacing:-.01em;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media (max-width:1280px){.kpi-val{font-size:var(--type-large)}}
 .kpi-sub{font-size:var(--type-meta);color:var(--muted)}
 .alert-bar{border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:background .12s}
 .alert-bar:hover{background:var(--surface-2)}
