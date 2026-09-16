@@ -9,7 +9,12 @@ use serde::{Deserialize, Serialize};
 const GRAPH_BASE: &str = "https://graph.microsoft.com/v1.0";
 
 fn client() -> reqwest::Client {
-    reqwest::Client::new()
+    // Without timeouts a stalled Graph call leaves the app waiting forever.
+    reqwest::Client::builder()
+        .connect_timeout(std::time::Duration::from_secs(10))
+        .timeout(std::time::Duration::from_secs(45))
+        .build()
+        .unwrap_or_else(|_| reqwest::Client::new())
 }
 
 async fn graph_get(access_token: &str, path_and_query: &str) -> Result<serde_json::Value, String> {

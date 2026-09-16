@@ -6,7 +6,7 @@ import { attachCompanySelector } from '../lib/companySelector';
 import { registerTabRenderer } from '../lib/registry';
 import {
   getIntelligenceItems, saveIntelligenceItem, deleteIntelligenceItem,
-  setIntelligenceSaved, setIntelligenceArchived, getLinksFor, setLinksFrom, syncIntelligenceFeeds,
+  setIntelligenceSaved, setIntelligenceArchived, getLinksFor, setLinksFrom, syncIntelligenceFeeds, intelligenceFeedStatus, type FeedStatus,
 } from '../lib/db';
 import { getAllCompanies } from './companies';
 import { persistTodos, persistNotes } from '../lib/persist';
@@ -49,12 +49,35 @@ async function syncFeedsAndRepaint(): Promise<void> {
     S.intelSyncError = null;
     await loadItems();
     paintIntelligence();
+    void paintFeedSources();
   } catch (err) {
     console.error('[intel sync]', err);
     S.intelSyncError = String(err);
   }
   S.intelSyncing = false;
   paintIntelSyncStatus();
+}
+
+/** Which sources ran, what they brought back, and which ones failed — so
+ * "is this pulling anything?" is answerable without opening the database. */
+async function paintFeedSources(): Promise<void> {
+  const el = document.getElementById('intel-sources');
+  if (!el) return;
+  let sources: FeedStatus[] = [];
+  try {
+    sources = await intelligenceFeedStatus();
+  } catch { /* the panel simply stays empty */ }
+  if (!sources.length) { el.innerHTML = ''; return; }
+  const when = sources.find((s) => s.lastRunAt)?.lastRunAt;
+  const failed = sources.filter((s) => s.error);
+  el.innerHTML = `<details class="intel-sources"${failed.length ? ' open' : ''}>
+    <summary>${sources.length} sources${when ? ` · last checked ${escHtml(fmtDate(when.slice(0, 10)))}` : ''}${failed.length ? ` · <span class="c-red">${failed.length} not reachable</span>` : ''}</summary>
+    <div class="intel-source-list">${sources.map((s) => `<div class="intel-source">
+      <span class="intel-source-name">${escHtml(s.name)}</span>
+      <span class="intel-source-kind">${escHtml(s.kind === 'regulatory' ? 'Regulatory' : 'Business')}</span>
+      <span class="intel-source-stat">${s.error ? `<span class="c-red">${escHtml(s.error)}</span>` : `${s.added} new of ${s.considered} seen`}</span>
+    </div>`).join('')}</div>
+  </details>`;
 }
 
 function paintIntelSyncStatus(): void {
@@ -135,7 +158,8 @@ function itemRow(it: IntelligenceItem): string {
     <span class="intel-tone" title="${escHtml(cfg.label)}"></span>
     <div class="intel-main" onclick="if(!event.target.closest('a,button'))openIntelModal(${it.id})">
       <div class="intel-headline">${escHtml(it.headline)}</div>
-      <div class="intel-meta"><span class="intel-importance">${escHtml(cfg.label)}</span>${escHtml(it.sourceName)}${it.status ? ` · ${escHtml(it.status)}` : ''}${it.publishedAt ? ` · ${escHtml(fmtDate(it.publishedAt))}` : ''}</div>
+      <div class="intel-meta"><span class="intel-importance">${escHtml(cfg.label)}</span>${escHtml(it.sourceName)}${it.status ? ` · ${escHtml(it.status)}` : ''}${it.publishedAt ? ` · ${escHtml(fmtDate(it.publishedAt))}` : ''}${it.effectiveDate ? ` · <span class="intel-effective">applies from ${escHtml(it.effectiveDate)}</span>` : ''}</div>
+      ${(it.affectedServices || []).length ? `<div class="intel-services">${(it.affectedServices || []).map((sv) => `<span class="chip">${escHtml(sv)}</span>`).join('')}</div>` : ''}
       ${it.whyItMatters ? `<div class="intel-why">${escHtml(it.whyItMatters)}</div>` : ''}
       ${chips.length ? `<div class="chip-row">${chips.join('')}</div>` : ''}
       <div class="ar-link-popover" id="intel-link-pop-${it.id}" hidden></div>

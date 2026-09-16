@@ -12,6 +12,7 @@
 // can always show which items were never personally reviewed.
 use crate::commands::now_iso;
 use crate::db::DbState;
+use regex::Regex;
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use tauri::State;
@@ -67,6 +68,9 @@ pub struct IntelligenceItem {
     pub created_at: Option<String>,
     #[serde(default)]
     pub company_name: Option<String>,
+    /// The services this story touches, worked out from its words on ingest.
+    #[serde(default)]
+    pub affected_services: Vec<String>,
     /// "feed" for automatically-ingested items, None for manually-added ones.
     #[serde(default)]
     pub ingested_via: Option<String>,
@@ -98,10 +102,14 @@ fn row_to_item(r: &rusqlite::Row) -> rusqlite::Result<IntelligenceItem> {
         company_name: r.get(19)?,
         ingested_via: r.get(20)?,
         company_id: r.get(21)?,
+        affected_services: r
+            .get::<_, Option<String>>(22)?
+            .and_then(|j| serde_json::from_str::<Vec<String>>(&j).ok())
+            .unwrap_or_default(),
     })
 }
 
-const ITEM_SELECT: &str = "SELECT id, kind, headline, summary, what_changed, effective_date, who_affected, why_it_matters, country, category, status, importance, source_name, source_tier, source_url, published_at, saved, archived, created_at, company_name, ingested_via, company_id FROM intelligence_items";
+const ITEM_SELECT: &str = "SELECT id, kind, headline, summary, what_changed, effective_date, who_affected, why_it_matters, country, category, status, importance, source_name, source_tier, source_url, published_at, saved, archived, created_at, company_name, ingested_via, company_id, affected_services_json FROM intelligence_items";
 
 #[tauri::command]
 pub fn get_intelligence_items(state: State<DbState>, kind: Option<String>, include_archived: bool) -> CmdResult<Vec<IntelligenceItem>> {
@@ -191,16 +199,126 @@ struct FeedSource {
     source_tier: i64,
 }
 
-/// Plain list, not a settings table — adding another feed is a one-line
-/// change here, no schema/UI needed. Only sources actually verified to
-/// return real, working RSS at the time this was written are included:
-/// Argaam is Saudi Arabia's primary financial-news outlet. No official
-/// government regulatory feed (MHRSD/GOSI/ZATCA) could be confirmed working
-/// — their sites don't expose a clean public RSS endpoint — so "Regulatory"
-/// stays manual-entry-only for now; add a FeedSource here if you find one.
+/// Where Watch looks. Two kinds of source:
+///
+/// * a publisher's own feed (Argaam, Saudi Arabia's main financial outlet);
+/// * a **news search turned into a feed**. The ministries — MHRSD, ZATCA,
+///   GOSI — publish no usable RSS, which is why regulatory coverage used to be
+///   manual-entry-only. A search feed scoped to their domains reaches the same
+///   announcements, and the same mechanism brings in the law firms that explain
+///   them. These endpoints are unofficial: each is fetched independently and a
+///   failure is recorded against that source alone (see `feed_status`).
 const FEEDS: &[FeedSource] = &[
     FeedSource { name: "Argaam", kind: "business", url: "https://www.argaam.com/en/rss/ho-main-news?sectionid=1524", source_tier: 5 },
+    FeedSource { name: "Ministry of Human Resources (MHRSD)", kind: "regulatory", url: "https://news.google.com/rss/search?q=site:hrsd.gov.sa&hl=en-US&gl=US&ceid=US:en", source_tier: 2 },
+    FeedSource { name: "ZATCA", kind: "regulatory", url: "https://news.google.com/rss/search?q=site:zatca.gov.sa&hl=en-US&gl=US&ceid=US:en", source_tier: 2 },
+    FeedSource { name: "GOSI", kind: "regulatory", url: "https://news.google.com/rss/search?q=site:gosi.gov.sa&hl=en-US&gl=US&ceid=US:en", source_tier: 2 },
+    FeedSource { name: "Saudi labour law", kind: "regulatory", url: "https://news.google.com/rss/search?q=%22Saudi+labor+law%22+OR+%22Saudi+labour+law%22&hl=en-US&gl=US&ceid=US:en", source_tier: 4 },
+    FeedSource { name: "Saudization", kind: "regulatory", url: "https://news.google.com/rss/search?q=Saudization+OR+Nitaqat&hl=en-US&gl=US&ceid=US:en", source_tier: 4 },
+    FeedSource { name: "VAT & e-invoicing", kind: "regulatory", url: "https://news.google.com/rss/search?q=Saudi+%28ZATCA+OR+%22e-invoicing%22+OR+VAT%29&hl=en-US&gl=US&ceid=US:en", source_tier: 4 },
+    FeedSource { name: "GOSI & payroll", kind: "regulatory", url: "https://news.google.com/rss/search?q=Saudi+%28GOSI+OR+%22social+insurance%22+OR+%22wage+protection%22%29&hl=en-US&gl=US&ceid=US:en", source_tier: 4 },
+    FeedSource { name: "Company formation", kind: "business", url: "https://news.google.com/rss/search?q=Saudi+%28MISA+OR+%22commercial+registration%22+OR+%22foreign+investment+licence%22%29&hl=en-US&gl=US&ceid=US:en", source_tier: 4 },
 ];
+
+/// Which services a story touches, so an item lands next to the work it
+/// affects (`affected_services_json`, a column that has existed since the
+/// beginning and was never filled). Keywords only — no model involved.
+const SERVICE_KEYWORDS: &[(&str, &[&str])] = &[
+    ("Administration and PRO", &["labor law", "labour law", "mhrsd", "qiwa", "muqeem", "absher", "iqama", "work permit", "ministry of human resources"]),
+    ("Payroll", &["gosi", "social insurance", "wage protection", "wps", "payroll", "end of service", "salary"]),
+    ("Accountancy", &["zatca", "vat", "e-invoicing", "einvoicing", "tax", "zakat", "fatoora"]),
+    ("Business Setup", &["misa", "commercial registration", "company formation", "foreign investment", "business licence", "business license", "regional headquarters"]),
+    ("Company Maintenance", &["commercial registration", "licence renewal", "license renewal", "chamber of commerce", "municipality"]),
+    ("Employer of Record", &["employer of record", "outsourcing", "staffing", "seconded", "labour market", "labor market"]),
+    ("Recruitment", &["recruitment", "hiring", "job seekers", "employment contract", "expat"]),
+    ("Mobilization", &["visa", "block visa", "mobilization", "mobilisation", "border number"]),
+    ("Saudization", &["saudization", "saudisation", "nitaqat", "localization quota"]),
+];
+
+/// Market chatter: true unless the story also names a client.
+const MARKET_NOISE: &[&str] = &[
+    "tasi", "stock", "shares", "index", "ipo", "dividend", "earnings", "bourse", "reit",
+    "money market", "profit rose", "profit fell", "net profit", "market cap", "52-week",
+];
+
+/// A story is regulatory when it reads like a rule, not like coverage.
+const RULE_WORDS: &[&str] = &[
+    "regulation", "regulations", "amendment", "amend", "decision", "decree", "circular",
+    "ministerial", "comes into force", "takes effect", "effective", "mandatory", "deadline",
+    "penalty", "penalties", "violation", "new rule", "rules", "law", "requirement",
+];
+
+fn haystack(headline: &str, summary: Option<&str>) -> String {
+    format!("{headline} {}", summary.unwrap_or("")).to_lowercase()
+}
+
+fn services_for(text: &str) -> Vec<String> {
+    SERVICE_KEYWORDS
+        .iter()
+        .filter(|(_, words)| words.iter().any(|w| text.contains(w)))
+        .map(|(service, _)| service.to_string())
+        .collect()
+}
+
+/// Everything a story is worth to MENA BIG, worked out from its words.
+struct Assessment {
+    keep: bool,
+    importance: &'static str,
+    services: Vec<String>,
+    effective_date: Option<String>,
+    company: Option<(i64, String)>,
+}
+
+/// How MENA One decides what a story is worth. Rules, not a model: keyword
+/// matches against the services MENA BIG sells, the companies already in the
+/// database, and the words that make a story a rule rather than coverage.
+fn assess(conn: &Connection, headline: &str, summary: Option<&str>, tier: i64) -> rusqlite::Result<Assessment> {
+    let text = haystack(headline, summary);
+    let services = services_for(&text);
+    let company = match_company(conn, &text)?;
+    let is_noise = MARKET_NOISE.iter().any(|w| text.contains(w));
+    let rule_words = RULE_WORDS.iter().filter(|w| text.contains(*w)).count();
+    let effective_date = effective_date_in(&text);
+
+    // Market noise is dropped unless it names a client or prospect — then it is
+    // exactly the kind of thing worth knowing before a call.
+    let keep = company.is_some() || (!is_noise && (!services.is_empty() || tier <= 2));
+
+    let importance = if effective_date.is_some() && rule_words > 0 {
+        "critical"
+    } else if tier <= 2 || rule_words >= 2 || (!services.is_empty() && rule_words > 0) {
+        "important"
+    } else {
+        "monitor"
+    };
+
+    Ok(Assessment { keep, importance, services, effective_date, company })
+}
+
+/// A date a rule starts applying ("effective 1 January 2027"), so a compliance
+/// deadline can be seen without opening the article.
+fn effective_date_in(text: &str) -> Option<String> {
+    static RE: std::sync::OnceLock<Regex> = std::sync::OnceLock::new();
+    let re = RE.get_or_init(|| {
+        Regex::new(r"(?i)(?:effective|takes effect|comes into force|starting|as of|from)\s+(?:on\s+)?(\d{1,2}\s+[a-z]+\s+20\d{2}|[a-z]+\s+\d{1,2},?\s+20\d{2}|\d{4}-\d{2}-\d{2})").unwrap()
+    });
+    re.captures(text).and_then(|c| c.get(1)).map(|m| m.as_str().trim().to_string())
+}
+
+/// A client or prospect named in the story. Only names long enough to be
+/// unambiguous are matched, so "Acme" doesn't catch every acme in the region.
+fn match_company(conn: &Connection, text: &str) -> rusqlite::Result<Option<(i64, String)>> {
+    let mut stmt = conn.prepare("SELECT id, name FROM companies")?;
+    let rows = stmt.query_map([], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, String>(1)?)))?;
+    for row in rows {
+        let (id, name) = row?;
+        let needle = name.trim().to_lowercase();
+        if needle.len() >= 5 && text.contains(&needle) {
+            return Ok(Some((id, name)));
+        }
+    }
+    Ok(None)
+}
 
 /// Normalizes a headline into intelligence_items.dedup_key (a column that
 /// already existed, reserved, unused until now) so re-running a sync doesn't
@@ -237,38 +355,84 @@ fn strip_html(s: &str) -> String {
 /// unreachable or unparsable. Every inserted row is verbatim from the feed —
 /// headline/summary/link/date, never rewritten — importance always lands at
 /// "monitor", and ingested_via='feed' marks it as not personally reviewed.
+/// What each source did on the last run, so the Watch page can say whether it
+/// is actually pulling anything — the old version gave no sign either way.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct FeedStatus {
+    pub name: String,
+    pub kind: String,
+    pub last_run_at: Option<String>,
+    pub added: i64,
+    pub considered: i64,
+    pub error: Option<String>,
+}
+
+fn write_feed_status(conn: &Connection, statuses: &[FeedStatus]) -> rusqlite::Result<()> {
+    let json = serde_json::to_string(statuses).unwrap_or_else(|_| "[]".into());
+    conn.execute(
+        "INSERT INTO app_meta (key, value) VALUES ('intel_feed_status', ?1) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        params![json],
+    )?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn intelligence_feed_status(state: State<DbState>) -> CmdResult<Vec<FeedStatus>> {
+    let conn = state.0.lock().map_err(err)?;
+    let raw: Option<String> = conn
+        .query_row("SELECT value FROM app_meta WHERE key = 'intel_feed_status'", [], |r| r.get(0))
+        .optional()
+        .map_err(err)?;
+    Ok(raw.and_then(|j| serde_json::from_str(&j).ok()).unwrap_or_default())
+}
+
+/// Fetches every source and keeps what is relevant: a story is dropped when it
+/// is market chatter that names none of our clients, or when it touches none of
+/// the services MENA BIG sells. What is kept arrives with an importance, the
+/// services it affects, any date it comes into force, and the client it names.
+///
+/// Every source fails on its own — one unreachable feed never stops the rest,
+/// and the failure is recorded against that source so it is visible on the page.
 /// Returns how many new items were added.
 #[tauri::command]
 pub async fn sync_intelligence_feeds(state: State<'_, DbState>) -> CmdResult<i64> {
-    let client = reqwest::Client::new();
+    // Without timeouts a stalled server left the sync pending forever.
+    let client = reqwest::Client::builder()
+        .connect_timeout(std::time::Duration::from_secs(10))
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .map_err(err)?;
     let mut added = 0i64;
+    let mut statuses: Vec<FeedStatus> = Vec::new();
+    let run_at = now_iso();
 
     for feed in FEEDS {
-        let bytes = match client
+        let mut status = FeedStatus { name: feed.name.into(), kind: feed.kind.into(), last_run_at: Some(run_at.clone()), ..Default::default() };
+        let fetched = client
             .get(feed.url)
             .header("User-Agent", "Mozilla/5.0 (compatible; MENAOne/1.0)")
             .send()
             .await
-        {
-            Ok(resp) => match resp.error_for_status() {
-                Ok(resp) => match resp.bytes().await {
-                    Ok(b) => b,
-                    Err(e) => { eprintln!("[intel sync] {} body read failed: {e}", feed.name); continue; }
-                },
-                Err(e) => { eprintln!("[intel sync] {} returned an error status: {e}", feed.name); continue; }
+            .and_then(|r| r.error_for_status());
+        let bytes = match fetched {
+            Ok(resp) => match resp.bytes().await {
+                Ok(b) => b,
+                Err(e) => { status.error = Some(format!("Could not read the response: {e}")); statuses.push(status); continue; }
             },
-            Err(e) => { eprintln!("[intel sync] {} fetch failed: {e}", feed.name); continue; }
+            Err(e) => { status.error = Some(format!("Could not reach this source: {e}")); statuses.push(status); continue; }
         };
 
         let parsed = match feed_rs::parser::parse(&bytes[..]) {
             Ok(f) => f,
-            Err(e) => { eprintln!("[intel sync] {} parse failed: {e}", feed.name); continue; }
+            Err(e) => { status.error = Some(format!("The feed could not be read: {e}")); statuses.push(status); continue; }
         };
 
         let conn = state.0.lock().map_err(err)?;
-        for entry in parsed.entries.iter().take(30) {
+        for entry in parsed.entries.iter().take(40) {
             let headline = entry.title.as_ref().map(|t| t.content.trim().to_string()).unwrap_or_default();
             if headline.is_empty() { continue; }
+            status.considered += 1;
 
             let dedup_key = dedup_key_for(&headline);
             let exists: Option<i64> = conn
@@ -278,18 +442,100 @@ pub async fn sync_intelligence_feeds(state: State<'_, DbState>) -> CmdResult<i64
             if exists.is_some() { continue; }
 
             let summary = entry.summary.as_ref().map(|t| strip_html(&t.content)).filter(|s| !s.is_empty());
+            let a = assess(&conn, &headline, summary.as_deref(), feed.source_tier).map_err(err)?;
+            if !a.keep { continue; }
+
             let source_url = entry.links.first().map(|l| l.href.clone()).unwrap_or_else(|| feed.url.to_string());
             let published_at = entry.published.or(entry.updated).map(|d| d.format("%Y-%m-%d").to_string());
+            let services_json = if a.services.is_empty() { None } else { serde_json::to_string(&a.services).ok() };
+            let (company_id, company_name) = match a.company {
+                Some((id, name)) => (Some(id), Some(name)),
+                None => (None, None),
+            };
 
             conn.execute(
                 "INSERT INTO intelligence_items (kind, headline, summary, importance, source_name, source_tier,
-                    source_url, published_at, saved, archived, created_at, dedup_key, ingested_via)
-                 VALUES (?1,?2,?3,'monitor',?4,?5,?6,?7,0,0,?8,?9,'feed')",
-                params![feed.kind, headline, summary, feed.name, feed.source_tier, source_url, published_at, now_iso(), dedup_key],
+                    source_url, published_at, saved, archived, created_at, dedup_key, ingested_via,
+                    affected_services_json, effective_date, company_id, company_name, country)
+                 VALUES (?1,?2,?3,?4,?5,?6,?7,?8,0,0,?9,?10,'feed',?11,?12,?13,?14,'Saudi Arabia')",
+                params![feed.kind, headline, summary, a.importance, feed.name, feed.source_tier, source_url,
+                        published_at, now_iso(), dedup_key, services_json, a.effective_date, company_id, company_name],
             ).map_err(err)?;
             added += 1;
+            status.added += 1;
         }
+        let _ = write_feed_status(&conn, &statuses.iter().chain(std::iter::once(&status)).cloned().collect::<Vec<_>>());
+        statuses.push(status);
     }
 
+    let conn = state.0.lock().map_err(err)?;
+    write_feed_status(&conn, &statuses).map_err(err)?;
     Ok(added)
+}
+
+/// The classifier, exposed for the feed test (tuple rather than the private
+/// struct: kept, importance, services).
+pub fn assess_for_test(conn: &Connection, headline: &str, summary: Option<&str>, tier: i64) -> (bool, String, Vec<String>) {
+    let a = assess(conn, headline, summary, tier).expect("assess");
+    (a.keep, a.importance.to_string(), a.services)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn db() -> Connection {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch("CREATE TABLE companies (id INTEGER PRIMARY KEY, name TEXT);").unwrap();
+        conn.execute("INSERT INTO companies (id, name) VALUES (1, 'Woodgrove Capital')", []).unwrap();
+        conn
+    }
+
+    #[test]
+    fn market_chatter_is_dropped_unless_it_names_a_client() {
+        let conn = db();
+        let noise = assess(&conn, "TASI: 15 stocks fall to 52-week lows", None, 5).unwrap();
+        assert!(!noise.keep, "stock market movements are not business intelligence");
+
+        let client = assess(&conn, "Woodgrove Capital raises SAR 200M to expand in Riyadh", None, 5).unwrap();
+        assert!(client.keep, "the same kind of story matters when it names a client");
+        assert_eq!(client.company.unwrap().1, "Woodgrove Capital");
+    }
+
+    #[test]
+    fn a_rule_with_a_date_outranks_coverage_of_it() {
+        let conn = db();
+        let rule = assess(
+            &conn,
+            "Saudi Arabia amends labor law: new regulation effective 1 January 2027",
+            Some("The ministerial decision sets a deadline for employers."),
+            4,
+        )
+        .unwrap();
+        assert_eq!(rule.importance, "critical");
+        assert_eq!(rule.effective_date.as_deref(), Some("1 january 2027"));
+        assert!(rule.services.contains(&"Administration and PRO".to_string()));
+
+        let coverage = assess(&conn, "What Saudization means for hiring in 2027", None, 6).unwrap();
+        assert_eq!(coverage.importance, "monitor");
+        assert!(coverage.keep);
+    }
+
+    #[test]
+    fn a_story_is_filed_against_the_services_it_touches() {
+        let conn = db();
+        let gosi = assess(&conn, "GOSI announces updated contribution rates", Some("Wage protection changes too."), 2).unwrap();
+        assert!(gosi.services.contains(&"Payroll".to_string()));
+        assert_eq!(gosi.importance, "important", "an official source is worth more than coverage");
+
+        let vat = assess(&conn, "ZATCA extends e-invoicing wave to more taxpayers", None, 2).unwrap();
+        assert!(vat.services.contains(&"Accountancy".to_string()));
+    }
+
+    #[test]
+    fn something_with_no_bearing_on_what_we_sell_is_left_out() {
+        let conn = db();
+        let irrelevant = assess(&conn, "Riyadh Season announces concert line-up", None, 6).unwrap();
+        assert!(!irrelevant.keep);
+    }
 }

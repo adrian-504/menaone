@@ -387,6 +387,7 @@ pub fn run() {
             intel::set_intelligence_saved,
             intel::set_intelligence_archived,
             intel::sync_intelligence_feeds,
+            intel::intelligence_feed_status,
             attachments::save_attachment,
             attachments::get_attachment_data_url,
             attachments::delete_attachment,

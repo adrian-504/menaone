@@ -764,6 +764,13 @@ export async function installDevMockIfNeeded(): Promise<void> {
           }
           return null;
         }
+        case 'intelligence_feed_status':
+          return [
+            { name: 'Ministry of Human Resources (MHRSD)', kind: 'regulatory', lastRunAt: new Date().toISOString(), added: 2, considered: 40, error: null },
+            { name: 'ZATCA', kind: 'regulatory', lastRunAt: new Date().toISOString(), added: 1, considered: 38, error: null },
+            { name: 'Argaam', kind: 'business', lastRunAt: new Date().toISOString(), added: 0, considered: 30, error: null },
+            { name: 'GOSI & payroll', kind: 'regulatory', lastRunAt: new Date().toISOString(), added: 0, considered: 0, error: 'Could not reach this source: timed out' },
+          ];
         case 'company_note_entries': {
           const p = _payload as any;
           return companyNoteEntriesStore.filter((n) => (p?.companyId != null && n.companyId === p.companyId) || (p?.companyName && n.companyName === p.companyName));

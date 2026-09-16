@@ -191,7 +191,11 @@ struct GraphErrorDetail {
 }
 
 async fn token_request(tenant_id: &str, params: &[(&str, &str)]) -> Result<TokenResponse, String> {
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder()
+        .connect_timeout(std::time::Duration::from_secs(10))
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .unwrap_or_else(|_| reqwest::Client::new());
     let resp = client
         .post(token_endpoint(tenant_id))
         .form(params)

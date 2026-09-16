@@ -297,3 +297,7 @@ export async function moveCompanyNoteEntries(oldName: string, newName: string, n
 /** Merges a service into another: lines repoint, the retired row stays and points at the survivor. */
 export async function mergeServices(fromId: number, toId: number): Promise<{ proposalLines: number; agreementLines: number; survivor: Service }> { return invoke('merge_services', { fromId, toId }); }
 export async function serviceUsage(id: number): Promise<[number, number]> { return invoke<[number, number]>('service_usage', { id }); }
+
+/** Per-source result of the last Watch sync: what each feed brought back, or why it failed. */
+export interface FeedStatus { name: string; kind: string; lastRunAt: string | null; added: number; considered: number; error: string | null; }
+export async function intelligenceFeedStatus(): Promise<FeedStatus[]> { return invoke<FeedStatus[]>('intelligence_feed_status'); }

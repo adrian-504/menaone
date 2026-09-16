@@ -589,6 +589,8 @@ export interface IntelligenceItem {
   summary: string | null;
   whatChanged: string | null;
   effectiveDate: string | null;
+  /** Services this story touches, worked out from its words when it was pulled in. */
+  affectedServices?: string[];
   whoAffected: string | null;
   whyItMatters: string | null;
   country: string | null;
