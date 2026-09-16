@@ -52,3 +52,6 @@ MENA_BIG_Tracker_24*.html
 *.xlsx
 *.pdf
 !docs/**/*.pdf
+
+# Phone API skeleton build output
+mobile-api/target

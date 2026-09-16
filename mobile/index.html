@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>MENA One</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Phone skeleton. Four screens, because four is what the owner said he
+       actually does on a phone: see today, look a client up before walking in,
+       capture something, tick things off. Everything else stays on the Mac. -->
+  <header class="top">
+    <button class="back" id="back" hidden>‹ Clients</button>
+    <div class="top-title" id="top-title">Today</div>
+    <div class="top-sub" id="top-sub"></div>
+  </header>
+
+  <main id="screen"></main>
+
+  <nav class="tabbar">
+    <button class="tab active" data-screen="today"><span class="ico">◴</span>Today</button>
+    <button class="tab" data-screen="clients"><span class="ico">▤</span>Clients</button>
+    <button class="tab" data-screen="tasks"><span class="ico">✓</span>Tasks</button>
+    <button class="tab" data-screen="capture"><span class="ico">＋</span>Capture</button>
+  </nav>
+
+  <div class="offline" id="offline" hidden>No connection — showing what was loaded last</div>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
