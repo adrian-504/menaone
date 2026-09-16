@@ -358,6 +358,7 @@ pub fn run() {
             ms365::commands::ms365_get_emails_by_company,
             ms365::commands::ms365_get_completed_emails,
             ms365::commands::ms365_update_email_flag,
+            ms365::commands::ms365_reflag_email,
             ms365::commands::ms365_set_email_company,
             ms365::commands::ms365_open_email,
             ms365::commands::ms365_sync_calendar,

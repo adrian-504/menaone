@@ -286,7 +286,13 @@ const EMAIL_SELECT: &str = "SELECT id, message_id, conversation_id, subject, sen
 /// synchronize the change back into MENA BIG").
 #[tauri::command]
 pub async fn ms365_sync_flagged_emails(db: State<'_, DbState>, ms: State<'_, Ms365State>) -> CmdResult<Vec<EmailRecord>> {
-    let token = ensure_access_token(&db, &ms).await?;
+    sync_flagged(&db, &ms).await
+}
+
+/// The sync itself, so undo (`ms365_reflag_email`) can reuse it instead of
+/// duplicating the flagged-mail reconciliation.
+async fn sync_flagged(db: &State<'_, DbState>, ms: &State<'_, Ms365State>) -> CmdResult<Vec<EmailRecord>> {
+    let token = ensure_access_token(db, ms).await?;
     let (messages, complete) = graph::list_flagged_messages(&token).await?;
 
     let conn = db.0.lock().map_err(err)?;
@@ -443,6 +449,29 @@ pub async fn ms365_update_email_flag(db: State<'_, DbState>, ms: State<'_, Ms365
         conn.execute("DELETE FROM emails WHERE id = ?1", params![id]).map_err(err)?;
     }
     Ok(())
+}
+
+/// Undo for "mark complete" / "remove flag": flags the message again in
+/// Outlook and drops its completed-log entry, then re-syncs so the email comes
+/// back into Action Required exactly as Outlook has it.
+///
+/// Works from the Outlook message id rather than the local row, because
+/// completing usually deletes that row (see `ms365_update_email_flag`) — the
+/// message id is what `email_completed_log` keeps, and what the frontend still
+/// holds for an email it just removed from the list.
+#[tauri::command]
+pub async fn ms365_reflag_email(db: State<'_, DbState>, ms: State<'_, Ms365State>, message_id: String) -> CmdResult<Vec<EmailRecord>> {
+    let token = ensure_access_token(&db, &ms).await?;
+    graph::set_message_flag_status(&token, &message_id, "flagged").await?;
+    {
+        let conn = db.0.lock().map_err(err)?;
+        conn.execute("DELETE FROM email_completed_log WHERE message_id = ?1", params![message_id]).map_err(err)?;
+        // A kept row (one that's linked into the work graph) only needs its
+        // flag status back; an unlinked row was deleted and the re-sync below
+        // re-inserts it from Outlook.
+        conn.execute("UPDATE emails SET flag_status = 'flagged' WHERE message_id = ?1", params![message_id]).map_err(err)?;
+    }
+    sync_flagged(&db, &ms).await
 }
 
 #[derive(serde::Serialize)]

@@ -759,6 +759,20 @@ export async function installDevMockIfNeeded(): Promise<void> {
           }
           return null;
         }
+        case 'ms365_reflag_email': {
+          // Undo: put the email back in the flagged list, as the real command
+          // does by re-flagging it in Outlook and re-syncing.
+          const p = _payload as any;
+          const i = completedLogStore.findIndex((e) => e.messageId === p?.messageId);
+          if (i > -1) {
+            const [back] = completedLogStore.splice(i, 1);
+            if (!emailsStore.some((e) => e.messageId === back.messageId)) {
+              emailsStore.unshift({ id: back.id, messageId: back.messageId, subject: back.subject, senderName: back.senderName, senderEmail: back.senderEmail,
+                preview: null, receivedAt: new Date().toISOString(), isRead: true, webLink: null, flagDueAt: null, companyId: null, companyName: null } as any);
+            }
+          }
+          return emailsStore;
+        }
         case 'ms365_set_email_company': {
           const p = _payload as any;
           const e = emailsStore.find((x) => x.id === p?.id);

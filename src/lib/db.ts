@@ -206,6 +206,8 @@ export async function ms365GetEmailsByIds(ids: number[]): Promise<EmailRecord[]>
 export async function ms365GetEmailsByCompany(companyId: number): Promise<EmailRecord[]> { return invoke<EmailRecord[]>('ms365_get_emails_by_company', { companyId }); }
 export async function ms365GetCompletedEmails(limit = 100): Promise<EmailCompletedRecord[]> { return invoke<EmailCompletedRecord[]>('ms365_get_completed_emails', { limit }); }
 export async function ms365UpdateEmailFlag(id: number, complete: boolean): Promise<void> { await invoke('ms365_update_email_flag', { id, complete }); }
+/** Undo for complete / remove flag: flags the message again in Outlook and returns the refreshed flagged list. */
+export async function ms365ReflagEmail(messageId: string): Promise<EmailRecord[]> { return invoke<EmailRecord[]>('ms365_reflag_email', { messageId }); }
 export async function ms365SetEmailCompany(id: number, companyName: string | null): Promise<void> { await invoke('ms365_set_email_company', { id, companyName }); }
 export async function ms365OpenEmail(id: number): Promise<void> { await invoke('ms365_open_email', { id }); }
 
