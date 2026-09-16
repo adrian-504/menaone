@@ -266,19 +266,32 @@ input[type=text]:focus,input[type=date]:focus,input[type=number]:focus,select.fs
 .pill-flat{background:var(--surface-2);color:var(--sub);border-color:var(--border)}
 /* COMPANIES TAB */
 .co-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;margin-top:2px}
-.co-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:15px;box-shadow:var(--shadow);cursor:pointer;transition:box-shadow .14s,border-color .14s;display:flex;flex-direction:column;gap:10px}
-.co-card:hover{box-shadow:var(--shadow-md);border-color:var(--accent-border)}
-.co-head{display:flex;align-items:center;gap:11px}
+.co-card{position:relative;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:13px 14px 11px;box-shadow:var(--shadow);cursor:pointer;transition:box-shadow .14s,border-color .14s,transform .12s;display:flex;flex-direction:column;gap:9px;min-height:132px}
+.co-card:hover{box-shadow:var(--shadow-md);border-color:var(--border2);transform:translateY(-1px)}
+.co-head{display:flex;align-items:flex-start;gap:10px}
+.co-id{min-width:0;flex:1}
+.co-sub{font-size:var(--type-meta);color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.co-dot{width:7px;height:7px;border-radius:50%;flex:none;margin-top:6px;background:var(--muted)}
+.co-dot.tone-green{background:var(--green)}
+.co-dot.tone-amber{background:var(--amber)}
+.co-dot.tone-blue{background:var(--accent)}
+.co-flag{position:absolute;top:10px;right:11px;font-size:var(--type-meta);color:var(--amber);background:var(--amber-bg,rgba(200,140,0,.1));border-radius:5px;padding:1px 6px}
 .co-avatar{width:38px;height:38px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:var(--type-section);font-weight:700;color:#fff;flex-shrink:0}
 .co-name{font-weight:600;font-size:var(--type-body);color:var(--text);line-height:1.3;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 .co-since{font-size:var(--type-meta);color:var(--muted)}
 .co-industry-tag{display:inline-block;font-size:var(--type-caption);font-weight:700;letter-spacing:.02em;color:var(--sub);background:var(--surface-2);border-radius:9px;padding:1px 7px;margin-left:5px;vertical-align:middle}
 .co-industry-tag.co-industry-missing{color:var(--muted);background:transparent;border:1px dashed var(--border);font-weight:600}
-.co-stats{display:flex;gap:6px;flex-wrap:wrap}
-.co-stat{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:4px 9px;font-size:var(--type-meta);color:var(--sub);display:flex;align-items:center;gap:4px}
+.co-stats{display:flex;gap:10px;flex-wrap:wrap;font-size:var(--type-meta);color:var(--sub);font-variant-numeric:tabular-nums}
+.co-stat b{font-weight:600;color:var(--text)}
+.co-stat.zero{color:var(--muted)}
+.co-stat.zero b{font-weight:400;color:var(--muted)}
+.co-state{font-size:var(--type-meta);font-weight:600;white-space:nowrap}
+.co-state.tone-green{color:var(--green)}
+.co-state.tone-amber{color:var(--amber)}
+.co-state.tone-blue{color:var(--accent)}
 .co-stat-n{font-weight:700;color:var(--text)}
 .co-mrr{font-size:var(--type-secondary);font-weight:700;color:var(--green)}
-.co-footer{display:flex;align-items:center;justify-content:space-between;padding-top:8px;border-top:1px solid var(--border)}
+.co-footer{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:auto;padding-top:9px;border-top:1px solid var(--border)}
 
 /* Company detail page */
 .co-detail{display:none}
@@ -288,7 +301,9 @@ input[type=text]:focus,input[type=date]:focus,input[type=number]:focus,select.fs
 .co-detail-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:14px}
 
 /* Company list: Grid (cards) / List (dense table) toggle */
-.co-type-chips{display:flex;gap:4px;flex-wrap:wrap}
+.co-type-chips{display:flex;gap:4px;flex-wrap:wrap;min-height:19px}
+.co-type-chips .chip{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chip-more{color:var(--muted)}
 .co-row{cursor:pointer}
 .co-row:hover td{background:var(--surface-2)}
 
@@ -1484,7 +1499,8 @@ body.dnd-active .opp-board .board-column.stage-hidden{display:flex}
 .agr-ref{font-weight:600;white-space:nowrap}
 .agr-prop-ref{font-size:var(--type-caption);font-weight:600}
 .agr-prop-ref{color:var(--accent)}
-.co-card{border-left:3px solid var(--tone,var(--border))}
+/* The status is stated once, by the dot and the footer label — the coloured
+   left edge said the same thing a third time and fought the rounded corner. */
 .co-stat.tone-amber{color:var(--amber)}
 .co-signed{font-size:var(--type-meta);color:var(--green);font-weight:600}
 .rec-row.is-unavailable{opacity:.6}

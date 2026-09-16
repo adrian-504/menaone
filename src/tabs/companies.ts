@@ -872,29 +872,40 @@ export function renderCompanyList(): void {
     return;
   }
 
-  grid.innerHTML = rows.map(({ name, d, rel, color, initials, accent, mrrStr, industry, activeServices, otherServices, opportunityCount, projectCount }) => {
+  grid.innerHTML = rows.map(({ name, d, rel, color, initials, mrrStr, industry, activeServices, otherServices, opportunityCount, projectCount }) => {
     const escName = escHtml(name).replace(/'/g, "\\'");
     const types = [...activeServices, ...otherServices];
-    return `<div class="co-card" style="--tone:${accent}" onclick="openCompanyDetail('${escName}')" oncontextmenu="companyContextMenu(event,'${escName}')">
+    // Counts read as one quiet line; a zero is greyed rather than boxed, and
+    // agreements are left off entirely for a company that has none and isn't
+    // a client — a card shouldn't lead with what a company doesn't have.
+    const stat = (n: number, one: string, many: string) =>
+      `<span class="${n === 0 ? 'co-stat zero' : 'co-stat'}"><b>${n}</b> ${n === 1 ? one : many}</span>`;
+    const showAgreements = d.agreements.length > 0 || rel.label === 'Active client';
+    // Missing data becomes something to act on, not a blank line.
+    const flag = !industry ? 'Needs industry' : d.contacts.length === 0 ? 'Needs contact' : '';
+    const record = S.companies.find((c) => c.name === name);
+    const place = [record?.city, record?.country].filter(Boolean).join(', ');
+    const sub = [industry, place].filter(Boolean).join(' · ') || (d.clientSince ? `Client since ${fmtDate(d.clientSince)}` : 'Added recently');
+    return `<div class="co-card" onclick="openCompanyDetail('${escName}')" oncontextmenu="companyContextMenu(event,'${escName}')">
+      ${flag ? `<span class="co-flag">${escHtml(flag)}</span>` : ''}
       <div class="co-head">
         <div class="co-avatar" style="background:${color}">${initials}</div>
-        <div class="flex-fill">
-          <div class="co-name">${escHtml(name)}${industry ? ` <span class="co-industry-tag">${escHtml(industry)}</span>` : `<span class="co-industry-tag co-industry-missing">Unknown industry</span>`}</div>
-          <div class="co-since">${d.clientSince ? 'Since ' + fmtDate(d.clientSince) : 'No proposal date'}</div>
+        <div class="co-id">
+          <div class="co-name">${escHtml(name)}</div>
+          <div class="co-sub">${escHtml(sub)}</div>
         </div>
+        <span class="co-dot tone-${rel.tone}" title="${escHtml(rel.label)}"></span>
       </div>
-      ${types.length > 0 ? `<div class="co-type-chips">${types.slice(0, 3).map((t) => `<span class="chip${activeServices.includes(t) ? ' chip-on' : ''}">${escHtml(t)}</span>`).join('')}${types.length > 3 ? `<span class="chip">+${types.length - 3}</span>` : ''}</div>` : ''}
-      <div class="co-stats">
-        <div class="co-stat${d.contacts.length === 0 ? ' tone-amber' : ''}">${icon('people', 13)}<span class="co-stat-n">${d.contacts.length}</span> contact${d.contacts.length !== 1 ? 's' : ''}</div>
-        <div class="co-stat">${icon('database', 13)}<span class="co-stat-n">${d.proposals.length}</span> proposal${d.proposals.length !== 1 ? 's' : ''}</div>
-        <div class="co-stat">${icon('document', 13)}<span class="co-stat-n">${d.agreements.length}</span> agreement${d.agreements.length !== 1 ? 's' : ''}</div>
-        ${opportunityCount > 0 ? `<div class="co-stat">${icon('target', 13)}<span class="co-stat-n">${opportunityCount}</span> opportunit${opportunityCount !== 1 ? 'ies' : 'y'}</div>` : ''}
-        ${projectCount > 0 ? `<div class="co-stat">${icon('briefcase', 13)}<span class="co-stat-n">${projectCount}</span> project${projectCount !== 1 ? 's' : ''}</div>` : ''}
-        ${d.notes.length > 0 ? `<div class="co-stat">${icon('note', 13)}<span class="co-stat-n">${d.notes.length}</span> note${d.notes.length !== 1 ? 's' : ''}</div>` : ''}
-      </div>
+      <div class="co-type-chips">${types.slice(0, 2).map((t) => `<span class="chip${activeServices.includes(t) ? ' chip-on' : ''}">${escHtml(t)}</span>`).join('')}${types.length > 2 ? `<span class="chip chip-more">+${types.length - 2}</span>` : ''}</div>
       <div class="co-footer">
-        <span class="rec-badge tone-${rel.tone}">${escHtml(rel.label)}</span>
-        ${mrrStr ? `<span class="co-mrr">${mrrStr}</span>` : d.signedAgreements.length > 0 ? `<span class="co-signed">${d.signedAgreements.length} signed</span>` : ''}
+        <span class="co-stats">
+          ${stat(d.contacts.length, 'contact', 'contacts')}
+          ${stat(d.proposals.length, 'proposal', 'proposals')}
+          ${showAgreements ? stat(d.agreements.length, 'agreement', 'agreements') : ''}
+          ${opportunityCount > 0 ? stat(opportunityCount, 'opportunity', 'opportunities') : ''}
+          ${projectCount > 0 ? stat(projectCount, 'project', 'projects') : ''}
+        </span>
+        <span class="co-state tone-${rel.tone}">${escHtml(rel.label)}${mrrStr ? ` · ${mrrStr}` : ''}</span>
       </div>
     </div>`;
   }).join('');
