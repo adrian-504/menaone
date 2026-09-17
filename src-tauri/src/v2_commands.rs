@@ -136,10 +136,13 @@ pub fn save_project_row(conn: &mut Connection, project: &Project) -> CmdResult<P
     let company_id = crate::opportunities::company_for_save(&tx, prior.as_ref(), project.company_id, project.company_name.as_deref()).map_err(err)?;
     let id = if project.id > 0 {
         tx.execute(
-            "UPDATE projects SET name=?2, type=?3, status=?4, priority=?5, owner=?6, description=?7,
-                company_name=?8, company_id=?9, area_id=?10, start_date=?11, target_date=?12, completion_date=?13,
-                progress_override=?14, archived=?15, updated_at=?16
-             WHERE id=?1",
+            &format!(
+                "UPDATE projects SET name=?2, type=?3, status=?4, priority=?5, owner=?6, owner_id={owner_id}, description=?7,
+                    company_name=?8, company_id=?9, area_id=?10, start_date=?11, target_date=?12, completion_date=?13,
+                    progress_override=?14, archived=?15, updated_at=?16
+                 WHERE id=?1",
+                owner_id = crate::identity::owner_id_for_name_sql(6)
+            ),
             params![
                 project.id, project.name, project.r#type, project.status, project.priority, project.owner,
                 project.description, project.company_name, company_id, project.area_id, project.start_date,
@@ -150,9 +153,12 @@ pub fn save_project_row(conn: &mut Connection, project: &Project) -> CmdResult<P
         project.id
     } else {
         tx.execute(
-            "INSERT INTO projects (name, type, status, priority, owner, description, company_name, company_id, area_id,
-                start_date, target_date, completion_date, progress_override, archived, created_at, updated_at)
-             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?15)",
+            &format!(
+                "INSERT INTO projects (name, type, status, priority, owner, owner_id, description, company_name, company_id, area_id,
+                    start_date, target_date, completion_date, progress_override, archived, created_at, updated_at)
+                 VALUES (?1,?2,?3,?4,?5,{owner_id},?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?15)",
+                owner_id = crate::identity::owner_id_for_name_sql(5)
+            ),
             params![
                 project.name, project.r#type, project.status, project.priority, project.owner,
                 project.description, project.company_name, company_id, project.area_id, project.start_date,

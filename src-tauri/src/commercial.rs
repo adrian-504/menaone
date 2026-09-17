@@ -1038,7 +1038,7 @@ fn upsert_business_entity(conn: &Connection, e: &BusinessEntity) -> rusqlite::Re
     }
 }
 
-fn upsert_team_member(conn: &Connection, t: &TeamMember) -> rusqlite::Result<i64> {
+pub fn upsert_team_member(conn: &Connection, t: &TeamMember) -> rusqlite::Result<i64> {
     let now = now_iso();
     let existing: Option<i64> = if t.id > 0 {
         conn.query_row("SELECT id FROM team_members WHERE id = ?1", params![t.id], |r| r.get(0)).optional()?
@@ -1051,6 +1051,8 @@ fn upsert_team_member(conn: &Connection, t: &TeamMember) -> rusqlite::Result<i64
                 "UPDATE team_members SET name=?2, email=?3, job_title=?4, department=?5, is_reviewer=?6, active=?7, notes=?8, updated_at=?9 WHERE id=?1",
                 params![id, t.name.trim(), t.email, t.job_title, t.department, t.is_reviewer as i64, t.active as i64, t.notes, now],
             )?;
+            crate::identity::rename_owner(conn, id, &t.name)?;
+            crate::identity::relink_owners(conn)?;
             Ok(id)
         }
         None => {
@@ -1059,7 +1061,9 @@ fn upsert_team_member(conn: &Connection, t: &TeamMember) -> rusqlite::Result<i64
                  VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?8)",
                 params![t.name.trim(), t.email, t.job_title, t.department, t.is_reviewer as i64, t.active as i64, t.notes, now],
             )?;
-            Ok(conn.last_insert_rowid())
+            let id = conn.last_insert_rowid();
+            crate::identity::relink_owners(conn)?;
+            Ok(id)
         }
     }
 }

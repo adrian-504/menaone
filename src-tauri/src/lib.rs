@@ -21,6 +21,7 @@ pub mod pricing;
 pub mod feefill;
 pub mod master;
 pub mod generator;
+pub mod identity;
 pub mod v2_commands;
 pub mod v2_models;
 pub mod v2_search;
@@ -322,6 +323,7 @@ pub fn run() {
             ms365::commands::ms365_status,
             ms365::commands::ms365_connect,
             ms365::commands::ms365_disconnect,
+            identity::identity_current_user,
             ms365::commands::ms365_sync_flagged_emails,
             ms365::commands::ms365_get_cached_emails,
             ms365::commands::ms365_get_emails_by_ids,

@@ -78,7 +78,7 @@ fn v2_migration_preserves_v1_data_and_is_idempotent() {
         // Bump this whenever a new entry is appended to MIGRATIONS in db.rs —
         // it was stuck at "6" for a long stretch of migrations without anyone
         // noticing because the suite wasn't being run.
-        assert_eq!(sv, "33");
+        assert_eq!(sv, "34");
         // New nullable columns on todos must exist and be queryable (additive-only ALTER TABLE).
         assert_eq!(get("select count(*) from todos where project_id is null"), 1);
         // Migration 4 (Microsoft 365 integration): new tables exist, and the existing

@@ -158,13 +158,16 @@ fn graph_error_message(status: reqwest::StatusCode, text: &str) -> String {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GraphProfile {
+    /// The account's permanent Entra object id (`oid`): unlike an email
+    /// address, it never changes.
+    pub id: Option<String>,
     pub display_name: Option<String>,
     pub mail: Option<String>,
     pub user_principal_name: Option<String>,
 }
 
 pub async fn get_profile(access_token: &str) -> Result<GraphProfile, String> {
-    let v = graph_get(access_token, "/me?$select=displayName,mail,userPrincipalName").await?;
+    let v = graph_get(access_token, "/me?$select=id,displayName,mail,userPrincipalName").await?;
     serde_json::from_value(v).map_err(|e| e.to_string())
 }
 

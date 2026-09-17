@@ -13,6 +13,7 @@ fn interface_state_keys_are_allowed() {
 fn configuration_and_system_keys_are_refused() {
     for key in [
         "schema_version",
+        "current_user_id",
         "proposals_root",
         "proposal_library_dir",
         "proposal_master_path",

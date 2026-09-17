@@ -16,7 +16,7 @@ if ('__TAURI_INTERNALS__' in window && /Mac/i.test(navigator.platform)) {
 import { S } from './lib/state';
 import { STATUSES } from './lib/constants';
 import { escHtml, getClients, expose } from './lib/utils';
-import { loadAllData, getCommercialSetup, getProjects, getAreas, getNoteTemplates, getAllTags, getInboxItems, getMeetings, getCompanies, getOpportunities, ms365Status, getSavedLists } from './lib/db';
+import { loadAllData, getCommercialSetup, getProjects, getAreas, getNoteTemplates, getAllTags, getInboxItems, getMeetings, getCompanies, getOpportunities, ms365Status, getSavedLists, identityCurrentUser } from './lib/db';
 import { registerPeriodChangeHandler, populatePeriodSelector } from './lib/period';
 import { refreshAll, refreshBadges, getActiveTabId, renderTab } from './lib/registry';
 import { markLoadedAsSaved } from './lib/persist';
@@ -240,6 +240,9 @@ async function init(): Promise<void> {
   rememberFilters({ ids: ['db-status', 'db-type', 'db-owner', 'db-entity'], clear: 'dbClear' });
   rememberFilters({ ids: ['wq-filter-status', 'wq-filter-owner', 'wq-sort'], clear: 'wqClear' });
   startReminders();
+  // Who is using this device. Needs the Microsoft connection, so it runs in the
+  // background and never holds up the start.
+  void identityCurrentUser().then((id) => { S.currentUserId = id; }).catch(() => undefined);
   switchTab('myday');
 
   // Native-only wiring (no-op in browser dev-preview — no Tauri event bridge):

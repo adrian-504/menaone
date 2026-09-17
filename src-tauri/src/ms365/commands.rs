@@ -192,6 +192,24 @@ async fn ensure_access_token(db: &State<'_, DbState>, ms: &State<'_, Ms365State>
     }
 }
 
+/// A token for background work, only when Microsoft is already connected.
+/// Unlike ensure_access_token, a device that was never connected gets None
+/// and its recorded connection status is left alone.
+pub async fn access_token_if_connected(db: &State<'_, DbState>, ms: &State<'_, Ms365State>) -> CmdResult<Option<String>> {
+    let connected = {
+        let conn = db.0.lock().map_err(err)?;
+        conn.query_row("SELECT status FROM microsoft_account WHERE id = 1", [], |r| r.get::<_, String>(0))
+            .optional()
+            .map_err(err)?
+            .as_deref()
+            == Some("connected")
+    };
+    if !connected {
+        return Ok(None);
+    }
+    ensure_access_token(db, ms).await.map(Some)
+}
+
 #[tauri::command]
 pub async fn ms365_connect(db: State<'_, DbState>, ms: State<'_, Ms365State>) -> CmdResult<MicrosoftAccountStatus> {
     let (client_id, tenant_id) = {
@@ -238,6 +256,12 @@ pub async fn ms365_connect(db: State<'_, DbState>, ms: State<'_, Ms365State>) ->
         true,
     )
     .map_err(err)?;
+    if let Some(p) = profile.as_ref() {
+        if let Some(object_id) = p.id.as_deref() {
+            let email = p.mail.as_deref().or(p.user_principal_name.as_deref());
+            crate::identity::link_current_user(&conn, object_id, email, p.display_name.as_deref()).map_err(err)?;
+        }
+    }
     Ok(read_account_status(&conn))
 }
 
@@ -254,6 +278,7 @@ pub fn ms365_disconnect(db: State<DbState>, ms: State<Ms365State>) -> CmdResult<
     // upsert above only touches it when touch_connected_at is true).
     conn.execute("UPDATE microsoft_account SET connected_at = NULL WHERE id = 1", [])
         .map_err(err)?;
+    crate::identity::clear_current_user(&conn).map_err(err)?;
     Ok(read_account_status(&conn))
 }
 

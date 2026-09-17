@@ -72,7 +72,8 @@ pub fn with_activity_muted<T>(conn: &mut Connection, f: impl FnOnce(&mut Connect
 
 pub fn query_activity(conn: &Connection, filter: &ActivityFilter) -> rusqlite::Result<Vec<ActivityEntry>> {
     let mut stmt = conn.prepare(
-        "SELECT id, created_at, actor, action, entity_type, entity_id, entity_label, detail, company_id, contact_id, opportunity_id, project_id
+        "SELECT id, created_at, COALESCE(actor, (SELECT t.name FROM team_members t WHERE t.id = activity.actor_id)),
+                action, entity_type, entity_id, entity_label, detail, company_id, contact_id, opportunity_id, project_id
          FROM activity
          WHERE (?1 IS NULL OR company_id = ?1)
            AND (?2 IS NULL OR contact_id = ?2 OR (entity_type = 'contact' AND entity_id = ?2))

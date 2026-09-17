@@ -706,6 +706,7 @@ const CODE_MIGRATIONS: &[(i64, fn(&Connection) -> rusqlite::Result<()>)] = &[
     (32, migrate_company_note_entries),
     // Services can be merged: the retired name stays, pointing at the survivor.
     (33, migrate_service_merges),
+    (34, migrate_identity_foundation),
 ];
 
 /// The catalogue carried the same service under several names (Company
@@ -713,6 +714,51 @@ const CODE_MIGRATIONS: &[(i64, fn(&Connection) -> rusqlite::Result<()>)] = &[
 /// PRO). Merging one into another keeps the retired row — so proposals that
 /// were sent under the old name still read correctly — and points it at the
 /// service that survives.
+/// Identity groundwork (see identity.rs): team members can be linked to their
+/// Microsoft account, companies/opportunities/projects get an owner link to
+/// the team directory beside the free-text owner, and each activity entry
+/// records the team member who was using the app. Existing owner names that
+/// match a team member are linked; nothing else is guessed.
+fn migrate_identity_foundation(conn: &Connection) -> rusqlite::Result<()> {
+    let has_col = |table: &str, col: &str| -> rusqlite::Result<bool> {
+        Ok(conn
+            .prepare(&format!("PRAGMA table_info({table})"))?
+            .query_map([], |r| r.get::<_, String>(1))?
+            .collect::<rusqlite::Result<Vec<_>>>()?
+            .iter()
+            .any(|c| c == col))
+    };
+    if !has_col("team_members", "entra_object_id")? {
+        conn.execute_batch("ALTER TABLE team_members ADD COLUMN entra_object_id TEXT;")?;
+    }
+    conn.execute_batch(
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_team_members_entra_object_id ON team_members(entra_object_id) WHERE entra_object_id IS NOT NULL;",
+    )?;
+    for table in crate::identity::OWNED_TABLES {
+        if !has_col(table, "owner_id")? {
+            conn.execute_batch(&format!(
+                "ALTER TABLE {table} ADD COLUMN owner_id INTEGER REFERENCES team_members(id) ON DELETE SET NULL;"
+            ))?;
+        }
+        conn.execute_batch(&format!("CREATE INDEX IF NOT EXISTS idx_{table}_owner_id ON {table}(owner_id);"))?;
+    }
+    if !has_col("activity", "actor_id")? {
+        conn.execute_batch("ALTER TABLE activity ADD COLUMN actor_id INTEGER REFERENCES team_members(id) ON DELETE SET NULL;")?;
+    }
+    conn.execute_batch(
+        "CREATE TRIGGER IF NOT EXISTS act_stamp_actor AFTER INSERT ON activity
+         WHEN NEW.actor_id IS NULL
+         BEGIN
+           UPDATE activity SET actor_id = (
+             SELECT t.id FROM app_meta m JOIN team_members t ON t.id = CAST(m.value AS INTEGER)
+             WHERE m.key = 'current_user_id'
+           ) WHERE id = NEW.id;
+         END;",
+    )?;
+    crate::identity::relink_owners(conn)?;
+    Ok(())
+}
+
 fn migrate_service_merges(conn: &Connection) -> rusqlite::Result<()> {
     let has_col = conn
         .prepare("PRAGMA table_info(services)")?

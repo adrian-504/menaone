@@ -350,8 +350,11 @@ pub fn save_company(state: State<DbState>, company: Company) -> CmdResult<Compan
     let tx = conn.transaction().map_err(err)?;
     let now = crate::commands::now_iso();
     tx.execute(
-        "UPDATE companies SET legal_name=?2, website=?3, country=?4, city=?5, company_type=?6, status=?7, \
-            owner=?8, description=?9, archived=?10, updated_at=?11 WHERE id=?1",
+        &format!(
+            "UPDATE companies SET legal_name=?2, website=?3, country=?4, city=?5, company_type=?6, status=?7, \
+                owner=?8, owner_id={owner_id}, description=?9, archived=?10, updated_at=?11 WHERE id=?1",
+            owner_id = crate::identity::owner_id_for_name_sql(8)
+        ),
         params![
             company.id, company.legal_name, company.website, company.country, company.city,
             company.company_type, company.status, company.owner, company.description,
@@ -506,9 +509,12 @@ pub fn save_opportunity_row(conn: &mut Connection, opportunity: &Opportunity) ->
 
     let id = if opportunity.id > 0 {
         tx.execute(
-            "UPDATE opportunities SET name=?2, company_id=?3, owner=?4, stage=?5, status=?6, estimated_value=?7,
-                currency=?8, probability=?9, expected_close_date=?10, description=?11, next_action=?12,
-                proposal_id=?13, project_id=?14, sort_order=?15, archived=?16, updated_at=?17, business_entity_id=?18, win_loss_reason=?19 WHERE id=?1",
+            &format!(
+                "UPDATE opportunities SET name=?2, company_id=?3, owner=?4, owner_id={owner_id}, stage=?5, status=?6, estimated_value=?7,
+                    currency=?8, probability=?9, expected_close_date=?10, description=?11, next_action=?12,
+                    proposal_id=?13, project_id=?14, sort_order=?15, archived=?16, updated_at=?17, business_entity_id=?18, win_loss_reason=?19 WHERE id=?1",
+                owner_id = crate::identity::owner_id_for_name_sql(4)
+            ),
             params![
                 opportunity.id, opportunity.name, company_id, opportunity.owner, opportunity.stage, status,
                 opportunity.estimated_value, opportunity.currency, opportunity.probability, opportunity.expected_close_date,
@@ -519,9 +525,12 @@ pub fn save_opportunity_row(conn: &mut Connection, opportunity: &Opportunity) ->
         opportunity.id
     } else {
         tx.execute(
-            "INSERT INTO opportunities (name, company_id, owner, stage, status, estimated_value, currency, probability,
-                expected_close_date, description, next_action, proposal_id, project_id, sort_order, archived, created_at, updated_at, business_entity_id, win_loss_reason)
-             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?16,COALESCE(?17,(SELECT id FROM business_entities WHERE code = 'KSA')),?18)",
+            &format!(
+                "INSERT INTO opportunities (name, company_id, owner, owner_id, stage, status, estimated_value, currency, probability,
+                    expected_close_date, description, next_action, proposal_id, project_id, sort_order, archived, created_at, updated_at, business_entity_id, win_loss_reason)
+                 VALUES (?1,?2,?3,{owner_id},?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?16,COALESCE(?17,(SELECT id FROM business_entities WHERE code = 'KSA')),?18)",
+                owner_id = crate::identity::owner_id_for_name_sql(3)
+            ),
             params![
                 opportunity.name, company_id, opportunity.owner, opportunity.stage, status, opportunity.estimated_value,
                 opportunity.currency, opportunity.probability, opportunity.expected_close_date, opportunity.description,

@@ -735,6 +735,8 @@ export async function installDevMockIfNeeded(): Promise<void> {
           return null;
         case 'ms365_set_tenant_id':
           return null;
+        case 'identity_current_user':
+          return null;
         case 'ms365_status':
           return { status: 'disconnected', accountEmail: null, displayName: null, connectedAt: null, lastSyncAt: null, errorMessage: null, hasClientId: false };
         case 'ms365_connect':

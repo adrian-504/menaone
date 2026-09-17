@@ -197,6 +197,8 @@ export async function ms365SetClientId(clientId: string): Promise<void> { await 
 export async function ms365GetTenantId(): Promise<string | null> { return invoke<string | null>('ms365_get_tenant_id'); }
 export async function ms365SetTenantId(tenantId: string): Promise<void> { await invoke('ms365_set_tenant_id', { tenantId }); }
 export async function ms365Status(): Promise<MicrosoftAccountStatus> { return invoke<MicrosoftAccountStatus>('ms365_status'); }
+/** The team member signed in on this device, linking the Microsoft account on first use. */
+export async function identityCurrentUser(): Promise<number | null> { return invoke<number | null>('identity_current_user'); }
 export async function ms365Connect(): Promise<MicrosoftAccountStatus> { return invoke<MicrosoftAccountStatus>('ms365_connect'); }
 export async function ms365Disconnect(): Promise<MicrosoftAccountStatus> { return invoke<MicrosoftAccountStatus>('ms365_disconnect'); }
 

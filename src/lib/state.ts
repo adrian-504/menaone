@@ -24,6 +24,8 @@ export const S = {
   rateCards: [] as RateCard[],
   businessEntities: [] as BusinessEntity[],
   team: [] as TeamMember[],
+  /** The team member using this device, from the Microsoft sign-in (null until known). */
+  currentUserId: null as number | null,
   /** SAR per one unit of each other currency (Settings). */
   fxRates: {} as Record<string, number>,
   proposalsRoot: null as string | null,
