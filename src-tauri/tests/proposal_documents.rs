@@ -248,15 +248,20 @@ fn real_proposal_workflow_on_a_database_copy() {
     // Failure 1: the V2 name again. Failure 2: the client folder can't be written to.
     assert!(generate_proposal(&db, &req(name("_V2"), false), OutputPolicy::AnyFolder).unwrap_err().contains("already exists"));
     let folder = v2_path.parent().unwrap().to_path_buf();
-    let mut perms = std::fs::metadata(&folder).unwrap().permissions();
-    use std::os::unix::fs::PermissionsExt;
-    perms.set_mode(0o555);
-    std::fs::set_permissions(&folder, perms.clone()).unwrap();
-    let locked = generate_proposal(&db, &req(name("_V3"), false), OutputPolicy::AnyFolder);
-    perms.set_mode(0o755);
-    std::fs::set_permissions(&folder, perms).unwrap();
-    println!("forced failures: {:?}", locked.as_ref().err());
-    assert!(locked.is_err());
+    // A read-only folder via Unix mode bits; Windows has no equivalent that
+    // blocks creating files, so this part only runs on macOS/Linux.
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mut perms = std::fs::metadata(&folder).unwrap().permissions();
+        perms.set_mode(0o555);
+        std::fs::set_permissions(&folder, perms.clone()).unwrap();
+        let locked = generate_proposal(&db, &req(name("_V3"), false), OutputPolicy::AnyFolder);
+        perms.set_mode(0o755);
+        std::fs::set_permissions(&folder, perms).unwrap();
+        println!("forced failures: {:?}", locked.as_ref().err());
+        assert!(locked.is_err());
+    }
 
     let conn = db.lock().unwrap();
     let versions: Vec<i64> = conn.prepare("SELECT version FROM proposal_documents WHERE proposal_id = ?1 AND kind = 'proposal' ORDER BY version").unwrap()
