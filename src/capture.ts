@@ -1,5 +1,5 @@
 // Standalone entry for the quick-capture popup window (capture.html) — a
-// second, small Tauri window shown/hidden by the global Cmd+Shift+I shortcut
+// second, small Tauri window created and destroyed by the global Cmd+Shift+I shortcut
 // (src-tauri/src/lib.rs), deliberately not loading the full app bundle.
 // Same-origin as the main window, so it shares localStorage (theme) and can
 // call the same `add_inbox_item` Tauri command Inbox itself uses — no new
@@ -50,7 +50,7 @@ if ((window as any).__TAURI_INTERNALS__?.invoke) {
   const dismiss = (): void => {
     input.value = '';
     clearCaptureError();
-    void win.hide();
+    void win.destroy();
   };
 
   const submit = async (): Promise<void> => {
@@ -75,9 +75,10 @@ if ((window as any).__TAURI_INTERNALS__?.invoke) {
   });
   input.addEventListener('input', () => { if (errorMsg.style.display !== 'none') clearCaptureError(); });
 
-  // Re-apply the current theme and refocus the field every time the window
-  // is shown; hide again automatically when it loses focus (click-away
-  // dismiss), matching a Spotlight-style capture bar.
+  input.focus();
+
+  // Refocus the field when the window gains focus; close automatically when
+  // it loses focus (click-away dismiss), matching a Spotlight-style capture bar.
   void win.onFocusChanged(({ payload: focused }) => {
     if (focused) {
       applyTheme();

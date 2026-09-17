@@ -226,12 +226,12 @@ pub fn run() {
                 let _ = app.emit("menu-action", event.id().as_ref());
             });
 
-            // Global "quick capture" shortcut — Cmd+Shift+I shows (or, if
-            // already open, hides) a small floating popup window (the
+            // Global "quick capture" shortcut — Cmd+Shift+I opens (or, if
+            // already open, closes) a small floating popup window (the
             // "capture" window, capture.html/src/capture.ts) with just a text
             // field, Spotlight/Raycast-style — it does NOT bring the main
             // MENA One window forward or switch tabs. The popup calls the
-            // same add_inbox_item command Inbox itself uses, then hides
+            // same add_inbox_item command Inbox itself uses, then closes
             // itself on Enter/Escape/losing focus (see capture.ts). Global
             // shortcut is registered only while this process is running (no
             // auto-launch/menu-bar mode) — dead once the app quits.
@@ -248,14 +248,29 @@ pub fn run() {
                             if event.state == ShortcutState::Pressed
                                 && shortcut.matches(primary | Modifiers::SHIFT, Code::KeyI)
                             {
+                                // Built on demand and destroyed on dismiss. A hidden
+                                // capture window kept alive for the whole session
+                                // grew its WebKit page process to 20-42 GB of
+                                // graphics memory; macOS killed and WebKit
+                                // respawned it over and over, freezing the Mac.
                                 if let Some(win) = app.get_webview_window("capture") {
-                                    if win.is_visible().unwrap_or(false) {
-                                        let _ = win.hide();
-                                    } else {
-                                        let _ = win.center();
-                                        let _ = win.show();
-                                        let _ = win.set_focus();
-                                    }
+                                    let _ = win.destroy();
+                                } else {
+                                    let _ = tauri::WebviewWindowBuilder::new(
+                                        app,
+                                        "capture",
+                                        tauri::WebviewUrl::App("capture.html".into()),
+                                    )
+                                    .title("Quick Capture")
+                                    .inner_size(600.0, 64.0)
+                                    .resizable(false)
+                                    .decorations(false)
+                                    .always_on_top(true)
+                                    .skip_taskbar(true)
+                                    .shadow(true)
+                                    .center()
+                                    .focused(true)
+                                    .build();
                                 }
                             }
                         })

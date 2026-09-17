@@ -1,12 +1,13 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "capture-window",
-  "description": "Capability for the quick-capture popup window — needs to show/hide/focus itself and listen for its own focus-change events (see src/capture.ts).",
-  "windows": ["capture"],
+  "description": "Capability for the quick-capture popup window — created on demand by the global shortcut; needs to focus and destroy itself and listen for its own focus-change events (see src/capture.ts).",
+  "windows": [
+    "capture"
+  ],
   "permissions": [
     "core:default",
-    "core:window:allow-hide",
-    "core:window:allow-show",
-    "core:window:allow-set-focus"
+    "core:window:allow-set-focus",
+    "core:window:allow-destroy"
   ]
 }
