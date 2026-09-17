@@ -1240,8 +1240,37 @@ pub fn get_app_meta(state: State<DbState>, key: String) -> CmdResult<Option<Stri
         .map_err(conn_err)
 }
 
+/// The only `app_meta` keys the interface may write through `set_app_meta`:
+/// view state, dismissals and one-off migration flags. Everything else in
+/// `app_meta` (schema version, proposals folder, Microsoft client/tenant IDs,
+/// sync state) is written by Rust or by a command that validates it, so a
+/// stray or injected call can't repoint sign-in or the proposals folder
+/// (docs/system-audit/SECURITY_AUDIT.md S3). A new UI key must be added here;
+/// src/lib/appMetaKeys.test.ts fails if the interface writes one that isn't.
+pub const UI_META_KEYS: &[&str] = &[
+    "cleanup_kept",
+    "company_domains",
+    "dismissed_meeting_links",
+    "dismissed_people",
+    "msfiles_pinned",
+    "msfiles_recent",
+    "msfiles_setup_done",
+    "myday_snoozed",
+    "notes_markdown_migrated_v1",
+    "opportunities_leads_backfilled_v1",
+    "reminder_settings",
+    "reminders_sent",
+];
+
+pub fn ui_meta_key_allowed(key: &str) -> bool {
+    UI_META_KEYS.contains(&key)
+}
+
 #[tauri::command]
 pub fn set_app_meta(state: State<DbState>, key: String, value: String) -> CmdResult<()> {
+    if !ui_meta_key_allowed(&key) {
+        return Err(format!("Refusing to write app setting \"{key}\" from the interface."));
+    }
     let conn = state.0.lock().map_err(conn_err)?;
     conn.execute(
         "INSERT INTO app_meta (key, value) VALUES (?1,?2) ON CONFLICT(key) DO UPDATE SET value = excluded.value",

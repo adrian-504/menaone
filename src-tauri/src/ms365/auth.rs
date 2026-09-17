@@ -271,22 +271,57 @@ pub async fn refresh_access_token(
 // same macOS user could read this one Keychain item if it knew the exact
 // service/account name, which is an acceptable bar for a single-user desktop
 // tool with no paid signing identity available.
+//
+// The token itself never goes on a command line: it is written to
+// `security -i` (interactive mode, reading commands from stdin), so it doesn't
+// show up in the child process's argument list where any local process
+// listing could read it. Restricting the `-A` ACL waits for a stable signing
+// identity (docs/system-audit/SECURITY_AUDIT.md S1).
 const KEYCHAIN_SERVICE: &str = "com.menabig.tracker.ms365";
 const KEYCHAIN_ACCOUNT: &str = "refresh_token";
 #[cfg(target_os = "macos")]
 const SECURITY_BIN: &str = "/usr/bin/security";
 
+/// The line fed to `security -i` on stdin. The interactive parser splits on
+/// whitespace and honours double quotes, so a token containing a quote,
+/// backslash or whitespace can't be passed safely and is refused rather than
+/// mangled. Microsoft refresh tokens are base64url-style and never contain them.
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+fn keychain_store_command(token: &str) -> Result<String, String> {
+    if token.is_empty() || token.chars().any(|c| c == '"' || c == '\\' || c.is_whitespace() || c.is_control()) {
+        return Err("Could not save the Microsoft sign-in to Keychain: the token has an unexpected format.".into());
+    }
+    Ok(format!(
+        "add-generic-password -U -a {KEYCHAIN_ACCOUNT} -s {KEYCHAIN_SERVICE} -w \"{token}\" -A\n"
+    ))
+}
+
 #[cfg(target_os = "macos")]
 pub fn store_refresh_token(token: &str) -> Result<(), String> {
-    let output = std::process::Command::new(SECURITY_BIN)
-        .args(["add-generic-password", "-U", "-a", KEYCHAIN_ACCOUNT, "-s", KEYCHAIN_SERVICE, "-w", token, "-A"])
-        .output()
+    use std::io::Write;
+    use std::process::Stdio;
+    let command = keychain_store_command(token)?;
+    let mut child = std::process::Command::new(SECURITY_BIN)
+        .arg("-i")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
         .map_err(|e| format!("Could not save the Microsoft sign-in to Keychain: {e}"))?;
-    if !output.status.success() {
-        return Err(format!(
-            "Could not save the Microsoft sign-in to Keychain: {}",
-            String::from_utf8_lossy(&output.stderr).trim()
-        ));
+    {
+        let mut stdin = child.stdin.take().ok_or("Could not save the Microsoft sign-in to Keychain: no input pipe")?;
+        stdin
+            .write_all(command.as_bytes())
+            .map_err(|e| format!("Could not save the Microsoft sign-in to Keychain: {e}"))?;
+    } // stdin dropped here: EOF ends the interactive session
+    let output = child
+        .wait_with_output()
+        .map_err(|e| format!("Could not save the Microsoft sign-in to Keychain: {e}"))?;
+    // Confirm by reading the item back as well as checking the exit status,
+    // and never echo `security`'s output: an error line could repeat the
+    // command, token included.
+    if !output.status.success() || load_refresh_token().as_deref() != Some(token) {
+        return Err("Could not save the Microsoft sign-in to Keychain.".into());
     }
     Ok(())
 }
@@ -345,5 +380,25 @@ pub fn delete_refresh_token() -> Result<(), String> {
     match credential_entry()?.delete_credential() {
         Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
         Err(e) => Err(format!("Could not remove the saved Microsoft sign-in: {e}")),
+    }
+}
+
+#[cfg(test)]
+mod keychain_command_tests {
+    use super::keychain_store_command;
+
+    #[test]
+    fn token_is_quoted_and_the_line_ends_the_command() {
+        let line = keychain_store_command("0.AUoA-abc_DEF.xyz~9*!").unwrap();
+        assert!(line.contains(r#"-w "0.AUoA-abc_DEF.xyz~9*!" -A"#));
+        assert!(line.ends_with('\n'));
+        assert_eq!(line.matches('\n').count(), 1);
+    }
+
+    #[test]
+    fn refuses_tokens_that_could_break_out_of_the_quotes() {
+        for bad in ["", "a\"b", "a\\b", "a b", "a\nadd-generic-password", "a\tb"] {
+            assert!(keychain_store_command(bad).is_err(), "accepted {bad:?}");
+        }
     }
 }

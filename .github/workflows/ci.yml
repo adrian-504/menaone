@@ -1,7 +1,7 @@
 name: CI
 
-# Run by hand from the Actions tab: on a private repository every run uses the
-# account's monthly Actions minutes, and macOS minutes count ten times.
+# Run by hand from the Actions tab (or `gh workflow run CI`). The repository is
+# public, so standard runners cost nothing, but a full run takes a while.
 on:
   workflow_dispatch:
 
