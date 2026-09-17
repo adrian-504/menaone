@@ -67,6 +67,7 @@ async function saveMember(member: TeamMember): Promise<void> {
     const saved = await saveTeamMember(member);
     const i = S.team.findIndex((t) => t.id === saved.id);
     if (i > -1) S.team[i] = saved; else S.team.push(saved);
+    (window as any).fillTeamNames?.();
   } catch (err) {
     toast('Could not save', { tone: 'error', detail: String(err) });
   }

@@ -226,6 +226,37 @@ export const reviewers = (): TeamMember[] => S.team.filter((t) => t.active && t.
 export const defaultReviewer = (): TeamMember | undefined => reviewers()[0];
 export const activeTeam = (): TeamMember[] => S.team.filter((t) => t.active);
 
+/** The team member using this device (from the Microsoft sign-in), if known. */
+export const currentUser = (): TeamMember | undefined => teamMember(S.currentUserId);
+
+/** Owner filter value meaning "records I own". */
+export const MINE = 'mine';
+
+/** Whether a record belongs to a team member: by its linked owner where the
+ * record has one, otherwise by the owner name (the backend links names that
+ * match the team directory the same way). */
+export function isOwnedBy(r: { ownerId?: number | null; owner?: string | null }, member: TeamMember | undefined): boolean {
+  if (!member) return false;
+  if (r.ownerId != null) return r.ownerId === member.id;
+  const name = (r.owner || '').trim().toLowerCase();
+  return !!name && name === member.name.trim().toLowerCase();
+}
+
+/** An owner filter: '' shows everything, MINE the current user's records, anything else one owner name. */
+export function matchesOwnerFilter(r: { ownerId?: number | null; owner?: string | null }, filter: string): boolean {
+  if (!filter) return true;
+  if (filter === MINE) return isOwnedBy(r, currentUser());
+  return (r.owner || '').trim() === filter;
+}
+
+/** Options for an owner filter: All owners, Mine (once the user is known), then the owners in use. */
+export function ownerFilterOptions(owners: (string | null | undefined)[], selected: string): string {
+  const esc = (v: string) => v.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+  const names = [...new Set(owners.map((o) => (o || '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  const opt = (value: string, label: string) => `<option value="${esc(value)}"${selected === value ? ' selected' : ''}>${esc(label)}</option>`;
+  return [opt('', 'All owners'), currentUser() ? opt(MINE, 'Mine') : '', ...names.map((n) => opt(n, n))].join('');
+}
+
 /** The owner's display name: the linked team member, else the free text on older records. */
 export function ownerName(r: { ownerId?: number | null; owner?: string | null }): string {
   return teamMember(r.ownerId)?.name || (r.owner || '').trim();

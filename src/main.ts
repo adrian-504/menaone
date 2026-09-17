@@ -134,6 +134,7 @@ export function applyCommercialSetup(setup: import('./lib/types').CommercialSetu
   S.team = setup.teamMembers;
   S.fxRates = setup.fxRates;
   S.proposalsRoot = setup.proposalsRoot;
+  (window as any).fillTeamNames?.();
 }
 expose('applyCommercialSetup', applyCommercialSetup);
 expose('populateAllSelects', populateAllSelects);
@@ -239,6 +240,8 @@ async function init(): Promise<void> {
   rememberFilters({ ids: ['agr-status', 'agr-service', 'agr-type', 'agr-prep'], clear: 'agrClear' });
   rememberFilters({ ids: ['db-status', 'db-type', 'db-owner', 'db-entity'], clear: 'dbClear' });
   rememberFilters({ ids: ['wq-filter-status', 'wq-filter-owner', 'wq-sort'], clear: 'wqClear' });
+  rememberFilters({ ids: ['opp-stage-filter', 'opp-owner-filter'] });
+  rememberFilters({ ids: ['proj-status-filter', 'proj-owner-filter', 'proj-sort'] });
   startReminders();
   // Who is using this device. Needs the Microsoft connection, so it runs in the
   // background and never holds up the start.

@@ -94,3 +94,35 @@ describe('line ids', () => {
     expect(a.id).not.toBe(b.id);
   });
 });
+
+describe('owner filters ("Mine")', () => {
+  const jane = { id: 7, name: 'Jane Tester', email: null, jobTitle: null, department: null, isReviewer: false, active: true, notes: null } as unknown as import('./types').TeamMember;
+  const omar = { ...jane, id: 8, name: 'Omar Sample' };
+  beforeEach(() => { S.team = [jane, omar]; S.currentUserId = null; });
+
+  it('matches by linked owner first, then by name ignoring case and spaces', async () => {
+    const { isOwnedBy } = await import('./commercial');
+    expect(isOwnedBy({ ownerId: 7, owner: 'Someone Else' }, jane)).toBe(true);
+    expect(isOwnedBy({ ownerId: 8, owner: 'Jane Tester' }, jane)).toBe(false);
+    expect(isOwnedBy({ owner: '  jane tester ' }, jane)).toBe(true);
+    expect(isOwnedBy({ owner: '' }, jane)).toBe(false);
+    expect(isOwnedBy({ owner: 'Jane Tester' }, undefined)).toBe(false);
+  });
+
+  it('shows nothing as "Mine" until the signed-in user is known', async () => {
+    const { matchesOwnerFilter, ownerFilterOptions, MINE } = await import('./commercial');
+    const record = { owner: 'Jane Tester' };
+    expect(matchesOwnerFilter(record, '')).toBe(true);
+    expect(matchesOwnerFilter(record, MINE)).toBe(false);
+    expect(ownerFilterOptions(['Jane Tester'], '')).not.toContain('>Mine<');
+
+    S.currentUserId = 7;
+    expect(matchesOwnerFilter(record, MINE)).toBe(true);
+    expect(matchesOwnerFilter({ owner: 'Omar Sample' }, MINE)).toBe(false);
+    expect(matchesOwnerFilter({ owner: 'Omar Sample' }, 'Omar Sample')).toBe(true);
+    const html = ownerFilterOptions(['Omar Sample', null, 'Jane Tester', 'Omar Sample'], MINE);
+    expect(html).toContain(`<option value="${MINE}" selected>Mine</option>`);
+    expect(html.match(/Omar Sample<\/option>/g)).toHaveLength(1);
+    expect(html.indexOf('Jane Tester')).toBeLessThan(html.indexOf('Omar Sample'));
+  });
+});

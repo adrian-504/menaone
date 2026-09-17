@@ -855,6 +855,7 @@
         <option>Idea</option><option>Planning</option><option>Not Started</option><option>In Progress</option>
         <option>At Risk</option><option>On Hold</option><option>Completed</option><option>Cancelled</option>
       </select>
+      <select class="ssel" id="proj-owner-filter" onchange="renderProjects()" aria-label="Owner"><option value="">All owners</option></select>
       <select class="ssel" id="proj-sort" onchange="renderProjects()">
         <option value="updated">Sort: Recently Updated</option>
         <option value="priority">Sort: Priority</option>
@@ -977,7 +978,7 @@
         </div>
         <div class="fgrp">
           <label class="flbl">Owner</label>
-          <input class="finp" name="pjOwner" placeholder="Owner name…">
+          <input class="finp" name="pjOwner" placeholder="Owner name…" list="team-names" autocomplete="off">
         </div>
         <div class="fgrp">
           <label class="flbl">Start date</label>
@@ -1027,6 +1028,7 @@
         <option>Solution Design</option><option>Proposal</option><option>Negotiation</option>
         <option>Verbal Commitment</option><option>Won</option><option>Lost</option><option>On Hold</option>
       </select>
+      <select class="ssel" id="opp-owner-filter" onchange="opportunityFilterChanged()" aria-label="Owner"><option value="">All owners</option></select>
       <input type="text" class="f-search" id="opp-search" placeholder="Search opportunities…" oninput="opportunitySearchChanged()">
       <span class="rcnt" id="opp-cnt">0 opportunities</span>
     </div>
@@ -1108,7 +1110,7 @@
         </div>
         <div class="fgrp">
           <label class="flbl">Owner</label>
-          <input class="finp" name="oppOwner" placeholder="Owner…">
+          <input class="finp" name="oppOwner" placeholder="Owner…" list="team-names" autocomplete="off">
         </div>
         <div class="fgrp fgrp-full">
           <label class="flbl">Contacts <span class="flbl-hint">(optional — type a company above to see its contacts)</span></label>

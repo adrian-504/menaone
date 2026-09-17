@@ -1,5 +1,5 @@
 import { suggestWebsites } from '../lib/clientMatch';
-import { isAgreementActive, isOpenProposal, isLost, isWon, activeMrr as computeActiveMrr, fmtMoney, fmtMoneyByCurrency, toReporting, currencyOf, agreementMonthly, activeTeam, type MoneyByCurrency } from '../lib/commercial';
+import { isAgreementActive, isOpenProposal, isLost, isWon, activeMrr as computeActiveMrr, fmtMoney, fmtMoneyByCurrency, toReporting, currencyOf, agreementMonthly, activeTeam, matchesOwnerFilter, ownerFilterOptions, type MoneyByCurrency } from '../lib/commercial';
 import { S } from '../lib/state';
 import { toast, undoToast } from '../lib/ui';
 import { renderBulkBar } from '../lib/bulkBar';
@@ -597,7 +597,7 @@ export function matchingCompanyNames(f: Record<string, string>): string[] {
       if (f.location === 'none' ? !!(co?.city || co?.country) : f.location.startsWith('country:') ? co?.country !== f.location.slice(8) : locationOf(co) !== f.location.slice(5)) return false;
     }
     if (f.industry && !co?.industries.includes(f.industry)) return false;
-    if (f.owner && co?.owner !== f.owner) return false;
+    if (f.owner && !matchesOwnerFilter(co ?? {}, f.owner)) return false;
     if (f.quality === 'missing-industry' && (co?.industries.length || 0) > 0) return false;
     if (f.quality === 'missing-contacts' && hasContacts(ref)) return false;
     if (f.quality === 'missing-website' && co?.website) return false;
@@ -821,8 +821,7 @@ export function renderCompanyList(): void {
     industrySel.innerHTML = `<option value="">All industries</option>${industries.map((i) => `<option value="${escHtml(i)}" ${filters.industry === i ? 'selected' : ''}>${escHtml(i)}</option>`).join('')}`;
   }
   if (ownerSel) {
-    const owners = [...new Set(S.companies.map((c) => c.owner).filter(Boolean))].sort((a, b) => (a as string).localeCompare(b as string));
-    ownerSel.innerHTML = `<option value="">All owners</option>${owners.map((o) => `<option value="${escHtml(o as string)}" ${filters.owner === o ? 'selected' : ''}>${escHtml(o as string)}</option>`).join('')}`;
+    ownerSel.innerHTML = ownerFilterOptions(S.companies.map((c) => c.owner), filters.owner || '');
   }
   const services = servicesByCompanyName();
   if (serviceSel) {

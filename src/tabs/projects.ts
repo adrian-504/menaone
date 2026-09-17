@@ -19,6 +19,7 @@ import { icon } from '../lib/icons';
 import { showContextMenu } from '../lib/contextMenu';
 import { attachCompanySelector } from '../lib/companySelector';
 import type { Project, Milestone, Note } from '../lib/types';
+import { currentUser, matchesOwnerFilter, ownerFilterOptions } from '../lib/commercial';
 
 const STATUS_COLOR: Record<string, { c: string }> = {
   Idea: { c: '#7C3AED' },
@@ -71,9 +72,13 @@ export function renderProjects(): void {
   const statusF = (document.getElementById('proj-status-filter') as HTMLSelectElement | null)?.value || '';
   const sortBy = (document.getElementById('proj-sort') as HTMLSelectElement | null)?.value || 'updated';
   const search = ((document.getElementById('proj-search') as HTMLInputElement | null)?.value || '').toLowerCase();
+  const ownerSel = document.getElementById('proj-owner-filter') as HTMLSelectElement | null;
+  const ownerF = ownerSel?.value || '';
+  if (ownerSel) ownerSel.innerHTML = ownerFilterOptions(S.projects.filter((p) => !p.archived).map((p) => p.owner), ownerF);
 
   let data = S.projects.filter((p) => {
     if (p.archived) return false;
+    if (!matchesOwnerFilter(p, ownerF)) return false;
     if (S.projectFilter === 'client' && p.type !== 'client') return false;
     if (S.projectFilter === 'internal' && p.type !== 'internal') return false;
     if (statusF && p.status !== statusF) return false;
@@ -469,6 +474,7 @@ export function openProjectModal(id: number | null): void {
     (document.getElementById('proj-modal-title') as HTMLElement).textContent = 'New project';
     (document.getElementById('proj-submit-btn') as HTMLElement).textContent = 'Create project';
     toggleProjectCompanyField('internal');
+    (f.elements.namedItem('pjOwner') as HTMLInputElement).value = currentUser()?.name || '';
   }
   document.getElementById('modal-project')?.classList.add('open');
 }

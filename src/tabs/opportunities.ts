@@ -7,7 +7,7 @@
 // not new relationship fields — Meetings/Documents use a direct FK, same
 // convention Project already uses for those two.
 import { statusBadge } from '../lib/statusTone';
-import { addMoney, fmtMoneyByCurrency, type MoneyByCurrency } from '../lib/commercial';
+import { addMoney, fmtMoneyByCurrency, currentUser, matchesOwnerFilter, ownerFilterOptions, type MoneyByCurrency } from '../lib/commercial';
 import { opportunityHealth } from '../lib/pipeline';
 import { openOutcomeDialog } from '../core/proposals';
 import { S } from '../lib/state';
@@ -55,8 +55,12 @@ createListNav<number>({
 function computeFilteredOpportunities(): Opportunity[] {
   const search = (document.getElementById('opp-search') as HTMLInputElement | null)?.value.trim().toLowerCase() || '';
   const stageFilter = (document.getElementById('opp-stage-filter') as HTMLSelectElement | null)?.value || '';
+  const ownerSel = document.getElementById('opp-owner-filter') as HTMLSelectElement | null;
+  const ownerFilter = ownerSel?.value || '';
+  if (ownerSel) ownerSel.innerHTML = ownerFilterOptions(S.opportunities.map((o) => o.owner), ownerFilter);
   return S.opportunities.filter((o) => {
     if (stageFilter && o.stage !== stageFilter) return false;
+    if (!matchesOwnerFilter(o, ownerFilter)) return false;
     if (search && !`${o.name} ${o.companyName || ''} ${o.owner || ''}`.toLowerCase().includes(search)) return false;
     return true;
   });
@@ -314,6 +318,7 @@ export function openOpportunityModal(id: number | null, ctx: WorkContext | null 
     (document.getElementById('opp-modal-title') as HTMLElement).textContent = 'New opportunity';
     (document.getElementById('opp-submit-btn') as HTMLElement).textContent = 'Create opportunity';
     stageSel.value = 'Lead';
+    (f.elements.namedItem('oppOwner') as HTMLInputElement).value = currentUser()?.name || '';
   }
   document.getElementById('modal-opportunity')?.classList.add('open');
 }
