@@ -737,6 +737,10 @@ export async function installDevMockIfNeeded(): Promise<void> {
           return null;
         case 'identity_current_user':
           return null;
+        case 'weather_now': {
+          const sample: Record<string, [number, string]> = { bcn: [24, 'partlycloudy_day'], bey: [29, 'clearsky_day'], ruh: [39, 'clearsky_day'], dxb: [37, 'fair_day'] };
+          return ((_payload as any)?.places || []).filter((p: any) => sample[p.id]).map((p: any) => ({ id: p.id, temperature: sample[p.id][0], symbol: sample[p.id][1] }));
+        }
         case 'ms365_status':
           return { status: 'disconnected', accountEmail: null, displayName: null, connectedAt: null, lastSyncAt: null, errorMessage: null, hasClientId: false };
         case 'ms365_connect':

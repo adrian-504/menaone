@@ -1256,6 +1256,7 @@ pub const UI_META_KEYS: &[&str] = &[
     "msfiles_recent",
     "msfiles_setup_done",
     "myday_snoozed",
+    "myday_strip",
     "notes_markdown_migrated_v1",
     "opportunities_leads_backfilled_v1",
     "reminder_settings",

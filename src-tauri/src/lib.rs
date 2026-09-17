@@ -25,6 +25,7 @@ pub mod identity;
 pub mod v2_commands;
 pub mod v2_models;
 pub mod v2_search;
+pub mod weather;
 
 use db::DbState;
 use ms365::models::Ms365State;
@@ -324,6 +325,7 @@ pub fn run() {
             ms365::commands::ms365_connect,
             ms365::commands::ms365_disconnect,
             identity::identity_current_user,
+            weather::weather_now,
             ms365::commands::ms365_sync_flagged_emails,
             ms365::commands::ms365_get_cached_emails,
             ms365::commands::ms365_get_emails_by_ids,

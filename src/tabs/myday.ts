@@ -3,6 +3,7 @@
 // with quick capture, the pipeline, watch items and recent activity.
 // The rules live in lib/myday.ts; this file renders and handles actions.
 
+import { renderOfficeStrip } from './officeStrip';
 import { S } from '../lib/state';
 import { companyLink, recordLink } from '../lib/links';
 import { escHtml, expose, fmtDate, today } from '../lib/utils';
@@ -92,6 +93,7 @@ export function renderMyDay(): void {
 
   const now = data.now;
   setHtml('myday-greeting', escHtml(`${greeting(now)}${firstName() ? `, ${firstName()}` : ''}`));
+  renderOfficeStrip();
   setHtml('myday-date', `${escHtml(now.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' }))}<span class="mdy-dot">·</span>${escHtml(summaryLine(timeline, attention))}`);
   setHtml('myday-today', todayHtml(timeline, data));
   setHtml('myday-attention-cnt', attention.length ? String(attention.length) : '');

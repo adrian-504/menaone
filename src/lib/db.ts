@@ -197,6 +197,9 @@ export async function ms365SetClientId(clientId: string): Promise<void> { await 
 export async function ms365GetTenantId(): Promise<string | null> { return invoke<string | null>('ms365_get_tenant_id'); }
 export async function ms365SetTenantId(tenantId: string): Promise<void> { await invoke('ms365_set_tenant_id', { tenantId }); }
 export async function ms365Status(): Promise<MicrosoftAccountStatus> { return invoke<MicrosoftAccountStatus>('ms365_status'); }
+export interface WeatherNow { id: string; temperature: number; symbol: string }
+/** Current weather for places (MET Norway). Places that fail are left out. */
+export async function weatherNow(places: { id: string; lat: number; lon: number }[]): Promise<WeatherNow[]> { return invoke<WeatherNow[]>('weather_now', { places }); }
 /** The team member signed in on this device, linking the Microsoft account on first use. */
 export async function identityCurrentUser(): Promise<number | null> { return invoke<number | null>('identity_current_user'); }
 export async function ms365Connect(): Promise<MicrosoftAccountStatus> { return invoke<MicrosoftAccountStatus>('ms365_connect'); }
