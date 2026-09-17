@@ -243,25 +243,12 @@ async function init(): Promise<void> {
   switchTab('myday');
 
   // Native-only wiring (no-op in browser dev-preview — no Tauri event bridge):
-  // Cmd+Shift+I (registered in src-tauri/src/lib.rs) shows the separate
-  // floating quick-capture popup window (capture.html/src/capture.ts) —
-  // nothing for this main window to do for that shortcut. The native menu
+  // the native menu
   // bar (File/Edit/View/Window) emits `menu-action` with the clicked item's
   // id, routed here to the same functions the UI already calls.
   if ((window as any).__TAURI_INTERNALS__?.invoke) {
     const { listen } = await import('@tauri-apps/api/event');
     const w = window as any;
-    // The capture popup is a separate window/JS context — it saves straight
-    // to SQLite via the same add_inbox_item command but has no access to
-    // this window's in-memory S.inboxItems. It broadcasts this event after a
-    // successful capture so Inbox/My Day/the badge count here stay in sync
-    // without waiting for a restart or an unrelated refresh to touch them.
-    await listen('inbox-item-captured', async () => {
-      S.inboxItems = await getInboxItems();
-      refreshBadges();
-      if (getActiveTabId() === 'inbox') w.renderInbox?.();
-      w.renderMyDay?.();
-    });
     await listen<string>('menu-action', async (e) => {
       const id = e.payload;
       if (id.startsWith('goto_')) { switchTab(id.slice('goto_'.length)); return; }

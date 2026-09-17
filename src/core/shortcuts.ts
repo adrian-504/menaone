@@ -21,7 +21,6 @@ const GROUPS: Group[] = [
     k('My Day', [MOD, '1']),
     { keys: [[MOD, '2']], does: 'Tasks, Opportunities, Projects, Pending, Notes, Companies, Contacts, Follow-Up', note: `${MOD} 2 to ${MOD} 9` },
     k('New task / new note', [MOD, 'T'], [MOD, 'N']),
-    k('Quick capture from any app', [MOD, '⇧', 'I']),
     k('Close a dialog or the open record', ['Esc']),
     k('This list', ['?']),
   ] },

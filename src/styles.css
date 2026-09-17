@@ -528,22 +528,6 @@ main{padding:22px 26px;max-width:1440px;margin:0 auto}
 .chip{display:inline-flex;align-items:center;gap:4px;background:var(--surface-2);border:1px solid var(--border);color:var(--sub);border-radius:20px;font-size:var(--type-meta);font-weight:600;padding:2px 9px;white-space:nowrap}
 .chip-accent{background:var(--accent-bg);color:var(--accent);border-color:var(--accent-border)}
 
-/* ═══ Quick-capture popup window (capture.html, src/capture.ts) ═══ */
-.capture-bar{display:flex;align-items:center;gap:10px;margin:6px;padding:0 14px;height:52px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-md)}
-.capture-bar.capture-error{border-color:var(--red-border);background:var(--red-bg)}
-.capture-error-msg{font-size:var(--type-meta);color:var(--red);white-space:nowrap;flex-shrink:0}
-.capture-icon{display:flex;color:var(--accent);flex-shrink:0}
-/* #capture-input (not just .capture-input): the global input[type=text] rule
-   above is an element+attribute selector, which beats a plain class on
-   specificity — an id is the simplest way to reliably win here. -webkit-
-   appearance:none is the other half of this — macOS WebKit draws its own
-   native inset text-field chrome on <input type=text> by default, on top of
-   (independent from) any authored border/background; Chrome (this project's
-   browser dev-preview) doesn't, which is why this only showed up in the real
-   native build and not in-browser. */
-#capture-input.capture-input{flex:1;width:100%;-webkit-appearance:none;appearance:none;border:none;border-radius:0;outline:none;background:none;padding:0;margin:0;font:inherit;font-size:var(--type-section);color:var(--text)}
-.capture-input::placeholder{color:var(--muted)}
-
 /* ═══ Theme picker (Settings tab, src/tabs/settings.ts) ═══ */
 .theme-picker{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:12px}
 .theme-swatch{display:flex;flex-direction:column;align-items:center;gap:7px;background:none;border:none;cursor:pointer;font:inherit;padding:4px;border-radius:var(--radius-sm)}

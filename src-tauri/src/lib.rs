@@ -226,58 +226,6 @@ pub fn run() {
                 let _ = app.emit("menu-action", event.id().as_ref());
             });
 
-            // Global "quick capture" shortcut — Cmd+Shift+I opens (or, if
-            // already open, closes) a small floating popup window (the
-            // "capture" window, capture.html/src/capture.ts) with just a text
-            // field, Spotlight/Raycast-style — it does NOT bring the main
-            // MENA One window forward or switch tabs. The popup calls the
-            // same add_inbox_item command Inbox itself uses, then closes
-            // itself on Enter/Escape/losing focus (see capture.ts). Global
-            // shortcut is registered only while this process is running (no
-            // auto-launch/menu-bar mode) — dead once the app quits.
-            {
-                use tauri_plugin_global_shortcut::{Code, Modifiers, ShortcutState};
-                app.handle().plugin(
-                    tauri_plugin_global_shortcut::Builder::new()
-                        .with_shortcuts(["CommandOrControl+Shift+I"])?
-                        .with_handler(|app, shortcut, event| {
-                            #[cfg(target_os = "macos")]
-                            let primary = Modifiers::SUPER;
-                            #[cfg(not(target_os = "macos"))]
-                            let primary = Modifiers::CONTROL;
-                            if event.state == ShortcutState::Pressed
-                                && shortcut.matches(primary | Modifiers::SHIFT, Code::KeyI)
-                            {
-                                // Built on demand and destroyed on dismiss. A hidden
-                                // capture window kept alive for the whole session
-                                // grew its WebKit page process to 20-42 GB of
-                                // graphics memory; macOS killed and WebKit
-                                // respawned it over and over, freezing the Mac.
-                                if let Some(win) = app.get_webview_window("capture") {
-                                    let _ = win.destroy();
-                                } else {
-                                    let _ = tauri::WebviewWindowBuilder::new(
-                                        app,
-                                        "capture",
-                                        tauri::WebviewUrl::App("capture.html".into()),
-                                    )
-                                    .title("Quick Capture")
-                                    .inner_size(600.0, 64.0)
-                                    .resizable(false)
-                                    .decorations(false)
-                                    .always_on_top(true)
-                                    .skip_taskbar(true)
-                                    .shadow(true)
-                                    .center()
-                                    .focused(true)
-                                    .build();
-                                }
-                            }
-                        })
-                        .build(),
-                )?;
-            }
-
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
