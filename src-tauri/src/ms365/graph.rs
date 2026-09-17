@@ -17,50 +17,95 @@ fn client() -> reqwest::Client {
         .unwrap_or_else(|_| reqwest::Client::new())
 }
 
+/// Retries after Microsoft's throttling (429) or a busy service (503/504).
+const MAX_RETRIES: u32 = 3;
+const MAX_RETRY_WAIT_SECS: u64 = 30;
+
+/// How long to wait before retrying, or None if the response shouldn't be
+/// retried. Graph's Retry-After is in seconds; without one, back off 1s, 2s, 4s.
+pub fn retry_delay(status: u16, retry_after: Option<&str>, attempt: u32) -> Option<std::time::Duration> {
+    if !matches!(status, 429 | 503 | 504) || attempt >= MAX_RETRIES {
+        return None;
+    }
+    let secs = retry_after
+        .and_then(|v| v.trim().parse::<u64>().ok())
+        .unwrap_or(1u64 << attempt)
+        .clamp(1, MAX_RETRY_WAIT_SECS);
+    Some(std::time::Duration::from_secs(secs))
+}
+
+/// Sends a Graph request, waiting and retrying on throttling. Before this, a
+/// 429 surfaced as an error and the sync simply failed. Creating something
+/// (POST) retries only on 429: after a 503/504 Microsoft may already have
+/// created it, and a retry would make a duplicate meeting.
+async fn send(request: reqwest::RequestBuilder) -> Result<reqwest::Response, String> {
+    send_with(request, true).await
+}
+
+async fn send_with(mut request: reqwest::RequestBuilder, retry_server_busy: bool) -> Result<reqwest::Response, String> {
+    let mut attempt = 0;
+    loop {
+        let retry = request.try_clone();
+        let resp = request.send().await.map_err(|e| format!("Could not reach Microsoft Graph: {e}"))?;
+        let retry_after = resp.headers().get(reqwest::header::RETRY_AFTER).and_then(|v| v.to_str().ok()).map(str::to_string);
+        let status = resp.status().as_u16();
+        let delay = if retry_server_busy || status == 429 { retry_delay(status, retry_after.as_deref(), attempt) } else { None };
+        match (retry, delay) {
+            (Some(next), Some(wait)) => {
+                tokio::time::sleep(wait).await;
+                attempt += 1;
+                request = next;
+            }
+            _ => return Ok(resp),
+        }
+    }
+}
+
 async fn graph_get(access_token: &str, path_and_query: &str) -> Result<serde_json::Value, String> {
     graph_get_url(access_token, &format!("{GRAPH_BASE}{path_and_query}")).await
 }
 
 async fn graph_get_url(access_token: &str, url: &str) -> Result<serde_json::Value, String> {
-    let resp = client()
-        .get(url)
-        .bearer_auth(access_token)
-        .header("Prefer", r#"outlook.timezone="UTC""#)
-        .send()
-        .await
-        .map_err(|e| format!("Could not reach Microsoft Graph: {e}"))?;
+    let resp = send(
+        client()
+            .get(url)
+            .bearer_auth(access_token)
+            .header("Prefer", r#"outlook.timezone="UTC""#)
+    )
+    .await?;
     handle_response(resp).await
 }
 
 async fn graph_patch(access_token: &str, path: &str, body: &serde_json::Value) -> Result<serde_json::Value, String> {
-    let resp = client()
-        .patch(format!("{GRAPH_BASE}{path}"))
-        .bearer_auth(access_token)
-        .json(body)
-        .send()
-        .await
-        .map_err(|e| format!("Could not reach Microsoft Graph: {e}"))?;
+    let resp = send(
+        client()
+            .patch(format!("{GRAPH_BASE}{path}"))
+            .bearer_auth(access_token)
+            .json(body)
+    )
+    .await?;
     handle_response(resp).await
 }
 
 async fn graph_post(access_token: &str, path: &str, body: &serde_json::Value) -> Result<serde_json::Value, String> {
-    let resp = client()
-        .post(format!("{GRAPH_BASE}{path}"))
-        .bearer_auth(access_token)
-        .json(body)
-        .send()
-        .await
-        .map_err(|e| format!("Could not reach Microsoft Graph: {e}"))?;
+    let resp = send_with(
+        client()
+            .post(format!("{GRAPH_BASE}{path}"))
+            .bearer_auth(access_token)
+            .json(body),
+        false,
+    )
+    .await?;
     handle_response(resp).await
 }
 
 async fn graph_delete(access_token: &str, path: &str) -> Result<(), String> {
-    let resp = client()
-        .delete(format!("{GRAPH_BASE}{path}"))
-        .bearer_auth(access_token)
-        .send()
-        .await
-        .map_err(|e| format!("Could not reach Microsoft Graph: {e}"))?;
+    let resp = send(
+        client()
+            .delete(format!("{GRAPH_BASE}{path}"))
+            .bearer_auth(access_token)
+    )
+    .await?;
     if resp.status().is_success() {
         Ok(())
     } else {
@@ -263,13 +308,29 @@ pub struct GraphEvent {
 /// `calendarView` (not `/events`) expands recurring series into concrete
 /// instances within the range — the correct primitive for a day/week/month
 /// grid (Part 9: "correctly handle recurring events").
-pub async fn list_calendar_view(access_token: &str, start_iso: &str, end_iso: &str) -> Result<Vec<GraphEvent>, String> {
+/// Also says whether every page was read: deletions are only reconciled
+/// against a complete read, never a truncated one.
+pub async fn list_calendar_view(access_token: &str, start_iso: &str, end_iso: &str) -> Result<(Vec<GraphEvent>, bool), String> {
     let query = format!(
         "/me/calendarView?startDateTime={start}&endDateTime={end}&$select=id,subject,bodyPreview,start,end,location,organizer,attendees,isCancelled,isOnlineMeeting,onlineMeeting,webLink,seriesMasterId,type&$orderby=start/dateTime&$top=250",
         start = urlencode(start_iso),
         end = urlencode(end_iso),
     );
-    Ok(graph_get_all(access_token, &query).await?.0)
+    graph_get_all(access_token, &query).await
+}
+
+/// One event by id, or None when Outlook no longer has it (404). Tells a
+/// deleted meeting apart from one that moved outside the synced range.
+pub async fn get_event(access_token: &str, event_id: &str) -> Result<Option<GraphEvent>, String> {
+    let url = format!(
+        "{GRAPH_BASE}/me/events/{event_id}?$select=id,subject,bodyPreview,start,end,location,organizer,attendees,isCancelled,isOnlineMeeting,onlineMeeting,webLink,seriesMasterId,type"
+    );
+    let resp = send(client().get(url).bearer_auth(access_token).header("Prefer", r#"outlook.timezone="UTC""#)).await?;
+    if resp.status().as_u16() == 404 {
+        return Ok(None);
+    }
+    let value = handle_response(resp).await?;
+    serde_json::from_value(value).map(Some).map_err(|e| format!("Unexpected event from Microsoft Graph: {e}"))
 }
 
 fn urlencode(s: &str) -> String {
@@ -348,5 +409,19 @@ mod tests {
 
         let without: GraphMessage = serde_json::from_str(r#"{"id":"m2"}"#).unwrap();
         assert!(without.to_recipients.is_empty() && without.cc_recipients.is_empty());
+    }
+
+    #[test]
+    fn throttling_is_retried_with_retry_after_capped() {
+        use std::time::Duration;
+        assert_eq!(retry_delay(429, Some("7"), 0), Some(Duration::from_secs(7)));
+        assert_eq!(retry_delay(429, Some("600"), 0), Some(Duration::from_secs(30)), "capped");
+        assert_eq!(retry_delay(503, None, 0), Some(Duration::from_secs(1)));
+        assert_eq!(retry_delay(504, None, 2), Some(Duration::from_secs(4)), "backs off without a header");
+        assert_eq!(retry_delay(429, Some("Wed, 21 Oct 2026 07:28:00 GMT"), 1), Some(Duration::from_secs(2)), "date form falls back to backoff");
+        assert_eq!(retry_delay(429, Some("5"), 3), None, "gives up after three retries");
+        for status in [200, 400, 401, 404, 500] {
+            assert_eq!(retry_delay(status, Some("5"), 0), None, "{status} is not retried");
+        }
     }
 }

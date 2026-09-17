@@ -602,14 +602,118 @@ pub fn upsert_meeting_from_event(conn: &Connection, e: &graph::GraphEvent, now: 
 #[tauri::command]
 pub async fn ms365_sync_calendar(db: State<'_, DbState>, ms: State<'_, Ms365State>, start_iso: String, end_iso: String) -> CmdResult<()> {
     let token = ensure_access_token(&db, &ms).await?;
-    let events = graph::list_calendar_view(&token, &start_iso, &end_iso).await?;
-    let conn = db.0.lock().map_err(err)?;
+    let (events, complete) = graph::list_calendar_view(&token, &start_iso, &end_iso).await?;
     let now = crate::commands::now_iso();
-    for e in &events {
-        upsert_meeting_from_event(&conn, e, &now).map_err(err)?;
+    let missing = {
+        let conn = db.0.lock().map_err(err)?;
+        for e in &events {
+            upsert_meeting_from_event(&conn, e, &now).map_err(err)?;
+        }
+        // Only a complete read can show that a meeting is gone.
+        if complete {
+            let seen: std::collections::HashSet<&str> = events.iter().map(|e| e.id.as_str()).collect();
+            outlook_meetings_missing_from_range(&conn, &start_iso, &end_iso, &seen).map_err(err)?
+        } else {
+            Vec::new()
+        }
+    };
+    // Missing from this range means deleted or moved. A meeting already
+    // cancelled can't have moved, so it's settled without asking Outlook (and
+    // one kept for the user's notes isn't looked up again on every sync).
+    // Otherwise ask Outlook: gone → remove it here; still there → it moved, so
+    // take its new details. A failed lookup waits for the next sync.
+    let (cancelled, active): (Vec<_>, Vec<_>) = missing.into_iter().partition(|(_, is_cancelled)| *is_cancelled);
+    if !cancelled.is_empty() {
+        let conn = db.0.lock().map_err(err)?;
+        for (event_id, _) in &cancelled {
+            remove_deleted_outlook_meeting(&conn, event_id).map_err(err)?;
+        }
     }
+    for (event_id, _) in active.iter().take(MAX_DELETION_CHECKS_PER_SYNC) {
+        match graph::get_event(&token, event_id).await {
+            Ok(None) => {
+                let conn = db.0.lock().map_err(err)?;
+                remove_deleted_outlook_meeting(&conn, event_id).map_err(err)?;
+            }
+            Ok(Some(event)) => {
+                let conn = db.0.lock().map_err(err)?;
+                upsert_meeting_from_event(&conn, &event, &now).map_err(err)?;
+            }
+            Err(_) => {}
+        }
+    }
+    let conn = db.0.lock().map_err(err)?;
     let _ = write_account_status(&conn, "connected", None, None, false, true);
     Ok(())
+}
+
+/// Lookups per sync for meetings that dropped out of Outlook; any beyond this
+/// are checked on the next sync.
+const MAX_DELETION_CHECKS_PER_SYNC: usize = 25;
+
+/// Outlook meetings stored locally that overlap [start, end) — the same rule
+/// Graph's calendarView uses — but weren't in what Outlook just returned, with
+/// whether each is already marked cancelled.
+pub fn outlook_meetings_missing_from_range(
+    conn: &Connection,
+    start_iso: &str,
+    end_iso: &str,
+    seen: &std::collections::HashSet<&str>,
+) -> rusqlite::Result<Vec<(String, bool)>> {
+    let mut stmt = conn.prepare(
+        "SELECT outlook_event_id, is_cancelled FROM meetings
+         WHERE source = 'outlook' AND outlook_event_id IS NOT NULL AND start_at IS NOT NULL
+           AND julianday(start_at) < julianday(?2)
+           AND julianday(COALESCE(end_at, start_at)) > julianday(?1)
+         ORDER BY start_at",
+    )?;
+    let rows = stmt.query_map(params![start_iso, end_iso], |r| Ok((r.get::<_, String>(0)?, r.get::<_, bool>(1)?)))?;
+    let mut out = Vec::new();
+    for row in rows {
+        let (id, is_cancelled) = row?;
+        if !seen.contains(id.as_str()) {
+            out.push((id, is_cancelled));
+        }
+    }
+    Ok(out)
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum DeletedOutlookMeeting {
+    /// Nothing of the user's was on it, so it's gone here too.
+    Removed,
+    /// It carries the user's own agenda, notes, decisions or linked work:
+    /// kept, and shown as cancelled.
+    KeptAsCancelled,
+    NotFound,
+}
+
+/// Applies an Outlook deletion to the local meeting. A meeting holding the
+/// user's own work is never deleted; it's marked cancelled instead. The
+/// discussion field isn't counted: sync fills it from the Outlook invite.
+pub fn remove_deleted_outlook_meeting(conn: &Connection, outlook_event_id: &str) -> rusqlite::Result<DeletedOutlookMeeting> {
+    let row: Option<(i64, bool)> = conn
+        .query_row(
+            "SELECT id,
+                COALESCE(TRIM(agenda),'') <> '' OR COALESCE(TRIM(decisions),'') <> '' OR COALESCE(TRIM(action_items),'') <> ''
+                OR COALESCE(TRIM(follow_up),'') <> '' OR COALESCE(TRIM(next_meeting),'') <> '' OR note_id IS NOT NULL
+                OR EXISTS (SELECT 1 FROM todos t WHERE t.meeting_id = meetings.id)
+                OR EXISTS (SELECT 1 FROM documents d WHERE d.meeting_id = meetings.id)
+             FROM meetings WHERE outlook_event_id = ?1",
+            params![outlook_event_id],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )
+        .optional()?;
+    let Some((id, has_user_work)) = row else { return Ok(DeletedOutlookMeeting::NotFound) };
+    if has_user_work {
+        conn.execute("UPDATE meetings SET is_cancelled = 1 WHERE id = ?1 AND is_cancelled = 0", params![id])?;
+        return Ok(DeletedOutlookMeeting::KeptAsCancelled);
+    }
+    // Same removal as deleting a meeting in the app (v2_commands::delete_meeting).
+    conn.execute("DELETE FROM meetings WHERE id = ?1", params![id])?;
+    conn.execute("DELETE FROM entity_links WHERE (from_type='meeting' AND from_id=?1) OR (to_type='meeting' AND to_id=?1)", params![id])?;
+    conn.execute("DELETE FROM search_index WHERE entity_type='meeting' AND entity_id=?1", params![id])?;
+    Ok(DeletedOutlookMeeting::Removed)
 }
 
 #[tauri::command]

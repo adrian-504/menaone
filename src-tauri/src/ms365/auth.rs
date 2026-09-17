@@ -129,6 +129,10 @@ pub fn wait_for_redirect(expected_state: &str, timeout: Duration) -> Result<Stri
 
                 let (status_line, body) = if let Some(err) = params.get("error") {
                     let desc = params.get("error_description").cloned().unwrap_or_default();
+                    // Both come from the redirect's query string, so anyone who
+                    // can open this local URL controls them: escape before
+                    // putting them in the page.
+                    let (err, desc) = (html_escape(err), html_escape(&desc));
                     (
                         "HTTP/1.1 200 OK",
                         format!("<html><body style='font-family:-apple-system;padding:40px;text-align:center'><h2>Sign-in failed</h2><p>{err}: {desc}</p><p>You can close this window and return to MENA One.</p></body></html>"),
@@ -282,6 +286,22 @@ const KEYCHAIN_ACCOUNT: &str = "refresh_token";
 #[cfg(target_os = "macos")]
 const SECURITY_BIN: &str = "/usr/bin/security";
 
+/// Text made safe to place inside HTML element content or attributes.
+fn html_escape(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    for c in text.chars() {
+        match c {
+            '&' => out.push_str("&amp;"),
+            '<' => out.push_str("&lt;"),
+            '>' => out.push_str("&gt;"),
+            '"' => out.push_str("&quot;"),
+            '\'' => out.push_str("&#39;"),
+            _ => out.push(c),
+        }
+    }
+    out
+}
+
 /// The line fed to `security -i` on stdin. The interactive parser splits on
 /// whitespace and honours double quotes, so a token containing a quote,
 /// backslash or whitespace can't be passed safely and is refused rather than
@@ -380,6 +400,20 @@ pub fn delete_refresh_token() -> Result<(), String> {
     match credential_entry()?.delete_credential() {
         Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
         Err(e) => Err(format!("Could not remove the saved Microsoft sign-in: {e}")),
+    }
+}
+
+#[cfg(test)]
+mod html_escape_tests {
+    use super::html_escape;
+
+    #[test]
+    fn markup_in_a_sign_in_error_is_shown_as_text() {
+        assert_eq!(
+            html_escape(r#"<script>alert('x')</script> & "quoted""#),
+            "&lt;script&gt;alert(&#39;x&#39;)&lt;/script&gt; &amp; &quot;quoted&quot;"
+        );
+        assert_eq!(html_escape("AADSTS65004: User declined to consent"), "AADSTS65004: User declined to consent");
     }
 }
 

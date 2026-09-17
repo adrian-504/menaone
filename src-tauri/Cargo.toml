@@ -39,6 +39,8 @@ rfd = { version = "0.16", default-features = false }
 # default native-tls/OpenSSL backend — no system OpenSSL dependency to manage
 # in the macOS bundle.
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+# Waiting out Microsoft Graph throttling (Retry-After) between retries.
+tokio = { version = "1", features = ["time"] }
 # RSS/Atom parsing for Intelligence Watch's automatic feed ingestion —
 # handles both formats uniformly so adding another source later doesn't need
 # hand-rolled XML parsing.
