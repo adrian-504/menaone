@@ -34,7 +34,7 @@ import './lib/links';
 import './core/commandPalette';
 import { backfillMilestoneDates, registerPopulateAllSelects } from './core/proposals';
 import './core/backup';
-import { syncAgreementsFromProposals, populateAgrFilters } from './core/agreements';
+import { populateAgrFilters } from './core/agreements';
 import { populateCtListFilter, populateCtTypeFilter } from './core/contacts';
 
 // Tabs (each registers its renderer with the registry on import)
@@ -211,7 +211,6 @@ async function init(): Promise<void> {
   void autoLinkMeetings();
 
   backfillMilestoneDates();
-  syncAgreementsFromProposals();
 
   populateAllSelects();
   populatePeriodSelector();

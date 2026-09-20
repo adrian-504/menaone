@@ -7,9 +7,10 @@ import { emptyState } from '../lib/ui';
 import { activeMrr, renewalsDue, isAgreementActive, fmtMoneyByCurrency, fmtMoney, currencyOf, agreementMonthly, teamMember, activeTeam, entityById, defaultEntity, contractEndDate } from '../lib/commercial';
 import { matchesPeriod } from '../lib/period';
 import { persistAgreements, proposalsAndAgreementsSaved, markAgreementsSaved } from '../lib/persist';
-import { createAgreementsFromProposals } from '../lib/db';
+import { createAgreementsFromProposals, pendingAgreementsFromProposals, type PendingAgreement } from '../lib/db';
 import { registerBadgeUpdater, registerTabRenderer, refreshCompanyViewIfOpen, getActiveTabId, refreshAll } from '../lib/registry';
 import { saveCsv } from '../lib/files';
+import { toast } from '../lib/ui';
 import { attachCompanySelector } from '../lib/companySelector';
 import type { Agreement } from '../lib/types';
 
@@ -45,20 +46,43 @@ export function genAgrRef(client: string, type: string, date?: string | null): s
 
 /** Asks the backend to create an agreement for every proposal at a qualifying
  * status that has none yet (idempotent), then adds any new ones to the view. */
-export async function syncAgreementsFromProposals(): Promise<void> {
+/** Drafts an agreement for each signed proposal that has none — on request,
+ * never on its own. This used to run at every start and had quietly created
+ * 55 of the owner's 107 agreements; agreements are now only created when
+ * someone asks for them, and the list is shown before anything is written. */
+export async function draftAgreementsFromProposals(): Promise<void> {
   await proposalsAndAgreementsSaved();
+  let pending: PendingAgreement[];
+  try {
+    pending = await pendingAgreementsFromProposals();
+  } catch (err) {
+    toast('Could not check the proposals', { tone: 'error', detail: String(err) });
+    return;
+  }
+  if (pending.length === 0) {
+    toast('Nothing to draft', { detail: 'Every signed proposal already has an agreement.' });
+    return;
+  }
+  const names = [...new Set(pending.map((p) => p.client))];
+  const shown = names.slice(0, 8).join(', ');
+  const ok = await showConfirm(
+    `${pending.length} signed proposal${pending.length === 1 ? '' : 's'} ${pending.length === 1 ? 'has' : 'have'} no agreement: ${shown}${names.length > 8 ? `, and ${names.length - 8} more` : ''}.\n\nDraft ${pending.length === 1 ? 'an agreement' : 'agreements'} in Preparation, with the proposal's price lines?`,
+    { title: 'Draft agreements from proposals', confirmLabel: `Draft ${pending.length}` },
+  );
+  if (!ok) return;
   let created: Agreement[];
   try {
     created = await createAgreementsFromProposals();
   } catch (err) {
-    console.error('[agreements] automatic creation failed:', err);
+    toast('Could not draft the agreements', { tone: 'error', detail: String(err) });
     return;
   }
-  if (created.length === 0) return;
   S.agreements.push(...created);
   markAgreementsSaved(created);
   refreshAll();
+  toast(`Drafted ${created.length} agreement${created.length === 1 ? '' : 's'}`, { detail: 'Each one is In Preparation — check the terms before sending.' });
 }
+expose('draftAgreementsFromProposals', draftAgreementsFromProposals);
 
 export function agrBadge(): void {
   const inProgress = S.agreements.filter((a) => !['Signed', 'Canceled'].includes(a.status || '')).length;

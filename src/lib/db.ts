@@ -26,6 +26,9 @@ export async function deleteContacts(ids: number[]): Promise<void> { await invok
 export async function upsertAgreements(items: Agreement[]): Promise<RecordCompanyLink[]> { return (await invoke<RecordCompanyLink[] | null>('upsert_agreements', { items })) ?? []; }
 export async function deleteAgreements(ids: number[]): Promise<void> { await invoke('delete_agreements', { ids }); }
 export async function createAgreementsFromProposals(): Promise<Agreement[]> { return invoke<Agreement[]>('sync_agreements_from_proposals'); }
+export interface PendingAgreement { proposalId: number; client: string; agreementType: string | null }
+/** What drafting from proposals would create, without creating it. */
+export async function pendingAgreementsFromProposals(): Promise<PendingAgreement[]> { return invoke<PendingAgreement[]>('pending_agreements_from_proposals'); }
 export async function upsertTodos(items: Todo[]): Promise<RecordCompanyLink[]> { return (await invoke<RecordCompanyLink[] | null>('upsert_todos', { items })) ?? []; }
 export async function deleteTodos(ids: number[]): Promise<void> { await invoke('delete_todos', { ids }); }
 export async function upsertNotes(items: Note[]): Promise<RecordCompanyLink[]> { return (await invoke<RecordCompanyLink[] | null>('upsert_notes', { items })) ?? []; }

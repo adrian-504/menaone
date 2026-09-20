@@ -169,3 +169,34 @@ fn pricing_ranges_reach_an_existing_catalog_without_overwriting_edits() {
     drop(conn);
     let _ = std::fs::remove_file(path);
 }
+
+// Agreements are no longer created behind the owner's back: the app shows what
+// drafting from proposals would create, and only creates it when asked.
+#[test]
+fn pending_agreements_lists_what_drafting_would_create() {
+    let (path, conn) = fresh_db("pending_agreements");
+    conn.execute(
+        "INSERT INTO proposals (id, client, type, status, date_added) VALUES
+           (1,'Contoso Logistics','Recruitment','Signed by Both Parties','2026-09-01'),
+           (2,'Fabrikam Trading','Payroll','Kickoff Meeting Set','2026-09-02'),
+           (3,'Northwind Services','Payroll','Drafting','2026-09-03')",
+        [],
+    ).unwrap();
+
+    let pending = menabig_tracker_lib::commercial::pending_agreements_core(&conn).unwrap();
+    let clients: Vec<&str> = pending.iter().map(|p| p.client.as_str()).collect();
+    assert_eq!(clients, vec!["Contoso Logistics", "Fabrikam Trading"], "signed proposals only, never a draft");
+
+    let created = menabig_tracker_lib::commercial::create_agreements_core(&conn).unwrap();
+    assert_eq!(created.len(), pending.len(), "it creates exactly what it listed");
+    assert!(menabig_tracker_lib::commercial::pending_agreements_core(&conn).unwrap().is_empty(), "nothing left pending");
+
+    // A proposal reaching a signed state later shows up as pending, and stays
+    // pending until someone asks — nothing creates it in the background.
+    conn.execute("UPDATE proposals SET status = 'Signed by Both Parties' WHERE id = 3", []).unwrap();
+    let pending = menabig_tracker_lib::commercial::pending_agreements_core(&conn).unwrap();
+    assert_eq!(pending.len(), 1);
+    assert_eq!(pending[0].client, "Northwind Services");
+    drop(conn);
+    let _ = std::fs::remove_file(path);
+}

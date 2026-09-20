@@ -5,7 +5,7 @@ import { matchesProposalPeriod } from '../lib/period';
 import { persistProposals } from '../lib/persist';
 import { registerBadgeUpdater, refreshAll, getActiveTabId, renderTab } from '../lib/registry';
 import { toast } from '../lib/ui';
-import { syncAgreementsFromProposals } from './agreements';
+import { draftAgreementsFromProposals } from './agreements';
 import { PS, stageIndex, isLost, isWithdrawn, defaultReviewer, teamMember, renewalsDue, activeMrr, pipelineMonthly, fmtMoneyByCurrency } from '../lib/commercial';
 import type { Proposal } from '../lib/types';
 
@@ -106,8 +106,12 @@ export function updateStatus(id: number, newStatus: string): void {
   if (newStatus === PS.WON && !p.dblSignedDate) p.dblSignedDate = td;
   persistProposals();
   updateBadge();
-  if (newStatus === PS.WON) syncAgreementsFromProposals();
   refreshAll();
+  // Marking a proposal won no longer creates its agreement behind the owner's
+  // back; it offers to.
+  if (newStatus === PS.WON) {
+    toast('Marked as won', { detail: 'No agreement was created.', action: { label: 'Draft agreement', run: () => { void draftAgreementsFromProposals(); } } });
+  }
 }
 expose('updateStatus', updateStatus);
 
@@ -385,9 +389,12 @@ export function openWlModal(id: number, mode: 'won' | 'lost'): void {
       }
       persistProposals();
       updateBadge();
-      if (isWon) syncAgreementsFromProposals();
       refreshAll();
-      toast(isWon ? 'Marked as won — its agreement is being prepared' : 'Marked as lost', { tone: isWon ? 'success' : 'neutral' });
+      toast(isWon ? 'Marked as won' : 'Marked as lost', {
+        tone: isWon ? 'success' : 'neutral',
+        detail: isWon ? 'No agreement was created.' : undefined,
+        action: isWon ? { label: 'Draft agreement', run: () => { void draftAgreementsFromProposals(); } } : undefined,
+      });
     },
   });
 }

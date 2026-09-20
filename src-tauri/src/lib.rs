@@ -239,6 +239,7 @@ pub fn run() {
             commands::upsert_agreements,
             commands::delete_agreements,
             commands::sync_agreements_from_proposals,
+            commercial::pending_agreements_from_proposals,
             insights::get_pipeline_facts,
             generator::templates_list,
             generator::template_inspect,

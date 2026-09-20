@@ -735,6 +735,8 @@ export async function installDevMockIfNeeded(): Promise<void> {
           return null;
         case 'ms365_set_tenant_id':
           return null;
+        case 'pending_agreements_from_proposals':
+          return [];
         case 'identity_current_user':
           return null;
         case 'weather_now': {

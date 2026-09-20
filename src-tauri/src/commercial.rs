@@ -811,6 +811,38 @@ const AGREEMENT_QUALIFYING_STATUSES: &[&str] = &[
     STATUS_WON, "Double Signed Proposal sent to Client", "Proposal Signed by MENA", "Kickoff Meeting Set", "Service Started",
 ];
 
+/// A proposal that has reached a signed state but has no agreement yet.
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PendingAgreement {
+    pub proposal_id: i64,
+    pub client: String,
+    pub agreement_type: Option<String>,
+}
+
+/// What drafting from proposals would create, without creating it. The app
+/// used to create these on every start, silently; now it shows this list and
+/// asks (src/core/agreements.ts).
+pub fn pending_agreements_core(conn: &Connection) -> rusqlite::Result<Vec<PendingAgreement>> {
+    let mut stmt = conn.prepare(
+        "SELECT p.id, p.client, p.type FROM proposals p
+         WHERE p.status IN (SELECT value FROM json_each(?1))
+           AND NOT EXISTS (SELECT 1 FROM agreements a WHERE a.proposal_id = p.id)
+         ORDER BY p.client, p.id",
+    )?;
+    let statuses = serde_json::to_string(AGREEMENT_QUALIFYING_STATUSES).unwrap_or_else(|_| "[]".into());
+    let rows = stmt.query_map(params![statuses], |r| {
+        Ok(PendingAgreement { proposal_id: r.get(0)?, client: r.get(1)?, agreement_type: r.get(2)? })
+    })?;
+    rows.collect()
+}
+
+#[tauri::command]
+pub fn pending_agreements_from_proposals(state: State<DbState>) -> CmdResult<Vec<PendingAgreement>> {
+    let conn = state.0.lock().map_err(err)?;
+    pending_agreements_core(&conn).map_err(err)
+}
+
 /// Creates an agreement, with the proposal's lines, for every won proposal
 /// that has none. Returns the ids it created. Safe to repeat.
 pub fn create_agreements_core(conn: &Connection) -> rusqlite::Result<Vec<i64>> {
