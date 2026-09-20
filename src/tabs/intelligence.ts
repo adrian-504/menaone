@@ -140,8 +140,55 @@ function paintIntelligence(): void {
   renderIcons(root);
 }
 
+/** The story the user opened, read in place. One at a time. */
+let expandedIntelId: number | null = null;
+
+export function toggleIntelRow(id: number): void {
+  expandedIntelId = expandedIntelId === id ? null : id;
+  paintIntelligence();
+  if (expandedIntelId === id) {
+    document.getElementById(`intel-read-${id}`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+}
+expose('toggleIntelRow', toggleIntelRow);
+
+export function closeIntelRow(): boolean {
+  if (expandedIntelId == null) return false;
+  expandedIntelId = null;
+  paintIntelligence();
+  return true;
+}
+expose('closeIntelRow', closeIntelRow);
+
+/** The story itself: what it says, what changed, who it touches, and what you can do about it. */
+function readingView(it: IntelligenceItem): string {
+  const block = (label: string, body: string | null) =>
+    body && body.trim() ? `<div class="intel-read-block"><div class="intel-read-label">${escHtml(label)}</div><p>${escHtml(body)}</p></div>` : '';
+  const facts: string[] = [];
+  if (it.effectiveDate) facts.push(`<span><span class="intel-read-label">Takes effect</span> <strong class="intel-effective">${escHtml(fmtDate(it.effectiveDate))}</strong></span>`);
+  if (it.publishedAt) facts.push(`<span><span class="intel-read-label">Published</span> ${escHtml(fmtDate(it.publishedAt))}</span>`);
+  if (it.status) facts.push(`<span><span class="intel-read-label">Status</span> ${escHtml(it.status)}</span>`);
+  if (it.country) facts.push(`<span><span class="intel-read-label">Country</span> ${escHtml(it.country)}</span>`);
+  if (it.category) facts.push(`<span><span class="intel-read-label">Category</span> ${escHtml(it.category)}</span>`);
+  const body = [block('Summary', it.summary), block('What changed', it.whatChanged), block('Who it affects', it.whoAffected), block('Why it matters', it.whyItMatters)]
+    .filter(Boolean)
+    .join('');
+  return `<div class="intel-read" id="intel-read-${it.id}">
+    ${facts.length ? `<div class="intel-read-facts">${facts.join('')}</div>` : ''}
+    ${body || `<p class="intel-read-none">Only the headline came through this source. Open it to read the story.</p>`}
+    <div class="intel-read-actions">
+      <a class="btn-primary" href="${escHtml(it.sourceUrl)}" target="_blank" rel="noopener">${icon('link', 13)} Read at ${escHtml(it.sourceName)}</a>
+      <button class="btn-secondary" onclick="intelCreateTask(${it.id})">${icon('check', 13)} Create a task</button>
+      <button class="btn-secondary" onclick="intelCreateNote(${it.id})">${icon('note', 13)} Create a note</button>
+      <button class="btn-secondary" onclick="intelToggleLinkPopover(${it.id})">${icon('link', 13)} Link…</button>
+      <button class="btn-secondary" onclick="closeIntelRow()">Close</button>
+    </div>
+  </div>`;
+}
+
 function itemRow(it: IntelligenceItem): string {
   const cfg = IMPORTANCE_CFG[it.importance] || IMPORTANCE_CFG.monitor;
+  const open = expandedIntelId === it.id;
   const links = linkCache.get(it.id);
   const chips: string[] = [];
   if (it.ingestedVia === 'feed') chips.push(`<span class="chip" title="Pulled in automatically — not personally reviewed">Auto</span>`);
@@ -154,15 +201,18 @@ function itemRow(it: IntelligenceItem): string {
       }
     }
   }
-  return `<div class="intel-row${it.archived ? ' is-archived' : ''}" style="--tone:${cfg.c}" oncontextmenu="intelMenu(event, ${it.id})">
+  return `<div class="intel-row${it.archived ? ' is-archived' : ''}${open ? ' is-open' : ''}" style="--tone:${cfg.c}" oncontextmenu="intelMenu(event, ${it.id})">
     <span class="intel-tone" title="${escHtml(cfg.label)}"></span>
-    <div class="intel-main" onclick="if(!event.target.closest('a,button'))openIntelModal(${it.id})">
+    <div class="intel-main" role="button" tabindex="0" aria-expanded="${open}"
+      onclick="if(!event.target.closest('a,button'))toggleIntelRow(${it.id})"
+      onkeydown="if((event.key==='Enter'||event.key===' ')&&!event.target.closest('a,button')){event.preventDefault();toggleIntelRow(${it.id})}">
       <div class="intel-headline">${escHtml(it.headline)}</div>
       <div class="intel-meta"><span class="intel-importance">${escHtml(cfg.label)}</span>${escHtml(it.sourceName)}${it.status ? ` · ${escHtml(it.status)}` : ''}${it.publishedAt ? ` · ${escHtml(fmtDate(it.publishedAt))}` : ''}${it.effectiveDate ? ` · <span class="intel-effective">applies from ${escHtml(it.effectiveDate)}</span>` : ''}</div>
       ${(it.affectedServices || []).length ? `<div class="intel-services">${(it.affectedServices || []).map((sv) => `<span class="chip">${escHtml(sv)}</span>`).join('')}</div>` : ''}
       ${it.whyItMatters ? `<div class="intel-why">${escHtml(it.whyItMatters)}</div>` : ''}
       ${chips.length ? `<div class="chip-row">${chips.join('')}</div>` : ''}
       <div class="ar-link-popover" id="intel-link-pop-${it.id}" hidden></div>
+      ${open ? readingView(it) : ''}
     </div>
     <div class="intel-actions">
       <button class="rec-icon-btn${it.saved ? ' is-on' : ''}" onclick="intelToggleSaved(${it.id})" title="${it.saved ? 'Saved — click to unsave' : 'Save'}" aria-pressed="${it.saved}">${it.saved ? '★' : '☆'}</button>

@@ -1370,6 +1370,18 @@ body.dnd-active .opp-board .board-column.stage-hidden{display:flex}
 .intel-source-stat{text-align:right;font-variant-numeric:tabular-nums}
 .intel-services{display:flex;gap:4px;flex-wrap:wrap;margin-top:5px}
 .intel-effective{color:var(--amber);font-weight:600}
+/* A Watch story opened in place: the reading view, not the edit form. */
+.intel-row.is-open{background:color-mix(in srgb,var(--text) 3%,transparent)}
+.intel-read{margin:10px 0 2px;padding:12px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);cursor:default}
+.intel-read-facts{display:flex;flex-wrap:wrap;gap:4px 18px;margin-bottom:10px;font-size:var(--type-secondary);color:var(--sub)}
+.intel-read-label{font-size:var(--type-meta);letter-spacing:.04em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.intel-read-block + .intel-read-block{margin-top:10px}
+.intel-read-block p{margin:2px 0 0;font-size:var(--type-body);line-height:1.55;color:var(--text);white-space:pre-wrap}
+.intel-read-none{margin:0;font-size:var(--type-secondary);color:var(--muted)}
+.intel-read-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px;padding-top:12px;border-top:1px solid var(--border)}
+.intel-read-actions .btn-primary,.intel-read-actions .btn-secondary{display:inline-flex;align-items:center;gap:5px;text-decoration:none}
+/* The row's own "why it matters" line would repeat inside the open story. */
+.intel-row.is-open .intel-why{display:none}
 /* Services — one frame for every service, whatever shape its pricing takes. */
 .svc-colhd{display:grid;grid-template-columns:1fr 150px 92px 150px;gap:12px;padding:4px 12px;font-size:var(--type-meta);
   letter-spacing:.04em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border)}
