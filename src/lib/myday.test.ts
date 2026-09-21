@@ -187,4 +187,23 @@ describe('commitments and waiting in My Day', () => {
     expect(items[0]).toMatchObject({ key: 'group:owed', title: 'Owed to you (2)', action: { kind: 'toggle_group' } });
     expect(items[0].children!.map((x) => x.commitmentId)).toEqual([1, 2]);
   });
+
+  it('a late promise shows once: in attention, not again as an overdue task', () => {
+    const data = input({
+      todos: [todo({ id: 6, title: 'Send the quote', dueDate: '2026-09-10' }), todo({ id: 7, title: 'Plain late task', dueDate: '2026-09-11' })],
+      commitments: [commitment({ id: 1, dueDate: '2026-09-10', todoId: 6 })],
+    });
+    const t = buildTimeline(data);
+    expect(t.overdue.map((x) => x.id)).toEqual([7]);
+    expect(buildAttention(data).map((x) => x.key)).toContain('commitment:1:overdue');
+    expect(summaryLine(t, buildAttention(data))).toContain('1 overdue');
+  });
+
+  it('a promise kept or not yet close keeps its task in the timeline', () => {
+    const data = input({
+      todos: [todo({ id: 6, dueDate: '2026-09-13' }), todo({ id: 8, dueDate: '2026-09-13' })],
+      commitments: [commitment({ id: 1, dueDate: '2026-09-13', todoId: 6, status: 'kept' }), commitment({ id: 2, dueDate: '2026-09-30', todoId: 8, sourceKey: 'b' })],
+    });
+    expect(buildTimeline(data).anytime.map((x) => x.id).sort()).toEqual([6, 8]);
+  });
 });

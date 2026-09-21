@@ -326,10 +326,21 @@ export interface Timeline {
 const isOpenTask = (t: Todo) => t.status !== 'Done';
 const byPriority = (t: Todo) => (t.priority === 'High' ? 0 : t.priority === 'Low' ? 2 : 1);
 
-export function buildTimeline(i: Pick<MyDayInput, 'today' | 'now' | 'meetings' | 'todos'>): Timeline {
-  const overdue = i.todos.filter((t) => isOpenTask(t) && !t.parentId && t.dueDate && t.dueDate < i.today)
+/** Tasks of promises we made that "Needs your attention" already shows (late,
+ * due today or tomorrow) — listed once, there, with the reason and Mark kept. */
+export function tasksShownAsPromises(i: Pick<MyDayInput, 'today' | 'commitments'>): Set<number> {
+  const tomorrow = addDays(i.today, 1);
+  return new Set((i.commitments || [])
+    .filter((c) => c.direction === 'ours' && c.status === 'open' && c.todoId != null && c.dueDate && c.dueDate <= tomorrow)
+    .map((c) => c.todoId!));
+}
+
+export function buildTimeline(i: Pick<MyDayInput, 'today' | 'now' | 'meetings' | 'todos' | 'commitments'>): Timeline {
+  const promised = tasksShownAsPromises(i);
+  const todos = i.todos.filter((t) => !promised.has(t.id));
+  const overdue = todos.filter((t) => isOpenTask(t) && !t.parentId && t.dueDate && t.dueDate < i.today)
     .sort((a, b) => (a.dueDate || '').localeCompare(b.dueDate || '') || byPriority(a) - byPriority(b));
-  const dueToday = i.todos.filter((t) => !t.parentId && t.dueDate === i.today && (isOpenTask(t) || (t.completedAt || '').slice(0, 10) === i.today));
+  const dueToday = todos.filter((t) => !t.parentId && t.dueDate === i.today && (isOpenTask(t) || (t.completedAt || '').slice(0, 10) === i.today));
   const meetings = i.meetings.filter((m) => !m.isCancelled && m.meetingDate === i.today);
   const nowIso = i.now.toISOString();
   const timed: TimelineEntry[] = [];

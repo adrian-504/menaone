@@ -71,3 +71,23 @@ describe('clean-up queues', () => {
     expect(totalToClean(qs)).toBe(7);
   });
 });
+
+describe('commitments linked to another company', () => {
+  const c = (over: Record<string, unknown>) => ({
+    id: 1, direction: 'ours', text: 'Send the quote', contactId: null, dueDate: null, status: 'open', closedAt: null, dropReason: null,
+    companyId: 1, opportunityId: null, projectId: null, sourceType: 'manual', sourceId: null, sourceKey: null, todoId: null, createdAt: null, updatedAt: null, ...over,
+  }) as any;
+  it("flags a mismatch with its opportunity, project or person, and nothing else", () => {
+    const qs = buildCleanupQueues(input({
+      companies: [company(1), company(2)],
+      opportunities: [opp({ id: 5, companyId: 2, name: 'Globex deal' })],
+      projects: [{ id: 9, name: 'Rollout', companyId: 1 }],
+      contacts: [{ id: 4, name: 'Lina Saleh', companyId: 2 } as any],
+      commitments: [c({ id: 1, opportunityId: 5 }), c({ id: 2, projectId: 9 }), c({ id: 3, direction: 'theirs', contactId: 4 }), c({ id: 4, companyId: null, opportunityId: 5 })],
+    }));
+    const q = queue(qs, 'commitment-company');
+    expect(q.items.map((x) => x.key).sort()).toEqual(['commitment:1', 'commitment:3']);
+    expect(q.items.find((x) => x.key === 'commitment:1')!.record).toEqual({ kind: 'opportunity', id: 5 });
+    expect(q.items.find((x) => x.key === 'commitment:3')!.facts[1][1]).toBe('Lina Saleh');
+  });
+});

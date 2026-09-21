@@ -4,7 +4,7 @@
 // matched by name instead of id would land on the wrong company. Fictional
 // names only.
 use menabig_tracker_lib::activity::{query_activity, ActivityFilter};
-use menabig_tracker_lib::commands::{read_all_data, restore_backup_core, upsert_todo_rows};
+use menabig_tracker_lib::commands::{import_legacy_backup_core, read_all_data, restore_backup_core, upsert_todo_rows, wipe_all_data_core};
 use menabig_tracker_lib::commitments::{add_commitments, read_commitments, upsert_commitment_rows, NewCommitment};
 use menabig_tracker_lib::db::init_connection;
 use menabig_tracker_lib::integrity::integrity_report;
@@ -160,6 +160,12 @@ fn merges_keep_commitments_and_deletes_only_unlink_them() {
     assert_eq!(one::<i64>(&conn, "SELECT COUNT(*) FROM commitments"), 2, "never deleted with what they point at");
     assert_eq!(one::<i64>(&conn, "SELECT COUNT(*) FROM commitments WHERE opportunity_id IS NOT NULL OR source_id IS NOT NULL"), 0);
     assert_eq!(integrity_report(&conn).unwrap().issues.iter().filter(|p| p.check.contains("commitments")).count(), 0);
+
+    // Someone at the look-alike company named as who promised it: reported.
+    conn.execute("INSERT INTO contacts (id, name, client_name, company_id) VALUES (90, 'Lina Saleh', 'CONTOSO LOGISTICS', ?1)", params![s.rival]).unwrap();
+    conn.execute("UPDATE commitments SET contact_id = 90 WHERE direction = 'theirs'", []).unwrap();
+    let issues = integrity_report(&conn).unwrap().issues;
+    assert!(issues.iter().any(|p| p.check == "commitments whose contact belongs to another company" && p.count == 1));
     drop(conn);
     let _ = std::fs::remove_file(path);
 }
@@ -170,17 +176,56 @@ fn backups_round_trip_commitments_and_an_older_backup_leaves_them_alone() {
     let s = setup(&mut conn);
     add_commitments(&mut conn, &lines_from_meeting(&s)).unwrap();
     let backup = read_all_data(&conn).unwrap();
-    assert_eq!(backup.commitments.len(), 2);
+    assert_eq!(backup.commitments.as_ref().map(Vec::len), Some(2));
+    // New backups always carry the key, even with none.
+    assert!(serde_json::to_value(&backup).unwrap().get("commitments").unwrap().is_array());
 
     conn.execute("DELETE FROM commitments", []).unwrap();
     restore_backup_core(&mut conn, &backup).unwrap();
-    let back = read_commitments(&conn).unwrap();
-    assert_eq!(back, backup.commitments);
+    assert_eq!(Some(read_commitments(&conn).unwrap()), backup.commitments);
 
-    let mut older = backup.clone();
-    older.commitments.clear();
+    // A backup from before commitments existed (no key): today's stay.
+    let mut json = serde_json::to_value(&backup).unwrap();
+    json.as_object_mut().unwrap().remove("commitments");
+    let older: menabig_tracker_lib::models::AppData = serde_json::from_value(json).unwrap();
+    assert_eq!(older.commitments, None);
     restore_backup_core(&mut conn, &older).unwrap();
     assert_eq!(read_commitments(&conn).unwrap().len(), 2);
+
+    // A current backup that had none: it is the whole set, so they go.
+    let mut none = backup.clone();
+    none.commitments = Some(vec![]);
+    restore_backup_core(&mut conn, &none).unwrap();
+    assert_eq!(read_commitments(&conn).unwrap().len(), 0);
+    assert_eq!(one::<i64>(&conn, "SELECT COUNT(*) FROM search_index WHERE entity_type = 'commitment'"), 0);
+    drop(conn);
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
+fn wiping_all_data_takes_commitments_too_without_logging_it() {
+    let (path, mut conn) = fresh_db("wipe");
+    let s = setup(&mut conn);
+    add_commitments(&mut conn, &lines_from_meeting(&s)).unwrap();
+    wipe_all_data_core(&mut conn).unwrap();
+    assert_eq!(one::<i64>(&conn, "SELECT COUNT(*) FROM commitments"), 0);
+    assert_eq!(one::<i64>(&conn, "SELECT COUNT(*) FROM search_index WHERE entity_type = 'commitment'"), 0);
+    assert_eq!(one::<i64>(&conn, "SELECT COUNT(*) FROM activity"), 0, "no activity written by the wipe");
+    drop(conn);
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
+fn importing_the_old_tracker_clears_commitments() {
+    // The old tracker's tasks replace today's by id, so a commitment kept
+    // across it could point at an unrelated task. It had no commitments: they go.
+    let (path, mut conn) = fresh_db("legacy");
+    let s = setup(&mut conn);
+    add_commitments(&mut conn, &lines_from_meeting(&s)).unwrap();
+    let json = r#"{"version":1,"data":{"menabig_todos_v1":[{"id":1,"title":"Call the landlord"}]}}"#;
+    menabig_tracker_lib::activity::with_activity_muted(&mut conn, |c| import_legacy_backup_core(c, json)).unwrap();
+    assert_eq!(one::<i64>(&conn, "SELECT COUNT(*) FROM commitments"), 0);
+    assert_eq!(one::<String>(&conn, "SELECT title FROM todos WHERE id = 1"), "Call the landlord");
     drop(conn);
     let _ = std::fs::remove_file(path);
 }

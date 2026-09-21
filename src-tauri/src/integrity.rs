@@ -61,6 +61,8 @@ pub const CROSS_RECORD_COMPANY_CHECKS: &[(&str, &str)] = &[
     ("commitments whose opportunity or project belongs to another company",
      "SELECT COUNT(*) FROM commitments c LEFT JOIN opportunities o ON o.id = c.opportunity_id LEFT JOIN projects p ON p.id = c.project_id
       WHERE c.company_id IS NOT NULL AND ((o.company_id IS NOT NULL AND c.company_id <> o.company_id) OR (p.company_id IS NOT NULL AND c.company_id <> p.company_id))"),
+    ("commitments whose contact belongs to another company",
+     "SELECT COUNT(*) FROM commitments c JOIN contacts ct ON ct.id = c.contact_id WHERE c.company_id IS NOT NULL AND ct.company_id IS NOT NULL AND c.company_id <> ct.company_id"),
 ];
 
 /// Groups of company ids whose names are the same once punctuation, capitals

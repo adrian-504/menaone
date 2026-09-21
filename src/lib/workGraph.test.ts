@@ -145,3 +145,13 @@ describe('work graph: related records', () => {
     expect(opportunityTasks(g, 11).map((t) => t.id)).toEqual([1, 2]);
   });
 });
+
+describe('work graph: a promise\'s task belongs to the opportunity', () => {
+  it('is found directly, and through the meeting it was written in', () => {
+    const meetings = [{ id: 3, opportunityId: 7 }] as Meeting[];
+    const direct = { id: 1, title: 'Send the quote', opportunityId: 7, meetingId: 3 } as Todo;
+    const viaMeeting = { id: 2, title: 'Book the room', opportunityId: null, meetingId: 3 } as Todo;
+    const other = { id: 3, title: 'Unrelated', opportunityId: 8, meetingId: null } as Todo;
+    expect(opportunityTasks({ todos: [direct, viaMeeting, other], meetings }, 7).map((t) => t.id)).toEqual([1, 2]);
+  });
+});

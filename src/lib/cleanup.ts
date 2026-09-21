@@ -5,7 +5,7 @@
 
 import { PS } from './commercial';
 import { daysBetween, isOpenOpportunity } from './pipeline';
-import type { Agreement, Company, Opportunity, Proposal, Todo } from './types';
+import type { Agreement, Company, Opportunity, Proposal, Todo, Commitment, Contact } from './types';
 import type { RecordKind } from './navHistory';
 
 export type CleanupAction =
@@ -14,12 +14,13 @@ export type CleanupAction =
   | 'agreement_active' | 'agreement_not_started' | 'agreement_ended'
   | 'opportunity_details' | 'opportunity_lost'
   | 'set_industry' | 'set_owner'
-  | 'task_done' | 'task_someday' | 'task_date' | 'task_delete';
+  | 'task_done' | 'task_someday' | 'task_date' | 'task_delete'
+  | 'commitment_edit';
 
 export type QueueId =
   | 'stale-sent' | 'client-signed' | 'long-review' | 'stale-drafting'
   | 'kickoff-passed' | 'ended-still-active'
-  | 'opportunity-incomplete' | 'company-industry' | 'company-owner' | 'old-tasks';
+  | 'opportunity-incomplete' | 'company-industry' | 'company-owner' | 'old-tasks' | 'commitment-company';
 
 export interface CleanupItem {
   /** Unique across queues; used for "keep for now". */
@@ -56,6 +57,28 @@ export interface CleanupInput {
   companiesWithIndustry: Set<number>;
   /** Item keys kept (hidden) until a date. */
   kept: Record<string, string>;
+  commitments?: Commitment[];
+  contacts?: Contact[];
+  projects?: { id: number; name: string; companyId?: number | null }[];
+}
+
+/** Commitments linked to a company other than their opportunity's, project's
+ * or person's — the same check as the integrity report (integrity.rs). */
+export function commitmentCompanyMismatches(i: Pick<CleanupInput, 'commitments' | 'contacts' | 'projects' | 'opportunities'>): { commitment: Commitment; why: string[] }[] {
+  const out: { commitment: Commitment; why: string[] }[] = [];
+  for (const c of i.commitments || []) {
+    if (c.companyId == null) continue;
+    const opp = c.opportunityId != null ? i.opportunities.find((o) => o.id === c.opportunityId) : undefined;
+    const proj = c.projectId != null ? (i.projects || []).find((p) => p.id === c.projectId) : undefined;
+    const who = c.contactId != null ? (i.contacts || []).find((x) => x.id === c.contactId) : undefined;
+    const why = [
+      opp && opp.companyId != null && opp.companyId !== c.companyId ? `its opportunity ${opp.name}` : '',
+      proj && proj.companyId != null && proj.companyId !== c.companyId ? `its project ${proj.name}` : '',
+      who && who.companyId != null && who.companyId !== c.companyId ? `${who.name || 'its contact'}` : '',
+    ].filter(Boolean);
+    if (why.length) out.push({ commitment: c, why });
+  }
+  return out;
 }
 
 export const STALE_SENT_DAYS = 45;
@@ -188,6 +211,19 @@ export function buildCleanupQueues(i: CleanupInput): CleanupQueue[] {
       facts: [['Created', `${fmt(t.createdAt)} (${ago(daysBetween(t.createdAt, i.today))})`], ['Due', t.dueDate ? `${fmt(t.dueDate)} (${ago(daysBetween(t.dueDate, i.today))})` : 'No date'], ...(t.description ? [['Notes', t.description.slice(0, 160)] as [string, string]] : [])],
       age: daysBetween(t.dueDate || t.createdAt, i.today) ?? 0,
     })),
+  });
+
+  queues.push({
+    id: 'commitment-company', group: 'Pipeline', title: 'Commitments linked to another company',
+    why: "The commitment's company differs from its opportunity's, project's or person's. Fix the links so it shows on the right company.",
+    actions: ['commitment_edit', 'keep'], bulk: ['keep'],
+    items: commitmentCompanyMismatches(i).flatMap(({ commitment: c, why }) => {
+      const record = c.opportunityId != null ? { kind: 'opportunity' as RecordKind, id: c.opportunityId }
+        : c.projectId != null ? { kind: 'project' as RecordKind, id: c.projectId } : { kind: 'company' as RecordKind, id: c.companyId! };
+      const company = i.companies.find((x) => x.id === c.companyId)?.name || 'Unknown company';
+      return [{ key: `commitment:${c.id}`, record, title: c.text, subtitle: `${c.direction === 'ours' ? 'We owe' : 'They owe'} · ${company}`,
+        facts: [['Linked to', company], ['Different from', why.join(', ')]] as [string, string][], age: 0 }];
+    }),
   });
 
   for (const q of queues) {

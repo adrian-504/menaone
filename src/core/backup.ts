@@ -29,6 +29,7 @@ async function reloadStateFromDb(): Promise<void> {
   S.contacts = data.contacts;
   S.agreements = data.agreements;
   S.todos = data.todos;
+  S.commitments = data.commitments || [];
   S.notes = data.notes;
   S.noteFolders = data.noteFolders.length ? data.noteFolders : ['Meeting Notes', 'Client Notes', 'Internal'];
   S.contactLists = data.contactLists;

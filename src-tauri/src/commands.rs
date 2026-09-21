@@ -58,7 +58,7 @@ pub fn read_all_data(conn: &Connection) -> rusqlite::Result<AppData> {
         services: crate::commercial::read_services(conn)?,
         business_entities: crate::commercial::read_business_entities(conn)?,
         team_members: crate::commercial::read_team_members(conn)?,
-        commitments: crate::commitments::read_commitments(conn)?,
+        commitments: Some(crate::commitments::read_commitments(conn)?),
     })
 }
 
@@ -1120,16 +1120,17 @@ pub fn restore_backup_core(conn: &mut Connection, data: &AppData) -> rusqlite::R
             &data.note_folders, &data.contact_lists, &data.company_notes,
         )?;
         crate::commercial::restore_setup(&tx, &data.services, &data.business_entities, &data.team_members)?;
-        restore_commitments_in(&tx, &data.commitments)?;
+        restore_commitments_in(&tx, data.commitments.as_deref())?;
         crate::commercial::normalize_commercial_data(&tx)?;
         tx.commit()
     })
 }
 
-/// Commitments come back by id, after the tasks they point at. A backup from
-/// before commitments existed has none; the current ones are then left alone.
-fn restore_commitments_in(tx: &Connection, items: &[crate::commitments::Commitment]) -> rusqlite::Result<()> {
-    if items.is_empty() { return Ok(()); }
+/// Commitments come back by id, after the tasks they point at. A backup made
+/// before commitments existed (`None`) leaves the current ones alone; any
+/// other backup is the whole set, so commitments it doesn't have are deleted.
+fn restore_commitments_in(tx: &Connection, items: Option<&[crate::commitments::Commitment]>) -> rusqlite::Result<()> {
+    let Some(items) = items else { return Ok(()) };
     let keep: Vec<i64> = items.iter().map(|c| c.id).collect();
     let gone: Vec<i64> = tx.prepare("SELECT id FROM commitments WHERE id NOT IN (SELECT value FROM json_each(?1))")?
         .query_map(params![ids_json(&keep)], |r| r.get(0))?.collect::<rusqlite::Result<_>>()?;
@@ -1221,6 +1222,9 @@ pub fn import_legacy_backup_core(conn: &mut Connection, json: &str) -> rusqlite:
 
     let tx = conn.transaction()?;
     restore_records_in(&tx, &proposals, &contacts, &agreements, &todos, &notes, &note_folders, &contact_lists, &company_notes)?;
+    // The old tracker had no commitments, and its tasks replace today's by id:
+    // a commitment kept now could point at someone else's task. They go.
+    restore_commitments_in(&tx, Some(&[]))?;
     crate::commercial::normalize_commercial_data(&tx)?;
     tx.commit()?;
 
@@ -1310,13 +1314,18 @@ pub fn set_app_meta(state: State<DbState>, key: String, value: String) -> CmdRes
 pub fn wipe_all_data(app: AppHandle, state: State<DbState>) -> CmdResult<()> {
     let mut conn = state.0.lock().map_err(conn_err)?;
     crate::backups::snapshot_before_change(&app, &conn, "wipe")?;
-    crate::activity::with_activity_muted(&mut conn, |conn| {
+    wipe_all_data_core(&mut conn).map_err(conn_err)
+}
+
+/// Deletes the records a backup holds, commitments included, with activity muted.
+pub fn wipe_all_data_core(conn: &mut Connection) -> rusqlite::Result<()> {
+    crate::activity::with_activity_muted(conn, |conn| {
         // One transaction: everything goes, or nothing does.
         let tx = conn.transaction()?;
         restore_records_in(&tx, &[], &[], &[], &[], &[], &[], &[], &HashMap::new())?;
+        restore_commitments_in(&tx, Some(&[]))?;
         tx.execute("DELETE FROM saved_lists", [])?;
         tx.execute("DELETE FROM activity", [])?;
         tx.commit()
     })
-    .map_err(conn_err)
 }

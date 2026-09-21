@@ -1264,7 +1264,7 @@ body.dnd-active .board-column.drop-target{background:var(--accent-bg)!important}
 .rec-props dt:has(+ #od-waiting){align-self:start;padding-top:5px}
 .od-wait-seg button{padding:0 10px}
 .od-wait-since{font-size:var(--type-meta);color:var(--muted);margin-top:4px}
-.od-wait-note{margin-top:4px;width:100%}
+.od-wait-note{margin-top:4px;width:100%;display:block;resize:none;overflow:hidden;line-height:1.4;max-height:3em;font:inherit;font-size:var(--type-secondary)}
 .od-wait-suggest{margin-top:6px;font-size:var(--type-meta);color:var(--sub);line-height:1.45}
 .od-wait-suggest .btn-ghost{margin-top:3px;padding-left:0;color:var(--accent);font-weight:600}
 /* Earlier meetings with the client, and the Outlook invite, beside the page. */

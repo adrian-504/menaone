@@ -465,9 +465,11 @@ function renderOpportunityWaiting(o: Opportunity): void {
   const promised = suggestion ? S.commitments.find((c) => c.id === suggestion.commitmentId) : undefined;
   el.innerHTML = `<div class="segmented od-wait-seg" role="group" aria-label="Waiting on">${seg}</div>
     ${cur && o.waitingSince ? `<div class="od-wait-since">since ${escHtml(fmtDate(o.waitingSince))}</div>` : ''}
-    ${cur ? `<input class="td-input od-wait-note" value="${escHtml(o.waitingNote || '')}" placeholder="What for? (one line)" onchange="setOpportunityWaitingNote(this.value)">` : ''}
+    ${cur ? `<textarea class="td-input od-wait-note" rows="1" placeholder="What for?" title="${escHtml(o.waitingNote || '')}" oninput="autoGrow(this)" onchange="setOpportunityWaitingNote(this.value)">${escHtml(o.waitingNote || '')}</textarea>` : ''}
     ${suggestion && promised ? `<div class="od-wait-suggest">The client promised “${escHtml(promised.text)}” on ${escHtml(fmtDate(suggestion.since))}.
       <button class="btn-ghost btn-sm" onclick="acceptWaitingSuggestion()">Waiting on them since then</button></div>` : ''}`;
+  const note = el.querySelector<HTMLTextAreaElement>('.od-wait-note');
+  if (note) (window as any).autoGrow?.(note);
 }
 
 export function setOpportunityWaiting(value: string): void {
@@ -482,7 +484,9 @@ expose('setOpportunityWaiting', setOpportunityWaiting);
 export function setOpportunityWaitingNote(value: string): void {
   const o = currentOpportunity();
   if (!o) return;
-  o.waitingNote = value.trim() || null;
+  o.waitingNote = value.replace(/\s*\n\s*/g, ' ').trim() || null;
+  const note = document.querySelector<HTMLTextAreaElement>('#od-waiting .od-wait-note');
+  if (note) note.title = o.waitingNote || '';
   void saveAndSyncOpportunity(o);
 }
 expose('setOpportunityWaitingNote', setOpportunityWaitingNote);

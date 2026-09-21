@@ -270,8 +270,9 @@ export interface AppData {
   services?: Service[];
   businessEntities?: BusinessEntity[];
   teamMembers?: TeamMember[];
-  /** Absent before schema 36. */
-  commitments?: Commitment[];
+  /** Absent (or null) in backups made before schema 36; a restore then leaves
+   * today's commitments alone. Present, even empty, it is the whole set. */
+  commitments?: Commitment[] | null;
 }
 
 // ═══════════════ V2: Work Hub entities ═══════════════

@@ -38,6 +38,7 @@ function queues(): CleanupQueue[] {
   return buildCleanupQueues({
     today: today(), proposals: S.proposals, agreements: S.agreements, opportunities: S.opportunities, companies: S.companies, todos: S.todos,
     companiesWithIndustry: new Set(S.companies.filter((c) => c.industries?.length).map((c) => c.id)), kept,
+    commitments: S.commitments, contacts: S.contacts, projects: S.projects,
   });
 }
 
@@ -58,6 +59,7 @@ const ACTION_LABEL: Record<CleanupAction, string> = {
   opportunity_details: 'Fill in details', opportunity_lost: 'Close as lost',
   set_industry: 'Set industry', set_owner: 'Set owner',
   task_done: 'Done', task_someday: 'Someday', task_date: 'Give it a date', task_delete: 'Delete',
+  commitment_edit: 'Fix the links',
 };
 const ACTION_TONE: Partial<Record<CleanupAction, string>> = { lost: 'danger', opportunity_lost: 'danger', task_delete: 'danger', withdrawn: 'danger' };
 
@@ -306,6 +308,11 @@ async function applyTo(q: CleanupQueue, item: CleanupItem, action: CleanupAction
   const id = item.record.id;
   const undo = snapshot(item);
   switch (action) {
+    case 'commitment_edit': {
+      // Continues in the commitment dialog; the queue recounts when it's saved.
+      (window as any).openCommitmentModal?.(undefined, Number(item.key.split(':')[1]));
+      return null;
+    }
     case 'keep': {
       const key = `${q.id}|${item.key}`;
       const before = kept[key];
