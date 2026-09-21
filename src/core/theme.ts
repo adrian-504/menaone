@@ -3,11 +3,12 @@ import { expose } from '../lib/utils';
 import { renderActiveTab } from '../lib/registry';
 import type { ThemeId } from '../lib/types';
 
-// ═══════════════ Theme (named color palettes, Bear-style) ═══════════════
-// Every palette is a plain CSS [data-theme="id"] block in styles.css — this
-// module only holds picker metadata (name/kind/swatch colors) plus the small
-// amount of logic needed to apply/persist a choice. No theme follows system
-// prefers-color-scheme; each is a fixed, explicitly-picked palette.
+// ═══════════════ Theme ═══════════════
+// Light, Dark, Auto and Graphite. Light is :root in styles.css; Dark and
+// Graphite are [data-theme="id"] blocks. Auto follows the Mac's appearance
+// (prefers-color-scheme): it has no palette of its own, the page gets
+// data-theme="light" or "dark" and switches when the system does. This
+// module holds picker metadata and applies/persists the choice.
 
 export type { ThemeId };
 
@@ -24,11 +25,12 @@ export interface ThemeMeta {
 export const THEMES: ThemeMeta[] = [
   { id: 'light', name: 'Light', kind: 'light', swatchBg: '#F5F4FB', swatchSurface: '#FFFFFF', swatchAccent: '#2A5FE0' },
   { id: 'dark', name: 'Dark', kind: 'dark', swatchBg: '#19191B', swatchSurface: '#212123', swatchAccent: '#5B8AF0' },
+  { id: 'auto', name: 'Auto', kind: 'light', swatchBg: '#19191B', swatchSurface: '#FFFFFF', swatchAccent: '#2A5FE0' },
   { id: 'graphite', name: 'Graphite', kind: 'dark', swatchBg: '#1C1C1E', swatchSurface: '#242426', swatchAccent: '#8E8E93' },
-  { id: 'sepia', name: 'Sepia', kind: 'light', swatchBg: '#F4EEE2', swatchSurface: '#FBF7EE', swatchAccent: '#A9662A' },
-  { id: 'ocean', name: 'Ocean', kind: 'dark', swatchBg: '#0F1B2B', swatchSurface: '#16273C', swatchAccent: '#3FA7E0' },
-  { id: 'forest', name: 'Forest', kind: 'light', swatchBg: '#F3F6F1', swatchSurface: '#FFFFFF', swatchAccent: '#2F7D4F' },
 ];
+
+/** Themes that were retired (Sepia, Ocean, Forest): anyone on one moves to Light. */
+const RETIRED_THEMES = new Set(['sepia', 'ocean', 'forest']);
 
 const THEME_KEY = 'menabig.theme';
 const LEGACY_APPEARANCE_KEY = 'menabig.appearance';
@@ -38,9 +40,19 @@ function isThemeId(v: string | null): v is ThemeId {
   return !!v && THEMES.some((t) => t.id === v);
 }
 
-function updateThemeIndicator(): void {
-  document.documentElement.setAttribute('data-theme', S.theme);
+const systemDark = typeof window !== 'undefined' && window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+
+/** The palette actually shown: Auto resolves to Light or Dark. */
+export function resolvedTheme(id: ThemeId = S.theme): Exclude<ThemeId, 'auto'> {
+  return id === 'auto' ? (systemDark?.matches ? 'dark' : 'light') : id;
 }
+
+function updateThemeIndicator(): void {
+  document.documentElement.setAttribute('data-theme', resolvedTheme());
+}
+
+// Auto follows the system as it changes (e.g. macOS switching at sunset).
+systemDark?.addEventListener?.('change', () => { if (S.theme === 'auto') applyTheme(); });
 
 export function applyTheme(): void {
   updateThemeIndicator();
@@ -70,7 +82,11 @@ expose('setTheme', setTheme);
  * S.proposals/etc, before the async data load completes). */
 export function initTheme(): void {
   try {
-    const stored = localStorage.getItem(THEME_KEY);
+    let stored = localStorage.getItem(THEME_KEY);
+    if (stored && RETIRED_THEMES.has(stored)) {
+      stored = DEFAULT_THEME;
+      localStorage.setItem(THEME_KEY, stored);
+    }
     if (isThemeId(stored)) {
       S.theme = stored;
     } else {

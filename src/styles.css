@@ -4,10 +4,11 @@ html{color-scheme:light}
 body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);font-size:var(--type-body);line-height:1.48;-webkit-font-smoothing:antialiased}
 
 /* ═══════════════════════════ DESIGN TOKENS ═══════════════════════════
-   Restrained macOS-native palette. `:root` holds the Light theme's values as
-   the default/fallback; every other named theme is a [data-theme="id"]
-   override block below, set explicitly by src/core/theme.ts's picker — none
-   of them follow prefers-color-scheme, each is a fixed, chosen palette. */
+   Restrained macOS-native palette. `:root` holds the Light theme; Dark and
+   Graphite are [data-theme="id"] blocks below. Auto (src/core/theme.ts) sets
+   data-theme to light or dark from prefers-color-scheme. In every theme
+   --muted keeps at least 4.5:1 contrast on bg, surface, surface-2 and the
+   sidebar (styleTokens.test.ts checks it). */
 :root{
   --bg:#FFFFFF; /* the page is the surface; the tint is the sidebar's */
   --surface:#FFFFFF;
@@ -94,7 +95,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Robot
 :root[data-theme="dark"]{
   color-scheme:dark;
   --bg:#212123;--surface:#212123;--surface-2:#242426;--sidebar-bg:#19191B;
-  --hairline:#2E2E31;--surface-flat:#262628;--hover:rgba(255,255,255,.05);
+  --hairline:#2E2E31;--surface-flat:#242426;--hover:rgba(255,255,255,.05);
   --border:#323234;--border2:#3F3F42;--accent:#5B8AF0;--accent-bg:#182644;--accent-border:#2C4A80;
   --accent-2:#9B81F9;--accent-2-bg:#251C42;--accent-2-border:#3E2F6E;
   --text:#EFEFF0;--sub:#9C9CA1;--muted:#8A8A90;
@@ -117,47 +118,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Robot
   --amber-deep:#E08A2E;
   --shadow:0 1px 2px rgba(0,0,0,.35),0 0 0 1px rgba(255,255,255,.02);--shadow-md:0 10px 28px rgba(0,0,0,.5);--overlay:rgba(0,0,0,.6);
 }
-:root[data-theme="sepia"]{
-  color-scheme:light;
-  --bg:#F4EEE2;--surface:#FBF7EE;--surface-2:#F0E9D9;--sidebar-bg:#FBF7EE;
-  --border:#E6DBC3;--border2:#D8C9A8;--accent:#A9662A;--accent-bg:#F6E9D9;--accent-border:#E3C69C;
-  --accent-2:#8A6D3B;--accent-2-bg:#F1E7D3;--accent-2-border:#DCC79C;
-  --text:#3B3229;--sub:#6E614D;--muted:#7F705A;
-  --green:#5F8A56;--green-bg:#EBF2E7;--green-border:#C7DCBD;
-  --red:#B4553B;--red-bg:#F7E9E2;--red-border:#E6C3B2;
-  --amber:#B4740E;--amber-bg:#FCF3E3;--amber-border:#F0D6A0;
-  --amber-deep:#C2740E;
-  --shadow:0 1px 2px rgba(59,50,41,.06),0 2px 6px rgba(59,50,41,.08);
-  --shadow-md:0 8px 24px rgba(59,50,41,.12),0 2px 8px rgba(59,50,41,.06);
-  --overlay:rgba(59,50,41,.35);
-}
-:root[data-theme="ocean"]{
-  color-scheme:dark;
-  --bg:#0F1B2B;--surface:#16273C;--surface-2:#1A2E45;--sidebar-bg:#0D1826;
-  --border:#26405C;--border2:#325173;--accent:#3FA7E0;--accent-bg:#143349;--accent-border:#255C80;
-  --accent-2:#7CC7E8;--accent-2-bg:#123245;--accent-2-border:#255C80;
-  --text:#E4EDF5;--sub:#9CB2C6;--muted:#7A96AE;
-  --green:#3FC79A;--green-bg:#0F2B24;--green-border:#1F5A48;
-  --red:#E8735D;--red-bg:#331714;--red-border:#6B2E25;
-  --amber:#E0B23C;--amber-bg:#332506;--amber-border:#6B4F16;
-  --amber-deep:#E08A2E;
-  --shadow:0 1px 2px rgba(0,0,0,.35),0 0 0 1px rgba(255,255,255,.02);--shadow-md:0 10px 28px rgba(0,0,0,.5);--overlay:rgba(0,0,0,.6);
-}
-:root[data-theme="forest"]{
-  color-scheme:light;
-  --bg:#F3F6F1;--surface:#FFFFFF;--surface-2:#EBF1E8;--sidebar-bg:#FFFFFF;
-  --border:#DDE8D8;--border2:#C9DBC1;--accent:#2F7D4F;--accent-bg:#E8F3EB;--accent-border:#BEDFC8;
-  --accent-2:#5B9A6F;--accent-2-bg:#EAF3EC;--accent-2-border:#C3DFC9;
-  --text:#1E2A20;--sub:#556356;--muted:#6A796B;
-  --green:#1A7F4E;--green-bg:#EDF9F2;--green-border:#BEE8CF;
-  --red:#C4361F;--red-bg:#FDEEEB;--red-border:#F5C6BB;
-  --amber:#B4740E;--amber-bg:#FCF3E3;--amber-border:#F0D6A0;
-  --amber-deep:#C2740E;
-  --shadow:0 1px 2px rgba(23,42,26,.04),0 2px 6px rgba(23,42,26,.06);
-  --shadow-md:0 8px 24px rgba(23,42,26,.10),0 2px 8px rgba(23,42,26,.05);
-  --overlay:rgba(23,42,26,.35);
-}
-
 .icon{display:inline-block;vertical-align:middle;flex-shrink:0}
 
 .tab{display:none}.tab.active{display:block}

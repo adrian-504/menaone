@@ -669,7 +669,7 @@ export interface ImportSummary {
 
 // ═══════════════ Theme (named color palettes) ═══════════════
 
-export type ThemeId = 'light' | 'dark' | 'graphite' | 'sepia' | 'ocean' | 'forest';
+export type ThemeId = 'light' | 'dark' | 'auto' | 'graphite';
 
 // ═══════════════ Insights, templates, generator ═══════════════
 

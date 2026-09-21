@@ -102,17 +102,13 @@ fn build_menu(app: &tauri::AppHandle) -> tauri::Result<tauri::menu::Menu<tauri::
     // other wiring.
     let theme_light = MenuItemBuilder::with_id("theme_light", "Light").build(app)?;
     let theme_dark = MenuItemBuilder::with_id("theme_dark", "Dark").build(app)?;
+    let theme_auto = MenuItemBuilder::with_id("theme_auto", "Auto").build(app)?;
     let theme_graphite = MenuItemBuilder::with_id("theme_graphite", "Graphite").build(app)?;
-    let theme_sepia = MenuItemBuilder::with_id("theme_sepia", "Sepia").build(app)?;
-    let theme_ocean = MenuItemBuilder::with_id("theme_ocean", "Ocean").build(app)?;
-    let theme_forest = MenuItemBuilder::with_id("theme_forest", "Forest").build(app)?;
     let theme_menu = SubmenuBuilder::new(app, "Theme")
         .item(&theme_light)
         .item(&theme_dark)
+        .item(&theme_auto)
         .item(&theme_graphite)
-        .item(&theme_sepia)
-        .item(&theme_ocean)
-        .item(&theme_forest)
         .build()?;
     let view_menu = SubmenuBuilder::new(app, "View")
         .item(&toggle_sidebar)
