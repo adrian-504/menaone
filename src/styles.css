@@ -204,7 +204,6 @@ input[type=text]:focus,input[type=date]:focus,input[type=number]:focus,select.fs
 .btn-primary{font:inherit;background:var(--accent);color:var(--on-accent);border:none;padding:8px 18px;border-radius:var(--radius-sm);font-size:var(--type-body);font-weight:600;cursor:pointer;box-shadow:0 1px 3px rgba(42,95,224,.2);transition:filter var(--dur-base) var(--ease-out),box-shadow var(--dur-base) var(--ease-out),transform var(--dur-fast) var(--ease-out)}
 .btn-primary:hover{filter:brightness(1.08);box-shadow:0 4px 12px rgba(42,95,224,.3);transform:translateY(-1px)}
 .btn-primary:active{filter:brightness(.97);box-shadow:0 1px 2px rgba(42,95,224,.25);transform:translateY(0)}
-.btn-danger[disabled]{opacity:.5;cursor:not-allowed}
 .btn-secondary{font:inherit;background:none;border:1px solid var(--border);color:var(--sub);padding:8px 15px;border-radius:var(--radius-sm);font-size:var(--type-body);cursor:pointer;transition:background var(--dur-base) var(--ease-out),border-color var(--dur-base) var(--ease-out),color var(--dur-base) var(--ease-out),transform var(--dur-fast) var(--ease-out)}
 .btn-secondary:hover{background:var(--surface-2);border-color:var(--border2);color:var(--text)}
 .btn-secondary:active{transform:scale(.97)}
@@ -218,7 +217,7 @@ input[type=text]:focus,input[type=date]:focus,input[type=number]:focus,select.fs
 .btn-danger{font:inherit;background:none;color:var(--red);border:1px solid var(--red-border);padding:8px 15px;border-radius:var(--radius-sm);font-size:var(--type-body);font-weight:600;cursor:pointer;transition:background var(--dur-base) var(--ease-out),border-color var(--dur-base) var(--ease-out)}
 .btn-danger:hover{background:var(--red-bg);border-color:var(--red)}
 .btn-danger:active{transform:scale(.97)}
-.btn-danger[disabled]{opacity:.5;cursor:not-allowed}
+.btn-primary:disabled,.btn-secondary:disabled,.btn-ghost:disabled,.btn-danger:disabled{opacity:.45;cursor:not-allowed;filter:none;box-shadow:none;transform:none}
 .btn-primary.btn-sm,.btn-secondary.btn-sm,.btn-ghost.btn-sm,.btn-danger.btn-sm{padding:4px 10px;font-size:var(--type-secondary);border-radius:7px}
 .rpt-sum{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;margin-bottom:11px;background:var(--border);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
 .breakdown{display:flex;flex-wrap:wrap;gap:5px;padding:11px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:11px;box-shadow:var(--shadow)}
