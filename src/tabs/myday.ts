@@ -109,7 +109,10 @@ export function renderMyDay(): void {
   setHtml('myday-today', todayHtml(timeline, data));
   setHtml('myday-attention-cnt', attention.length ? String(attention.length) : '');
   setHtml('myday-attention', attentionHtml(attention));
-  setHtml('myday-upcoming', upcomingHtml(buildComingUp(data)));
+  const upcoming = buildComingUp(data);
+  setHtml('myday-upcoming', upcomingHtml(upcoming));
+  // Nothing coming up: no section saying so (Focus rule 4).
+  const upSec = document.getElementById('myday-upcoming')?.closest('section'); if (upSec) upSec.hidden = !upcoming.length;
   setHtml('myday-pipeline', pipelineHtml());
   const root = document.getElementById('tab-myday');
   if (root) renderIcons(root);
@@ -336,7 +339,7 @@ function dayName(iso: string): string {
 }
 
 function upcomingHtml(days: UpcomingDay[]): string {
-  if (!days.length) return `<div class="mdy-empty compact">Nothing scheduled for the next 7 days.</div>`;
+  if (!days.length) return '';
   return days.map((d) => `<div class="mdy-day">
     <div class="mdy-day-hd"><strong>${escHtml(dayName(d.date))}</strong><span>${escHtml(new Date(`${d.date}T12:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }))}</span></div>
     ${d.entries.slice(0, 8).map((e) => `<div class="mdy-up" onclick="openRecord('${e.record.kind}', ${e.record.id})">
@@ -369,12 +372,15 @@ function pipelineHtml(): string {
   const wonThisMonth = S.proposals.filter((p) => p.status === PS.WON && (p.dateSigned || p.dblSignedDate || '').startsWith(month)).length;
   const money = (m: MoneyByCurrency) => (Object.values(m).some((v) => v) ? fmtMoneyByCurrency(m) : '—');
   const reporting = (m: MoneyByCurrency) => (Object.keys(m).length > 1 ? `≈ ${fmtMoney(toReporting(m))} total` : '');
-  return `<div class="mdy-stats">
-    ${stat('Open pipeline', money(value), withValue < open.length ? `${open.length} open · ${open.length - withValue} without a value` : `${open.length} open ${open.length === 1 ? 'opportunity' : 'opportunities'}`, "navToModule('opportunities')")}
-    ${stat('Weighted', money(weighted), reporting(weighted) || 'Value × probability', "navToModule('analytics')")}
-    ${stat('Proposals out', String(sent.length), Object.values(sentMonthly).some((v) => v) ? `${fmtMoneyByCurrency(sentMonthly)} / month` : 'Waiting on the client', "navToModule('followup')")}
-    ${stat('Active MRR', money(mrr), `${active} active ${active === 1 ? 'agreement' : 'agreements'}${wonThisMonth ? ` · ${wonThisMonth} won this month` : ''}`, "navToModule('agreements')")}
-  </div>`;
+  // One quiet line (Focus): the numbers, each a way into its list.
+  const part = (label: string, value: string, onclick: string, title: string) => value === '—' ? '' : `<button class="mdy-biz-part" onclick="${onclick}" title="${escHtml(title)}"><span class="mdy-biz-label">${escHtml(label)}</span> ${escHtml(value)}</button>`;
+  const parts = [
+    part('Pipeline', money(value), "navToModule('opportunities')", withValue < open.length ? `${open.length} open · ${open.length - withValue} without a value` : `${open.length} open ${open.length === 1 ? 'opportunity' : 'opportunities'}`),
+    part('Weighted', money(weighted), "navToModule('analytics')", reporting(weighted) || 'Value × probability'),
+    part('MRR', money(mrr), "navToModule('agreements')", `${active} active ${active === 1 ? 'agreement' : 'agreements'}${wonThisMonth ? ` · ${wonThisMonth} won this month` : ''}`),
+  ].filter(Boolean);
+  void stat; void sentMonthly;
+  return parts.length ? `<div class="mdy-biz">${parts.join('<span class="mdy-biz-sep" aria-hidden="true">·</span>')}</div>` : '';
 }
 
 async function loadIntel(): Promise<void> {

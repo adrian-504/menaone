@@ -473,10 +473,11 @@ body{display:flex;min-height:100vh}
 .sb-search-btn kbd{margin-left:auto;font:inherit;font-size:var(--type-caption);background:var(--surface-2);border:1px solid var(--border);border-radius:4px;padding:1px 5px;color:var(--muted)}
 .sb-nav{flex:1;overflow-y:auto;overflow-x:hidden;padding:2px 10px 6px;display:flex;flex-direction:column;gap:2px}
 .sb-nav::-webkit-scrollbar{width:0}
-.sb-item{font:inherit;display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:9px;cursor:pointer;color:var(--sub);font-size:var(--type-body);font-weight:450;transition:background var(--dur-base) var(--ease-out),color var(--dur-base) var(--ease-out),box-shadow var(--dur-base) var(--ease-out),transform var(--dur-fast) var(--ease-out);white-space:nowrap;overflow:hidden;text-decoration:none;background:none;border:none;width:100%;text-align:left}
+.sb-item{font:inherit;display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:9px;cursor:pointer;color:var(--sub);font-size:var(--type-body);font-weight:450;transition:transform var(--dur-fast) var(--ease-out);white-space:nowrap;overflow:hidden;text-decoration:none;background:none;border:none;width:100%;text-align:left}
 .sb-item:hover{background:var(--surface-2);color:var(--text)}
 .sb-item:hover .sb-icon{transform:scale(1.08)}
 .sb-item:active{transform:scale(.98)}
+/* The active item switches at once: an animated fade left two items looking active while moving between pages. */
 .sb-item.active{background:var(--accent);color:var(--on-accent);font-weight:600;box-shadow:0 2px 8px rgba(42,95,224,.25)}
 .sb-item.active .icon{color:var(--on-accent)}
 .sb-item-sub{padding-left:26px}
@@ -2411,7 +2412,7 @@ dd:has(> .md-rel-link:not(:empty)) > select{flex:1;min-width:0}
 /* ── Engagement thread strip (src/lib/threadStrip.ts) ─────────────────────── */
 /* Wraps to a second line rather than truncating; the step name never goes. */
 .thread-host{margin:-6px 0 16px;container-type:inline-size}
-.thread-strip{display:flex;flex-wrap:wrap;align-items:center;row-gap:4px;min-width:0;padding:6px 10px;background:var(--surface-flat);border:1px solid var(--hairline);border-radius:var(--radius);font-size:var(--type-secondary)}
+.thread-strip{display:flex;flex-wrap:wrap;align-items:center;row-gap:4px;min-width:0;padding:0 2px;font-size:var(--type-secondary)}
 .ts-prefix{flex:0 0 auto;max-width:24ch;margin-right:10px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ts-node{--tone:var(--muted);display:inline-flex;align-items:center;gap:6px;flex:0 0 auto;max-width:100%;min-width:0;padding:3px 8px;border-radius:var(--radius-sm);white-space:nowrap}
 .ts-node.tone-green{--tone:var(--green)}.ts-node.tone-amber{--tone:var(--amber)}.ts-node.tone-red{--tone:var(--red)}.ts-node.tone-accent{--tone:var(--accent)}
@@ -2421,7 +2422,6 @@ dd:has(> .md-rel-link:not(:empty)) > select{flex:1;min-width:0}
 a.ts-name{color:var(--text);text-decoration:none}
 a.ts-name:hover{color:var(--accent);text-decoration:underline}
 a.ts-name:focus-visible,.ts-more:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
-.ts-node.is-current{background:var(--selected)}
 .ts-node.is-current .ts-kind{color:var(--text);font-weight:600}
 .ts-node.is-missing .ts-dot{background:none;border:1px dashed var(--muted)}
 .ts-more{font:inherit;font-size:var(--type-meta);padding:0 5px;border:1px solid var(--hairline);border-radius:10px;background:var(--surface);color:var(--sub);cursor:pointer}
@@ -2435,8 +2435,6 @@ a.ts-name:focus-visible,.ts-more:focus-visible{outline:2px solid var(--accent);o
 @container (max-width:560px){.ts-who{display:none}}
 /* Proposal page: the strip sits on the stage rail, so it's quiet — one header, not two bars. */
 #prd-thread{margin:-8px 0 4px}
-#prd-thread .thread-strip{background:none;border:none;padding:0 2px}
-#prd-thread .ts-node.is-current{background:none}
 
 /* ── Record timeline (src/lib/timeline.ts) ────────────────────────────────── */
 .rec-stack > .rec-section{margin-top:0}
@@ -2600,3 +2598,9 @@ details[open] > summary .svc-group-names{visibility:hidden}
 .fbar-panel-label{font-size:var(--type-meta);color:var(--muted)}
 .fbar-clear[hidden]{display:none}
 .pr-copy-name{opacity:0}.pr-next-name:hover .pr-copy-name,.pr-copy-name:focus-visible{opacity:1}
+/* My Day: the business numbers as one quiet line. */
+.mdy-biz{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 8px;font-size:var(--type-secondary);color:var(--text)}
+.mdy-biz-part{font:inherit;background:none;border:none;padding:2px 0;color:inherit;cursor:pointer;font-variant-numeric:tabular-nums}
+.mdy-biz-part:hover{color:var(--accent)}
+.mdy-biz-label{color:var(--muted)}
+.mdy-biz-sep{color:var(--muted)}

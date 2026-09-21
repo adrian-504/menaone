@@ -8,7 +8,7 @@ import { S } from '../lib/state';
 import { escHtml, expose, fmtDate, fmtDateFromIso, strColor } from '../lib/utils';
 import { icon } from '../lib/icons';
 import { companyLink, recordLink } from '../lib/links';
-import { emptyState, toast, undoToast } from '../lib/ui';
+import { toast, undoToast } from '../lib/ui';
 import { persistContacts } from '../lib/persist';
 import { notifyNavigated, refreshCompanyViewIfOpen } from '../lib/registry';
 import { getActivity, getLinksFor, ms365GetEmailsByAddress } from '../lib/db';
@@ -202,6 +202,8 @@ expose('deleteContactWithUndo', deleteContactWithUndo);
 async function renderContactRelations(c: Contact): Promise<void> {
   const id = c.id;
   const email = (c.email || '').toLowerCase();
+  // A section with nothing in it and nothing to do isn't shown (Focus).
+  const showSection = (listId: string, on: boolean) => { const sec = document.getElementById(listId)?.closest('section'); if (sec) sec.hidden = !on; };
   const name = (c.name || '').trim();
   const lowerName = name.toLowerCase();
 
@@ -211,9 +213,10 @@ async function renderContactRelations(c: Contact): Promise<void> {
     || (lowerName.length > 3 && (m.attendees || []).some((a) => a.toLowerCase().includes(lowerName))))
     .sort((a, b) => (b.meetingDate || '').localeCompare(a.meetingDate || ''));
   setCount('ctd-meetings-count', meetings.length);
+  showSection('ctd-meetings', meetings.length > 0);
   setHtml('ctd-meetings', meetings.length
     ? meetings.map((m) => `<div class="rec-row" onclick="openRecord('meeting', ${m.id})"><span class="rec-row-icon">${icon('meeting', 15)}</span><div class="rec-row-main"><div class="rec-row-title">${recordLink('meeting', m.id, m.title)}</div><div class="rec-row-sub">${escHtml([m.meetingDate ? fmtDate(m.meetingDate) : '', m.companyName].filter(Boolean).join(' · '))}</div></div></div>`).join('')
-    : emptyState({ icon: 'meeting', title: 'No meetings found', body: 'Meetings synced from Outlook with this person attending show up here.', compact: true }));
+    : '');
 
   // Mentioned in tasks and notes.
   const mentions = lowerName.length > 3 ? [
@@ -221,9 +224,10 @@ async function renderContactRelations(c: Contact): Promise<void> {
     ...S.notes.filter((n) => `${n.title || ''} ${n.content || ''}`.toLowerCase().includes(lowerName)).map((n) => ({ kind: 'note' as const, id: n.id, title: n.title || 'Untitled', sub: `Note · ${fmtDate(n.updatedAt)}` })),
   ] : [];
   setCount('ctd-mentions-count', mentions.length);
+  showSection('ctd-mentions', mentions.length > 0);
   setHtml('ctd-mentions', mentions.length
     ? mentions.map((m) => `<div class="rec-row" onclick="openRecord('${m.kind}', ${m.id})"><span class="rec-row-icon">${icon(m.kind === 'task' ? 'check' : 'note', 15)}</span><div class="rec-row-main"><div class="rec-row-title">${recordLink(m.kind, m.id, m.title)}</div><div class="rec-row-sub">${escHtml(m.sub)}</div></div></div>`).join('')
-    : emptyState({ icon: 'search', title: 'Not mentioned anywhere yet', body: 'Tasks and notes that mention this person by name appear here.', compact: true }));
+    : '');
 
   const [links, emails, activity] = await Promise.all([
     getLinksFor('contact', id).catch(() => []),
@@ -235,14 +239,16 @@ async function renderContactRelations(c: Contact): Promise<void> {
   const oppIds = new Set(links.filter((l) => l.fromType === 'contact' && l.toType === 'opportunity').map((l) => l.toId));
   const opps = S.opportunities.filter((o) => oppIds.has(o.id));
   setCount('ctd-opps-count', opps.length);
+  showSection('ctd-opps', opps.length > 0);
   setHtml('ctd-opps', opps.length
     ? opps.map((o) => `<div class="rec-row" onclick="openRecord('opportunity', ${o.id})"><span class="rec-row-icon">${icon('briefcase', 15)}</span><div class="rec-row-main"><div class="rec-row-title">${recordLink('opportunity', o.id, o.name)}</div><div class="rec-row-sub">${escHtml([o.stage, o.companyName].filter(Boolean).join(' · '))}</div></div></div>`).join('')
-    : emptyState({ icon: 'briefcase', title: 'Not on any opportunity', body: 'Link this person from an opportunity’s Contacts section.', compact: true }));
+    : '');
 
   setCount('ctd-emails-count', emails.length);
+  showSection('ctd-emails', emails.length > 0);
   setHtml('ctd-emails', emails.length
     ? emails.map((e) => `<div class="rec-row"${e.webLink ? ` onclick="openExternalUrl('${escHtml(e.webLink)}')"` : ''}><span class="rec-row-icon">${icon('mail', 15)}</span><div class="rec-row-main"><div class="rec-row-title">${escHtml(e.subject || '(no subject)')}</div><div class="rec-row-sub">${escHtml([e.senderName || e.senderEmail, e.receivedAt ? fmtDateFromIso(e.receivedAt) : ''].filter(Boolean).join(' · '))}</div></div></div>`).join('')
-    : emptyState({ icon: 'mail', title: email ? 'No emails with this address' : 'No email address', body: email ? 'Flagged Outlook emails from or to this person appear here.' : 'Add an email address to see their emails.', compact: true }));
+    : '');
 
   const feed = document.getElementById('ctd-activity');
   if (feed) feed.innerHTML = renderFeed(activity.map(activityItem), { empty: 'Nothing recorded yet.' });

@@ -8,7 +8,7 @@ import { S } from '../lib/state';
 import { renderIcons } from '../core/chrome';
 import { toast } from '../lib/ui';
 import { escHtml, expose, today } from '../lib/utils';
-import { getActivity, getAppMeta, setAppMeta } from '../lib/db';
+import { getActivity } from '../lib/db';
 import { invoke } from '@tauri-apps/api/core';
 import { refreshAll } from '../lib/registry';
 import { onChange, touches } from '../lib/changes';
@@ -35,6 +35,25 @@ export function renderThreadStrip(elId: string, record: Rec): void {
   el.innerHTML = html;
   el.hidden = !html;
   renderIcons(el);
+  fitThreadStrip(el);
+}
+
+/** A missing step never sits alone on a second line: if the last one wraps
+ * by itself, it's dropped (with its gap) rather than wrapped. */
+export function fitThreadStrip(host: HTMLElement): void {
+  const strip = host.querySelector('.thread-strip');
+  if (!strip) return;
+  for (let guard = 0; guard < 3; guard++) {
+    const nodes = [...strip.querySelectorAll<HTMLElement>(':scope > .ts-node')];
+    if (nodes.length < 2) return;
+    const last = nodes[nodes.length - 1];
+    const prev = nodes[nodes.length - 2];
+    if (!last.classList.contains('is-missing') || last.querySelector('.ts-next')) return;
+    if (last.offsetTop <= prev.offsetTop + 2) return;
+    const gap = last.previousElementSibling;
+    last.remove();
+    if (gap?.classList.contains('ts-gap')) gap.remove();
+  }
 }
 
 /** The strip's one next action. */
@@ -74,18 +93,11 @@ expose('threadOthersMenu', threadOthersMenu);
 
 // ── Timeline ────────────────────────────────────────────────────────────────
 
-let scope: 'record' | 'engagement' = 'record';
-let scopeLoaded = false;
-async function loadScope(): Promise<void> {
-  if (scopeLoaded) return;
-  scopeLoaded = true;
-  try { scope = (await getAppMeta('timeline_scope')) === 'engagement' ? 'engagement' : 'record'; } catch { /* default */ }
-}
-
 interface TimelineMount {
   elId: string;
   /** The record — or, on Company 360, the company (every record of it, and its own meetings, tasks and promises). */
   record?: Rec; company?: { id: number | null; name: string };
+  /** Opportunity and project pages show the whole engagement (every record on the thread). */
   scopeToggle: boolean;
   /** Dated history that isn't in the activity log (given the log's rows, to avoid repeating them). */
   extraPast?: (activity: ActivityEntry[]) => FeedItem[]; header?: string; milestones?: () => Milestone[]; skipPast?: (action: string) => boolean }
@@ -107,12 +119,11 @@ function companyTimelineRecords(co: { id: number | null; name: string }): Rec[] 
 /** A record's timeline, replacing its Activity section. */
 export async function renderRecordTimeline(m: TimelineMount): Promise<void> {
   mounts.set(m.elId, m);
-  await loadScope();
   const el = document.getElementById(m.elId);
   if (!el) return;
   const co = m.company;
   const thread = m.record ? engagementThread(m.record, S, today()) : null;
-  const useThread = !!thread && m.scopeToggle && scope === 'engagement' && thread.nodes.length > 1;
+  const useThread = !!thread && m.scopeToggle && thread.nodes.length > 1;
   const records: Rec[] = co
     ? companyTimelineRecords(co)
     : useThread
@@ -126,12 +137,7 @@ export async function renderRecordTimeline(m: TimelineMount): Promise<void> {
     agreements: S.agreements, projects: S.projects, milestones: m.milestones?.() || [], company: co,
   });
   const now = new Date();
-  const toggle = m.record && thread && m.scopeToggle && thread.nodes.length > 1
-    ? `<div class="segmented tl-scope" role="group" aria-label="Timeline of">
-        <button class="${scope === 'record' ? 'active' : ''}" onclick="setTimelineScope('record')">This ${m.record.kind}</button>
-        <button class="${scope === 'engagement' ? 'active' : ''}" onclick="setTimelineScope('engagement')">Whole engagement</button></div>`
-    : '';
-  el.innerHTML = `<div class="rec-section-hd tl-hd"><h2>Timeline</h2>${toggle}<div class="rec-section-actions">${m.header || ''}</div></div>
+  el.innerHTML = `<div class="rec-section-hd tl-hd"><h2>Timeline</h2><div class="rec-section-actions">${m.header || ''}</div></div>
     <div class="tl">${recordTimelineHtml(tl, {
       today: today(), nowLabel: `Now · ${now.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`,
       pastLimit: showAll.has(m.elId) ? null : PAST_LIMIT, showEarlier: `showEarlierTimeline('${m.elId}')`, extraPast: m.extraPast?.(activity),
@@ -143,12 +149,6 @@ export function rerenderTimelines(): void {
   for (const m of mounts.values()) if (document.getElementById(m.elId)) void renderRecordTimeline(m);
 }
 
-export function setTimelineScope(v: 'record' | 'engagement'): void {
-  scope = v;
-  void setAppMeta('timeline_scope', v).catch(() => undefined);
-  rerenderTimelines();
-}
-expose('setTimelineScope', setTimelineScope);
 
 export function showEarlierTimeline(elId: string): void {
   showAll.add(elId);

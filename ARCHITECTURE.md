@@ -445,6 +445,35 @@ One surface, hairlines, fewer of everything; tokens and components only, no layo
 - `src/tabs/companyState.ts`: the input from the loaded data, a cache of each company's pinned notes, and the clause renderer shared by Company 360 and the meeting page. `src/tabs/companyBriefView.ts`: the Brief overlay and its print stylesheet; `window.print()` needs `core:webview:allow-print` on macOS.
 - Company 360 (`companies.ts`): state block, Open threads (`threadStripHtml` with `prefix` and `labelCurrent`), People, the shared timeline (`renderRecordTimeline` with `company`), Company notes with pins, and "All records" (open state in `app_meta.company_records_open`). Key facts moved to the edit panel.
 
+## Focus pass
+
+Subtraction, no schema change: every page should say where to look (rules in `docs/ux-conventions.md`, "Focus").
+
+- `src/lib/propsList.ts`: read-first property lists. Rows render as text; click/Enter swaps one row for its existing control (the page's own change handler saves it); Esc restores; leaving returns it to text; Edit/Done shows the whole form. Used by the agreement, proposal, opportunity, project, meeting and contact pages. Tested in jsdom.
+- `src/lib/moreDetails.ts`: create dialogs fold `.fgrp-more` fields behind "More details" unless prefilled. `src/lib/filterBar.ts`: list pages keep search and two filters; the rest move into a "Filters" panel (same elements, ids and remembered values).
+- New proposal: service search with the five most-used services (counted from proposal lines), defaults as summary lines, no record rail. `recordRail.ts`: closed unless opened (⇧⌘\\).
+- `scripts/focus-check.mjs` (`npm run focus-check`): headless Chrome over the dev preview's sample data; counts, per view at 1440×900 before scrolling and outside the sidebar, location bar and record rail, the inputs, buttons (not text links) and blue buttons. Before (0236e22) → after:
+
+| Page | Inputs | Buttons | Blue | Filters | Height (px) |
+|---|---|---|---|---|---|
+| Agreement | 26 → 0 | 4 → 5 | 0 | | 1600 → 1235 |
+| Proposal (in review) | 19 → 1 | 14 → 8 | 2 → 1 | | 1970 → 1606 |
+| Proposal (sent) | 19 → 0 | 12 → 6 | 1 | | 1979 → 1405 |
+| New proposal | 3 → 4 | 24 → 8 | 2 → 1 | | 1731 → 900 |
+| Opportunity | 7 → 1 | 14 → 13 | 1 | | 1733 → 1713 |
+| Project | 5 → 0 | 10 → 6 | 1 | | 900 → 1229 |
+| Meeting | 8 → 3 | 16 | 0 | | 1506 → 1484 |
+| Contact | 7 → 0 | 2 → 3 | 0 | | 1017 → 900 |
+| Company | 0 | 18 → 16 | 1 | | 2780 |
+| Services | 2 | 11 | 8 → 1 | 2 | 3285 → 1078 |
+| Proposals list | 12 → 8 | 10 | 1 | 7 → 3 | |
+| Companies list | 8 → 3 | 9 | 1 | 8 → 3 | |
+| Agreements list | 6 → 4 | 4 | 1 | 5 → 3 | |
+| Contacts list | 4 → 3 | 12 → 13 | 2 → 1 | 4 → 3 | |
+| My Day | 1 | 28 → 23 | 1 | | 1149 |
+
+The project page is taller because its timeline now leads it; the opportunity's one input is its Description, the meeting's three are its two note editors and the action-item line — places where typing is the point.
+
 ## People from email
 
 - Contacts → "People from your email": people you correspond with who aren't contacts yet. `ms365/email_people.rs` reads message envelopes only (sender, recipients, date, Outlook's focused/other) from the Inbox and Sent Items for the last 24 months, tallies them per address (sent, received, received as bulk, copied, first and last) and keeps the tally in `app_meta.email_people_scan`; the mailbox is read only when asked.
