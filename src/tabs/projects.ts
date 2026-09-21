@@ -3,6 +3,7 @@ import { emptyState } from '../lib/ui';
 import { recordLink } from '../lib/links';
 import { renderRecordTimeline, renderThreadStrip } from './recordThread';
 import { collapseEmptySections } from '../lib/sectionLayout';
+import { mountPropsList, propsEditButton, propsListHtml, type PropField } from '../lib/propsList';
 import { renderIcons } from '../core/chrome';
 import { registerDragSource, registerDropTarget, reorder } from '../lib/dnd';
 import { loadInto } from '../lib/ui';
@@ -171,18 +172,10 @@ async function renderProjectDetail(): Promise<void> {
     p.startDate ? `<span class="rec-meta">Started ${fmtDate(p.startDate)}</span>` : '',
     p.targetDate ? `<span class="rec-meta">Target ${fmtDate(p.targetDate)}</span>` : '',
   ].filter(Boolean).join('');
-  (document.getElementById('pd-status-sel') as HTMLSelectElement).value = p.status;
-  (document.getElementById('pd-priority-sel') as HTMLSelectElement).value = p.priority;
-  (document.getElementById('pd-owner-inp') as HTMLInputElement).value = p.owner || '';
-  const startInp = document.getElementById('pd-start-inp') as HTMLInputElement | null; if (startInp) startInp.value = p.startDate || '';
-  const targetInp = document.getElementById('pd-target-inp') as HTMLInputElement | null; if (targetInp) targetInp.value = p.targetDate || '';
+  renderProjectProps(p);
   fillTeamNames();
   (document.getElementById('pd-progress-txt') as HTMLElement).textContent = `${p.computedProgress}%`;
   (document.getElementById('pd-progress-fill') as HTMLElement).style.width = `${p.computedProgress}%`;
-  const companyLinkEl = document.getElementById('pd-company-link') as HTMLElement;
-  companyLinkEl.innerHTML = p.companyName
-    ? companyLink(p.companyId, p.companyName)
-    : '<span class="rec-muted">Internal initiative</span>';
 
   const archiveBtn = document.getElementById('pd-archive-btn'); if (archiveBtn) archiveBtn.textContent = p.archived ? 'Unarchive' : 'Archive';
 
@@ -209,6 +202,29 @@ function layoutProjectSections(): void {
     el: x,
     empty: x.id === 'pd-milestones-sec' ? inner('pd-milestones') : x.id === 'pd-tasks-sec' ? inner('pd-tasks') : x.id === 'pd-files-sec' ? inner('pd-files') : !!x.querySelector(':scope > .feed-empty'),
   })));
+}
+
+const PROJECT_STATUSES = ['Idea', 'Planning', 'Not Started', 'In Progress', 'At Risk', 'On Hold', 'Completed', 'Cancelled'];
+
+/** Details, read first (lib/propsList.ts). */
+function renderProjectProps(p: Project): void {
+  const el = document.getElementById('pd-props');
+  if (!el) return;
+  const sel = (id: string, options: string[], value: string, onchange: string) => () =>
+    `<select id="${id}" class="td-select" onchange="${onchange}">${options.map((o) => `<option${o === value ? ' selected' : ''}>${escHtml(o)}</option>`).join('')}</select>`;
+  const inp = (id: string, attrs: string, value: string, onchange: string) => () =>
+    `<input id="${id}" class="td-input" ${attrs} value="${escHtml(value)}" onchange="${onchange}" onkeydown="if(event.key==='Enter')this.blur()">`;
+  const fields: PropField[] = [
+    { key: 'status', label: 'Status', display: escHtml(p.status), always: true, control: sel('pd-status-sel', PROJECT_STATUSES, p.status, 'changeCurrentProjectStatus(this.value)') },
+    { key: 'priority', label: 'Priority', display: escHtml(p.priority), control: sel('pd-priority-sel', ['High', 'Medium', 'Low'], p.priority, "autoSaveProjectField('priority',this.value)") },
+    { key: 'owner', label: 'Owner', display: p.owner ? escHtml(p.owner) : '', always: true, control: inp('pd-owner-inp', 'placeholder="Add owner" list="team-names"', p.owner || '', "autoSaveProjectField('owner',this.value)") },
+    { key: 'company', label: 'Company', display: p.companyName ? companyLink(p.companyId, p.companyName) : '<span class="rec-muted">Internal initiative</span>' },
+    { key: 'start', label: 'Start', display: p.startDate ? escHtml(fmtDate(p.startDate)) : '', control: inp('pd-start-inp', 'type="date"', p.startDate || '', "autoSaveProjectField('startDate',this.value)") },
+    { key: 'target', label: 'Target', display: p.targetDate ? escHtml(fmtDate(p.targetDate)) : '', control: inp('pd-target-inp', 'type="date"', p.targetDate || '', "autoSaveProjectField('targetDate',this.value)") },
+  ];
+  el.innerHTML = propsListHtml('pd-props', fields, () => { const cur = S.projects.find((x) => x.id === S.currentProjectId); if (cur) renderProjectProps(cur); });
+  const act = document.getElementById('pd-props-act'); if (act) act.innerHTML = propsEditButton('pd-props');
+  mountPropsList('pd-props');
 }
 
 async function renderLinkedFiles(projectId: number): Promise<void> {

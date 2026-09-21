@@ -1,4 +1,5 @@
 import { S } from '../lib/state';
+import { mountPropsList, propsEditButton, propsListHtml, type PropField } from '../lib/propsList';
 import { collapseEmptySections } from '../lib/sectionLayout';
 import { statusBadge } from '../lib/statusTone';
 import { orderMeetings } from '../lib/meetingOrder';
@@ -127,15 +128,6 @@ export function openMeetingDetail(id: number): void {
     (m.attendees || []).length ? `<span class="rec-meta" title="${escHtml(m.attendees.join(', '))}">${icon('people', 12)} ${m.attendees.length} attendee${m.attendees.length === 1 ? '' : 's'}</span>` : '',
   ].filter(Boolean).join('');
 
-  const projSel = document.getElementById('md-project-sel') as HTMLSelectElement;
-  projSel.innerHTML = `<option value="">— No project —</option>` + S.projects.filter((p) => !p.archived).map((p) => `<option value="${p.id}">${escHtml(p.name)}</option>`).join('');
-  projSel.value = m.projectId != null ? String(m.projectId) : '';
-  const companyInp = document.getElementById('md-company-inp') as HTMLInputElement;
-  companyInp.value = m.companyName || '';
-  attachCompanySelector(companyInp);
-  const oppSel = document.getElementById('md-opportunity-sel') as HTMLSelectElement;
-  oppSel.innerHTML = `<option value="">— No opportunity —</option>` + S.opportunities.filter((o) => !o.archived).map((o) => `<option value="${o.id}">${escHtml(o.name)}</option>`).join('');
-  oppSel.value = m.opportunityId != null ? String(m.opportunityId) : '';
   renderMeetingRelationLinks(m);
 
   // Before and during the meeting, the client brief comes first to prepare;
@@ -245,18 +237,27 @@ function currentMeeting(): Meeting | undefined {
 }
 
 /** "Open" links beside the meeting's project and opportunity pickers. */
+/** Details, read first (lib/propsList.ts): company, project, opportunity as links; click to change. */
 function renderMeetingRelationLinks(m: Meeting): void {
+  const el = document.getElementById('md-props');
+  if (!el) return;
   const project = m.projectId != null ? S.projects.find((p) => p.id === m.projectId) : undefined;
   const opp = m.opportunityId != null ? S.opportunities.find((o) => o.id === m.opportunityId) : undefined;
-  const set = (id: string, html: string) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
-  set('md-company-link', m.companyName ? companyLink(m.companyId, m.companyName, { className: 'md-open-link' }).replace(`>${escHtml(m.companyName)}<`, '>Open<') : '');
   // Meeting notes live on this page now; a note filed from it before stays reachable.
   const note = m.noteId != null ? S.notes.find((n) => n.id === m.noteId) : undefined;
-  set('md-note-link', note ? recordLink('note', note.id, note.title || 'Meeting note') : '');
-  document.getElementById('md-note-dt')!.hidden = !note;
-  document.getElementById('md-note-link')!.hidden = !note;
-  set('md-project-link', project ? recordLink('project', project.id, 'Open', { className: 'md-open-link' }) : '');
-  set('md-opportunity-link', opp ? recordLink('opportunity', opp.id, 'Open', { className: 'md-open-link' }) : '');
+  const fields: PropField[] = [
+    { key: 'company', label: 'Company', display: m.companyName ? companyLink(m.companyId, m.companyName) : '', always: true,
+      control: () => `<input id="md-company-inp" class="td-input" placeholder="No company" value="${escHtml(m.companyName || '')}" onchange="autoSaveMeetingCompany(this.value)" onkeydown="if(event.key==='Enter')this.blur()">`,
+      mount: (dd) => { const c = dd.querySelector<HTMLInputElement>('input'); if (c) attachCompanySelector(c); } },
+    { key: 'project', label: 'Project', display: project ? recordLink('project', project.id, project.name) : '',
+      control: () => `<select id="md-project-sel" class="td-select" onchange="autoSaveMeetingProject(this.value)"><option value="">— No project —</option>${S.projects.filter((p) => !p.archived || p.id === m.projectId).map((p) => `<option value="${p.id}"${p.id === m.projectId ? ' selected' : ''}>${escHtml(p.name)}</option>`).join('')}</select>` },
+    { key: 'opportunity', label: 'Opportunity', display: opp ? recordLink('opportunity', opp.id, opp.name) : '',
+      control: () => `<select id="md-opportunity-sel" class="td-select" onchange="autoSaveMeetingOpportunity(this.value)"><option value="">— No opportunity —</option>${S.opportunities.filter((o) => !o.archived || o.id === m.opportunityId).map((o) => `<option value="${o.id}"${o.id === m.opportunityId ? ' selected' : ''}>${escHtml(o.name)}</option>`).join('')}</select>` },
+    { key: 'note', label: 'Older note', display: note ? recordLink('note', note.id, note.title || 'Meeting note') : '' },
+  ];
+  el.innerHTML = propsListHtml('md-props', fields, () => { const cur = currentMeeting(); if (cur) renderMeetingRelationLinks(cur); });
+  const act = document.getElementById('md-props-act'); if (act) act.innerHTML = propsEditButton('md-props');
+  mountPropsList('md-props');
 }
 
 export function autoSaveMeetingProject(value: string): void {

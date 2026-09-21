@@ -2,6 +2,8 @@
 // they're in, and everything they're part of: opportunities, meetings they
 // attended, emails with them, tasks and notes that mention them, and activity.
 
+import { endPropsEdit, mountPropsList, propsEditButton, propsListHtml, type PropField } from '../lib/propsList';
+import { jsString } from './companyState';
 import { S } from '../lib/state';
 import { escHtml, expose, fmtDate, fmtDateFromIso, strColor } from '../lib/utils';
 import { icon } from '../lib/icons';
@@ -101,17 +103,27 @@ const FIELDS: { key: keyof Contact; label: string; type?: string; placeholder: s
   { key: 'service', label: 'Service', placeholder: 'Service they look after' },
 ];
 
+/** Details, read first (lib/propsList.ts); email and phone read as links, copy on hover. */
 function renderContactProps(c: Contact): void {
   const el = document.getElementById('ctd-props');
   if (!el) return;
-  el.innerHTML = FIELDS.map((f) => {
+  const fields: PropField[] = FIELDS.map((f) => {
     const value = (c[f.key] as string | null) || '';
     const copy = value && (f.key === 'email' || f.key === 'phone' || f.key === 'whatsapp')
-      ? `<button class="rec-icon-btn ctd-copy" onclick="copyText('${escHtml(value)}','${f.label} copied')" title="Copy ${f.label.toLowerCase()}" aria-label="Copy ${f.label.toLowerCase()}">${icon('copy', 13)}</button>` : '';
-    return `<dt>${f.label}</dt><dd class="ctd-field"><input class="td-input" id="ctd-f-${f.key}" type="${f.type || 'text'}" value="${escHtml(value)}" placeholder="${f.placeholder}" onchange="contactFieldChanged('${f.key}', this.value)" onkeydown="if(event.key==='Enter')this.blur()">${copy}</dd>`;
-  }).join('');
-  const company = document.getElementById('ctd-f-clientName') as HTMLInputElement | null;
-  if (company) attachCompanySelector(company, { onSelect: (name) => contactFieldChanged('clientName', name) });
+      ? `<button class="rec-icon-btn ctd-copy" onclick="copyText('${jsString(value)}','${f.label} copied')" title="Copy ${f.label.toLowerCase()}" aria-label="Copy ${f.label.toLowerCase()}">${icon('copy', 13)}</button>` : '';
+    const display = !value ? ''
+      : f.key === 'clientName' ? companyLink(c.companyId, value)
+      : f.key === 'email' ? `<a href="#" class="rlink" onclick="event.preventDefault();openExternalUrl('mailto:${escHtml(value)}')">${escHtml(value)}</a>${copy}`
+      : `${escHtml(value)}${copy}`;
+    return {
+      key: String(f.key), label: f.label, display, always: f.key === 'name' || f.key === 'clientName',
+      control: () => `<input class="td-input" id="ctd-f-${f.key}" type="${f.type || 'text'}" value="${escHtml(value)}" placeholder="${f.placeholder}" onchange="contactFieldChanged('${f.key}', this.value)" onkeydown="if(event.key==='Enter')this.blur()">`,
+      mount: f.key === 'clientName' ? (dd: HTMLElement) => { const i = dd.querySelector<HTMLInputElement>('input'); if (i) attachCompanySelector(i, { onSelect: (name) => { endPropsEdit(); contactFieldChanged('clientName', name); } }); } : undefined,
+    };
+  });
+  el.innerHTML = propsListHtml('ctd-props', fields, () => { const cur = currentContact(); if (cur) renderContactProps(cur); });
+  const act = document.getElementById('ctd-props-act'); if (act) act.innerHTML = propsEditButton('ctd-props');
+  mountPropsList('ctd-props');
 }
 
 export function contactFieldChanged(key: keyof Contact, value: string): void {

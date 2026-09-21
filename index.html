@@ -552,13 +552,8 @@
     </div>
     <aside class="rec-side">
       <section class="sec rec-side-card">
-        <div class="rec-section-hd"><h2>Details</h2></div>
-        <dl class="rec-props rec-props-edit">
-          <dt>Company</dt><dd><input id="md-company-inp" class="td-input" placeholder="No company" onchange="autoSaveMeetingCompany(this.value)"><span class="md-rel-link" id="md-company-link"></span></dd>
-          <dt>Project</dt><dd><select id="md-project-sel" class="td-select" onchange="autoSaveMeetingProject(this.value)"></select><span class="md-rel-link" id="md-project-link"></span></dd>
-          <dt>Opportunity</dt><dd><select id="md-opportunity-sel" class="td-select" onchange="autoSaveMeetingOpportunity(this.value)"></select><span class="md-rel-link" id="md-opportunity-link"></span></dd>
-          <dt id="md-note-dt" hidden>Older note</dt><dd id="md-note-link" hidden></dd>
-        </dl>
+        <div class="rec-section-hd"><h2>Details</h2><div class="rec-section-actions" id="md-props-act"></div></div>
+        <dl class="rec-props" id="md-props"></dl>
         <div class="rec-side-extra" id="md-outlook-card" style="display:none"><div id="md-outlook-info"></div></div>
       </section>
       <section class="sec rec-side-card md-earlier" id="md-earlier" hidden></section>
@@ -951,19 +946,8 @@
     </div>
     <aside class="rec-side">
       <section class="sec rec-side-card">
-        <div class="rec-section-hd"><h2>Details</h2></div>
-        <dl class="rec-props rec-props-edit">
-          <dt>Status</dt><dd><select id="pd-status-sel" class="td-select" onchange="changeCurrentProjectStatus(this.value)">
-            <option>Idea</option><option>Planning</option><option>Not Started</option>
-            <option>In Progress</option><option>At Risk</option><option>On Hold</option>
-            <option>Completed</option><option>Cancelled</option>
-          </select></dd>
-          <dt>Priority</dt><dd><select id="pd-priority-sel" class="td-select" onchange="autoSaveProjectField('priority',this.value)"><option>High</option><option>Medium</option><option>Low</option></select></dd>
-          <dt>Owner</dt><dd><input id="pd-owner-inp" class="td-input" placeholder="Add owner" list="team-names" onchange="autoSaveProjectField('owner',this.value)"></dd>
-          <dt>Company</dt><dd id="pd-company-link" class="rec-prop-text"></dd>
-          <dt>Start</dt><dd><input id="pd-start-inp" type="date" class="td-input" onchange="autoSaveProjectField('startDate',this.value)"></dd>
-          <dt>Target</dt><dd><input id="pd-target-inp" type="date" class="td-input" onchange="autoSaveProjectField('targetDate',this.value)"></dd>
-        </dl>
+        <div class="rec-section-hd"><h2>Details</h2><div class="rec-section-actions" id="pd-props-act"></div></div>
+        <dl class="rec-props" id="pd-props"></dl>
         <div class="rec-progress">
           <span class="rec-progress-lbl">Progress</span>
           <div class="project-progress-track"><div class="project-progress-fill" id="pd-progress-fill"></div></div>
@@ -1108,16 +1092,9 @@
     </div>
     <aside class="rec-side">
       <section class="sec rec-side-card">
-        <div class="rec-section-hd"><h2>Details</h2></div>
-        <dl class="rec-props rec-props-edit">
-          <dt>Company</dt><dd><input id="od-company-inp" class="td-input" placeholder="No company" onchange="autoSaveOpportunityField('companyName',this.value)"></dd>
-          <dt>Stage</dt><dd><select id="od-stage-sel" class="td-select" onchange="changeCurrentOpportunityStage(this.value)"></select></dd>
-          <dt>Owner</dt><dd><input id="od-owner-inp" class="td-input" placeholder="Add owner" list="team-names" onchange="autoSaveOpportunityField('owner',this.value)"></dd>
-          <dt>Value</dt><dd><input id="od-value-inp" type="number" class="td-input" placeholder="0" onchange="autoSaveOpportunityNumber('estimatedValue',this.value)"></dd>
-          <dt>Probability</dt><dd><input id="od-probability-inp" type="number" min="0" max="100" class="td-input" placeholder="%" onchange="autoSaveOpportunityNumber('probability',this.value)"></dd>
-          <dt>Expected close</dt><dd><input id="od-close-date-inp" type="date" class="td-input" onchange="autoSaveOpportunityField('expectedCloseDate',this.value)"></dd>
-          <dt>Waiting on</dt><dd id="od-waiting"></dd>
-        </dl>
+        <div class="rec-section-hd"><h2>Details</h2><div class="rec-section-actions" id="od-props-act"></div></div>
+        <dl class="rec-props" id="od-props"></dl>
+        <dl class="rec-props"><dt>Waiting on</dt><dd id="od-waiting"></dd></dl>
       </section>
     </aside>
     </div>
@@ -1451,7 +1428,7 @@
   </header>
   <div class="ctd-grid">
     <aside class="sec ctd-props-card">
-      <div class="rec-section-hd"><h2>Details</h2><span class="rec-save-state" id="ctd-save-state"></span></div>
+      <div class="rec-section-hd"><h2>Details</h2><span class="rec-save-state" id="ctd-save-state"></span><div class="rec-section-actions" id="ctd-props-act"></div></div>
       <dl class="rec-props ctd-props" id="ctd-props"></dl>
       <div class="rec-section-hd rec-section-hd-spaced"><h2>Lists</h2></div>
       <div class="ctd-lists" id="ctd-lists"></div>

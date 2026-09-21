@@ -2553,3 +2553,6 @@ body.brief-open{overflow:hidden}
 /* Row actions appear on hover or keyboard focus (Focus rule 5). */
 .pr-folder-file .rec-row-actions,#prd-docs .rec-row-actions{visibility:hidden}
 .pr-folder-file:hover .rec-row-actions,.pr-folder-file:focus-within .rec-row-actions,#prd-docs .rec-row:hover .rec-row-actions,#prd-docs .rec-row:focus-within .rec-row-actions{visibility:visible}
+.ctd-copy{opacity:0}.pl-val:hover .ctd-copy,.ctd-copy:focus-visible{opacity:1}
+.md-task-add:not(:focus-within):not(.has-text) > :not(.md-task-title):not(datalist){display:none}
+.md-task-add:not(:focus-within):not(.has-text) .md-task-title{flex:1 1 100%}

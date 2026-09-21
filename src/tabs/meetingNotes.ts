@@ -192,10 +192,11 @@ function ownerOptions(m: Meeting): string[] {
   return [...new Set([...team, ...(m.attendees || [])].map((n) => n.trim()).filter(Boolean))];
 }
 
+/** One line to type an action item; owner, date and Add appear while it's being written. */
 function actionAddRow(m: Meeting): string {
   const enter = `onkeydown="if(event.key==='Enter'){event.preventDefault();addMeetingAction()}"`;
   return `<div class="md-task-add">
-    <input id="md-task-input" class="md-task-title" placeholder="Add an action item — e.g. Send the revised quote fri" ${enter}>
+    <input id="md-task-input" class="md-task-title" placeholder="Add an action item — e.g. Send the revised quote fri" oninput="this.parentElement.classList.toggle('has-text', !!this.value)" ${enter}>
     <input id="md-task-owner" class="md-task-owner" list="md-owner-list" placeholder="Owner" ${enter}>
     <input id="md-task-due" class="md-task-due" type="date" aria-label="Due date" ${enter}>
     <button class="btn-secondary btn-sm" onclick="addMeetingAction()">Add</button>

@@ -57,6 +57,8 @@ export function mountPropsList(listId: string): void {
     const original = control.value;
     // A change is saved by the page, which then redraws: the row is text again.
     dd.addEventListener('change', () => { editing = null; }, true);
+    // Pages that save without redrawing (debounced autosave) still get the row back as text.
+    dd.addEventListener('change', () => { window.setTimeout(() => { if (dd.isConnected && !editing) state.render(); }, 0); });
     control.focus();
     if (control instanceof HTMLInputElement && ['text', 'url', 'number', 'email'].includes(control.type)) control.select();
     control.addEventListener('keydown', (e) => {
