@@ -4,6 +4,7 @@
 // beside the list instead of an edit dialog. Board and Calendar views show
 // the same list's tasks.
 
+import { foldMoreDetails } from '../lib/moreDetails';
 import { S } from '../lib/state';
 import { toast, undoToast, emptyState } from '../lib/ui';
 import { companyLink, recordLink } from '../lib/links';
@@ -1302,6 +1303,8 @@ export function openTodoModal(id: number | null, ctx: WorkContext | null = null)
   if (tagsContainer) renderTagChips(tagsContainer, modalTaskTags, (tags) => { modalTaskTags = tags; }, { placeholder: 'Add tag...', suggestions: S.allTags });
   document.getElementById('modal-todo')?.classList.add('open');
   (f.elements.namedItem('todoTitle') as HTMLInputElement | null)?.focus();
+  // Optional fields wait behind "More details" unless the context filled one (after any deferred prefill).
+  window.setTimeout(() => foldMoreDetails('todo-form'), 60);
 }
 expose('openTodoModal', openTodoModal);
 

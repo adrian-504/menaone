@@ -6,6 +6,7 @@
 // Notes/Contacts are linked through the existing entity_links Work Graph,
 // not new relationship fields — Meetings/Documents use a direct FK, same
 // convention Project already uses for those two.
+import { foldMoreDetails } from '../lib/moreDetails';
 import { statusBadge } from '../lib/statusTone';
 import { addMoney, fmtMoneyByCurrency, currentUser, matchesOwnerFilter, ownerFilterOptions, type MoneyByCurrency } from '../lib/commercial';
 import { opportunityHealth } from '../lib/pipeline';
@@ -329,6 +330,8 @@ export function openOpportunityModal(id: number | null, ctx: WorkContext | null 
     (f.elements.namedItem('oppOwner') as HTMLInputElement).value = currentUser()?.name || '';
   }
   document.getElementById('modal-opportunity')?.classList.add('open');
+  // Optional fields wait behind "More details" unless the context filled one (after any deferred prefill).
+  window.setTimeout(() => foldMoreDetails('opportunity-form'), 60);
 }
 expose('openOpportunityModal', openOpportunityModal);
 

@@ -2556,3 +2556,19 @@ body.brief-open{overflow:hidden}
 .ctd-copy{opacity:0}.pl-val:hover .ctd-copy,.ctd-copy:focus-visible{opacity:1}
 .md-task-add:not(:focus-within):not(.has-text) > :not(.md-task-title):not(datalist){display:none}
 .md-task-add:not(:focus-within):not(.has-text) .md-task-title{flex:1 1 100%}
+/* New proposal: services by search, the five most used, the catalogue on demand. */
+.prb-service-search{position:relative;max-width:480px}
+.prb-service-menu{position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:50;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-md);padding:5px;max-height:280px;overflow-y:auto}
+.prb-service-menu[hidden]{display:none}
+.prb-top{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:10px 0 4px}
+.prb-top .prb-chip svg{color:var(--muted)}
+.prb-browse{margin-left:2px}
+.prb-service-picker{margin-top:10px}
+#prb-lines:not(:empty){margin-top:12px}
+.prb-defaults{display:flex;align-items:center;gap:10px;color:var(--sub);font-size:var(--type-body);margin:2px 0 10px}
+.prb-defaults[hidden]{display:none}
+.prb-summary[hidden],.prb-folder[hidden]{display:none}
+.prb-defaults .rlink{font:inherit;background:none;border:none;padding:0;color:var(--accent);cursor:pointer}
+/* Create dialogs: optional fields behind "More details" (lib/moreDetails.ts). */
+form:not(.show-more) .fgrp-more{display:none !important}
+.more-toggle{margin:2px 0 6px -8px}

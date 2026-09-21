@@ -611,15 +611,15 @@
           <input class="finp" name="mtCompany" placeholder="Search or type a company">
           
         </div>
-        <div class="fgrp">
+        <div class="fgrp-more fgrp">
           <label class="flbl">Project</label>
           <select class="finp" name="mtProject"><option value="">— No project —</option></select>
         </div>
-        <div class="fgrp">
+        <div class="fgrp-more fgrp">
           <label class="flbl">Opportunity</label>
           <select class="finp" name="mtOpportunity"><option value="">— No opportunity —</option></select>
         </div>
-        <div class="fgrp fgrp-full">
+        <div class="fgrp-more fgrp fgrp-full">
           <label class="flbl">Attendees <span class="flbl-hint">(comma separated)</span></label>
           <input class="finp" name="mtAttendees" placeholder="e.g. Ahmad, Jane Doe">
         </div>
@@ -657,15 +657,15 @@
           <label class="flbl">Due</label>
           <input type="date" class="finp" name="cmDue">
         </div>
-        <div class="fgrp">
+        <div class="fgrp-more fgrp">
           <label class="flbl">Company</label>
           <input class="finp" name="cmCompany" placeholder="Search or type a company">
         </div>
-        <div class="fgrp">
+        <div class="fgrp-more fgrp">
           <label class="flbl">Opportunity</label>
           <select class="finp" name="cmOpportunity"><option value="">— No opportunity —</option></select>
         </div>
-        <div class="fgrp">
+        <div class="fgrp-more fgrp">
           <label class="flbl">Project</label>
           <select class="finp" name="cmProject"><option value="">— No project —</option></select>
         </div>
@@ -1120,27 +1120,27 @@
           <label class="flbl">Stage</label>
           <select class="finp" name="oppStage"></select>
         </div>
-        <div class="fgrp">
+        <div class="fgrp-more fgrp">
           <label class="flbl">Owner</label>
           <input class="finp" name="oppOwner" placeholder="Owner…" list="team-names" autocomplete="off">
         </div>
-        <div class="fgrp fgrp-full">
+        <div class="fgrp-more fgrp fgrp-full">
           <label class="flbl">Contacts <span class="flbl-hint">(optional — type a company above to see its contacts)</span></label>
           <select class="finp" name="oppContacts" id="opp-contacts-sel" multiple size="3"></select>
         </div>
-        <div class="fgrp">
+        <div class="fgrp-more fgrp">
           <label class="flbl">Estimated value (SAR)</label>
           <input class="finp" type="number" name="oppValue" placeholder="0">
         </div>
-        <div class="fgrp">
+        <div class="fgrp-more fgrp">
           <label class="flbl">Probability (%)</label>
           <input class="finp" type="number" min="0" max="100" name="oppProbability" placeholder="0-100">
         </div>
-        <div class="fgrp">
+        <div class="fgrp-more fgrp">
           <label class="flbl">Expected close date</label>
           <input class="finp" type="date" name="oppCloseDate">
         </div>
-        <div class="fgrp fgrp-full">
+        <div class="fgrp-more fgrp fgrp-full">
           <label class="flbl">Description</label>
           <textarea class="finp" name="oppDescription" rows="3" placeholder="What is this opportunity about?"></textarea>
         </div>
@@ -1872,8 +1872,9 @@
           <div class="fgrp fgrp-full"><label class="flbl" for="prb-client">Company *</label><input class="finp" id="prb-client" required placeholder="Search or type a new company" oninput="prbClientChanged()"></div>
         </div>
         <div id="prb-client-info"></div>
-        <div class="fg">
-          <div class="fgrp"><label class="flbl" for="prb-opportunity">Opportunity</label><select class="finp" id="prb-opportunity"></select></div>
+        <!-- Shown once the company is known, and only what it has. -->
+        <div class="fg" id="prb-links" hidden>
+          <div class="fgrp" id="prb-opportunity-grp"><label class="flbl" for="prb-opportunity">Opportunity</label><select class="finp" id="prb-opportunity"></select></div>
           <div class="fgrp"><label class="flbl" for="prb-contact">Primary contact</label><select class="finp" id="prb-contact" onchange="prbContactChanged()"></select></div>
         </div>
         <div class="fg prb-new-contact" id="prb-new-contact" hidden>
@@ -1884,22 +1885,31 @@
         </div>
       </section>
       <section class="sec prb-section">
-        <div class="prb-section-hd"><span class="prb-step">2</span><h2>Services</h2><span class="prb-hint">Pick one or more — each becomes a line you can price.</span></div>
-        <div class="prb-service-picker" id="prb-service-picker"></div>
+        <div class="prb-section-hd"><span class="prb-step">2</span><h2>Services</h2></div>
+        <div class="prb-service-search">
+          <input class="finp" id="prb-service-q" placeholder="Add a service…" role="combobox" aria-expanded="false" aria-controls="prb-service-menu" aria-autocomplete="list" oninput="prbServiceSearch()" onkeydown="prbServiceKey(event)" onblur="window.setTimeout(prbServiceMenuClose, 150)">
+          <div class="prb-service-menu" id="prb-service-menu" role="listbox" hidden></div>
+        </div>
+        <div class="prb-top" id="prb-top"></div>
+        <div class="prb-service-picker" id="prb-service-picker" hidden></div>
         <div id="prb-lines"></div>
       </section>
       <section class="sec prb-section">
         <div class="prb-section-hd"><span class="prb-step">3</span><h2>Terms</h2></div>
-        <div class="fg">
+        <div class="prb-defaults" id="prb-entity-line"></div>
+        <div class="fg" id="prb-entity-fields" hidden>
           <div class="fgrp"><label class="flbl" for="prb-entity">Business entity</label><select class="finp" id="prb-entity" onchange="prbEntityChanged()"></select></div>
           <div class="fgrp"><label class="flbl" for="prb-currency">Currency</label><select class="finp" id="prb-currency" onchange="prbRefreshLines()"></select></div>
+        </div>
+        <div class="fg">
           <div class="fgrp"><label class="flbl" for="prb-months">Contract term</label><select class="finp" id="prb-months" onchange="prbRefreshLines()"><option value="">Not set</option><option value="3">3 months</option><option value="6">6 months</option><option value="12">12 months</option><option value="24">24 months</option><option value="36">36 months</option></select></div>
           <div class="fgrp"><label class="flbl" for="prb-valid">Valid until</label><input class="finp" type="date" id="prb-valid"></div>
         </div>
       </section>
       <section class="sec prb-section">
         <div class="prb-section-hd"><span class="prb-step">4</span><h2>Workflow</h2></div>
-        <div class="fg">
+        <div class="prb-defaults" id="prb-workflow-line"></div>
+        <div class="fg" id="prb-workflow-fields" hidden>
           <div class="fgrp"><label class="flbl" for="prb-status">Where it stands</label><select class="finp" id="prb-status" onchange="prbStatusChanged()">
             <option value="Proposal Request Received">Request received — not started</option>
             <option value="Drafting">Drafting</option>
@@ -1916,8 +1926,8 @@
       </section>
     </div>
     <aside class="prb-side">
-      <div class="sec prb-summary" id="prb-summary"></div>
-      <div class="sec prb-folder" id="prb-folder"></div>
+      <div class="sec prb-summary" id="prb-summary" hidden></div>
+      <div class="sec prb-folder" id="prb-folder" hidden></div>
     </aside>
   </form>
 </div>
@@ -2205,8 +2215,8 @@
         <div class="fgrp"><label class="flbl">Company *</label><input class="finp" name="ct-client" id="ct-modal-client" required placeholder="Search or type a company"></div>
         <div class="fgrp"><label class="flbl">Role</label><input class="finp" name="ct-role" placeholder="e.g. HR Director, CEO…"></div>
         <div class="fgrp"><label class="flbl">Email</label><input class="finp" type="email" name="ct-email" placeholder="ahmed@company.com"></div>
-        <div class="fgrp"><label class="flbl">Phone</label><input class="finp" name="ct-phone" placeholder="+966 5x xxx xxxx"></div>
-        <div class="fgrp"><label class="flbl">WhatsApp</label><input class="finp" name="ct-wa" placeholder="+966 5x xxx xxxx"></div>
+        <div class="fgrp-more fgrp"><label class="flbl">Phone</label><input class="finp" name="ct-phone" placeholder="+966 5x xxx xxxx"></div>
+        <div class="fgrp-more fgrp"><label class="flbl">WhatsApp</label><input class="finp" name="ct-wa" placeholder="+966 5x xxx xxxx"></div>
       </div>
       <div class="fact">
         <button type="button" class="btn-secondary" onclick="closeContactModal()">Cancel</button>
@@ -2240,17 +2250,17 @@
       <div class="fg">
         <div class="fgrp fgrp-full"><label class="flbl">Client *</label><input class="finp" name="agrClient" required id="agr-client-inp" placeholder="Search or type a company"></div>
         <div class="fgrp"><label class="flbl">Agreement type *</label><select class="finp" name="agrType" required id="agr-type-sel"></select></div>
-        <div class="fgrp"><label class="flbl">Status</label><select class="finp" name="agrStatus" id="agr-status-sel"></select></div>
-        <div class="fgrp"><label class="flbl">Prepared by</label><select class="finp" name="agrPrepBy" id="agr-prep-sel"></select></div>
-        <div class="fgrp"><label class="flbl">Business entity</label><select class="finp" name="agrEntity" id="agr-entity-sel"></select></div>
-        <div class="fgrp"><label class="flbl">Service start</label><input type="date" class="finp" name="agrStart"></div>
-        <div class="fgrp"><label class="flbl">Contract term</label>
+        <div class="fgrp-more fgrp"><label class="flbl">Status</label><select class="finp" name="agrStatus" id="agr-status-sel"></select></div>
+        <div class="fgrp-more fgrp"><label class="flbl">Prepared by</label><select class="finp" name="agrPrepBy" id="agr-prep-sel"></select></div>
+        <div class="fgrp-more fgrp"><label class="flbl">Business entity</label><select class="finp" name="agrEntity" id="agr-entity-sel"></select></div>
+        <div class="fgrp-more fgrp"><label class="flbl">Service start</label><input type="date" class="finp" name="agrStart"></div>
+        <div class="fgrp-more fgrp"><label class="flbl">Contract term</label>
           <select class="finp" name="agrContractMonths">
             <option value="">Not set</option><option value="3">3 months</option><option value="6">6 months</option>
             <option value="12">12 months</option><option value="24">24 months</option><option value="36">36 months</option>
           </select>
         </div>
-        <div class="fgrp fgrp-full"><label class="flbl">Reference</label><input class="finp" name="agrRef" placeholder="Leave empty to generate one (e.g. AZME_WF_004_0926)"></div>
+        <div class="fgrp-more fgrp fgrp-full"><label class="flbl">Reference</label><input class="finp" name="agrRef" placeholder="Leave empty to generate one (e.g. AZME_WF_004_0926)"></div>
       </div>
       <p class="form-hint">Services, fees, dates and documents are added on the agreement's page next.</p>
       <div class="fact">
@@ -2328,7 +2338,7 @@
           <input class="finp" name="todoClient" placeholder="Search or type a company">
           
         </div>
-        <div class="fgrp">
+        <div class="fgrp-more fgrp">
           <label class="flbl">Priority</label>
           <select class="finp" name="todoPriority">
             <option value="Medium">Medium</option>
@@ -2340,7 +2350,7 @@
           <label class="flbl">Due date</label>
           <input type="date" class="finp" name="todoDue">
         </div>
-        <div class="fgrp">
+        <div class="fgrp-more fgrp">
           <label class="flbl">Status</label>
           <select class="finp" name="todoStatus">
             <option value="Pending">Pending</option>
@@ -2348,7 +2358,7 @@
             <option value="Done">Done</option>
           </select>
         </div>
-        <div class="fgrp">
+        <div class="fgrp-more fgrp">
           <label class="flbl">Repeat</label>
           <select class="finp" name="todoRecurrence">
             <option value="">None</option>
@@ -2357,13 +2367,13 @@
             <option value="monthly">Monthly</option>
           </select>
         </div>
-        <div class="fgrp">
+        <div class="fgrp-more fgrp">
           <label class="flbl">Project</label>
           <select class="finp" name="todoProject">
             <option value="">— No project —</option>
           </select>
         </div>
-        <div class="fgrp">
+        <div class="fgrp-more fgrp">
           <label class="flbl">Opportunity</label>
           <select class="finp" name="todoOpportunity">
             <option value="">— No opportunity —</option>

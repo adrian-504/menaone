@@ -3,6 +3,7 @@
 // and reading `>>` / `<<` lines out of meeting notes, notes and quick
 // capture (the rules are in src/lib/commitments.ts, storage in commitments.rs).
 
+import { foldMoreDetails } from '../lib/moreDetails';
 import { S } from '../lib/state';
 import { renderIcons } from '../core/chrome';
 import { toast } from '../lib/ui';
@@ -325,6 +326,8 @@ export function openCommitmentModal(ctx: WorkContext = EMPTY_CONTEXT, editId: nu
   fillContacts(f, c?.contactId ?? null);
   document.getElementById('modal-commitment')?.classList.add('open');
   setTimeout(() => (f.elements.namedItem('cmText') as HTMLInputElement).focus(), 30);
+  // Optional fields wait behind "More details" unless the context filled one (after any deferred prefill).
+  window.setTimeout(() => foldMoreDetails('commitment-form'), 60);
 }
 expose('openCommitmentModal', openCommitmentModal);
 

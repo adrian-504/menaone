@@ -1,4 +1,5 @@
 import { S } from '../lib/state';
+import { foldMoreDetails } from '../lib/moreDetails';
 import { statusBadge } from '../lib/statusTone';
 import { companyLink } from '../lib/links';
 import { AGR_STATUSES, AGR_TYPES, AGR_ST, SERVICE_STATUSES } from '../lib/constants';
@@ -191,6 +192,8 @@ export function openAgrModal(id: number | null, prefill: { client?: string } = {
   const entitySel = document.getElementById('agr-entity-sel'); if (entitySel) entitySel.innerHTML = S.businessEntities.filter((e) => e.active).map((e) => `<option value="${e.id}"${e.id === entity?.id ? ' selected' : ''}>${escHtml(e.name)} (${escHtml(e.currency)})</option>`).join('');
   document.getElementById('modal-agr')?.classList.add('open');
   window.setTimeout(() => clientInput?.focus(), 50);
+  // Optional fields wait behind "More details" unless the context filled one (after any deferred prefill).
+  window.setTimeout(() => foldMoreDetails('agr-form'), 60);
 }
 expose('openAgrModal', openAgrModal);
 

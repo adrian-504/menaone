@@ -76,7 +76,8 @@ export function updateRecordRail(kind: RecordKind | undefined, key: number | str
   const main = document.querySelector('main');
   const rail = document.getElementById('record-rail');
   const toggle = document.getElementById('loc-rail') as HTMLButtonElement | null;
-  const supported = supportsRail(kind) && key != null;
+  // Never beside a create page (the builder is proposal 'new').
+  const supported = supportsRail(kind) && key != null && key !== 'new';
   if (toggle) {
     toggle.hidden = !supported;
     toggle.classList.toggle('active', supported && railEnabled());

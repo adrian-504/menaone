@@ -29,6 +29,7 @@ import {
   PS, PROPOSAL_STAGES, stageIndex, isWon, isLost, isWithdrawn, isClosed, lineTotals, syncProposalTotals, fmtMoney, currencyOf,
   teamMember, reviewers, defaultReviewer, activeTeam, ownerName, entityById, defaultEntity, activeServices, newLine,
   suggestedFileName, nextDocumentId, nextLineId, nextDeckFileName,
+  currentUser,
 } from '../lib/commercial';
 import type { Proposal, CommercialLine, ProposalFolder, Opportunity, LocalFileItem } from '../lib/types';
 
@@ -753,7 +754,9 @@ export function openProposalBuilder(prefill: BuilderPrefill = {}): void {
   const entity = entityById(prefill.businessEntityId) || defaultEntity();
   setOptions('prb-entity', S.businessEntities.filter((e) => e.active).map((e) => [String(e.id), `${e.name} (${e.currency})`]), entity ? String(entity.id) : '');
   setOptions('prb-currency', CURRENCIES().map((c) => [c, c]), prefill.currency || entity?.currency || 'SAR');
-  setOptions('prb-owner', [['', 'Not set'], ...activeTeam().map((t) => [String(t.id), t.name] as [string, string])]);
+  const me = currentUser();
+  setOptions('prb-owner', [['', 'Not set'], ...activeTeam().map((t) => [String(t.id), t.name] as [string, string])], me ? String(me.id) : '');
+  browseAll = false; showEntityFields = !!(prefill.currency && entity && prefill.currency !== entity.currency); showWorkflowFields = false;
   const reviewer = defaultReviewer();
   setOptions('prb-reviewer', [['', 'Not set'], ...reviewers().map((t) => [String(t.id), t.name] as [string, string])], reviewer ? String(reviewer.id) : '');
   setOptions('prb-source', [['', 'Not set'], ...LEAD_SOURCES.map((s) => [s, s] as [string, string])]);
@@ -767,8 +770,10 @@ export function openProposalBuilder(prefill: BuilderPrefill = {}): void {
   const client = document.getElementById('prb-client') as HTMLInputElement | null;
   if (client) attachCompanySelector(client, { onSelect: (name) => { client.value = name; prbClientChanged(); } });
   prbClientChanged(prefill.opportunityId, prefill.contactId);
+  setVal('prb-service-q', '');
   renderServicePicker();
   prbRefreshLines();
+  renderDefaultsLines();
   const page = document.getElementById('pr-builder'); if (page) renderIcons(page);
   notifyNavigated();
   if (!prefill.client) window.setTimeout(() => client?.focus(), 50);
@@ -823,7 +828,10 @@ export function prbClientChanged(opportunityId?: number, contactId?: number): vo
     renderIcons(info);
   }
   const selectedOpp = opportunityId != null ? String(opportunityId) : val('prb-opportunity');
-  setOptions('prb-opportunity', [['', opps.length ? 'None' : 'No open opportunities'], ...opps.map((o) => [String(o.id), `${o.name} · ${o.stage}`] as [string, string])], opps.some((o) => String(o.id) === selectedOpp) ? selectedOpp : '');
+  setOptions('prb-opportunity', [['', 'None'], ...opps.map((o) => [String(o.id), `${o.name} · ${o.stage}`] as [string, string])], opps.some((o) => String(o.id) === selectedOpp) ? selectedOpp : '');
+  // Opportunity and contact appear once there's a company — the opportunity only when it has some.
+  const links = document.getElementById('prb-links'); if (links) links.hidden = !client;
+  const oppGrp = document.getElementById('prb-opportunity-grp'); if (oppGrp) oppGrp.hidden = !opps.length;
   const selectedContact = contactId != null ? String(contactId) : val('prb-contact');
   setOptions('prb-contact', [['', 'Not set'], ...contacts.map((c) => [String(c.id), [c.name, c.role].filter(Boolean).join(' · ')] as [string, string]), ['new', 'Add a new contact…']], contacts.some((c) => String(c.id) === selectedContact) ? selectedContact : '');
   prbContactChanged();
@@ -850,6 +858,7 @@ export function prbStatusChanged(): void {
   const grp = document.getElementById('prb-sent-grp');
   if (grp) grp.hidden = val('prb-status') !== PS.SENT;
   renderBuilderSummary();
+  renderDefaultsLines();
 }
 expose('prbStatusChanged', prbStatusChanged);
 
@@ -857,86 +866,209 @@ export function prbEntityChanged(): void {
   const entity = entityById(Number(val('prb-entity')));
   if (entity) setVal('prb-currency', entity.currency);
   prbRefreshLines();
+  renderDefaultsLines();
 }
 expose('prbEntityChanged', prbEntityChanged);
 
-function renderServicePicker(): void {
-  const el = document.getElementById('prb-service-picker');
-  if (!el) return;
-  const groups = new Map<string, typeof S.services>();
-  for (const s of activeServices()) {
-    const cat = s.category || 'Other';
-    if (!groups.has(cat)) groups.set(cat, []);
-    groups.get(cat)!.push(s);
-  }
-  const chosen = new Set(draftLines.map((l) => l.serviceId).filter((x) => x != null));
-  el.innerHTML = [...groups.entries()].map(([cat, services]) => `<div class="prb-cat"><div class="prb-cat-name">${escHtml(cat)}</div><div class="prb-chips">${services.map((s) =>
-    `<button type="button" class="prb-chip${chosen.has(s.id) ? ' on' : ''}" aria-pressed="${chosen.has(s.id)}" onclick="prbToggleService(${s.id})">${chosen.has(s.id) ? icon('check', 11) : ''}${escHtml(s.name)}</button>`).join('')}</div></div>`).join('')
-    || emptyState({ icon: 'dollar', title: 'The service catalog is empty', body: 'Add services under Services first.', compact: true });
-  renderIcons(el);
+// Services: a search box and the five used most; the whole catalogue on demand.
+let browseAll = false;
+let serviceMenuIndex = 0;
+
+/** The services used most on proposals so far (catalogue order when there's no history). */
+function topServices(n = 5): typeof S.services {
+  const counts = new Map<number, number>();
+  for (const p of S.proposals) for (const l of p.lines || []) if (l.serviceId != null) counts.set(l.serviceId, (counts.get(l.serviceId) || 0) + 1);
+  const active = activeServices();
+  return [...active].sort((a, b) => (counts.get(b.id) || 0) - (counts.get(a.id) || 0) || active.indexOf(a) - active.indexOf(b)).slice(0, n);
 }
+
+const chosenServices = () => new Set(draftLines.map((l) => l.serviceId).filter((x) => x != null));
+
+function renderServicePicker(): void {
+  const top = document.getElementById('prb-top');
+  const el = document.getElementById('prb-service-picker');
+  if (!top || !el) return;
+  const chosen = chosenServices();
+  const chip = (sv: { id: number; name: string }) => `<button type="button" class="prb-chip" onclick="prbAddService(${sv.id})">${icon('plus', 11)}${escHtml(sv.name)}</button>`;
+  const quick = topServices().filter((sv) => !chosen.has(sv.id));
+  top.innerHTML = `${quick.map(chip).join('')}<button type="button" class="btn-ghost btn-sm prb-browse" aria-expanded="${browseAll}" onclick="prbBrowseServices()">${browseAll ? 'Hide the list' : 'Browse all services'}</button>`;
+  el.hidden = !browseAll;
+  if (browseAll) {
+    const groups = new Map<string, typeof S.services>();
+    for (const sv of activeServices()) {
+      if (chosen.has(sv.id)) continue;
+      const cat = sv.category || 'Other';
+      if (!groups.has(cat)) groups.set(cat, []);
+      groups.get(cat)!.push(sv);
+    }
+    el.innerHTML = [...groups.entries()].map(([cat, services]) => `<div class="prb-cat"><div class="prb-cat-name">${escHtml(cat)}</div><div class="prb-chips">${services.map(chip).join('')}</div></div>`).join('');
+  }
+  renderIcons(top); renderIcons(el);
+}
+
+export function prbBrowseServices(): void {
+  browseAll = !browseAll;
+  renderServicePicker();
+}
+expose('prbBrowseServices', prbBrowseServices);
+
+function serviceMatches(): typeof S.services {
+  const q = val('prb-service-q').toLowerCase();
+  if (!q) return [];
+  const chosen = chosenServices();
+  const all = activeServices().filter((sv) => !chosen.has(sv.id));
+  const starts = all.filter((sv) => sv.name.toLowerCase().startsWith(q));
+  const within = all.filter((sv) => !starts.includes(sv) && (sv.name.toLowerCase().includes(q) || (sv.category || '').toLowerCase().includes(q)));
+  return [...starts, ...within].slice(0, 8);
+}
+
+export function prbServiceSearch(): void {
+  serviceMenuIndex = 0;
+  renderServiceMenu();
+}
+expose('prbServiceSearch', prbServiceSearch);
+
+function renderServiceMenu(): void {
+  const menu = document.getElementById('prb-service-menu');
+  const input = document.getElementById('prb-service-q');
+  if (!menu) return;
+  const items = serviceMatches();
+  menu.hidden = !items.length;
+  input?.setAttribute('aria-expanded', String(!!items.length));
+  menu.innerHTML = items.map((sv, i) => `<div class="company-selector-row${i === serviceMenuIndex ? ' active' : ''}" role="option" aria-selected="${i === serviceMenuIndex}" onmousedown="event.preventDefault();prbAddService(${sv.id})">
+    <span class="company-selector-name">${escHtml(sv.name)}</span>${sv.category ? `<span class="company-selector-sub">${escHtml(sv.category)}</span>` : ''}</div>`).join('');
+}
+
+export function prbServiceKey(e: KeyboardEvent): void {
+  const items = serviceMatches();
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    if (!items.length) return;
+    e.preventDefault();
+    serviceMenuIndex = (serviceMenuIndex + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
+    renderServiceMenu();
+  } else if (e.key === 'Enter') {
+    e.preventDefault(); // never submits the form
+    if (items[serviceMenuIndex]) prbAddService(items[serviceMenuIndex].id);
+  } else if (e.key === 'Escape') {
+    setVal('prb-service-q', '');
+    prbServiceMenuClose();
+  }
+}
+expose('prbServiceKey', prbServiceKey);
+
+export function prbServiceMenuClose(): void {
+  const menu = document.getElementById('prb-service-menu'); if (menu) menu.hidden = true;
+  document.getElementById('prb-service-q')?.setAttribute('aria-expanded', 'false');
+}
+expose('prbServiceMenuClose', prbServiceMenuClose);
+
+export function prbAddService(id: number): void {
+  if (!draftLines.some((l) => l.serviceId === id)) draftLines.push(lineForService(S.services.find((sv) => sv.id === id) || null, draftLines.length));
+  setVal('prb-service-q', '');
+  prbServiceMenuClose();
+  renderServicePicker();
+  prbRefreshLines();
+}
+expose('prbAddService', prbAddService);
 
 export function prbToggleService(id: number): void {
   const i = draftLines.findIndex((l) => l.serviceId === id);
   if (i >= 0) draftLines.splice(i, 1);
-  else draftLines.push(lineForService(S.services.find((s) => s.id === id) || null, draftLines.length));
+  else draftLines.push(lineForService(S.services.find((sv) => sv.id === id) || null, draftLines.length));
   renderServicePicker();
   prbRefreshLines();
 }
 expose('prbToggleService', prbToggleService);
 
+// Terms and workflow: the usual choices as one line each; "Change" opens the fields.
+let showEntityFields = false;
+let showWorkflowFields = false;
+
+function renderDefaultsLines(): void {
+  const entityLine = document.getElementById('prb-entity-line');
+  const entityFields = document.getElementById('prb-entity-fields');
+  const entity = entityById(Number(val('prb-entity')));
+  if (entityLine && entityFields) {
+    entityFields.hidden = !showEntityFields;
+    entityLine.hidden = showEntityFields;
+    entityLine.innerHTML = `<span>${escHtml([entity?.name, val('prb-currency')].filter(Boolean).join(' · ') || 'No business entity')}</span><button type="button" class="rlink" onclick="prbShowDefaults('entity')">Change</button>`;
+  }
+  const wfLine = document.getElementById('prb-workflow-line');
+  const wfFields = document.getElementById('prb-workflow-fields');
+  if (wfLine && wfFields) {
+    wfFields.hidden = !showWorkflowFields;
+    wfLine.hidden = showWorkflowFields;
+    const received = val('prb-received');
+    const owner = teamMember(Number(val('prb-owner')));
+    const reviewer = teamMember(Number(val('prb-reviewer')));
+    const status = (document.getElementById('prb-status') as HTMLSelectElement | null)?.selectedOptions[0]?.textContent || '';
+    wfLine.innerHTML = `<span>${escHtml([
+      val('prb-status') === PS.REQUEST ? `Request received ${received === today() ? 'today' : fmtDate(received)}` : status,
+      owner ? `Owner ${owner.name}` : '', reviewer ? `Reviewer ${reviewer.name}` : '',
+    ].filter(Boolean).join(' · '))}</span><button type="button" class="rlink" onclick="prbShowDefaults('workflow')">Change</button>`;
+  }
+}
+
+export function prbShowDefaults(which: 'entity' | 'workflow'): void {
+  if (which === 'entity') showEntityFields = true; else showWorkflowFields = true;
+  renderDefaultsLines();
+  document.getElementById(which === 'entity' ? 'prb-entity' : 'prb-status')?.focus();
+}
+expose('prbShowDefaults', prbShowDefaults);
+
 export function prbRefreshLines(): void {
+  // No table until the first service is added.
+  if (!draftLines.length) {
+    const el = document.getElementById('prb-lines'); if (el) el.innerHTML = '';
+    renderBuilderSummary();
+    renderBuilderFolder();
+    return;
+  }
   renderLinesEditor('builder', 'prb-lines', {
     lines: () => draftLines,
     setLines: (lines) => { draftLines = lines; },
     currency: () => val('prb-currency') || 'SAR',
     contractMonths: () => (val('prb-months') ? Number(val('prb-months')) : null),
     editable: true,
-    onChange: () => { renderServicePicker(); renderBuilderSummary(); renderBuilderFolder(); },
+    onChange: () => { renderServicePicker(); if (!draftLines.length) prbRefreshLines(); renderBuilderSummary(); renderBuilderFolder(); },
   });
   renderBuilderSummary();
   renderBuilderFolder();
 }
 expose('prbRefreshLines', prbRefreshLines);
 
+/** The running summary: only once there's a client or a service, and only what's known. */
 function renderBuilderSummary(): void {
   const el = document.getElementById('prb-summary');
   if (!el) return;
+  const client = val('prb-client');
+  el.hidden = !client && !draftLines.length;
+  if (el.hidden) { el.innerHTML = ''; return; }
   const currency = val('prb-currency') || 'SAR';
   const months = val('prb-months') ? Number(val('prb-months')) : null;
   const t = lineTotals(draftLines, months);
-  const reviewer = teamMember(Number(val('prb-reviewer')));
-  const statusLabel = (document.getElementById('prb-status') as HTMLSelectElement | null)?.selectedOptions[0]?.textContent || '';
+  const row = (label: string, value: string | null, cls = '') => (value ? `<div${cls ? ` class="${cls}"` : ''}><dt>${label}</dt><dd>${value}</dd></div>` : '');
   el.innerHTML = `<div class="rec-section-hd"><h2>Summary</h2></div>
     <dl class="prb-sum">
-      <div><dt>Client</dt><dd>${escHtml(val('prb-client') || '—')}</dd></div>
-      <div><dt>Services</dt><dd>${t.serviceNames.length ? t.serviceNames.map(escHtml).join('<br>') : '<span class="rec-muted">None yet</span>'}</dd></div>
-      <div><dt>Monthly</dt><dd>${t.monthly != null ? fmtMoney(t.monthly, currency) : '—'}</dd></div>
-      <div><dt>One-time</dt><dd>${t.oneTime != null ? fmtMoney(t.oneTime, currency) : '—'}</dd></div>
-      <div class="prb-sum-main"><dt>Contract value${months ? ` · ${months} mo` : ''}</dt><dd>${t.contractValue != null ? fmtMoney(t.contractValue, currency) : '—'}</dd></div>
-      <div><dt>Status</dt><dd>${escHtml(statusLabel)}</dd></div>
-      <div><dt>Review</dt><dd>${reviewer ? escHtml(reviewer.name) : '<span class="rec-muted">No reviewer</span>'}</dd></div>
-    </dl>
-    <button class="btn-primary prb-submit" type="submit" form="prb-form">Create proposal</button>`;
+      ${row('Client', client ? escHtml(client) : null)}
+      ${row('Services', t.serviceNames.length ? t.serviceNames.map(escHtml).join('<br>') : null)}
+      ${row('Monthly', t.monthly ? fmtMoney(t.monthly, currency) : null)}
+      ${row('One-time', t.oneTime ? fmtMoney(t.oneTime, currency) : null)}
+      ${row(`Contract value${months ? ` · ${months} mo` : ''}`, t.contractValue ? fmtMoney(t.contractValue, currency) : null, 'prb-sum-main')}
+    </dl>`;
 }
 
+/** One line about the client's OneDrive folder, once there's a client. */
 function renderBuilderFolder(): void {
   const el = document.getElementById('prb-folder');
   if (!el) return;
   const client = val('prb-client');
-  let body = '';
-  if (!client) body = '<p class="rec-muted">Choose the client to find their folder in OneDrive.</p>';
-  else if (!builderFolder) body = '<p class="rec-muted">Looking for the client folder…</p>';
-  else if (!builderFolder.root) body = '<p class="rec-muted">No Proposals folder found in OneDrive. You can choose it in Settings.</p>';
-  else {
-    const label = lineTotals(draftLines, null).serviceNames.join(' & ') || 'Services';
-    const name = suggestedFileName(client, label, today(), builderFolder.files.map((f) => f.name));
-    body = builderFolder.exists
-      ? `<div class="pr-folder-line">${icon('check', 13)}<span>Folder found</span></div><code class="path-code">${escHtml(builderFolder.path || '')}</code>`
-      : `<label class="check-label"><input type="checkbox" id="prb-create-folder" checked> Create <strong>${escHtml(client)}</strong> in the Proposals folder</label><code class="path-code">${escHtml(builderFolder.path || '')}</code>`;
-    body += `<div class="pr-next-name"><span class="rec-muted">Save the deck as</span><code>${escHtml(name)}</code><button type="button" class="rec-icon-btn" onclick="copyText('${escHtml(name.replace(/'/g, "\\'"))}','File name copied')" title="Copy file name" aria-label="Copy file name">${icon('copy', 13)}</button></div>`;
-  }
-  el.innerHTML = `<div class="rec-section-hd"><h2>OneDrive folder</h2></div>${body}`;
+  el.hidden = !client || !builderFolder || !builderFolder.root;
+  if (el.hidden) { el.innerHTML = ''; return; }
+  const folderName = (builderFolder!.path || '').split('/').filter(Boolean).pop() || client;
+  el.innerHTML = builderFolder!.exists
+    ? `<div class="pr-folder-line" title="${escHtml(builderFolder!.path || '')}">${icon('folder', 13)}<span>Saves in <strong>${escHtml(folderName)}</strong></span></div>`
+    : `<label class="check-label" title="${escHtml(builderFolder!.path || '')}"><input type="checkbox" id="prb-create-folder" checked> Create a folder for <strong>${escHtml(client)}</strong></label>`;
   renderIcons(el);
 }
 

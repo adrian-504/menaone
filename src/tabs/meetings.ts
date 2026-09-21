@@ -1,4 +1,5 @@
 import { S } from '../lib/state';
+import { foldMoreDetails } from '../lib/moreDetails';
 import { mountPropsList, propsEditButton, propsListHtml, type PropField } from '../lib/propsList';
 import { collapseEmptySections } from '../lib/sectionLayout';
 import { statusBadge } from '../lib/statusTone';
@@ -333,6 +334,8 @@ export function openMeetingModal(id: number | null, ctx: WorkContext | null = nu
     }
   }
   document.getElementById('modal-meeting')?.classList.add('open');
+  // Optional fields wait behind "More details" unless the context filled one (after any deferred prefill).
+  window.setTimeout(() => foldMoreDetails('meeting-form'), 60);
 }
 expose('openMeetingModal', openMeetingModal);
 
