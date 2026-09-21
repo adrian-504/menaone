@@ -331,6 +331,8 @@ pub struct CompanyNoteEntry {
     pub is_legacy: bool,
     pub created_at: String,
     pub updated_at: Option<String>,
+    /// Shown at the top of Company 360 and in the Brief.
+    pub pinned: bool,
 }
 
 fn row_to_entry(r: &rusqlite::Row) -> rusqlite::Result<CompanyNoteEntry> {
@@ -342,11 +344,12 @@ fn row_to_entry(r: &rusqlite::Row) -> rusqlite::Result<CompanyNoteEntry> {
         is_legacy: r.get::<_, i64>(4)? != 0,
         created_at: r.get(5)?,
         updated_at: r.get(6)?,
+        pinned: r.get::<_, i64>(7)? != 0,
     })
 }
 
 const ENTRY_SELECT: &str =
-    "SELECT id, company_id, company_name, body, is_legacy, created_at, updated_at FROM company_note_entries";
+    "SELECT id, company_id, company_name, body, is_legacy, created_at, updated_at, pinned FROM company_note_entries";
 
 /// A company's notes, newest first. Matches by id, and by name as well so a
 /// company that was never linked still shows what was written about it.
@@ -395,6 +398,18 @@ pub fn update_company_note_entry(state: State<DbState>, id: i64, body: String) -
     )
     .map_err(err)?;
     conn.query_row(&format!("{ENTRY_SELECT} WHERE id = ?1"), params![id], |r| row_to_entry(r)).map_err(err)
+}
+
+/// Pins or unpins an entry; its dates don't change.
+#[tauri::command]
+pub fn set_company_note_pinned(state: State<DbState>, id: i64, pinned: bool) -> CmdResult<CompanyNoteEntry> {
+    let conn = state.0.lock().map_err(err)?;
+    set_company_note_pinned_core(&conn, id, pinned).map_err(err)
+}
+
+pub fn set_company_note_pinned_core(conn: &Connection, id: i64, pinned: bool) -> rusqlite::Result<CompanyNoteEntry> {
+    conn.execute("UPDATE company_note_entries SET pinned = ?1 WHERE id = ?2", params![pinned as i64, id])?;
+    conn.query_row(&format!("{ENTRY_SELECT} WHERE id = ?1"), params![id], |r| row_to_entry(r))
 }
 
 #[tauri::command]

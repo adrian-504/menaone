@@ -324,11 +324,12 @@ function showSaveErrorToast(label: string) {
 }
 
 // ── Company notes (dated entries) ────────────────────────────────────────────
-export interface CompanyNoteEntry { id: number; companyId: number | null; companyName: string | null; body: string; isLegacy: boolean; createdAt: string; updatedAt: string | null; }
+export interface CompanyNoteEntry { id: number; companyId: number | null; companyName: string | null; body: string; isLegacy: boolean; createdAt: string; updatedAt: string | null; pinned?: boolean; }
 export async function companyNoteEntries(companyId: number | null, companyName: string | null): Promise<CompanyNoteEntry[]> { return invoke<CompanyNoteEntry[]>('company_note_entries', { companyId, companyName }); }
 export async function addCompanyNoteEntryDb(companyId: number | null, companyName: string | null, body: string): Promise<CompanyNoteEntry> { return invoke<CompanyNoteEntry>('add_company_note_entry', { companyId, companyName, body }); }
 export async function updateCompanyNoteEntryDb(id: number, body: string): Promise<CompanyNoteEntry> { return invoke<CompanyNoteEntry>('update_company_note_entry', { id, body }); }
 export async function deleteCompanyNoteEntryDb(id: number): Promise<void> { await invoke('delete_company_note_entry', { id }); }
+export async function setCompanyNotePinned(id: number, pinned: boolean): Promise<CompanyNoteEntry> { return invoke<CompanyNoteEntry>('set_company_note_pinned', { id, pinned }); }
 export async function moveCompanyNoteEntries(oldName: string, newName: string, newId: number | null): Promise<void> { await invoke('move_company_note_entries', { oldName, newName, newId }); }
 
 /** Merges a service into another: lines repoint, the retired row stays and points at the survivor. */

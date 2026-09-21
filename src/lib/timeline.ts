@@ -5,7 +5,7 @@
 import { escHtml, fmtDate } from './utils';
 import { icon } from './icons';
 import { recordLink } from './links';
-import { activityItem, renderFeed } from './activityFeed';
+import { activityItem, renderFeed, type FeedItem } from './activityFeed';
 import type { FutureRow, RecordTimeline } from './recordTimeline';
 
 /** The "now" marker, shared by My Day and record timelines. */
@@ -37,14 +37,17 @@ export interface TimelineOptions {
   pastLimit: number | null;
   /** onclick for "Show earlier". */
   showEarlier?: string;
+  /** Dated history that isn't in the activity log (Company 360: proposal and agreement dates from before the log). */
+  extraPast?: FeedItem[];
 }
 
 export function recordTimelineHtml(t: RecordTimeline, o: TimelineOptions): string {
-  const past = o.pastLimit == null ? t.past : t.past.slice(0, o.pastLimit);
-  const hidden = t.past.length - past.length;
+  const all = [...t.past.map(activityItem), ...(o.extraPast || [])].filter((x) => x.at).sort((a, b) => b.at.localeCompare(a.at));
+  const past = o.pastLimit == null ? all : all.slice(0, o.pastLimit);
+  const hidden = all.length - past.length;
   const pastHtml = past.length
     ? `${hidden > 0 && o.showEarlier ? `<button class="mdy-more tl-earlier" onclick="${o.showEarlier}">Show ${hidden} earlier</button>` : ''}
-       <div class="feed tl-past">${renderFeed(past.map(activityItem), { oldestFirst: true, limit: past.length })}</div>`
+       <div class="feed tl-past">${renderFeed(past, { oldestFirst: true, limit: past.length })}</div>`
     : '<div class="feed-empty tl-empty">Nothing recorded yet.</div>';
   const future = t.future.length ? `<div class="tl-future">${t.future.map((r) => futureRowHtml(r, o.today)).join('')}</div>` : '';
   const undated = t.undated.length ? `<div class="tl-group-hd">No date <span class="rcnt">${t.undated.length}</span></div><div class="tl-future">${t.undated.map((r) => futureRowHtml(r, o.today)).join('')}</div>` : '';

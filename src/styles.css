@@ -2464,3 +2464,73 @@ a.ts-name:focus-visible,.ts-more:focus-visible{outline:2px solid var(--accent);o
 .rec-stack .rec-list .rec-row{border-radius:0;padding:7px 4px;border-bottom:1px solid var(--hairline)}
 .rec-stack .rec-list .rec-row:last-child{border-bottom:none}
 .rec-stack .rec-list .rec-row-icon{width:22px;height:22px;background:none;color:var(--muted)}
+
+/* ── Company 360 as a briefing (tabs/companies.ts, tabs/companyState.ts) ──── */
+.co-standing{margin:4px 0 18px}
+.cs-block{display:flex;flex-direction:column;gap:8px;max-width:100ch}
+.cs-clause{--tone:var(--hairline);display:flex;gap:10px;align-items:flex-start;font-size:var(--type-body);line-height:1.55;color:var(--text)}
+.cs-clause.tone-green{--tone:var(--green)}.cs-clause.tone-amber{--tone:var(--amber)}.cs-clause.tone-red{--tone:var(--red)}.cs-clause.tone-accent{--tone:var(--accent)}.cs-clause.tone-muted{--tone:var(--muted)}
+.cs-dot{flex:none;width:7px;height:7px;margin-top:7px;border-radius:50%;background:var(--tone)}
+.cs-text p{margin:0}
+.cs-quotes{display:flex;flex-direction:column;gap:4px;margin-bottom:2px}
+.cs-quote{display:flex;gap:6px;align-items:flex-start;margin:0;color:var(--sub);font-style:italic}
+.cs-quote svg{flex:none;margin-top:4px;color:var(--amber)}
+.co-threads{display:flex;flex-direction:column;gap:2px}
+.co-dm{margin-left:6px;font-size:var(--type-meta);vertical-align:1px}
+.co-last .rlink{color:inherit}
+.conote-pin.is-pinned{color:var(--amber)}
+.co-edit-panel{margin-bottom:16px}
+.co-edit-facts{margin-bottom:12px}
+.co-records{margin-top:8px;border-top:1px solid var(--hairline)}
+.co-records-hd{font:inherit;display:flex;align-items:center;gap:8px;width:100%;padding:12px 0;border:none;background:none;color:var(--text);cursor:pointer;text-align:left}
+.co-records-hd:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+.co-records-title{font-weight:600;font-size:var(--type-secondary)}
+.co-records-counts{color:var(--muted);font-size:var(--type-meta);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.co-records-chev{display:inline-flex;color:var(--muted);transition:transform var(--dur-fast) var(--ease-out)}
+.co-records.is-open .co-records-chev{transform:rotate(90deg)}
+.co-records:not(.is-open) .co-records-body{display:none}
+
+/* ── The Brief (tabs/companyBriefView.ts) ─────────────────────────────────── */
+.brief-view{position:fixed;inset:0;z-index:5000;overflow:auto;background:var(--bg);padding:0 16px 48px}
+.brief-view[hidden]{display:none}
+.bv-bar{position:sticky;top:0;display:flex;justify-content:flex-end;gap:8px;max-width:760px;margin:0 auto;padding:12px 0;background:var(--bg)}
+.bv-page{max-width:760px;margin:0 auto;padding:28px 36px;background:var(--surface);border:1px solid var(--hairline);border-radius:var(--radius);color:var(--text);font-size:var(--type-body);line-height:1.55}
+.bv-head{border-bottom:1px solid var(--hairline);padding-bottom:12px;margin-bottom:14px}
+.bv-head h1{margin:0;font-size:22px}
+.bv-date{color:var(--sub);font-size:var(--type-secondary);margin-top:2px}
+.bv-sec{margin:0 0 14px;break-inside:avoid}
+.bv-sec h2{margin:0 0 4px;font-size:var(--type-meta);text-transform:uppercase;letter-spacing:.05em;color:var(--sub)}
+.bv-sec h3{margin:6px 0 2px;font-size:var(--type-secondary)}
+.bv-sec p{margin:0 0 4px}
+.bv-sec ul{margin:0;padding-left:18px}
+.bv-sec li{margin:1px 0}
+.bv-muted{color:var(--sub)}
+.bv-late,.bv-flag{color:var(--amber)}
+.bv-tag{font-weight:600}
+.bv-quote{margin:0 0 4px;padding-left:10px;border-left:2px solid var(--hairline);color:var(--sub);font-style:italic}
+body.brief-open{overflow:hidden}
+@media print{
+  body.brief-open > *:not(#brief-view){display:none !important}
+  html{color-scheme:light !important}
+  html,body.brief-open{overflow:visible;background:white !important}
+  .brief-view{position:static;overflow:visible;padding:0;background:white}
+  .bv-bar{display:none}
+  .bv-page{max-width:none;border:none;padding:0;background:white}
+  .bv-page,.bv-page *{color:black !important;background:transparent !important}
+  .bv-muted,.bv-date,.bv-sec h2,.bv-quote{color:dimgray !important}
+  @page{margin:16mm}
+}
+/* Company 360 open threads: one line each; the next step shows on hover/focus. */
+.co-thread{display:flex;align-items:center;gap:10px;min-height:34px;padding:4px 6px;border-radius:var(--radius-sm);cursor:pointer;font-size:var(--type-body);min-width:0}
+.co-thread:hover,.co-thread:focus-visible{background:var(--hover)}
+.co-thread:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.co-thread-dot{--tone:var(--muted);flex:none;width:7px;height:7px;border-radius:50%;background:var(--tone)}
+.co-thread-dot.tone-green{--tone:var(--green)}.co-thread-dot.tone-amber{--tone:var(--amber)}.co-thread-dot.tone-red{--tone:var(--red)}.co-thread-dot.tone-accent{--tone:var(--accent)}
+.co-thread-label{flex:0 1 auto;min-width:0;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.co-thread-stand{flex:1 1 auto;min-width:0;color:var(--sub);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.co-thread-wait{flex:none;color:var(--muted);font-size:var(--type-meta);font-variant-numeric:tabular-nums}
+.co-thread-wait.is-late{color:var(--amber)}
+.co-thread-next{flex:none;visibility:hidden}
+.co-thread:hover .co-thread-next,.co-thread:focus-within .co-thread-next{visibility:visible}
+.co-thread-dormant{font:inherit;display:block;margin-top:4px;padding:4px 6px;border:none;background:none;color:var(--muted);font-size:var(--type-secondary);cursor:pointer;text-align:left}
+.co-thread-dormant:hover{color:var(--accent)}

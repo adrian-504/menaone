@@ -195,15 +195,26 @@ function commitmentItems(i: MyDayInput): AttentionItem[] {
   return out;
 }
 
+/** Days to an agreement's end and to its notice date (the end less its notice
+ * period) — My Day's renewal rule, shared with Company 360 and the Brief. */
+export function agreementRenewal(a: Pick<Agreement, 'endDate' | 'noticeDays'>, today: string): { daysToEnd: number | null; noticeDate: string | null; daysToNotice: number | null } {
+  if (!a.endDate) return { daysToEnd: null, noticeDate: null, daysToNotice: null };
+  const daysToEnd = daysBetween(today, a.endDate)!;
+  if (a.noticeDays == null) return { daysToEnd, noticeDate: null, daysToNotice: null };
+  const d = new Date(`${a.endDate.slice(0, 10)}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - a.noticeDays);
+  return { daysToEnd, noticeDate: d.toISOString().slice(0, 10), daysToNotice: daysToEnd - a.noticeDays };
+}
+
 function agreementItems(i: MyDayInput): AttentionItem[] {
   const out: AttentionItem[] = [];
   for (const a of i.agreements) {
     if (a.status === 'Canceled') continue;
     const base = { record: { kind: 'agreement' as RecordKind, id: a.id }, companyId: a.companyId ?? null, companyName: a.client, title: a.client || a.agrRef || 'Agreement' };
     if (a.serviceStatus === 'Active' && a.endDate) {
-      const d = daysBetween(i.today, a.endDate)!;
+      const { daysToEnd, daysToNotice: notice } = agreementRenewal(a, i.today);
+      const d = daysToEnd!;
       if (d > 90 || d < -7) continue;
-      const notice = a.noticeDays != null ? daysBetween(i.today, a.endDate)! - a.noticeDays : null;
       out.push({ ...base, key: `agreement:${a.id}:renewal`, kind: 'agreement', score: d < 0 ? 84 : 80 - d / 3 + (notice != null && notice <= 7 ? 8 : 0), tone: d <= 30 ? 'red' : 'amber',
         reason: d < 0 ? `Ended ${days(-d)} ago — renew or close it${a.autoRenew ? ' (set to auto-renew)' : ''}`
           : `Ends in ${days(d)} — plan the renewal${notice != null && notice <= 14 ? `; notice due ${notice <= 0 ? 'now' : `in ${days(notice)}`}` : ''}`,

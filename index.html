@@ -1541,16 +1541,18 @@
       </div>
       <div class="rec-actions">
         <button class="btn-primary" onclick="companyNewMenu(event)" aria-haspopup="menu"><span data-icon="plus" data-icon-size="13"></span> New</button>
+        <button class="btn-secondary" onclick="openCompanyBrief()" title="A one-page brief to read or print">Brief</button>
         <button class="btn-secondary" onclick="openEditCompanyModal()">Edit</button>
         <button class="loc-nav rec-more" onclick="companyMoreMenu(event)" title="More" aria-label="More"><span data-icon="more" data-icon-size="16"></span></button>
       </div>
     </header>
     <nav class="rec-sections" id="co-section-nav" aria-label="Sections"></nav>
 
-    <section class="rec-section rec-overview" id="co-sec-overview" data-section="overview">
-      <div class="rec-stats" id="co-detail-kpis"></div>
-      <div class="rec-overview-grid">
-        <div class="sec rec-facts" id="co-facts-card"><div class="rec-section-hd"><h2>Key facts</h2><div class="rec-section-actions"><button class="btn-secondary btn-sm" id="co-facts-edit-btn" onclick="openEditCompanyModal()">Edit</button></div></div><dl class="rec-props" id="co-facts"></dl><div class="co-facts-edit" id="co-facts-edit" hidden>
+    <!-- Edit: the company's details, opened from the header (Key facts moved here). -->
+    <section class="sec co-edit-panel" id="co-edit-panel" hidden>
+      <div class="rec-section-hd"><h2>Edit company</h2></div>
+      <dl class="rec-props co-edit-facts" id="co-facts"></dl>
+      <div class="co-facts-edit" id="co-facts-edit">
     <div class="fgrp">
       <label class="flbl">Company Name</label>
       <input class="finp" id="edit-co-name" placeholder="Company name">
@@ -1597,22 +1599,36 @@
       <button class="btn-secondary" onclick="closeEditCompanyModal()">Cancel</button>
       <button class="btn-primary" onclick="saveEditCompany()">Save changes</button>
     </div>
-  </div></div>
-        <div class="sec rec-notes-card">
-          <div class="rec-section-hd"><h2>Company notes</h2><span class="rec-count" id="co-notes-entry-count"></span></div>
-          <div class="conote-composer">
-            <textarea class="rec-notes conote-input" id="co-notes-text" rows="2" placeholder="What's new with this client? Enter to save, Shift+Enter for a new line." oninput="companyNoteComposerInput(this)" onkeydown="companyNoteComposerKey(event)"></textarea>
-            <div class="conote-composer-actions"><button class="btn-secondary btn-sm" onclick="addCompanyNoteEntry()">Add note</button></div>
-          </div>
-          <div class="conote-log" id="co-notes-log"></div>
-        </div>
-      </div>
-      <div class="sec" id="co-emails" style="display:none"></div>
+  </div>
+    </section>
+
+    <!-- Where we stand: up to five clauses (tabs/companyState.ts). -->
+    <section class="rec-section co-standing" id="co-sec-overview" data-section="overview"><div id="co-state"></div></section>
+    <section class="rec-section sec" id="co-sec-threads" data-section="threads">
+      <div class="rec-section-hd"><h2>Open threads</h2><span class="rec-count" id="co-threads-count"></span></div>
+      <div class="co-threads" id="co-threads"></div>
     </section>
     <section class="rec-section sec" id="co-sec-contacts" data-section="contacts">
-      <div class="rec-section-hd"><h2>Contacts</h2><span class="rec-count" id="co-contacts-count"></span><div class="rec-section-actions"><button class="btn-secondary btn-sm" onclick="openContactForCompany()">+ Add</button></div></div>
+      <div class="rec-section-hd"><h2>People</h2><span class="rec-count" id="co-contacts-count"></span><div class="rec-section-actions"><button class="btn-secondary btn-sm" onclick="openContactForCompany()">+ Add</button></div></div>
       <div class="rec-list" id="co-contacts-list"></div>
     </section>
+    <section class="rec-section sec" id="co-sec-activity" data-section="activity"></section>
+    <section class="rec-section sec" id="co-sec-notes-log" data-section="notes-log">
+      <div class="rec-section-hd"><h2>Company notes</h2><span class="rec-count" id="co-notes-entry-count"></span></div>
+      <div class="conote-composer">
+        <textarea class="rec-notes conote-input" id="co-notes-text" rows="2" placeholder="What's new with this client? Enter to save, Shift+Enter for a new line." oninput="companyNoteComposerInput(this)" onkeydown="companyNoteComposerKey(event)"></textarea>
+        <div class="conote-composer-actions"><button class="btn-secondary btn-sm" onclick="addCompanyNoteEntry()">Add note</button></div>
+      </div>
+      <div class="conote-log" id="co-notes-log"></div>
+    </section>
+
+    <!-- Every record of the company, collapsed by default (remembered). -->
+    <div class="co-records" id="co-records">
+      <button class="co-records-hd" id="co-records-hd" onclick="toggleCompanyRecords()" aria-expanded="false" aria-controls="co-records-body">
+        <span class="co-records-chev" data-icon="chevronRight" data-icon-size="13"></span><span class="co-records-title">All records</span><span class="co-records-counts" id="co-records-counts"></span>
+      </button>
+      <div class="co-records-body" id="co-records-body">
+      <div class="sec" id="co-emails" style="display:none"></div>
     <section class="rec-section sec" id="co-sec-commitments" data-section="commitments">
       <div class="rec-section-hd"><h2>Commitments</h2><span class="rec-count" id="co-commitments-count"></span><div class="rec-section-actions"><button class="btn-secondary btn-sm" onclick="createCommitmentForCurrentCompany()">+ New</button></div></div>
       <div id="co-commitments-list"></div>
@@ -1649,10 +1665,8 @@
       <div class="rec-section-hd"><h2>Files</h2><span class="rec-count" id="co-files-tab-count"></span><div class="rec-section-actions"><button class="btn-secondary btn-sm" onclick="switchTab('files');msFilesOpenSetupWizard()">Match a folder…</button></div></div>
       <div id="cosub-files-inner"></div>
     </section>
-    <section class="rec-section sec" id="co-sec-activity" data-section="activity">
-      <div class="rec-section-hd"><h2>Activity</h2><span class="rec-count" id="co-activity-count"></span><div class="rec-section-actions"><button class="btn-secondary btn-sm" onclick="openActivityNote()">+ Log note</button></div></div>
-      <div class="feed" id="co-timeline"></div>
-    </section>
+      </div>
+    </div>
   </div>
 </div>
 

@@ -3,6 +3,8 @@
 // contacts, and a client brief with a suggested agenda built from fixed
 // rules. Also fills company websites from their contacts' email domains.
 
+import { meetingBrief } from '../lib/companyBrief';
+import { briefInputFor, clausesHtml, ensurePinnedNotes } from './companyState';
 import { S } from '../lib/state';
 import { escHtml, expose, fmtDate, today, nextCtId, inCompany, daysSince, daysUntil, showConfirm } from '../lib/utils';
 import { icon } from '../lib/icons';
@@ -121,66 +123,26 @@ export function renderMeetingClientSection(m: Meeting): void {
 }
 expose('renderMeetingClientSection', renderMeetingClientSection);
 
-interface Brief { lines: string[]; agenda: string[] }
-
-function buildBrief(m: Meeting, company: Company): Brief {
-  const ref = { id: company.id, name: company.name };
-  const lines: string[] = [];
-  const agenda: string[] = [];
-  const date = m.meetingDate || today();
-
-  const previous = S.meetings
-    .filter((x) => x.id !== m.id && !x.isCancelled && inCompany(ref, x.companyId, x.companyName) && (x.meetingDate || '') < date)
-    .sort((a, b) => (b.meetingDate || '').localeCompare(a.meetingDate || ''))[0];
-  if (previous) {
-    // The last meetings themselves are in "Earlier with …" beside the page.
-    if (previous.followUp?.trim()) agenda.push(`Follow up from ${fmtDate(previous.meetingDate)}: ${previous.followUp.trim().split('\n')[0]}`);
-    const prevTasks = S.todos.filter((t) => t.meetingId === previous.id && t.status !== 'Done');
-    if (prevTasks.length) agenda.push(`Open actions from last meeting: ${prevTasks.slice(0, 3).map((t) => t.title).join('; ')}`);
-  }
-
-  const proposals = S.proposals.filter((p) => !p.archived && inCompany(ref, p.companyId, p.client) && isOpenProposal(p));
-  for (const p of proposals.slice(0, 3)) {
-    const services = lineTotals(p.lines, p.contractMonths).serviceNames.join(', ') || p.type || 'Proposal';
-    const sent = p.dateSentToClient || p.sentDate;
-    lines.push(`<div class="md-brief-row">${icon('database', 13)}<div><strong>Proposal</strong> ${recordLink('proposal', p.id, `${services} (SL# ${p.id})`)} · ${escHtml(p.status)}${sent && p.status === PS.SENT ? ` · sent ${daysSince(sent)} days ago` : ''}</div></div>`);
-    if (p.status === PS.SENT) agenda.push(`Proposal for ${services}: sent ${sent ? `${daysSince(sent)} days ago` : 'earlier'} — agree next steps or a decision`);
-    else if (p.status === PS.CLIENT_SIGNED) agenda.push(`Proposal for ${services}: signed by the client — confirm countersignature and kickoff`);
-    else if (p.status === PS.REQUEST || p.status === PS.DRAFTING) agenda.push(`Requirements for the ${services} proposal`);
-  }
-
-  const opps = S.opportunities.filter((o) => !o.archived && o.status === 'Open' && inCompany(ref, o.companyId, o.companyName));
-  for (const o of opps.slice(0, 3)) {
-    lines.push(`<div class="md-brief-row">${icon('target', 13)}<div><strong>Opportunity</strong> ${recordLink('opportunity', o.id, o.name)} · ${escHtml(o.stage)}${o.nextAction ? `<div class="rec-muted">Next: ${escHtml(o.nextAction)}</div>` : ''}</div></div>`);
-    if (o.nextAction?.trim()) agenda.push(`${o.name}: ${o.nextAction.trim()}`);
-  }
-
-  const agreements = S.agreements.filter((a) => inCompany(ref, a.companyId, a.client) && a.status !== 'Canceled');
-  for (const a of agreements.filter((x) => isAgreementActive(x) || x.status !== 'Signed').slice(0, 3)) {
-    const services = a.lines?.length ? a.lines.map((l) => l.serviceName).join(', ') : a.type || 'Agreement';
-    const ends = a.endDate ? daysUntil(a.endDate) : null;
-    const monthly = agreementMonthly(a);
-    lines.push(`<div class="md-brief-row">${icon('document', 13)}<div><strong>Agreement</strong> ${recordLink('agreement', a.id, a.agrRef || services)} · ${escHtml(a.serviceStatus ? `service ${a.serviceStatus.toLowerCase()}` : a.status || '')}${monthly ? ` · ${fmtMoney(monthly, currencyOf(a))}/mo` : ''}${a.endDate ? ` · ends ${fmtDate(a.endDate)}` : ''}</div></div>`);
-    if (isAgreementActive(a)) agenda.push(`Service check-in: ${services}`);
-    if (ends != null && ends >= 0 && ends <= 90) agenda.push(`Renewal: ${services} ends ${fmtDate(a.endDate)} (${ends} days)`);
-    if (a.status && !['Signed', 'On Hold'].includes(a.status)) agenda.push(`Agreement ${a.agrRef || services}: ${a.status.toLowerCase()} — confirm signature`);
-  }
-
-  const tasks = S.todos.filter((t) => t.status !== 'Done' && inCompany(ref, t.companyId, t.client));
-  if (tasks.length) {
-    lines.push(`<div class="md-brief-row">${icon('check', 13)}<div><strong>${tasks.length} open task${tasks.length === 1 ? '' : 's'}</strong> ${tasks.slice(0, 3).map((t) => recordLink('task', t.id, t.title)).join(', ')}</div></div>`);
-  }
-  const notes = S.notes.filter((n) => inCompany(ref, n.companyId, n.clientName)).sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || '')).slice(0, 3);
-  if (notes.length) {
-    lines.push(`<div class="md-brief-row">${icon('note', 13)}<div><strong>Recent notes</strong> ${notes.map((n) => recordLink('note', n.id, n.title || 'Untitled')).join(', ')}</div></div>`);
-  }
-  return { lines, agenda: [...new Set(agenda)] };
+/** The company-level lines are Company 360's state (lib/companyBrief.ts), so
+ * the two never disagree; the meeting adds its own: the previous meeting and
+ * its follow-up, and the suggested agenda. */
+function briefFor(m: Meeting, company: Company) {
+  const key = { id: company.id, name: company.name };
+  ensurePinnedNotes(key, () => { if (S.meetingEditId === m.id) renderMeetingClientSection(m); });
+  return meetingBrief(m, briefInputFor(key));
 }
 
 function briefHtml(m: Meeting, company: Company): string {
-  const { lines, agenda } = buildBrief(m, company);
-  if (!lines.length) return `<p class="rec-muted md-client-lead">Nothing on file with ${escHtml(company.name)} yet — no earlier meetings, proposals, opportunities or agreements.</p>`;
-  return `<div class="md-brief">${lines.join('')}</div>${agenda.length ? `<details class="md-agenda-preview"><summary>Suggested agenda (${agenda.length})</summary><ol>${agenda.map((a) => `<li>${escHtml(a)}</li>`).join('')}</ol></details>` : ''}`;
+  const { clauses, agenda } = briefFor(m, company);
+  const ref = { id: company.id, name: company.name };
+  const date = m.meetingDate || today();
+  const previous = S.meetings
+    .filter((x) => x.id !== m.id && !x.isCancelled && inCompany(ref, x.companyId, x.companyName) && (x.meetingDate || '') < date)
+    .sort((a, b) => (b.meetingDate || '').localeCompare(a.meetingDate || ''))[0];
+  const prev = previous
+    ? `<div class="md-brief-row">${icon('meeting', 13)}<div><strong>Last time</strong> ${recordLink('meeting', previous.id, previous.title)} · ${escHtml(fmtDate(previous.meetingDate))}${previous.followUp?.trim() ? `<div class="rec-muted">Follow-up: ${escHtml(previous.followUp.trim().split('\n')[0])}</div>` : ''}</div></div>`
+    : '';
+  return `${clausesHtml(clauses, ref)}${prev ? `<div class="md-brief">${prev}</div>` : ''}${agenda.length ? `<details class="md-agenda-preview"><summary>Suggested agenda (${agenda.length})</summary><ol>${agenda.map((x) => `<li>${escHtml(x)}</li>`).join('')}</ol></details>` : ''}`;
 }
 
 export function addSuggestedAgenda(meetingId: number): void {
@@ -188,7 +150,7 @@ export function addSuggestedAgenda(meetingId: number): void {
   if (!m) return;
   const company = m.companyId != null ? S.companies.find((c) => c.id === m.companyId) : S.companies.find((c) => c.name === m.companyName);
   if (!company) return;
-  const { agenda } = buildBrief(m, company);
+  const { agenda } = briefFor(m, company);
   if (!agenda.length) { toast('Nothing to suggest yet for this client'); return; }
   const existing = (m.agenda || '').trim();
   const add = agenda.filter((a) => !existing.includes(a)).map((a) => `- ${a}`).join('\n');

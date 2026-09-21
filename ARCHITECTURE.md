@@ -438,6 +438,13 @@ One surface, hairlines, fewer of everything; tokens and components only, no layo
 - Backend: `get_activity` takes `records` (kind + id pairs; an opportunity or project also matches rows tagged with it). `draft_agreement_for_proposal` drafts the agreement for one proposal signed by both, through the same `create_agreements_for` as the bulk sync. `timeline_scope` is a UI app_meta key.
 - `sectionLayout.ts`: `collapseEmptySections` / `sinkEmptySections`, used by Company 360 and the opportunity, project and meeting pages. The project's "Started from" section now lists only the client contacts; the chain is in the strip.
 
+## Company 360 as a briefing (Slice 4)
+
+- Schema 37: `company_note_entries.pinned`, `contacts.is_decision_maker` (both default 0; in the full backup; a JSON backup without them restores as off). `set_company_note_pinned` pins an entry without touching its dates.
+- `src/lib/companyBrief.ts`: pure rules — `buildCompanyState`, `liveThreads`, `lastContactByPerson`, `orderPeople`, `meetingBrief`, `relationshipStatus` (the header badge), `briefCommandMatches` (⌘K). It keeps its own two date/company helpers because `utils.ts` registers window handlers on import.
+- `src/tabs/companyState.ts`: the input from the loaded data, a cache of each company's pinned notes, and the clause renderer shared by Company 360 and the meeting page. `src/tabs/companyBriefView.ts`: the Brief overlay and its print stylesheet; `window.print()` needs `core:webview:allow-print` on macOS.
+- Company 360 (`companies.ts`): state block, Open threads (`threadStripHtml` with `prefix` and `labelCurrent`), People, the shared timeline (`renderRecordTimeline` with `company`), Company notes with pins, and "All records" (open state in `app_meta.company_records_open`). Key facts moved to the edit panel.
+
 ## People from email
 
 - Contacts → "People from your email": people you correspond with who aren't contacts yet. `ms365/email_people.rs` reads message envelopes only (sender, recipients, date, Outlook's focused/other) from the Inbox and Sent Items for the last 24 months, tallies them per address (sent, received, received as bulk, copied, first and last) and keeps the tally in `app_meta.email_people_scan`; the mailbox is read only when asked.

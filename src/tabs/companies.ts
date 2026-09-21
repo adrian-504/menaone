@@ -11,7 +11,10 @@ import { shownColumns, sortState, setSort, sortRows, headerCells, openColumnPick
 import { companyLists, companyNamesInList, contactsInCompanyList, contactsAtCompanies, createSavedList, renameSavedList, removeSavedList, updateSmartListFilters, addCompaniesToList, removeCompaniesFromList, addToCompanyListChoices, exportToActiveCampaign, listById, sameFilters, cleanFilters, listChipLabel, listsForCompany } from '../core/lists';
 import { emptyState } from '../lib/ui';
 import { recordLink } from '../lib/links';
-import { activityItem, renderFeed, type FeedItem } from '../lib/activityFeed';
+import { type FeedItem } from '../lib/activityFeed';
+import { renderRecordTimeline } from './recordThread';
+import { liveThreads, lastContactByPerson, orderPeople, threadStand, relationshipStatus as briefRelationship } from '../lib/companyBrief';
+import { briefInputFor, clausesHtml, companyStateFor, ensurePinnedNotes, setCompanyNotesCache } from './companyState';
 import { renderIcons } from '../core/chrome';
 import { icon } from '../lib/icons';
 import { persistProposals, persistContacts, persistAgreements, persistTodos, persistNotes, persistCompanyNotes, persistCreateCompany } from '../lib/persist';
@@ -24,7 +27,7 @@ import { openNotesModal } from '../core/proposals';
 import { renderCoNotesSection, createNoteForCompany } from './notes';
 import { renderCoTodosSection, createTodoForCompany } from './todo';
 import { renderLinkedEmailsForCompany } from '../core/emailLinks';
-import { getLinksFor, filesGetByIds, getCompanies, mergeCompanyLinks, saveMeeting, saveProject, saveCompany, getReviewQueue, resolveReviewQueueEntry, renameCompany, getActivity, companyNoteEntries, addCompanyNoteEntryDb, updateCompanyNoteEntryDb, deleteCompanyNoteEntryDb, moveCompanyNoteEntries, type CompanyNoteEntry} from '../lib/db';
+import { getLinksFor, filesGetByIds, getCompanies, mergeCompanyLinks, saveMeeting, saveProject, saveCompany, getReviewQueue, resolveReviewQueueEntry, renameCompany, getAppMeta, setAppMeta, setCompanyNotePinned, companyNoteEntries, addCompanyNoteEntryDb, updateCompanyNoteEntryDb, deleteCompanyNoteEntryDb, moveCompanyNoteEntries, type CompanyNoteEntry} from '../lib/db';
 import { switchTab } from '../core/nav';
 import { normalizeCompanyNameForMatch } from '../lib/companySelector';
 import { INDUSTRY_TAXONOMY } from '../lib/types';
@@ -69,20 +72,15 @@ export function openEditCompanyModal(): void {
   const chipsEl = document.getElementById('edit-co-industries');
   if (chipsEl) renderTagChips(chipsEl, editCoIndustriesDraft, (next) => { editCoIndustriesDraft = next; }, { placeholder: 'Add an industry…', suggestions: [...INDUSTRY_TAXONOMY] });
   setCompanyEditing(true);
-  const card = document.getElementById('co-facts-card');
-  card?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  document.getElementById('co-edit-panel')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   (document.getElementById('edit-co-name') as HTMLInputElement | null)?.focus();
 }
 expose('openEditCompanyModal', openEditCompanyModal);
 
+/** The edit panel under the header (the page itself has no facts card). */
 function setCompanyEditing(on: boolean): void {
-  const form = document.getElementById('co-facts-edit');
-  const facts = document.getElementById('co-facts');
-  const btn = document.getElementById('co-facts-edit-btn');
-  if (form) form.hidden = !on;
-  if (facts) facts.hidden = on;
-  if (btn) btn.hidden = on;
-  document.getElementById('co-facts-card')?.closest('.rec-overview-grid')?.classList.toggle('is-editing', on);
+  const panel = document.getElementById('co-edit-panel');
+  if (panel) panel.hidden = !on;
 }
 
 export function closeEditCompanyModal(): void {
@@ -974,12 +972,9 @@ function companyOpportunities(d: CompanyData) {
   return S.opportunities.filter((o) => inCompany(ref, o.companyId, o.companyName) && !o.archived);
 }
 
+/** The header badge — the same rule as the brief's first clause (lib/companyBrief.ts). */
 function relationshipStatus(d: CompanyData): { label: string; tone: string } {
-  if (d.clientAgreements.length > 0) return { label: 'Active client', tone: 'green' };
-  const openOpps = companyOpportunities(d).filter((o) => o.status === 'Open').length;
-  if (openOpps > 0 || d.proposals.some((p) => !p.archived && isOpenProposal(p))) return { label: 'In discussion', tone: 'amber' };
-  if (d.proposals.some((p) => isLost(p) || isWon(p))) return { label: 'Past client or prospect', tone: 'muted' };
-  return { label: 'Prospect', tone: 'accent' };
+  return briefRelationship({ clientAgreements: d.clientAgreements, opportunities: companyOpportunities(d), proposals: d.proposals });
 }
 
 function renderCompanyDetail(): void {
@@ -1006,40 +1001,23 @@ function renderCompanyDetail(): void {
     ...(co?.industries || []).map((i) => `<span class="rec-badge">${escHtml(i)}</span>`),
     co?.owner ? `<span class="rec-meta">${icon('people', 12)} ${escHtml(co.owner)}</span>` : '',
     co?.city || co?.country ? `<span class="rec-meta">${escHtml([co?.city, co?.country].filter(Boolean).join(', '))}</span>` : '',
-    d.clientSince ? `<span class="rec-meta">Since ${fmtDate(d.clientSince)}</span>` : '',
+    co?.website ? `<span class="rec-meta"><a class="rlink" href="#" onclick="event.preventDefault();openExternalUrl('${escHtml(/^https?:/.test(co.website) ? co.website : `https://${co.website}`)}')">${escHtml(co.website.replace(/^https?:\/\//, '').replace(/\/$/, ''))}</a></span>` : '',
   ].filter(Boolean);
   (document.getElementById('co-detail-meta') as HTMLElement).innerHTML = badges.join('');
 
-  // Relationship counts — each jumps to its section.
-  const openOpps = opps.filter((o) => o.status === 'Open');
-  const pipeline = openOpps.reduce((s, o) => s + (o.estimatedValue || 0), 0);
-  const activeProposals = d.proposals.filter((p) => !p.archived && isOpenProposal(p));
-  // Active MRR is a key fact below; the tiles answer "what's happening" (meetings, open work).
-  const todayIso = today();
-  const lastMeeting = meetings.filter((m) => !m.isCancelled).map((m) => m.meetingDate || '').filter((x) => x && x <= todayIso).sort().pop() || null;
-  const openTasks = tasks.filter((t) => t.status !== 'Done' && t.parentId == null);
-  const overdueTasks = openTasks.filter((t) => t.dueDate && t.dueDate < todayIso).length;
-  const stat = (section: string, label: string, value: string | number, sub = '') =>
-    `<button class="rec-stat" onclick="scrollToCompanySection('${section}')"><span class="rec-stat-val">${value}</span><span class="rec-stat-lbl">${label}</span>${sub ? `<span class="rec-stat-sub">${sub}</span>` : ''}</button>`;
-  (document.getElementById('co-detail-kpis') as HTMLElement).innerHTML = [
-    stat('contacts', 'Contacts', d.contacts.length),
-    stat('opportunities', 'Open opportunities', openOpps.length, pipeline ? money(pipeline) : ''),
-    stat('proposals', 'Active proposals', activeProposals.length, `${d.proposals.length} total`),
-    stat('projects', 'Active projects', projects.filter((p) => !['Completed', 'Cancelled'].includes(p.status)).length),
-    stat('agreements', 'Signed agreements', d.signedAgreements.length, d.activeAgreements.length ? `${d.activeAgreements.length} in progress` : ''),
-    stat('meetings', 'Meetings', meetings.length, lastMeeting ? `Last ${fmtDate(lastMeeting)}` : ''),
-    stat('tasks', 'Open tasks', openTasks.length, overdueTasks ? `${overdueTasks} overdue` : ''),
-  ].join('');
-
+  const key = { id: d.companyId, name: d.name };
+  renderCompanyState(key);
+  renderCompanyThreads(key);
   renderCompanyFacts(d);
   void loadCompanyNoteEntries();
   if (d.companyId != null) void renderLinkedEmailsForCompany(d.companyId, 'co-emails');
 
   const openCommitments = renderCompanyCommitments(ref);
   renderCompanySectionNav({
-    overview: null, commitments: openCommitments, contacts: d.contacts.length, opportunities: opps.length, proposals: d.proposals.length,
+    overview: null, threads: liveThreads(briefInputFor(key)).length, contacts: d.contacts.length, activity: null, 'notes-log': null,
+    commitments: openCommitments, opportunities: opps.length, proposals: d.proposals.length,
     projects: projects.length, agreements: d.agreements.length, meetings: meetings.length, notes: notes.length,
-    tasks: tasks.filter((t) => t.status !== 'Done').length, files: null, activity: null,
+    tasks: tasks.filter((t) => t.status !== 'Done').length, files: null,
   });
   renderCoContacts(d);
   renderCoOpportunities(d, opps);
@@ -1052,6 +1030,7 @@ function renderCompanyDetail(): void {
   (window as any).renderCoMeetingsSection?.(d);
   void renderCoFiles(d);
   void renderCoActivity(d);
+  void applyCompanyRecordsOpen();
   renderIcons(document.getElementById('co-detail') || document);
 }
 registerCompanyViewRefresher(() => {
@@ -1059,46 +1038,121 @@ registerCompanyViewRefresher(() => {
   else renderCompanyList();
 });
 
+/** What the edit panel shows above the form: the website guessed from contacts' email, and lists. */
 function renderCompanyFacts(d: CompanyData): void {
   const co = currentCompanyRecord();
   const el = document.getElementById('co-facts');
   if (!el) return;
-  const services = [...new Set(d.clientAgreements.flatMap((a) => (a.lines?.length ? a.lines.map((l) => l.serviceName) : [a.type || ''])).filter(Boolean))];
-  const nextEnd = d.clientAgreements.map((a) => a.endDate).filter(Boolean).sort()[0] || null;
   const fact = (label: string, value: string) => `<dt>${label}</dt><dd>${value}</dd>`;
   const websiteHint = co && !co.website ? suggestWebsites().find((s) => s.company.id === co.id) : undefined;
-  const add = (label: string) => `<a href="#" class="rec-add-link" onclick="event.preventDefault();openEditCompanyModal()">Add ${label}</a>`;
+  const lists = listsForCompany(d.name);
+  const chips = lists.map((l) => `<span class="ct-list-tag" title="${l.filters ? 'Smart list' : 'Hand-picked list'}">${escHtml(l.name)}</span>`).join(' ');
   el.innerHTML = [
-    fact('Industry', co?.industries.length ? co.industries.map(escHtml).join(', ') : add('industry')),
-    fact('Owner', co?.owner ? escHtml(co.owner) : add('owner')),
-    fact('Website', !co?.website && websiteHint ? `<span class="rec-muted">${escHtml(websiteHint.domain)}?</span> <a href="#" class="rec-add-link" onclick="event.preventDefault();useSuggestedWebsite(${co!.id}, '${escHtml(websiteHint.domain)}')">Use it</a>` : co?.website ? `<a class="rlink" href="#" onclick="event.preventDefault();openExternalUrl('${escHtml(/^https?:/.test(co.website) ? co.website : `https://${co.website}`)}')">${escHtml(co.website.replace(/^https?:\/\//, ''))}</a>` : add('website')),
-    fact('Location', escHtml([co?.city, co?.country].filter(Boolean).join(', ')) || '<span class="rec-muted">—</span>'),
-    fact('Lists', (() => {
-      const lists = listsForCompany(d.name);
-      const chips = lists.map((l) => `<span class="ct-list-tag" title="${l.filters ? 'Smart list' : 'Hand-picked list'}">${escHtml(l.name)}</span>`).join(' ');
-      return `${chips || '<span class="rec-muted">Not in a list</span>'} <a href="#" class="rec-add-link" onclick="event.preventDefault();companyAddToListMenu(event)">Add to list</a>`;
-    })()),
-    fact('On retainer', services.length ? services.map((sv) => `<span class="chip">${escHtml(sv)}</span>`).join(' ') : '<span class="rec-muted">No active services</span>'),
-    fact('Active MRR', Object.keys(d.activeMrr).length ? `<strong>${fmtMoneyByCurrency(d.activeMrr)}</strong>` : '<span class="rec-muted">—</span>'),
-    fact('Agreement ends', nextEnd ? fmtDate(nextEnd) : '<span class="rec-muted">—</span>'),
-    fact('Client since', d.clientSince ? fmtDate(d.clientSince) : '<span class="rec-muted">—</span>'),
-    fact('Latest proposal', d.latestStatus ? escHtml(d.latestStatus) : '<span class="rec-muted">—</span>'),
+    websiteHint ? fact('Website', `<span class="rec-muted">${escHtml(websiteHint.domain)}?</span> <a href="#" class="rec-add-link" onclick="event.preventDefault();useSuggestedWebsite(${co!.id}, '${escHtml(websiteHint.domain)}')">Use it</a>`) : '',
+    fact('Lists', `${chips || '<span class="rec-muted">Not in a list</span>'} <a href="#" class="rec-add-link" onclick="event.preventDefault();companyAddToListMenu(event)">Add to list</a>`),
   ].join('');
 }
 
+// ── Where we stand, and what's in flight ────────────────────────────────────
+
+function renderCompanyState(key: { id: number | null; name: string }): void {
+  const el = document.getElementById('co-state');
+  if (!el) return;
+  el.innerHTML = clausesHtml(companyStateFor(key), key);
+  renderIcons(el);
+  ensurePinnedNotes(key, () => { if (S.currentCompany === key.name) renderCompanyState(key); });
+}
+
+const THREADS_SHOWN = 5;
+let showAllThreads = false;
+
+/** One line per live engagement — where it stands, who it's waiting on, its
+ * next step on hover; the full strip is on the record. Dormant ones fold
+ * into one line pointing at Clean-up. */
+function renderCompanyThreads(key: { id: number | null; name: string }): void {
+  const el = document.getElementById('co-threads');
+  const sec = document.getElementById('co-sec-threads');
+  if (!el || !sec) return;
+  const all = liveThreads(briefInputFor(key));
+  const threads = all.filter((t) => !t.dormant);
+  const dormant = all.filter((t) => t.dormant);
+  sec.hidden = all.length === 0;
+  const cnt = document.getElementById('co-threads-count'); if (cnt) cnt.textContent = threads.length ? String(threads.length) : '';
+  const shown = showAllThreads ? threads : threads.slice(0, THREADS_SHOWN);
+  const row = (t: typeof threads[number]) => {
+    const last = t.thread.nodes[t.thread.nodes.length - 1];
+    const a = t.thread.after;
+    const wait = a?.waitingOn && a.days != null ? `${a.waitingOn === 'us' ? 'with us' : 'with client'} ${a.days}d` : '';
+    const n = t.thread.next;
+    return `<div class="co-thread" role="link" tabindex="0" onclick="openRecord('${last.kind}', ${last.id})" onkeydown="if(event.key==='Enter'&&event.target===this)openRecord('${last.kind}', ${last.id})">
+      <span class="co-thread-dot tone-${last.tone}" aria-hidden="true"></span>
+      <span class="co-thread-label">${escHtml(t.label || 'Engagement')}</span>
+      <span class="co-thread-stand">${escHtml(threadStand(t.thread))}</span>
+      ${wait ? `<span class="co-thread-wait${t.late ? ' is-late' : ''}">${escHtml(wait)}</span>` : ''}
+      ${n ? `<button class="btn-ghost btn-sm co-thread-next" onclick="event.stopPropagation();threadNext('${n.action}', '${n.kind}', ${n.id})">${escHtml(n.label)}</button>` : ''}
+    </div>`;
+  };
+  const queues = [...new Set(dormant.map((t) => t.cleanupQueue))];
+  const dormantLine = dormant.length
+    ? `<button class="co-thread-dormant" onclick="openCleanup(${queues.length === 1 && queues[0] ? `'${queues[0]}'` : ''})">${dormant.length} dormant — review in Clean-up</button>`
+    : '';
+  el.innerHTML = shown.map(row).join('')
+    + (threads.length > shown.length ? `<button class="mdy-more" onclick="showAllCompanyThreads()">Show all ${threads.length}</button>` : '')
+    + dormantLine;
+}
+
+export function showAllCompanyThreads(): void {
+  showAllThreads = true;
+  if (S.currentCompany) { const co = currentCompanyRecord(); renderCompanyThreads({ id: co?.id ?? null, name: S.currentCompany }); }
+}
+expose('showAllCompanyThreads', showAllCompanyThreads);
+
+// ── All records: one group, collapsed by default, remembered per user ───────
+
+let recordsOpen: boolean | null = null;
+
+async function applyCompanyRecordsOpen(): Promise<void> {
+  if (recordsOpen == null) {
+    try { recordsOpen = (await getAppMeta('company_records_open')) === '1'; } catch { recordsOpen = false; }
+  }
+  setRecordsOpen(recordsOpen);
+}
+
+function setRecordsOpen(on: boolean): void {
+  document.getElementById('co-records')?.classList.toggle('is-open', on);
+  document.getElementById('co-records-hd')?.setAttribute('aria-expanded', String(on));
+}
+
+export function toggleCompanyRecords(): void {
+  recordsOpen = !document.getElementById('co-records')?.classList.contains('is-open');
+  setRecordsOpen(recordsOpen);
+  void setAppMeta('company_records_open', recordsOpen ? '1' : '0').catch(() => undefined);
+}
+expose('toggleCompanyRecords', toggleCompanyRecords);
+
 const COMPANY_SECTIONS: [string, string][] = [
-  ['overview', 'Overview'], ['commitments', 'Commitments'], ['contacts', 'Contacts'], ['opportunities', 'Opportunities'], ['proposals', 'Proposals'],
-  ['projects', 'Projects'], ['agreements', 'Agreements'], ['meetings', 'Meetings'], ['notes', 'Notes'],
-  ['tasks', 'Tasks'], ['files', 'Files'], ['activity', 'Activity'],
+  ['overview', 'Overview'], ['threads', 'Open threads'], ['contacts', 'People'], ['activity', 'Timeline'], ['notes-log', 'Company notes'],
+  ['commitments', 'Commitments'], ['opportunities', 'Opportunities'], ['proposals', 'Proposals'], ['projects', 'Projects'],
+  ['agreements', 'Agreements'], ['meetings', 'Meetings'], ['notes', 'Notes'], ['tasks', 'Tasks'], ['files', 'Files'],
 ];
+/** The section bar: short, whatever the company has. */
+const COMPANY_NAV: [string, string][] = [['overview', 'Overview'], ['contacts', 'People'], ['activity', 'Timeline'], ['notes-log', 'Notes'], ['records', 'All records']];
+/** The sections inside "All records". */
+const RECORD_SECTIONS = ['commitments', 'opportunities', 'proposals', 'projects', 'agreements', 'meetings', 'notes', 'tasks', 'files'];
 
 function renderCompanySectionNav(counts: Record<string, number | null>): void {
   const nav = document.getElementById('co-section-nav');
   if (!nav) return;
-  nav.innerHTML = COMPANY_SECTIONS.map(([id, label]) => {
-    const n = counts[id];
-    return `<button class="rec-section-link${counts[id] === 0 ? ' is-empty' : ''}" data-target="${id}" onclick="scrollToCompanySection('${id}')">${label}${n ? `<span>${n}</span>` : ''}</button>`;
+  // Short: the record kinds and their counts are in the "All records" header.
+  nav.innerHTML = COMPANY_NAV.map(([id, label]) => {
+    const n = id === 'contacts' ? counts.contacts : null;
+    return `<button class="rec-section-link" data-target="${id}" onclick="scrollToCompanySection('${id}')">${label}${n ? `<span>${n}</span>` : ''}</button>`;
   }).join('');
+  const summary = document.getElementById('co-records-counts');
+  if (summary) {
+    summary.textContent = RECORD_SECTIONS.map((id) => [COMPANY_SECTIONS.find(([x]) => x === id)![1], counts[id]] as const)
+      .filter(([, n]) => n).map(([label, n]) => `${label} ${n}`).join(' · ');
+  }
   applyCompanySectionLayout(counts);
   updateCompanySectionSpy();
 }
@@ -1116,7 +1170,7 @@ function applyCompanySectionLayout(counts: Record<string, number | null>): void 
   const anchor = document.getElementById('co-sec-files');
   const host = anchor?.parentElement;
   if (!host || !anchor) return;
-  const movable = COMPANY_SECTIONS.filter(([id]) => !['overview', 'activity', 'files'].includes(id));
+  const movable = COMPANY_SECTIONS.filter(([id]) => RECORD_SECTIONS.includes(id) && id !== 'files');
   collapseEmptySections(host, movable.map(([id]) => document.getElementById(`co-sec-${id}`)).filter((el): el is HTMLElement => !!el)
     .map((el) => ({ el, empty: counts[el.id.replace('co-sec-', '')] === 0 })), anchor);
 }
@@ -1128,8 +1182,11 @@ export function expandCompanySection(id: string): void {
 expose('expandCompanySection', expandCompanySection);
 
 export function scrollToCompanySection(id: string): void {
-  const el = document.getElementById(`co-sec-${id}`);
+  if (id === 'records') setRecordsOpen(true);
+  const el = document.getElementById(id === 'records' ? 'co-records' : `co-sec-${id}`);
   if (!el) return;
+  // A record section opens its group (for this visit) and itself.
+  if (RECORD_SECTIONS.includes(id)) { setRecordsOpen(true); el.classList.remove('is-empty'); }
   const top = el.getBoundingClientRect().top + window.scrollY - 44 - 52;
   window.scrollTo({ top: id === 'overview' ? 0 : top, behavior: 'smooth' });
 }
@@ -1139,11 +1196,10 @@ expose('scrollToCompanySection', scrollToCompanySection);
 function updateCompanySectionSpy(): void {
   if (!document.getElementById('co-detail')?.classList.contains('open')) return;
   let active = 'overview';
-  for (const [id] of COMPANY_SECTIONS) {
-    const el = document.getElementById(`co-sec-${id}`);
+  for (const [id] of COMPANY_NAV) {
+    const el = document.getElementById(id === 'records' ? 'co-records' : `co-sec-${id}`);
     if (el && el.getBoundingClientRect().top - 110 <= 0) active = id;
   }
-  if (window.innerHeight + window.scrollY >= document.body.scrollHeight - 4) active = 'activity';
   document.querySelectorAll<HTMLElement>('#co-section-nav .rec-section-link').forEach((b) => b.classList.toggle('active', b.dataset.target === active));
 }
 window.addEventListener('scroll', () => { if (S.currentTab === 'companies') updateCompanySectionSpy(); }, { passive: true });
@@ -1176,7 +1232,9 @@ export async function loadCompanyNoteEntries(): Promise<void> {
     console.error('[company notes] could not load entries:', e);
     noteEntries = [];
   }
+  if (name) setCompanyNotesCache({ id, name }, noteEntries);
   renderCompanyNoteLog();
+  if (name && S.currentCompany === name) renderCompanyState({ id, name });
 }
 
 function renderCompanyNoteLog(): void {
@@ -1203,6 +1261,7 @@ function renderCompanyNoteLog(): void {
     return `<div class="conote-entry">
       <div class="conote-meta"><span>${escHtml(when)}${escHtml(edited)}</span>
         <span class="conote-entry-actions">
+          <button class="rec-icon-btn conote-pin${n.pinned ? ' is-pinned' : ''}" title="${n.pinned ? 'Unpin' : 'Pin to the top of the page'}" aria-label="${n.pinned ? 'Unpin note' : 'Pin note'}" aria-pressed="${n.pinned ? 'true' : 'false'}" onclick="toggleCompanyNotePin(${n.id})">${icon('pin', 13)}</button>
           <button class="rec-icon-btn" title="Edit" aria-label="Edit note" onclick="editCompanyNoteEntry(${n.id})">${icon('edit', 13)}</button>
           <button class="rec-icon-btn" title="Delete" aria-label="Delete note" onclick="removeCompanyNoteEntry(${n.id})">${icon('trash', 13)}</button>
         </span>
@@ -1212,6 +1271,22 @@ function renderCompanyNoteLog(): void {
   }).join('');
   renderIcons(log);
 }
+
+/** Pinned notes are quoted at the top of the page and in the Brief. */
+export async function toggleCompanyNotePin(id: number): Promise<void> {
+  const n = noteEntries.find((x) => x.id === id);
+  if (!n) return;
+  try {
+    const saved = await setCompanyNotePinned(id, !n.pinned);
+    Object.assign(n, saved);
+    const { id: cid, name } = noteTarget();
+    if (name) { setCompanyNotesCache({ id: cid, name }, noteEntries); renderCompanyState({ id: cid, name }); }
+    renderCompanyNoteLog();
+  } catch (e) {
+    toast('Could not pin the note', { tone: 'error', detail: String(e) });
+  }
+}
+expose('toggleCompanyNotePin', toggleCompanyNotePin);
 
 export function companyNoteComposerInput(el: HTMLTextAreaElement): void {
   autoGrowNotes(el);
@@ -1359,23 +1434,53 @@ export function copyText(text: string, message = 'Copied'): void {
 }
 expose('copyText', copyText);
 
+/** People: decision makers first, then whoever we spoke to last. */
 export function renderCoContacts(d: CompanyData): void {
   const cntEl = document.getElementById('co-contacts-count'); if (cntEl) cntEl.textContent = d.contacts.length ? String(d.contacts.length) : '';
   const list = document.getElementById('co-contacts-list');
   if (!list) return;
-  if (d.contacts.length === 0) {
-    list.innerHTML = emptyState({ icon: 'people', title: 'No contacts yet', body: 'Add the people you deal with here so everyone knows who to call.', compact: true, action: { label: 'New contact', onclick: 'openContactForCompany()' } });
-    return;
-  }
-  list.innerHTML = d.contacts.map((c) => `<div class="rec-row" onclick="openRecord('contact', ${c.id})" data-drag-kind="contact" data-drag-id="${c.id}">
+  const sec = document.getElementById('co-sec-contacts');
+  const host = sec?.parentElement;
+  // No people yet: one quiet line (its "+ Add" stays), below the rest.
+  if (sec && host) collapseEmptySections(host, [{ el: sec, empty: d.contacts.length === 0 }], document.getElementById(d.contacts.length ? 'co-sec-activity' : 'co-records'));
+  if (d.contacts.length === 0) { list.innerHTML = ''; return; }
+  const input = briefInputFor({ id: d.companyId, name: d.name });
+  const last = lastContactByPerson(input);
+  list.innerHTML = orderPeople(d.contacts, last).map((c) => {
+    const lc = last.get(c.id);
+    const lastHtml = lc ? `<span class="co-last" title="Last contact">${escHtml(fmtShort(lc.date))} · ${lc.kind === 'meeting' ? recordLink('meeting', lc.id, lc.label) : escHtml(lc.label)}</span>` : '';
+    return `<div class="rec-row" onclick="openRecord('contact', ${c.id})" data-drag-kind="contact" data-drag-id="${c.id}">
     <span class="rec-row-avatar" style="background:${strColor(c.name || '?')}">${escHtml(initials(c.name || '?'))}</span>
     <div class="rec-row-main">
-      <div class="rec-row-title">${recordLink('contact', c.id, c.name || 'Unnamed contact')}</div>
-      <div class="rec-row-sub">${escHtml([c.role, c.email].filter(Boolean).join(' · ') || 'No details yet')}</div>
+      <div class="rec-row-title">${recordLink('contact', c.id, c.name || 'Unnamed contact')}${c.isDecisionMaker ? ' <span class="chip co-dm">Decision maker</span>' : ''}</div>
+      <div class="rec-row-sub">${[escHtml(c.role || c.email || 'No details yet'), lastHtml].filter(Boolean).join(' · ')}</div>
     </div>
-    <div class="rec-row-actions">${contactActionButtons(c)}</div>
-  </div>`).join('');
+    <div class="rec-row-actions">${contactActionButtons(c)}<button class="rec-icon-btn" title="More" aria-label="More" onclick="event.stopPropagation();companyPersonMenu(event, ${c.id})">${icon('more', 14)}</button></div>
+  </div>`;
+  }).join('');
 }
+
+const fmtShort = (iso: string) => new Date(`${iso.slice(0, 10)}T12:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+
+export function companyPersonMenu(e: MouseEvent, id: number): void {
+  const c = S.contacts.find((x) => x.id === id);
+  if (!c) return;
+  showMenuAt(e.currentTarget as HTMLElement, [
+    { label: c.isDecisionMaker ? 'Not a decision maker' : 'Decision maker', iconName: 'check', run: () => toggleDecisionMaker(id) },
+    { label: 'Open', iconName: 'people', run: () => (window as any).openRecord('contact', id) },
+  ]);
+}
+expose('companyPersonMenu', companyPersonMenu);
+
+/** The only contact tag. Saved with the contact. */
+export function toggleDecisionMaker(id: number): void {
+  const c = S.contacts.find((x) => x.id === id);
+  if (!c) return;
+  c.isDecisionMaker = !c.isDecisionMaker;
+  persistContacts();
+  refreshAll();
+}
+expose('toggleDecisionMaker', toggleDecisionMaker);
 
 function renderCoOpportunities(d: CompanyData, opps: Opportunity[]): void {
   const cntEl = document.getElementById('co-opps-count'); if (cntEl) cntEl.textContent = opps.length ? String(opps.length) : '';
@@ -1475,20 +1580,26 @@ async function renderCoFiles(d: CompanyData): Promise<void> {
     </div>`).join('')}</div>`;
 }
 
-/** Everything that happened with this company: the unified activity log,
- * plus the dated milestones on its proposals and agreements (which cover
- * history from before the log existed). */
+/** The company's timeline: the shared record timeline over every record of
+ * the company and its own meetings, tasks and promises, plus the dated steps
+ * on its proposals and agreements (history from before the activity log). */
 async function renderCoActivity(d: CompanyData): Promise<void> {
-  const container = document.getElementById('co-timeline');
-  if (!container) return;
   const name = d.name;
-  const entries = d.companyId != null ? await getActivity({ companyId: d.companyId, limit: 300 }).catch(() => []) : [];
-  if (S.currentCompany !== name) return;
-  const items: FeedItem[] = entries.map(activityItem);
+  await renderRecordTimeline({
+    elId: 'co-sec-activity', company: { id: d.companyId, name }, scopeToggle: false,
+    header: '<button class="btn-secondary btn-sm" onclick="openActivityNote()">+ Log note</button>',
+    extraPast: (entries) => companyHistory(d, entries),
+  });
+}
+
+function companyHistory(d: CompanyData, entries: { entityType: string; entityId: number; action: string }[]): FeedItem[] {
+  const items: FeedItem[] = [];
+  const logged = (type: string, id: number) => entries.some((e) => e.entityType === type && e.entityId === id && e.action === 'status_changed');
   const milestone = (at: string | null | undefined, iconName: string, tone: FeedItem['tone'], html: string, detail?: string | null) => {
     if (at) items.push({ at, iconName, tone, html, detail });
   };
   for (const p of d.proposals) {
+    if (logged('proposal', p.id)) continue;
     const link = recordLink('proposal', p.id, `${p.type || 'Proposal'} (SL#${p.id})`);
     milestone(p.sentDate, 'mail', 'amber', `Proposal sent to client · ${link}`);
     milestone(p.dblSignedDate, 'check', 'green', `Proposal signed by both parties · ${link}`, isWon(p) ? p.winLossReason : null);
@@ -1496,16 +1607,17 @@ async function renderCoActivity(d: CompanyData): Promise<void> {
     if (isLost(p)) milestone(p.sentDate || p.dateAdded, 'close', 'red', `Proposal closed as lost · ${link}`, p.winLossReason);
   }
   for (const a of d.agreements) {
+    if (logged('agreement', a.id)) continue;
     const link = recordLink('agreement', a.id, a.agrRef || a.type || 'Agreement');
     milestone(a.dateSentToClient, 'mail', 'amber', `Agreement sent to client · ${link}`);
     milestone(a.dateClientSigned, 'check', 'green', `Client signed · ${link}`);
     milestone(a.dateMenaSigned, 'check', 'green', `MENA BIG signed · ${link}`);
   }
-  for (const m of S.meetings.filter((x) => inCompany({ id: d.companyId, name }, x.companyId, x.companyName))) {
-    if (!entries.some((e) => e.entityType === 'meeting' && e.entityId === m.id)) milestone(m.meetingDate, 'meeting', 'accent', `Meeting · ${recordLink('meeting', m.id, m.title)}`);
+  const today_ = today();
+  for (const m of S.meetings.filter((x) => !x.isCancelled && inCompany({ id: d.companyId, name: d.name }, x.companyId, x.companyName))) {
+    if (m.meetingDate && m.meetingDate < today_ && !entries.some((e) => e.entityType === 'meeting' && e.entityId === m.id)) milestone(m.meetingDate, 'meeting', 'accent', `Meeting · ${recordLink('meeting', m.id, m.title)}`);
   }
-  const cntEl = document.getElementById('co-activity-count'); if (cntEl) cntEl.textContent = items.length ? String(items.length) : '';
-  container.innerHTML = renderFeed(items, { empty: 'Nothing recorded yet. Changes to this company’s proposals, tasks, notes and meetings will appear here.' });
+  return items;
 }
 
 export function openContactForCompany(): void {

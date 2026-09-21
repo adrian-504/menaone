@@ -20,7 +20,8 @@ import { buildRecordTimeline } from '../lib/recordTimeline';
 import { recordTimelineHtml } from '../lib/timeline';
 import { setCommitmentKept } from './commitments';
 import { toggleTodoDone } from './todo';
-import type { Agreement, Milestone } from '../lib/types';
+import type { ActivityEntry, Agreement, Milestone } from '../lib/types';
+import type { FeedItem } from '../lib/activityFeed';
 
 type Rec = { kind: ThreadKind; id: number };
 const w = () => window as any;
@@ -81,10 +82,27 @@ async function loadScope(): Promise<void> {
   try { scope = (await getAppMeta('timeline_scope')) === 'engagement' ? 'engagement' : 'record'; } catch { /* default */ }
 }
 
-interface TimelineMount { elId: string; record: Rec; scopeToggle: boolean; header?: string; milestones?: () => Milestone[]; skipPast?: (action: string) => boolean }
+interface TimelineMount {
+  elId: string;
+  /** The record — or, on Company 360, the company (every record of it, and its own meetings, tasks and promises). */
+  record?: Rec; company?: { id: number | null; name: string };
+  scopeToggle: boolean;
+  /** Dated history that isn't in the activity log (given the log's rows, to avoid repeating them). */
+  extraPast?: (activity: ActivityEntry[]) => FeedItem[]; header?: string; milestones?: () => Milestone[]; skipPast?: (action: string) => boolean }
 const mounts = new Map<string, TimelineMount>();
 const showAll = new Set<string>();
 const PAST_LIMIT = 15;
+
+/** Every opportunity, proposal, agreement and project of a company. */
+function companyTimelineRecords(co: { id: number | null; name: string }): Rec[] {
+  const of = (id: number | null | undefined, name: string | null | undefined) => (id != null && co.id != null ? id === co.id : !!name && name === co.name);
+  return [
+    ...S.opportunities.filter((o) => !o.archived && of(o.companyId, o.companyName)).map((o) => ({ kind: 'opportunity' as const, id: o.id })),
+    ...S.proposals.filter((p) => !p.archived && of(p.companyId, p.client)).map((p) => ({ kind: 'proposal' as const, id: p.id })),
+    ...S.agreements.filter((a) => of(a.companyId, a.client)).map((a) => ({ kind: 'agreement' as const, id: a.id })),
+    ...S.projects.filter((p) => !p.archived && of(p.companyId, p.companyName)).map((p) => ({ kind: 'project' as const, id: p.id })),
+  ];
+}
 
 /** A record's timeline, replacing its Activity section. */
 export async function renderRecordTimeline(m: TimelineMount): Promise<void> {
@@ -92,20 +110,23 @@ export async function renderRecordTimeline(m: TimelineMount): Promise<void> {
   await loadScope();
   const el = document.getElementById(m.elId);
   if (!el) return;
-  const thread = engagementThread(m.record, S, today());
-  const useThread = m.scopeToggle && scope === 'engagement' && thread.nodes.length > 1;
-  const records: Rec[] = useThread
-    ? thread.nodes.flatMap((n) => [{ kind: n.kind, id: n.id }, ...(n.others || []).map((o) => ({ kind: 'agreement' as const, id: o.id }))])
-    : [m.record];
-  const activity = await getActivity({ records, limit: 400 }).catch(() => []);
+  const co = m.company;
+  const thread = m.record ? engagementThread(m.record, S, today()) : null;
+  const useThread = !!thread && m.scopeToggle && scope === 'engagement' && thread.nodes.length > 1;
+  const records: Rec[] = co
+    ? companyTimelineRecords(co)
+    : useThread
+      ? thread!.nodes.flatMap((n) => [{ kind: n.kind, id: n.id }, ...(n.others || []).map((o) => ({ kind: 'agreement' as const, id: o.id }))])
+      : [m.record!];
+  const activity = await (co ? getActivity({ companyId: co.id ?? undefined, limit: 400 }) : getActivity({ records, limit: 400 })).catch(() => []);
   if (!document.getElementById(m.elId)) return;
   const tl = buildRecordTimeline(records, {
     today: today(), activity: m.skipPast ? activity.filter((a) => !m.skipPast!(a.action)) : activity,
     meetings: S.meetings, todos: S.todos, commitments: S.commitments, opportunities: S.opportunities, proposals: S.proposals,
-    agreements: S.agreements, projects: S.projects, milestones: m.milestones?.() || [],
+    agreements: S.agreements, projects: S.projects, milestones: m.milestones?.() || [], company: co,
   });
   const now = new Date();
-  const toggle = m.scopeToggle && thread.nodes.length > 1
+  const toggle = m.record && thread && m.scopeToggle && thread.nodes.length > 1
     ? `<div class="segmented tl-scope" role="group" aria-label="Timeline of">
         <button class="${scope === 'record' ? 'active' : ''}" onclick="setTimelineScope('record')">This ${m.record.kind}</button>
         <button class="${scope === 'engagement' ? 'active' : ''}" onclick="setTimelineScope('engagement')">Whole engagement</button></div>`
@@ -113,7 +134,7 @@ export async function renderRecordTimeline(m: TimelineMount): Promise<void> {
   el.innerHTML = `<div class="rec-section-hd tl-hd"><h2>Timeline</h2>${toggle}<div class="rec-section-actions">${m.header || ''}</div></div>
     <div class="tl">${recordTimelineHtml(tl, {
       today: today(), nowLabel: `Now · ${now.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`,
-      pastLimit: showAll.has(m.elId) ? null : PAST_LIMIT, showEarlier: `showEarlierTimeline('${m.elId}')`,
+      pastLimit: showAll.has(m.elId) ? null : PAST_LIMIT, showEarlier: `showEarlierTimeline('${m.elId}')`, extraPast: m.extraPast?.(activity),
     })}</div>`;
   renderIcons(el);
 }
@@ -150,5 +171,3 @@ onChange((changes) => {
   if ((['task', 'meeting', 'commitment'] as const).some((k) => touches(changes, k))) rerenderTimelines();
 });
 
-/** Escapes for use inside an onclick attribute. */
-export const attrJs = (s: string) => escHtml(s).replace(/'/g, '&#39;');

@@ -32,9 +32,16 @@ const SAMPLE: AppData = {
       lines: [{ id: 3, serviceId: 18, serviceName: 'Recruitment', description: null, billing: 'monthly', quantity: 1, unitPrice: 7000, commission: false, sortOrder: 0 }],
       documents: [],
     },
+    // An old proposal never closed: dormant on Company 360, waiting in Clean-up.
+    {
+      id: 4, client: 'Acme Holdings', companyId: 1, type: 'Mobilization', status: 'Sent to Client', sentDate: '2025-04-10',
+      dblSignedDate: null, kickoffDate: null, finance: null, hubspot: null, owner: 'Ahmad', remarks: null, dateAdded: '2025-04-01',
+      monthlyFee: 4000, contractMonths: 12, winLossReason: null, docLink: null, archived: false, archivedAt: null, snoozedUntil: null,
+      dateSentToHassan: '2025-04-05', dateSentToClient: '2025-04-10', dateSigned: null, notes: [], businessEntityId: 1, currency: 'SAR', lines: [], documents: [],
+    },
     // A proposal with no opportunity: its thread starts at the proposal.
     {
-      id: 3, client: 'Northwind Trading', type: 'Payroll', status: 'Sent to Client', sentDate: '2026-09-02',
+      id: 3, client: 'Northwind Trading', companyId: 2, type: 'Payroll', status: 'Sent to Client', sentDate: '2026-09-02',
       dblSignedDate: null, kickoffDate: null, finance: null, hubspot: null, owner: 'Ahmad',
       remarks: null, dateAdded: '2026-08-28', monthlyFee: 5000, contractMonths: 12, winLossReason: null,
       docLink: null, archived: false, archivedAt: null, snoozedUntil: null, dateSentToHassan: '2026-08-30',
@@ -45,7 +52,7 @@ const SAMPLE: AppData = {
     },
   ],
   contacts: [
-    { id: 1, clientName: 'Acme Holdings', name: 'Jane Doe', role: 'CEO', email: 'jane@acme.test', phone: null, whatsapp: null, service: null, lists: [] },
+    { id: 1, clientName: 'Acme Holdings', companyId: 1, name: 'Jane Doe', role: 'CEO', email: 'jane@acme.test', phone: null, whatsapp: null, service: null, lists: [], isDecisionMaker: true },
     { id: 2, clientName: 'Acme Holdings', companyId: 1, name: 'Omar Haddad', role: 'Finance manager', email: 'omar@acme.test', phone: null, whatsapp: null, service: null, lists: [] },
   ],
   agreements: [
@@ -153,7 +160,7 @@ let companiesStore: Company[] = [];
 let savedListsStore: SavedList[] = [];
 /** Company notes as dated entries (schema 32). */
 const companyNoteEntriesStore: any[] = [
-  { id: 8001, companyId: 1, companyName: 'Acme Holdings', body: 'Finance signs off on anything above SAR 50k — allow an extra week.', isLegacy: false, createdAt: '2026-07-14T09:12:00Z', updatedAt: null },
+  { id: 8001, companyId: 1, companyName: 'Acme Holdings', body: 'Finance signs off on anything above SAR 50k — allow an extra week.', isLegacy: false, createdAt: '2026-07-14T09:12:00Z', updatedAt: null, pinned: true },
   { id: 8002, companyId: 1, companyName: 'Acme Holdings', body: 'Prefers everything by email; the HR director is the real decision maker.', isLegacy: true, createdAt: '2026-05-02T08:00:00Z', updatedAt: null },
 ];
 let nextSavedListId = 0;
@@ -164,7 +171,11 @@ function makeMockCompany(id: number, name: string): Company {
     createdAt: new Date().toISOString(), updatedAt: null,
   };
 }
-companiesStore = [{ ...makeMockCompany(1, 'Acme Holdings'), industries: ['Logistics'], owner: 'Ahmad', website: 'acme.test', country: 'Saudi Arabia', city: 'Riyadh' }];
+companiesStore = [
+  { ...makeMockCompany(1, 'Acme Holdings'), industries: ['Logistics'], owner: 'Ahmad', website: 'acme.test', country: 'Saudi Arabia', city: 'Riyadh' },
+  // The near-empty prospect: one proposal out, nothing else yet.
+  { ...makeMockCompany(2, 'Northwind Trading'), industries: ['Retail'], country: 'Saudi Arabia', city: 'Jeddah' },
+];
 let reviewQueueStore: ReviewQueueEntry[] = [];
 const mockOpp = (id: number, name: string, stage: string, value: number | null, created: string, extra: Partial<Opportunity> = {}): Opportunity => ({
   id, name, companyId: 1, companyName: 'Acme Holdings', owner: 'Ahmad', stage, status: stage === 'Won' ? 'Won' : stage === 'Lost' ? 'Lost' : 'Open',
@@ -547,7 +558,7 @@ export async function installDevMockIfNeeded(): Promise<void> {
         case 'inspect_full_backup':
         case 'restore_full_backup':
           // The browser preview has no database file: describe the sample data instead.
-          return { schemaVersion: 36, companies: 2, contacts: SAMPLE.contacts.length, opportunities: opportunitiesStore.length, proposals: SAMPLE.proposals.length,
+          return { schemaVersion: 37, companies: 2, contacts: SAMPLE.contacts.length, opportunities: opportunitiesStore.length, proposals: SAMPLE.proposals.length,
             agreements: SAMPLE.agreements.length, projects: projectsStore.length, meetings: meetingsStore.length, tasks: SAMPLE.todos.length, notes: SAMPLE.notes.length,
             commitments: (SAMPLE.commitments || []).length };
         case 'commitments_add': {
@@ -893,6 +904,12 @@ export async function installDevMockIfNeeded(): Promise<void> {
           const p = _payload as any;
           const n = companyNoteEntriesStore.find((x) => x.id === p?.id);
           if (n) { n.body = String(p?.body || ''); n.updatedAt = new Date().toISOString(); }
+          return n ?? null;
+        }
+        case 'set_company_note_pinned': {
+          const p = _payload as any;
+          const n = companyNoteEntriesStore.find((x) => x.id === p?.id);
+          if (n) n.pinned = !!p?.pinned;
           return n ?? null;
         }
         case 'delete_company_note_entry': {

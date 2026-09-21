@@ -173,6 +173,8 @@ export interface Contact {
   whatsapp: string | null;
   service: string | null;
   lists: string[];
+  /** The only contact tag: someone who decides for the client. */
+  isDecisionMaker?: boolean;
 }
 
 export interface Agreement {

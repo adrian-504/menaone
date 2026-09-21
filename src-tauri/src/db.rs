@@ -712,7 +712,28 @@ const CODE_MIGRATIONS: &[(i64, fn(&Connection) -> rusqlite::Result<()>)] = &[
     (35, migrate_meeting_invite_text),
     // Commitments (who promised what, by when) and what an opportunity is waiting on.
     (36, crate::commitments::migrate_commitments),
+    // Company 360 as a briefing: pinned company notes, decision makers.
+    (37, migrate_company_brief),
 ];
+
+fn column_exists(conn: &Connection, table: &str, col: &str) -> rusqlite::Result<bool> {
+    Ok(conn
+        .prepare(&format!("PRAGMA table_info({table})"))?
+        .query_map([], |r| r.get::<_, String>(1))?
+        .collect::<rusqlite::Result<Vec<_>>>()?
+        .iter()
+        .any(|c| c == col))
+}
+
+fn migrate_company_brief(conn: &Connection) -> rusqlite::Result<()> {
+    if !column_exists(conn, "company_note_entries", "pinned")? {
+        conn.execute_batch("ALTER TABLE company_note_entries ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0;")?;
+    }
+    if !column_exists(conn, "contacts", "is_decision_maker")? {
+        conn.execute_batch("ALTER TABLE contacts ADD COLUMN is_decision_maker INTEGER NOT NULL DEFAULT 0;")?;
+    }
+    Ok(())
+}
 
 fn migrate_meeting_invite_text(conn: &Connection) -> rusqlite::Result<()> {
     let has = conn

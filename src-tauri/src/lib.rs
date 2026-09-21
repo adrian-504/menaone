@@ -285,6 +285,7 @@ pub fn run() {
             activity::add_company_note_entry,
             activity::update_company_note_entry,
             activity::delete_company_note_entry,
+            activity::set_company_note_pinned,
             activity::move_company_note_entries,
             backups::list_local_backups,
             backups::backup_database_now,

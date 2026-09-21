@@ -20,7 +20,7 @@ export interface StripOptions {
 function nodeHtml(n: ThreadNode, current: { kind: ThreadKind; id: number } | null, o: StripOptions): string {
   const isCurrent = !!current && n.kind === current.kind && n.id === current.id;
   const title = `${KIND_LABEL[n.kind]}: ${n.label}${n.status ? ` — ${n.status}` : ''}${n.date ? ` · ${n.dateLabel} ${n.date}` : ''}`;
-  const more = n.others?.length ? `<button class="ts-more" onclick="threadOthersMenu(event, '${escHtml(JSON.stringify(n.others).replace(/'/g, '&#39;'))}')" title="${n.others.length} more agreement${n.others.length === 1 ? '' : 's'}">+${n.others.length}</button>` : '';
+  const more = n.others?.length ? `<button class="ts-more" onclick="threadOthersMenu(event, '${escHtml(JSON.stringify(n.others).replace(/\\/g, '\\\\').replace(/'/g, "\\'"))}')" title="${n.others.length} more agreement${n.others.length === 1 ? '' : 's'}">+${n.others.length}</button>` : '';
   if (isCurrent && !o.labelCurrent) {
     return `<span class="ts-node tone-${n.tone} is-current" aria-current="page" title="${escHtml(title)}"><span class="ts-dot" aria-hidden="true"></span><span class="ts-kind">${KIND_LABEL[n.kind]}</span>${more}</span>`;
   }

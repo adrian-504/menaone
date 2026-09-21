@@ -1,4 +1,5 @@
 import { S } from '../lib/state';
+import { briefCommandMatches } from '../lib/companyBrief';
 import { escHtml, expose } from '../lib/utils';
 import { icon } from '../lib/icons';
 import { searchWorkspace } from '../lib/db';
@@ -24,7 +25,9 @@ type Action = { id: string; label: string; group: string; iconName: string; run:
 function contextualActions(): Action[] {
   const actions: Action[] = contextCreateActions();
   if (currentPlace().kind === 'company' && S.currentCompany) {
-    actions.push({ id: 'ctx-co-edit', label: `Edit ${S.currentCompany}`, group: 'This Company', iconName: 'edit', run: () => (window as any).openEditCompanyModal() });
+    const name = S.currentCompany;
+    actions.push({ id: 'ctx-co-brief', label: `Brief ${name}`, group: 'This Company', iconName: 'document', run: () => (window as any).openCompanyBrief(name) });
+    actions.push({ id: 'ctx-co-edit', label: `Edit ${name}`, group: 'This Company', iconName: 'edit', run: () => (window as any).openEditCompanyModal() });
   }
   return actions;
 }
@@ -168,6 +171,10 @@ const ENTITY_GROUP_LABEL: Partial<Record<EntityKind, string>> = {
 function renderPalette(results: SearchResult[]): void {
   const q = S.searchQuery.trim().toLowerCase();
   const actions = quickActions().filter((a) => !q || a.label.toLowerCase().includes(q));
+  // "brief acme" from anywhere: the Brief of each matching company.
+  for (const name of briefCommandMatches(S.searchQuery, S.companies.filter((c) => !c.archived).map((c) => c.name))) {
+    if (!actions.some((a) => a.label === `Brief ${name}`)) actions.unshift({ id: `brief-${name}`, label: `Brief ${name}`, group: 'Brief', iconName: 'document', run: () => (window as any).openCompanyBrief(name) });
+  }
 
   // Group actions by their own `group` field (contextual group first, since
   // contextualActions() is prepended in quickActions(), then Navigate/Create
