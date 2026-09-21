@@ -45,9 +45,11 @@ const COUNT = `(() => {
     const s = getComputedStyle(el); if (s.visibility === 'hidden' || s.display === 'none' || +s.opacity === 0) return false; return !el.closest(chrome); };
   const inputs = [...document.querySelectorAll('input:not([type=hidden]):not([type=checkbox]):not([type=radio]), select, textarea, [contenteditable=true]')].filter(vis);
   const filters = inputs.filter((el) => el.closest('.fbar, .co-search-bar, .page-filters, .list-filters, .filter-bar')).length;
-  const buttons = [...document.querySelectorAll('button, a.btn-primary, a.btn-secondary')].filter((b) => vis(b) && !b.classList.contains('rlink')).length;
+  const btns = [...document.querySelectorAll('button, a.btn-primary, a.btn-secondary')].filter((b) => vis(b) && !b.classList.contains('rlink'));
+  const buttons = btns.length;
+  const names = btns.map((b) => (b.textContent || '').trim().slice(0, 20) || b.getAttribute('aria-label') || b.title);
   const primary = [...document.querySelectorAll('.btn-primary')].filter(vis).length;
-  return JSON.stringify({ inputs: inputs.length, filters, buttons, primary, height: document.scrollingElement.scrollHeight });
+  return JSON.stringify({ inputs: inputs.length, filters, buttons, primary, height: document.scrollingElement.scrollHeight, names });
 })()`;
 
 const port = 9400 + Math.floor(Math.random() * 400);
@@ -65,7 +67,7 @@ const evalJs = async (expr) => (await send('Runtime.evaluate', { expression: exp
 
 await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
 const results = [];
-for (const [name, js, t] of VIEWS) {
+for (const [name, js, t] of VIEWS.filter(([n]) => !process.env.ONLY || n.startsWith(process.env.ONLY))) {
   await send('Page.navigate', { url: URL });
   await sleep(2500);
   await evalJs(`(${js}), new Promise(r => setTimeout(r, 1200))`);
@@ -80,6 +82,7 @@ for (const [name, js, t] of VIEWS) {
   results.push({ name, ...c, problems });
 }
 ws.close(); chrome.kill();
+if (process.env.ONLY) for (const r of results) console.log(r.name, r.names.join(' | '));
 if (process.argv.includes('--json')) console.log(JSON.stringify(results, null, 1));
 else for (const r of results) console.log(`${r.problems.length ? '✗' : '✓'} ${r.name.padEnd(22)} inputs ${String(r.inputs).padStart(2)} · buttons ${String(r.buttons).padStart(2)} · blue ${r.primary}${r.filters ? ` · filters ${r.filters}` : ''}${r.problems.length ? `  — ${r.problems.join(', ')}` : ''}`);
 process.exit(results.some((r) => r.problems.length) ? 1 : 0);

@@ -553,8 +553,10 @@ async function renderDocuments(p: Proposal): Promise<void> {
   } else if (!info.exists) {
     folderEl.innerHTML = `<div class="pr-folder-line">${icon('folder', 14)}<span>No folder for ${escHtml(p.client)} yet in <code class="path-code">${escHtml(info.root)}</code></span><button class="btn-secondary btn-sm" onclick="proposalCreateFolder()">Create folder</button></div>`;
   } else {
-    folderEl.innerHTML = `<div class="pr-folder-line">${icon('folder', 14)}<button class="rlink pr-folder-path" onclick="proposalOpenFolder()">${escHtml(info.path || '')}</button></div>
-      <div class="pr-next-name"><span class="rec-muted">Next file name</span><code>${escHtml(suggested)}</code><button class="rec-icon-btn" onclick="copyText('${escHtml(suggested.replace(/'/g, "\\'"))}','File name copied')" title="Copy file name" aria-label="Copy file name">${icon('copy', 13)}</button></div>`;
+    // The folder by name (like Files); the full path is on hover.
+    const folderName = (info.path || '').split('/').filter(Boolean).pop() || p.client;
+    folderEl.innerHTML = `<div class="pr-folder-line">${icon('folder', 14)}<button class="rlink pr-folder-path" onclick="proposalOpenFolder()" title="${escHtml(info.path || '')}">${escHtml(folderName)}</button></div>
+      <div class="pr-next-name"><span class="rec-muted">Next file name</span><code>${escHtml(suggested)}</code><button class="rec-icon-btn pr-copy-name" onclick="copyText('${escHtml(suggested.replace(/'/g, "\\'"))}','File name copied')" title="Copy file name" aria-label="Copy file name">${icon('copy', 13)}</button></div>`;
   }
 
   // Generated decks: their own version history above; everything else is supporting.

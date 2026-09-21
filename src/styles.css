@@ -2590,3 +2590,13 @@ details[open] > summary .svc-group-names{visibility:hidden}
 /* Company 360: a section's "+ New" shows when you're in that section. */
 #co-detail .rec-section:not(.is-empty) > .rec-section-hd .rec-section-actions .btn-secondary{opacity:0;transition:opacity var(--dur-fast) var(--ease-out)}
 #co-detail .rec-section:hover > .rec-section-hd .rec-section-actions .btn-secondary,#co-detail .rec-section:focus-within > .rec-section-hd .rec-section-actions .btn-secondary{opacity:1}
+/* Filter bars: search + two filters; the rest behind "Filters" (lib/filterBar.ts). */
+.fbar-more{position:relative;display:inline-flex;align-items:center;gap:4px}
+.fbar-more-btn.has-active{color:var(--accent);border-color:var(--accent-border)}
+.fbar-panel{position:absolute;top:calc(100% + 6px);left:0;z-index:60;display:flex;flex-direction:column;gap:8px;min-width:260px;padding:12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-md)}
+.fbar-panel[hidden]{display:none}
+.fbar-panel-row{display:flex;flex-direction:column;gap:3px}
+.fbar-panel-row > .fsel,.fbar-panel-row > select{width:100%}
+.fbar-panel-label{font-size:var(--type-meta);color:var(--muted)}
+.fbar-clear[hidden]{display:none}
+.pr-copy-name{opacity:0}.pr-next-name:hover .pr-copy-name,.pr-copy-name:focus-visible{opacity:1}

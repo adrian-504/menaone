@@ -130,7 +130,9 @@ export function renderAgreements(): void {
     { lbl: 'Ending within 60 days', val: ending, signal: ending ? ('warning' as const) : undefined },
   ];
   const summaryEl = document.getElementById('agr-summary');
-  if (summaryEl) summaryEl.innerHTML = summaryDefs.map((x) => kpiCard(x.lbl, x.val, null, { signal: x.signal })).join('');
+  // The tiles didn't filter anything, so they're gone (Focus); the list and its filters say it.
+  if (summaryEl) { summaryEl.innerHTML = ''; summaryEl.hidden = true; }
+  void summaryDefs; void kpiCard;
 
   const tbody = document.getElementById('agr-tbody');
   if (!tbody) return;
