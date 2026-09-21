@@ -58,6 +58,7 @@ pub fn read_all_data(conn: &Connection) -> rusqlite::Result<AppData> {
         services: crate::commercial::read_services(conn)?,
         business_entities: crate::commercial::read_business_entities(conn)?,
         team_members: crate::commercial::read_team_members(conn)?,
+        commitments: crate::commitments::read_commitments(conn)?,
     })
 }
 
@@ -1119,9 +1120,29 @@ pub fn restore_backup_core(conn: &mut Connection, data: &AppData) -> rusqlite::R
             &data.note_folders, &data.contact_lists, &data.company_notes,
         )?;
         crate::commercial::restore_setup(&tx, &data.services, &data.business_entities, &data.team_members)?;
+        restore_commitments_in(&tx, &data.commitments)?;
         crate::commercial::normalize_commercial_data(&tx)?;
         tx.commit()
     })
+}
+
+/// Commitments come back by id, after the tasks they point at. A backup from
+/// before commitments existed has none; the current ones are then left alone.
+fn restore_commitments_in(tx: &Connection, items: &[crate::commitments::Commitment]) -> rusqlite::Result<()> {
+    if items.is_empty() { return Ok(()); }
+    let keep: Vec<i64> = items.iter().map(|c| c.id).collect();
+    let gone: Vec<i64> = tx.prepare("SELECT id FROM commitments WHERE id NOT IN (SELECT value FROM json_each(?1))")?
+        .query_map(params![ids_json(&keep)], |r| r.get(0))?.collect::<rusqlite::Result<_>>()?;
+    crate::commitments::delete_commitment_rows_in(tx, &gone)?;
+    // A task the backup doesn't have any more leaves its commitment without one.
+    let items: Vec<_> = items.iter().cloned().map(|mut c| {
+        if let Some(t) = c.todo_id {
+            let exists: bool = tx.query_row("SELECT EXISTS(SELECT 1 FROM todos WHERE id = ?1)", params![t], |r| r.get(0)).unwrap_or(false);
+            if !exists { c.todo_id = None; }
+        }
+        c
+    }).collect();
+    crate::commitments::upsert_commitment_rows_in(tx, &items)
 }
 
 /// Records in a backup are saved by id, so a record that is still here keeps

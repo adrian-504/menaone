@@ -30,6 +30,20 @@ pub fn reindex_project(conn: &Connection, id: i64) -> rusqlite::Result<()> {
     Ok(())
 }
 
+/// A commitment: its text, found by the company and the person involved.
+pub fn reindex_commitment(conn: &Connection, id: i64) -> rusqlite::Result<()> {
+    let row = conn.query_row(
+        "SELECT c.text, COALESCE(co.name,''), COALESCE(ct.name,'') FROM commitments c
+         LEFT JOIN companies co ON co.id = c.company_id LEFT JOIN contacts ct ON ct.id = c.contact_id WHERE c.id = ?1",
+        params![id],
+        |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?, r.get::<_, String>(2)?)),
+    );
+    if let Ok((text, company, who)) = row {
+        upsert(conn, "commitment", id, &text, &format!("{company} {who}"))?;
+    }
+    Ok(())
+}
+
 pub fn reindex_meeting(conn: &Connection, id: i64) -> rusqlite::Result<()> {
     let row = conn.query_row(
         "SELECT title, COALESCE(agenda,'') || ' ' || COALESCE(decisions,'') || ' ' || COALESCE(follow_up,''), COALESCE(discussion,''), COALESCE(company_name,'') FROM meetings WHERE id = ?1",
@@ -272,6 +286,11 @@ pub fn rebuild_all(conn: &Connection) -> rusqlite::Result<()> {
 
     let ids: Vec<i64> = conn.prepare("SELECT id FROM meetings")?.query_map([], |r| r.get(0))?.collect::<rusqlite::Result<_>>()?;
     for id in ids { reindex_meeting(conn, id)?; }
+
+    if conn.query_row("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE name = 'commitments')", [], |r| r.get::<_, bool>(0))? {
+        let ids: Vec<i64> = conn.prepare("SELECT id FROM commitments")?.query_map([], |r| r.get(0))?.collect::<rusqlite::Result<_>>()?;
+        for id in ids { reindex_commitment(conn, id)?; }
+    }
 
     let ids: Vec<i64> = conn.prepare("SELECT id FROM intelligence_items")?.query_map([], |r| r.get(0))?.collect::<rusqlite::Result<_>>()?;
     for id in ids { reindex_intelligence(conn, id)?; }

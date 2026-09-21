@@ -3,6 +3,7 @@ pub mod attachments;
 pub mod backups;
 pub mod commands;
 pub mod commercial;
+pub mod commitments;
 pub mod company_migration;
 pub mod db;
 pub mod insights;
@@ -259,6 +260,10 @@ pub fn run() {
             commercial::proposal_folder_create,
             commercial::set_proposals_root,
             commands::upsert_todos,
+            commitments::get_commitments,
+            commitments::commitments_add,
+            commitments::upsert_commitments,
+            commitments::delete_commitments,
             commands::delete_todos,
             commands::upsert_notes,
             commands::delete_notes,

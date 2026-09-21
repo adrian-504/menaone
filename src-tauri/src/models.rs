@@ -374,6 +374,9 @@ pub struct AppData {
     pub business_entities: Vec<crate::commercial::BusinessEntity>,
     #[serde(default)]
     pub team_members: Vec<crate::commercial::TeamMember>,
+    /// Absent from backups made before schema v36.
+    #[serde(default)]
+    pub commitments: Vec<crate::commitments::Commitment>,
 }
 
 /// The company a saved record ended up linked to, returned by the per-record

@@ -20,7 +20,8 @@ fn err<E: std::fmt::Display>(e: E) -> String {
 
 const OPP_COLUMNS: &str = "o.id, o.name, o.company_id, c.name, o.owner, o.stage, o.status, o.estimated_value, \
     o.currency, o.probability, o.expected_close_date, o.description, o.next_action, o.proposal_id, o.project_id, \
-    o.sort_order, o.archived, o.created_at, o.updated_at, o.business_entity_id, o.win_loss_reason";
+    o.sort_order, o.archived, o.created_at, o.updated_at, o.business_entity_id, o.win_loss_reason, \
+    o.waiting_on, o.waiting_since, o.waiting_note";
 
 fn row_to_opportunity(r: &rusqlite::Row) -> rusqlite::Result<Opportunity> {
     Ok(Opportunity {
@@ -30,6 +31,7 @@ fn row_to_opportunity(r: &rusqlite::Row) -> rusqlite::Result<Opportunity> {
         description: r.get(11)?, next_action: r.get(12)?, proposal_id: r.get(13)?,
         project_id: r.get(14)?, sort_order: r.get(15)?, archived: r.get::<_, i64>(16)? != 0,
         created_at: r.get(17)?, updated_at: r.get(18)?, business_entity_id: r.get(19)?, win_loss_reason: r.get(20)?, tags: Vec::new(),
+        waiting_on: r.get(21)?, waiting_since: r.get(22)?, waiting_note: r.get(23)?,
     })
 }
 
@@ -432,7 +434,7 @@ pub fn merge_company_links_core(conn: &mut Connection, old_name: &str, new_name:
             tx.execute("UPDATE proposals SET company_id = ?1 WHERE company_id = ?2", params![nid, oid]).map_err(err)?;
             tx.execute("UPDATE agreements SET company_id = ?1 WHERE company_id = ?2", params![nid, oid]).map_err(err)?;
             tx.execute("UPDATE projects SET company_id = ?1 WHERE company_id = ?2", params![nid, oid]).map_err(err)?;
-            for table in ["meetings", "notes", "todos", "intelligence_items", "emails", "documents", "activity"] {
+            for table in ["meetings", "notes", "todos", "intelligence_items", "emails", "documents", "activity", "commitments"] {
                 tx.execute(&format!("UPDATE {table} SET company_id = ?1 WHERE company_id = ?2"), params![nid, oid]).map_err(err)?;
             }
             tx.execute(
@@ -512,7 +514,8 @@ pub fn save_opportunity_row(conn: &mut Connection, opportunity: &Opportunity) ->
             &format!(
                 "UPDATE opportunities SET name=?2, company_id=?3, owner=?4, owner_id={owner_id}, stage=?5, status=?6, estimated_value=?7,
                     currency=?8, probability=?9, expected_close_date=?10, description=?11, next_action=?12,
-                    proposal_id=?13, project_id=?14, sort_order=?15, archived=?16, updated_at=?17, business_entity_id=?18, win_loss_reason=?19 WHERE id=?1",
+                    proposal_id=?13, project_id=?14, sort_order=?15, archived=?16, updated_at=?17, business_entity_id=?18, win_loss_reason=?19,
+                    waiting_on=?20, waiting_since=?21, waiting_note=?22 WHERE id=?1",
                 owner_id = crate::identity::owner_id_for_name_sql(4)
             ),
             params![
@@ -520,6 +523,7 @@ pub fn save_opportunity_row(conn: &mut Connection, opportunity: &Opportunity) ->
                 opportunity.estimated_value, opportunity.currency, opportunity.probability, opportunity.expected_close_date,
                 opportunity.description, opportunity.next_action, opportunity.proposal_id, opportunity.project_id,
                 opportunity.sort_order, opportunity.archived as i64, now, opportunity.business_entity_id, opportunity.win_loss_reason,
+                opportunity.waiting_on, opportunity.waiting_since, opportunity.waiting_note,
             ],
         ).map_err(err)?;
         opportunity.id
@@ -527,8 +531,9 @@ pub fn save_opportunity_row(conn: &mut Connection, opportunity: &Opportunity) ->
         tx.execute(
             &format!(
                 "INSERT INTO opportunities (name, company_id, owner, owner_id, stage, status, estimated_value, currency, probability,
-                    expected_close_date, description, next_action, proposal_id, project_id, sort_order, archived, created_at, updated_at, business_entity_id, win_loss_reason)
-                 VALUES (?1,?2,?3,{owner_id},?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?16,COALESCE(?17,(SELECT id FROM business_entities WHERE code = 'KSA')),?18)",
+                    expected_close_date, description, next_action, proposal_id, project_id, sort_order, archived, created_at, updated_at, business_entity_id, win_loss_reason,
+                    waiting_on, waiting_since, waiting_note)
+                 VALUES (?1,?2,?3,{owner_id},?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?16,COALESCE(?17,(SELECT id FROM business_entities WHERE code = 'KSA')),?18,?19,?20,?21)",
                 owner_id = crate::identity::owner_id_for_name_sql(3)
             ),
             params![
@@ -536,6 +541,7 @@ pub fn save_opportunity_row(conn: &mut Connection, opportunity: &Opportunity) ->
                 opportunity.currency, opportunity.probability, opportunity.expected_close_date, opportunity.description,
                 opportunity.next_action, opportunity.proposal_id, opportunity.project_id, opportunity.sort_order,
                 opportunity.archived as i64, now, opportunity.business_entity_id, opportunity.win_loss_reason,
+                opportunity.waiting_on, opportunity.waiting_since, opportunity.waiting_note,
             ],
         ).map_err(err)?;
         tx.last_insert_rowid()

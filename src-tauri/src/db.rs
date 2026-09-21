@@ -710,6 +710,8 @@ const CODE_MIGRATIONS: &[(i64, fn(&Connection) -> rusqlite::Result<()>)] = &[
     // The Outlook invite text gets its own column instead of filling Discussion;
     // tasks get an owner.
     (35, migrate_meeting_invite_text),
+    // Commitments (who promised what, by when) and what an opportunity is waiting on.
+    (36, crate::commitments::migrate_commitments),
 ];
 
 fn migrate_meeting_invite_text(conn: &Connection) -> rusqlite::Result<()> {

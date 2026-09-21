@@ -323,6 +323,14 @@ pub struct Opportunity {
     pub updated_at: Option<String>,
     #[serde(default)]
     pub tags: Vec<String>,
+    /// Who the next move belongs to: `us`, `them`, or nobody (None).
+    #[serde(default)]
+    pub waiting_on: Option<String>,
+    /// When it started waiting on that side (YYYY-MM-DD).
+    #[serde(default)]
+    pub waiting_since: Option<String>,
+    #[serde(default)]
+    pub waiting_note: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
