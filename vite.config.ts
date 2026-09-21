@@ -15,6 +15,13 @@ export default defineConfig(() => ({
     port: 1420,
     strictPort: true,
     host: host || false,
+    // Vite answers only to hosts it knows. A Cloudflare quick tunnel gives the
+    // preview a *.trycloudflare.com address, which without this is refused
+    // with "Blocked request" — used to show the interface to a colleague who
+    // isn't on this network. The preview runs on invented sample data
+    // (src/lib/devMock.ts); the real app and its database are native and are
+    // not reachable this way.
+    allowedHosts: [".trycloudflare.com"],
     hmr: host
       ? {
           protocol: "ws",
