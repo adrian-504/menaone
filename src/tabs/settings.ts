@@ -23,7 +23,7 @@ function renderThemePicker(): void {
   el.innerHTML = THEMES.map((t) => `
     <button class="theme-swatch${t.id === S.theme ? ' active' : ''}" onclick="setTheme('${t.id}')" title="${escHtml(t.name)}">
       <span class="theme-swatch-preview" style="background:${t.swatchSurface}">
-        <span class="theme-swatch-preview-strip" style="background:${t.swatchBg}"></span>
+        <span class="theme-swatch-preview-strip" style="background:${t.swatchSidebar}"></span>
         <span class="theme-swatch-preview-body">
           <span class="theme-swatch-preview-dot" style="background:${t.swatchAccent}"></span>
         </span>

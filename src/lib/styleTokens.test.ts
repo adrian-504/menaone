@@ -63,3 +63,19 @@ describe('styles.css colours', () => {
     }
   });
 });
+
+// Colours in the TypeScript go through the same tokens. The theme picker's
+// swatches are the one exception: they preview palettes that aren't applied.
+const sources = import.meta.glob(['../**/*.ts', '!../**/*.test.ts', '!../core/theme.ts'], { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
+
+describe('colours in TypeScript', () => {
+  it('reads the sources', () => {
+    expect(Object.keys(sources).length).toBeGreaterThan(50);
+  });
+
+  it('has no raw hex colours outside the theme swatches', () => {
+    const found = Object.entries(sources).flatMap(([file, text]) =>
+      text.split('\n').filter((line) => /(?<![&\w])#[0-9A-Fa-f]{3}(?:[0-9A-Fa-f]{3}(?:[0-9A-Fa-f]{2})?)?\b/.test(line)).map((line) => `${file}: ${line.trim()}`));
+    expect(found).toEqual([]);
+  });
+});

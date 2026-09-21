@@ -291,7 +291,7 @@ const devMockReady = import.meta.env.DEV
 devMockReady.finally(() => {
   init().catch((err) => {
     console.error('Failed to initialize MENA One:', err);
-    document.body.innerHTML = `<div style="padding:40px;font-family:sans-serif;color:#991B1B"><h2>Failed to load the tracker database</h2><pre style="white-space:pre-wrap">${String(err)}</pre></div>`;
+    document.body.innerHTML = `<div style="padding:40px;font-family:sans-serif;color:firebrick"><h2>Failed to load the tracker database</h2><pre style="white-space:pre-wrap">${String(err)}</pre></div>`;
   });
 });
 

@@ -1,6 +1,6 @@
 import { S } from '../lib/state';
 import { STATUSES, WIN_REASONS, LOSS_REASONS } from '../lib/constants';
-import { today, fmtDate, daysSince, daysUntil, escHtml, expose, positionFloatingPopup, showTextPrompt, showConfirm, localIsoDate } from '../lib/utils';
+import { today, fmtDate, daysSince, daysUntil, escHtml, expose, showTextPrompt, showConfirm, localIsoDate } from '../lib/utils';
 import { matchesProposalPeriod } from '../lib/period';
 import { persistProposals } from '../lib/persist';
 import { registerBadgeUpdater, refreshAll, getActiveTabId, renderTab } from '../lib/registry';
@@ -185,7 +185,6 @@ export function snoozeProposal(id: number, days: number): void {
   d.setDate(d.getDate() + days);
   p.snoozedUntil = localIsoDate(d);
   persistProposals();
-  document.querySelectorAll('.snooze-popup.open').forEach((el) => el.classList.remove('open'));
   refreshAll();
 }
 expose('snoozeProposal', snoozeProposal);
@@ -204,28 +203,6 @@ export function unsnoozeProposal(id: number): void {
   refreshAll();
 }
 expose('unsnoozeProposal', unsnoozeProposal);
-
-export function toggleSnoozePopup(id: number | string, btn?: HTMLElement): void {
-  document.querySelectorAll('.snooze-popup.open').forEach((el) => {
-    if (el.id !== `snooze-pop-${id}`) el.classList.remove('open');
-  });
-  const pop = document.getElementById(`snooze-pop-${id}`);
-  if (!pop) return;
-  const opening = !pop.classList.contains('open');
-  pop.classList.toggle('open');
-  if (opening) {
-    const anchor = btn || (pop.previousElementSibling as HTMLElement) || pop.parentElement!;
-    positionFloatingPopup(pop, anchor);
-  }
-}
-expose('toggleSnoozePopup', toggleSnoozePopup);
-
-document.addEventListener('click', (e) => {
-  const target = e.target as HTMLElement;
-  if (!target.closest?.('.btn-snooze')) {
-    document.querySelectorAll('.snooze-popup.open').forEach((el) => el.classList.remove('open'));
-  }
-});
 
 // ═══════════════ DOCUMENT LINKS ═══════════════
 

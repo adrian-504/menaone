@@ -44,9 +44,9 @@ const toned = (kind: StatusKind, statuses: readonly string[]): Record<string, St
 
 export const ST: Record<string, StatusStyle> = toned('proposal', STATUSES);
 
-// Categorical chart palette — refined/muted rather than neon, but still needs
-// enough distinct hues to stay readable across up to 10 data series.
-export const CC = ["#3D64C9", "#7C6FCB", "#3D9E8F", "#C68A3D", "#C15B4C", "#4A87AD", "#4F8F63", "#A87B3E", "#6B6FB8", "#B0578C"];
+// Categorical chart palette: CSS tokens --chart-1…--chart-10, so each theme
+// can tune them. Canvases resolve them with chartPalette() (utils.ts).
+export const CHART_TOKENS = Array.from({ length: 10 }, (_, i) => `--chart-${i + 1}`);
 
 // ── Work queue (Pending tab) ──
 export const WQ_STATUSES = [

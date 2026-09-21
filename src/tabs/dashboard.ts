@@ -1,7 +1,7 @@
 import { isOpenProposal, isWon, isLost, isAgreementActive } from '../lib/commercial';
 import { S } from '../lib/state';
-import { STATUSES, ST, CC } from '../lib/constants';
-import { escHtml, kpiCard, themeColor, fmtDate, statusDot } from '../lib/utils';
+import { STATUSES, ST } from '../lib/constants';
+import { escHtml, kpiCard, themeColor, fmtDate, statusDot, chartPalette } from '../lib/utils';
 import { matchesProposalPeriod } from '../lib/period';
 import { statusTone, toneVar } from '../lib/statusTone';
 import { registerTabRenderer } from '../lib/registry';
@@ -132,7 +132,7 @@ export function renderTypeChart(dp?: Proposal[]): void {
   const top8 = sorted.slice(0, 8).map(([name, value]) => ({ name, value }));
   const rest = sorted.slice(8).reduce((s, [, v]) => s + v, 0);
   if (rest > 0) top8.push({ name: 'Other', value: rest });
-  const colors = CC.slice(0, top8.length);
+  const colors = chartPalette().slice(0, top8.length);
   const ctx = document.getElementById('ch-type') as HTMLCanvasElement | null;
   if (!ctx) return;
   S.charts.type = new Chart(ctx, {
@@ -171,5 +171,5 @@ export function renderTopClients(dp?: Proposal[]): void {
   const top = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 8);
   const max = top[0] ? top[0][1] : 1;
   const el = document.getElementById('top-clients');
-  if (el) el.innerHTML = top.map(([name, cnt], i) => `<div class="tc-row"><span class="tc-rank">${i + 1}</span><span class="tc-name" title="${escHtml(name)}">${escHtml(name)}</span><div class="tc-bar-wrap"><div class="tc-bar" style="width:${Math.round((cnt / max) * 100)}%;background:${CC[i % CC.length]}"></div></div><span class="tc-cnt">${cnt}</span></div>`).join('');
+  if (el) el.innerHTML = top.map(([name, cnt], i) => `<div class="tc-row"><span class="tc-rank">${i + 1}</span><span class="tc-name" title="${escHtml(name)}">${escHtml(name)}</span><div class="tc-bar-wrap"><div class="tc-bar" style="width:${Math.round((cnt / max) * 100)}%;background:var(--chart-${(i % 10) + 1})"></div></div><span class="tc-cnt">${cnt}</span></div>`).join('');
 }

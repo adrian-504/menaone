@@ -3,7 +3,7 @@ import { isAgreementActive, isOpenProposal, isLost, isWon, activeMrr as computeA
 import { S } from '../lib/state';
 import { toast, undoToast } from '../lib/ui';
 import { renderBulkBar } from '../lib/bulkBar';
-import { STATUSES, ST, AGR_ST, CC } from '../lib/constants';
+import { STATUSES, ST, AGR_ST } from '../lib/constants';
 import { today, fmtDate, escHtml, expose, showConfirm, statusDot, showTextPrompt, getClients, companyRef, inCompany, daysSince, daysUntil, strColor, type CompanyRef } from '../lib/utils';
 import { shownColumns, sortState, setSort, sortRows, headerCells, openColumnPicker, agoLabel, type Column, type SortState } from '../lib/tableColumns';
 import { companyLists, companyNamesInList, contactsInCompanyList, contactsAtCompanies, createSavedList, renameSavedList, removeSavedList, updateSmartListFilters, addCompaniesToList, removeCompaniesFromList, addToCompanyListChoices, exportToActiveCampaign, listById, sameFilters, cleanFilters, listChipLabel, listsForCompany } from '../core/lists';

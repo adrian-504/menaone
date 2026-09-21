@@ -16,17 +16,18 @@ export interface ThemeMeta {
   id: ThemeId;
   name: string;
   kind: 'light' | 'dark';
-  /** Small preview colors for the Settings swatch button — not the full palette. */
-  swatchBg: string;
+  /** Small preview colors for the Settings swatch button — not the full
+   * palette: the sidebar tint (the page itself is the surface colour). */
+  swatchSidebar: string;
   swatchSurface: string;
   swatchAccent: string;
 }
 
 export const THEMES: ThemeMeta[] = [
-  { id: 'light', name: 'Light', kind: 'light', swatchBg: '#F5F4FB', swatchSurface: '#FFFFFF', swatchAccent: '#2A5FE0' },
-  { id: 'dark', name: 'Dark', kind: 'dark', swatchBg: '#19191B', swatchSurface: '#212123', swatchAccent: '#5B8AF0' },
-  { id: 'auto', name: 'Auto', kind: 'light', swatchBg: '#19191B', swatchSurface: '#FFFFFF', swatchAccent: '#2A5FE0' },
-  { id: 'graphite', name: 'Graphite', kind: 'dark', swatchBg: '#1C1C1E', swatchSurface: '#242426', swatchAccent: '#8E8E93' },
+  { id: 'light', name: 'Light', kind: 'light', swatchSidebar: '#F5F4FB', swatchSurface: '#FFFFFF', swatchAccent: '#2A5FE0' },
+  { id: 'dark', name: 'Dark', kind: 'dark', swatchSidebar: '#19191B', swatchSurface: '#212123', swatchAccent: '#5B8AF0' },
+  { id: 'auto', name: 'Auto', kind: 'light', swatchSidebar: '#19191B', swatchSurface: '#FFFFFF', swatchAccent: '#2A5FE0' },
+  { id: 'graphite', name: 'Graphite', kind: 'dark', swatchSidebar: '#1C1C1E', swatchSurface: '#242426', swatchAccent: '#8E8E93' },
 ];
 
 /** Themes that were retired (Sepia, Ocean, Forest): anyone on one moves to Light. */

@@ -1,5 +1,5 @@
 import { S } from './state';
-import { ST } from './constants';
+import { ST, CHART_TOKENS } from './constants';
 
 /** Today's date (YYYY-MM-DD) in local time — toISOString() is UTC, which
  * gave yesterday's date in KSA before 3am. */
@@ -275,10 +275,14 @@ export function expose(name: string, fn: (...args: any[]) => any): void {
   (window as any)[name] = fn;
 }
 
-/** A stable avatar colour for a name. */
+/** A stable avatar colour for a name, from the chart palette (a CSS variable). */
 export function strColor(s: string): string {
-  const palette = ['#1D4ED8', '#7C3AED', '#0D9488', '#D97706', '#DC2626', '#0369A1', '#065F46', '#92400E', '#DB2777', '#059669'];
   let h = 0;
   for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) & 0xffffffff;
-  return palette[Math.abs(h) % palette.length];
+  return `var(--chart-${(Math.abs(h) % 10) + 1})`;
+}
+
+/** The chart palette resolved to colours, for canvases (which can't read CSS variables). */
+export function chartPalette(): string[] {
+  return CHART_TOKENS.map((t) => themeColor(t));
 }
