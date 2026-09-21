@@ -137,7 +137,7 @@ pub fn ms365_status(state: State<DbState>) -> CmdResult<MicrosoftAccountStatus> 
 /// another 60 seconds, refreshing via the Keychain-stored refresh token if
 /// not. This is the single choke point every Graph-calling command routes
 /// through, so token lifecycle logic lives in exactly one place.
-async fn ensure_access_token(db: &State<'_, DbState>, ms: &State<'_, Ms365State>) -> CmdResult<String> {
+pub(crate) async fn ensure_access_token(db: &State<'_, DbState>, ms: &State<'_, Ms365State>) -> CmdResult<String> {
     {
         let cache = ms.0.lock().map_err(err)?;
         if let Some(token) = &cache.access_token {

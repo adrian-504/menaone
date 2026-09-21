@@ -239,6 +239,29 @@ async fn graph_get_all<T: serde::de::DeserializeOwned>(access_token: &str, path_
     Ok((items, false))
 }
 
+/// Message envelopes (sender, recipients, date, Outlook's focused/other
+/// guess — no subject or body) in one folder since `since_iso`, for People
+/// from email. Up to 200 pages of 1,000; the flag says whether all were read.
+pub async fn list_envelopes(access_token: &str, folder: &str, since_iso: &str) -> Result<(Vec<crate::ms365::email_people::Envelope>, bool), String> {
+    let mut url = format!(
+        "{GRAPH_BASE}/me/mailFolders/{folder}/messages?$select=from,toRecipients,ccRecipients,receivedDateTime,inferenceClassification&$filter=receivedDateTime ge {since}&$top=1000",
+        since = urlencode(since_iso),
+    );
+    let mut items = Vec::new();
+    for _ in 0..200 {
+        let mut v = graph_get_url(access_token, &url).await?;
+        let next = v.get("@odata.nextLink").and_then(|n| n.as_str()).map(str::to_string);
+        let page: Vec<crate::ms365::email_people::Envelope> = serde_json::from_value(v.get_mut("value").map(serde_json::Value::take).unwrap_or_default()).map_err(|e| e.to_string())?;
+        items.extend(page);
+        match next {
+            Some(n) if n.starts_with(GRAPH_BASE) => url = n,
+            Some(n) => return Err(format!("Unexpected next page address from Microsoft Graph: {n}")),
+            None => return Ok((items, true)),
+        }
+    }
+    Ok((items, false))
+}
+
 /// All flagged (not-yet-completed) messages, every page of them — `$top` is
 /// only the page size (reading one page capped the list at 100 and dropped
 /// newer flagged mail). Deliberately no

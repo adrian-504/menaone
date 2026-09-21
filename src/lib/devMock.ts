@@ -499,6 +499,20 @@ export async function installDevMockIfNeeded(): Promise<void> {
           }
           return items.map((t) => ({ id: t.id, companyId: t.companyId ?? null }));
         }
+        case 'ms365_email_people_cached':
+          return null;
+        case 'ms365_scan_email_people':
+          // Fictional tally, as the backend would return it.
+          return { scannedAt: new Date().toISOString(), months: 24, complete: true, messages: 1840, people: [
+            { email: 'omar@acme.test', name: 'Omar Haddad', sent: 8, received: 11, receivedOther: 0, copied: 2, firstAt: '2025-03-02T08:00:00Z', lastAt: '2026-09-18T08:00:00Z' },
+            { email: 'sara.otaibi@acme.test', name: 'Sara Al-Otaibi', sent: 2, received: 0, receivedOther: 0, copied: 5, firstAt: '2026-01-10T08:00:00Z', lastAt: '2026-09-02T08:00:00Z' },
+            { email: 'lina@northwind.test', name: 'Lina Saleh', sent: 3, received: 2, receivedOther: 0, copied: 0, firstAt: '2026-08-01T08:00:00Z', lastAt: '2026-09-16T08:00:00Z' },
+            { email: 'k.moreno@fabrikam-logistics.test', name: 'Kai Moreno', sent: 4, received: 5, receivedOther: 0, copied: 0, firstAt: '2025-11-01T08:00:00Z', lastAt: '2026-08-20T08:00:00Z' },
+            { email: 'jane@acme.test', name: 'Jane Doe', sent: 20, received: 25, receivedOther: 0, copied: 0, firstAt: '2025-01-01T08:00:00Z', lastAt: '2026-09-19T08:00:00Z' },
+            { email: 'noreply@acme.test', name: 'Acme Portal', sent: 0, received: 40, receivedOther: 30, copied: 0, firstAt: '2025-01-01T08:00:00Z', lastAt: '2026-09-19T08:00:00Z' },
+            { email: 'offers@shop.test', name: 'Shop', sent: 0, received: 12, receivedOther: 12, copied: 0, firstAt: '2025-01-01T08:00:00Z', lastAt: '2026-09-19T08:00:00Z' },
+            { email: 'friend@gmail.com', name: 'A Friend', sent: 3, received: 3, receivedOther: 0, copied: 0, firstAt: '2025-01-01T08:00:00Z', lastAt: '2026-09-01T08:00:00Z' },
+          ] };
         case 'export_full_backup':
           return 'MENA One backup (sample).sqlite3';
         case 'inspect_full_backup':

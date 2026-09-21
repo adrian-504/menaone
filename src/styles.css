@@ -1240,6 +1240,16 @@ body.dnd-active .board-column.drop-target{background:var(--accent-bg)!important}
 .md-link-btn{font:inherit;border:none;background:none;padding:0;color:var(--accent);cursor:pointer;font-weight:600}
 .md-link-btn:hover{text-decoration:underline}
 .task-owner{display:inline-flex;align-items:center;gap:3px;color:var(--sub);font-weight:600}
+.ct-people-banner + .ct-people-banner{margin-top:6px}
+/* People from email */
+.ep-group-hd{display:flex;align-items:center;gap:10px;margin:4px 0 8px}
+.ep-group-hd .btn-ghost:first-of-type{margin-left:auto}
+.ep-unknown{margin-top:14px}
+.ep-unknown summary{cursor:pointer;padding:6px 0}
+.ep-scanning{display:flex;gap:12px;align-items:flex-start;padding:24px 4px;color:var(--text)}
+.fact-spacer{flex:1}
+/* A long list scrolls inside the dialog, so Add selected stays in view. */
+#email-people-body{max-height:min(62vh,600px);overflow:auto;margin:0 -4px;padding:0 4px}
 .task-promise{display:inline-flex;align-items:center;gap:3px;color:var(--accent);font-weight:600}
 /* Commitments: → we owe it, ← they owe it. Rows divided by hairlines like every list. */
 .cm-list{display:flex;flex-direction:column}

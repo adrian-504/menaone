@@ -62,6 +62,7 @@ import { rememberFilters } from './lib/rememberFilters';
 import './tabs/inbox';
 import './tabs/meetings';
 import './tabs/commitments';
+import './tabs/emailPeople';
 import './tabs/files';
 import './tabs/settings';
 import './tabs/actionRequired';

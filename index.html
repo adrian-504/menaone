@@ -1431,6 +1431,7 @@
     </div>
   </div>
   <div class="ct-people-banner" id="ct-people-banner" hidden></div>
+  <div class="ct-people-banner" id="ct-email-banner" hidden></div>
   <div class="fbar">
     <input type="text" class="f-search" id="ct-search" placeholder="Search name, company, email, role, service…" oninput="renderContacts()">
     <select class="fsel" id="ct-client" onchange="renderContacts()"><option value="">All Clients</option></select>
@@ -2156,6 +2157,20 @@
     <div class="fact">
       <button class="btn-secondary" onclick="closePeopleFromMeetings()">Cancel</button>
       <button class="btn-primary" onclick="addReviewedPeople()">Add selected</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-ov" id="modal-email-people" onclick="if(event.target===this)closeEmailPeople()">
+  <div class="modal modal-lg">
+    <div class="modal-hd"><div class="modal-title">People from your email</div><button class="modal-close" onclick="closeEmailPeople()">×</button></div>
+    <div class="modal-sub" id="email-people-sub">People you've emailed in the last 24 months who aren't contacts yet. Only names, addresses and dates are read — never the messages. Check the name and company, then add them.</div>
+    <div id="email-people-body"></div>
+    <div class="fact">
+      <button class="btn-ghost" onclick="rescanEmailPeople()" id="email-people-rescan">Read my email again</button>
+      <span class="fact-spacer"></span>
+      <button class="btn-secondary" onclick="closeEmailPeople()">Cancel</button>
+      <button class="btn-primary" onclick="addEmailPeople()">Add selected</button>
     </div>
   </div>
 </div>

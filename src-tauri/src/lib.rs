@@ -263,6 +263,8 @@ pub fn run() {
             commands::upsert_todos,
             commitments::get_commitments,
             full_backup::export_full_backup,
+            ms365::email_people::ms365_email_people_cached,
+            ms365::email_people::ms365_scan_email_people,
             full_backup::inspect_full_backup,
             full_backup::restore_full_backup,
             commitments::commitments_add,

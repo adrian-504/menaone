@@ -104,6 +104,14 @@ export async function setAppMeta(key: string, value: string): Promise<void> {
 }
 
 /** Asks where to save (system dialog) and writes the file; null when cancelled. */
+/** People from email (ms365/email_people.rs): envelopes tallied per address. */
+export interface EmailPeopleScan {
+  scannedAt: string; months: number; complete: boolean; messages: number;
+  people: { email: string; name: string | null; sent: number; received: number; receivedOther: number; copied: number; firstAt: string | null; lastAt: string | null }[];
+}
+export async function emailPeopleCached(): Promise<EmailPeopleScan | null> { return invoke<EmailPeopleScan | null>('ms365_email_people_cached'); }
+export async function scanEmailPeople(months: number): Promise<EmailPeopleScan> { return invoke<EmailPeopleScan>('ms365_scan_email_people', { months }); }
+
 /** The full backup (full_backup.rs): a complete copy of the database. */
 export interface FullBackupSummary {
   schemaVersion: number; companies: number; contacts: number; opportunities: number; proposals: number; agreements: number;

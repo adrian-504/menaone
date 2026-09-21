@@ -3,5 +3,6 @@
 //! access for Outlook mail, calendar, and Teams-online-meeting creation.
 pub mod auth;
 pub mod commands;
+pub mod email_people;
 pub mod graph;
 pub mod models;

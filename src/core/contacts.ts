@@ -473,6 +473,7 @@ export function renderContacts(): void {
   const filters = readContactFilters();
   renderListsBar(filters);
   void (window as any).updatePeopleBanner?.();
+  void (window as any).updateEmailPeopleBanner?.();
   const data = contactsMatching(filters);
   const cntEl = document.getElementById('ct-cnt'); if (cntEl) cntEl.textContent = `${data.length} contact${data.length !== 1 ? 's' : ''}`;
   const tbody = document.getElementById('ct-tbody');

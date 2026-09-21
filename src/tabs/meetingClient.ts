@@ -291,7 +291,7 @@ expose('useSuggestedWebsite', useSuggestedWebsite);
 let dismissedPeople: string[] | null = null;
 const peopleEditing = new Set<string>();
 
-async function loadDismissedPeople(): Promise<string[]> {
+export async function loadDismissedPeople(): Promise<string[]> {
   if (dismissedPeople) return dismissedPeople;
   try { dismissedPeople = JSON.parse((await getAppMeta('dismissed_people')) || '[]'); } catch { dismissedPeople = []; }
   return dismissedPeople!;

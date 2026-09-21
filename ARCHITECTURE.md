@@ -432,6 +432,11 @@ One surface, hairlines, fewer of everything; tokens and components only, no layo
 - `src/lib/commitments.ts` parses `>>` / `<<` lines (pure, tested); `src/tabs/commitments.ts` holds the row, sections, dialog and reading from sources; `persist.ts` keeps a task and its commitment equal in memory so neither save undoes the other.
 - Rules: an open task (direct or via a meeting) or open `ours` commitment satisfies "next action"; waiting on the client measures the wait instead of calling it stalled; with us is never stalled and appears in My Day. My Day ranks overdue promises we made just under a countersignature and folds the client's overdue ones into "Owed to you (N)".
 
+## People from email
+
+- Contacts → "People from your email": people you correspond with who aren't contacts yet. `ms365/email_people.rs` reads message envelopes only (sender, recipients, date, Outlook's focused/other) from the Inbox and Sent Items for the last 24 months, tallies them per address (sent, received, received as bulk, copied, first and last) and keeps the tally in `app_meta.email_people_scan`; the mailbox is read only when asked.
+- `src/lib/emailPeople.ts` (pure, tested) decides who is worth reviewing: not MENA BIG, personal mail, machine senders, existing contacts or dismissed people; someone you wrote to, who wrote to you (not just bulk), or was copied at least twice. The company comes from `clientMatch.guessCompany`: certain (the domain is a company's already, ticked), likely (a company's name fits the domain), or a new company to type. Adding uses the People-from-meetings path (`addPeopleAsContacts`), which also remembers the domain; dismissed people are shared by both lists.
+
 ## Tests
 
 - `npm test`: Vitest (`src/**/*.test.ts`), covering the company picker (scrolling, keyboard), day counts, change tracking, company matching, agreement references, the task quick-add parser, drag-and-drop reordering, and commercial rules (line totals, MRR, currencies, file names).
