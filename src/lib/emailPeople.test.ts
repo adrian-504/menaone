@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { contactSummary, emailPeopleCandidates, isMachineAddress, strengthOf, type EmailPersonTally } from './emailPeople';
+import { contactSummary, domainGroups, domainKind, emailPeopleCandidates, isMachineAddress, strengthOf, type EmailPersonTally } from './emailPeople';
 
 const p = (email: string, over: Partial<EmailPersonTally> = {}): EmailPersonTally => ({
   email, name: null, sent: 0, received: 0, receivedOther: 0, copied: 0, firstAt: null, lastAt: '2026-09-01T00:00:00Z', ...over,
@@ -71,5 +71,36 @@ describe('contactSummary', () => {
     expect(contactSummary({ strength: 'both', sent: 4, received: 10, receivedOther: 0, copied: 0 })).toBe('14 both ways');
     expect(contactSummary({ strength: 'received', sent: 0, received: 3, receivedOther: 1, copied: 0 })).toBe('2 received');
     expect(contactSummary({ strength: 'copied', sent: 0, received: 0, receivedOther: 0, copied: 4 })).toBe('copied 4 times');
+  });
+});
+
+describe('companies to sort', () => {
+  const now = new Date('2026-09-21T12:00:00Z');
+  it('groups unknown people by domain, two-way and recent first', () => {
+    const cands = emailPeopleCandidates([
+      p('kai@fabrikam.test', { sent: 4, received: 5, lastAt: '2026-09-10T00:00:00Z', name: 'Kai Moreno' }),
+      p('sara@fabrikam.test', { copied: 3, lastAt: '2026-09-01T00:00:00Z' }),
+      p('lead@oldvendor.test', { received: 9, lastAt: '2025-01-01T00:00:00Z' }),
+      p('once@newco.test', { sent: 1, lastAt: '2026-09-18T00:00:00Z' }),
+      p('ali@acme.test', { sent: 2, received: 2 }),
+    ], ctx);
+    const groups = domainGroups(cands, now);
+    expect(groups.map((g) => g.domain)).toEqual(['fabrikam.test', 'newco.test', 'oldvendor.test']);
+    expect(groups[0]).toMatchObject({ name: 'Fabrikam', sent: 4, received: 5, copied: 3, writtenTo: true });
+    expect(groups[0].people.map((x) => x.email)).toEqual(['kai@fabrikam.test', 'sara@fabrikam.test']);
+    expect(groups[2].writtenTo).toBe(false);
+  });
+
+  it('a dismissed domain never comes back', () => {
+    const cands = emailPeopleCandidates([p('kai@fabrikam.test', { sent: 4 })], { ...ctx, dismissedDomains: new Set(['fabrikam.test']) });
+    expect(cands).toEqual([]);
+  });
+
+  it('spots government and service providers', () => {
+    expect(domainKind('mc.gov.sa')).toBe('government');
+    expect(domainKind('hacienda.gob.es')).toBe('government');
+    expect(domainKind('mail.alrajhibank.com.sa')).toBe('service');
+    expect(domainKind('saudia.com')).toBe('service');
+    expect(domainKind('fabrikam.test')).toBeNull();
   });
 });

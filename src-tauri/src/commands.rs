@@ -1280,6 +1280,7 @@ pub fn get_app_meta(state: State<DbState>, key: String) -> CmdResult<Option<Stri
 pub const UI_META_KEYS: &[&str] = &[
     "cleanup_kept",
     "company_domains",
+    "dismissed_domains",
     "dismissed_meeting_links",
     "dismissed_people",
     "msfiles_pinned",

@@ -28,7 +28,7 @@ export async function loadClientMatchSettings(): Promise<void> {
   S.ownDomains = parse(own, []);
 }
 
-const saveDomains = () => setAppMeta('company_domains', JSON.stringify(S.companyDomains)).catch(() => undefined);
+export const saveDomains = () => setAppMeta('company_domains', JSON.stringify(S.companyDomains)).catch(() => undefined);
 const saveDismissed = () => setAppMeta('dismissed_meeting_links', JSON.stringify(S.dismissedMeetingLinks)).catch(() => undefined);
 
 function replaceMeeting(saved: Meeting | undefined): void {

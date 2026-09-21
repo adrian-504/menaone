@@ -1248,6 +1248,25 @@ body.dnd-active .board-column.drop-target{background:var(--accent-bg)!important}
 .ep-unknown summary{cursor:pointer;padding:6px 0}
 .ep-scanning{display:flex;gap:12px;align-items:flex-start;padding:24px 4px;color:var(--text)}
 .fact-spacer{flex:1}
+/* Companies to sort: one domain at a time. */
+.ep-views{margin-bottom:12px}
+.ep-n{margin-left:4px;color:var(--muted);font-weight:600}
+.ep-triage-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;font-size:var(--type-secondary)}
+.ep-check{display:inline-flex;align-items:center;gap:6px;cursor:pointer}
+.ep-progress{margin-left:auto;color:var(--muted);font-variant-numeric:tabular-nums}
+.ep-hint{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.ep-card{border-top:1px solid var(--hairline);padding-top:12px;outline:none}
+.ep-card-hd{display:flex;justify-content:space-between;gap:10px;margin-bottom:10px}
+.ep-domain{font-size:var(--type-section);font-weight:700;color:var(--text)}
+.ep-field{display:flex;flex-direction:column;gap:4px;font-size:var(--type-meta);font-weight:600;color:var(--sub);max-width:420px;margin-bottom:10px}
+.ep-people{display:flex;flex-direction:column;margin-bottom:12px}
+.ep-person{display:flex;align-items:baseline;gap:8px;padding:5px 0;border-top:1px solid var(--hairline);font-size:var(--type-secondary);cursor:pointer}
+.ep-person:first-child{border-top:none}
+.ep-person-name{font-weight:600;color:var(--text)}
+.ep-actions{display:flex;flex-wrap:wrap;gap:8px}
+.ep-actions kbd,.ep-undo kbd{font:inherit;font-size:var(--type-caption);font-weight:700;opacity:.65;margin-right:5px}
+.ep-undo{margin-left:auto}
+.ep-undo-row{display:flex;justify-content:center;margin-top:8px}
 /* A long list scrolls inside the dialog, so Add selected stays in view. */
 #email-people-body{max-height:min(62vh,600px);overflow:auto;margin:0 -4px;padding:0 4px}
 .task-promise{display:inline-flex;align-items:center;gap:3px;color:var(--accent);font-weight:600}

@@ -512,6 +512,11 @@ export async function installDevMockIfNeeded(): Promise<void> {
             { email: 'noreply@acme.test', name: 'Acme Portal', sent: 0, received: 40, receivedOther: 30, copied: 0, firstAt: '2025-01-01T08:00:00Z', lastAt: '2026-09-19T08:00:00Z' },
             { email: 'offers@shop.test', name: 'Shop', sent: 0, received: 12, receivedOther: 12, copied: 0, firstAt: '2025-01-01T08:00:00Z', lastAt: '2026-09-19T08:00:00Z' },
             { email: 'friend@gmail.com', name: 'A Friend', sent: 3, received: 3, receivedOther: 0, copied: 0, firstAt: '2025-01-01T08:00:00Z', lastAt: '2026-09-01T08:00:00Z' },
+            { email: 'd.nasser@fabrikam-logistics.test', name: 'Dana Nasser', sent: 0, received: 2, receivedOther: 0, copied: 4, firstAt: '2026-02-01T08:00:00Z', lastAt: '2026-09-10T08:00:00Z' },
+            { email: 'hr@woodgrove-engineering.test', name: 'Woodgrove HR', sent: 1, received: 1, receivedOther: 0, copied: 0, firstAt: '2025-06-01T08:00:00Z', lastAt: '2025-12-10T08:00:00Z' },
+            { email: 'sales@tailspin-trading.test', name: 'Tailspin Sales', sent: 0, received: 3, receivedOther: 0, copied: 0, firstAt: '2026-01-01T08:00:00Z', lastAt: '2026-07-10T08:00:00Z' },
+            { email: 'licensing@mc.gov.sa', name: 'Ministry of Commerce', sent: 2, received: 4, receivedOther: 0, copied: 0, firstAt: '2025-06-01T08:00:00Z', lastAt: '2026-08-10T08:00:00Z' },
+            { email: 'corporate@alrajhibank.com.sa', name: 'Al Rajhi Corporate', sent: 1, received: 5, receivedOther: 0, copied: 0, firstAt: '2025-06-01T08:00:00Z', lastAt: '2026-09-05T08:00:00Z' },
           ] };
         case 'export_full_backup':
           return 'MENA One backup (sample).sqlite3';

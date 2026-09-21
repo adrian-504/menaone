@@ -66,6 +66,8 @@ export interface CandidateContext {
   personal: Set<string>;
   contactEmails: Set<string>;
   dismissed: Set<string>;
+  /** Whole domains marked "not a client". */
+  dismissedDomains?: Set<string>;
   guess: (domain: string) => CompanyGuessLike;
 }
 
@@ -74,7 +76,7 @@ export function emailPeopleCandidates(people: EmailPersonTally[], ctx: Candidate
   for (const p of people) {
     const email = p.email.trim().toLowerCase();
     const domain = email.split('@')[1] || '';
-    if (!domain || ctx.own.has(domain) || ctx.personal.has(domain)) continue;
+    if (!domain || ctx.own.has(domain) || ctx.personal.has(domain) || ctx.dismissedDomains?.has(domain)) continue;
     if (ctx.contactEmails.has(email) || ctx.dismissed.has(email) || isMachineAddress(email)) continue;
     const strength = strengthOf(p);
     if (!strength) continue;
@@ -95,4 +97,67 @@ export function contactSummary(c: Pick<EmailCandidate, 'strength' | 'sent' | 're
   if (c.strength === 'sent') return `${c.sent} sent`;
   if (c.strength === 'received') return `${real} received`;
   return `copied ${c.copied} times`;
+}
+
+// ── Companies to sort: unknown domains, one decision each ──────────────────
+
+export type DomainKind = 'government' | 'service' | null;
+
+const GOVERNMENT = /(^|\.)(gov|mil)(\.[a-z]{2})?$|(^|\.)(gob|gouv|gov)\.[a-z]{2}$|(^|\.)(europa\.eu|un\.org|who\.int)$/;
+/** Banks, airlines, hotels, telecoms, travel and job sites — suppliers you
+ * email, rarely clients. A hint for dismissing them together, never a decision. */
+const SERVICES = new Set([
+  'alrajhibank.com.sa', 'snb.com', 'alahli.com', 'riyadbank.com', 'sab.com', 'sabb.com', 'anb.com.sa', 'alinma.com', 'bankalbilad.com', 'bsf.sa', 'alfransi.com.sa',
+  'emiratesnbd.com', 'adcb.com', 'fab.com', 'mashreq.com', 'hsbc.com', 'citi.com', 'santander.com', 'bbva.com', 'caixabank.com', 'bancsabadell.com', 'bankinter.com',
+  'saudia.com', 'flynas.com', 'flyadeal.com', 'emirates.com', 'qatarairways.com', 'etihad.com', 'mea.com.lb', 'iberia.com', 'vueling.com', 'lufthansa.com', 'britishairways.com', 'turkishairlines.com',
+  'marriott.com', 'hilton.com', 'accor.com', 'ihg.com', 'hyatt.com', 'booking.com', 'expedia.com', 'airbnb.com', 'tripadvisor.com', 'agoda.com',
+  'stc.com.sa', 'mobily.com.sa', 'sa.zain.com', 'zain.com', 'etisalat.ae', 'du.ae', 'movistar.es', 'vodafone.es', 'orange.es',
+  'bayt.com', 'indeed.com', 'glassdoor.com', 'naukrigulf.com', 'gulftalent.com', 'infojobs.net', 'monster.com',
+  'amazon.com', 'amazon.sa', 'noon.com', 'apple.com', 'uber.com', 'careem.com', 'dhl.com', 'aramex.com', 'fedex.com', 'ups.com',
+]);
+
+export function domainKind(domain: string): DomainKind {
+  const d = domain.toLowerCase();
+  if (GOVERNMENT.test(d)) return 'government';
+  if (SERVICES.has(d) || [...SERVICES].some((s) => d.endsWith(`.${s}`))) return 'service';
+  return null;
+}
+
+export interface DomainGroup {
+  domain: string;
+  /** Suggested company name for a new company. */
+  name: string;
+  people: EmailCandidate[];
+  sent: number;
+  received: number;
+  copied: number;
+  lastAt: string | null;
+  /** You wrote to someone there. */
+  writtenTo: boolean;
+  kind: DomainKind;
+  /** Higher first: two-way mail, then how much, then how recent. */
+  score: number;
+}
+
+/** Unknown-company people grouped by email domain, most important first. */
+export function domainGroups(candidates: EmailCandidate[], now: Date = new Date()): DomainGroup[] {
+  const byDomain = new Map<string, EmailCandidate[]>();
+  for (const c of candidates) {
+    if (c.certainty !== 'new') continue;
+    byDomain.set(c.domain, [...(byDomain.get(c.domain) || []), c]);
+  }
+  const out: DomainGroup[] = [];
+  for (const [domain, people] of byDomain) {
+    const sent = people.reduce((n, p) => n + p.sent, 0);
+    const received = people.reduce((n, p) => n + (p.received - p.receivedOther), 0);
+    const copied = people.reduce((n, p) => n + p.copied, 0);
+    const lastAt = people.map((p) => p.lastAt || '').sort().pop() || null;
+    const twoWay = people.some((p) => p.strength === 'both');
+    const days = lastAt ? Math.max(0, (now.getTime() - new Date(lastAt).getTime()) / 86_400_000) : 730;
+    // Two-way mail counts most; volume with diminishing returns; recency decays over a year.
+    const score = (twoWay ? 100 : 0) + Math.min(60, Math.log2(1 + sent * 2 + received) * 10) + Math.max(0, 40 - days / 9);
+    people.sort((a, b) => (b.sent + b.received) - (a.sent + a.received));
+    out.push({ domain, name: people[0].guess.name, people, sent, received, copied, lastAt, writtenTo: sent > 0, kind: domainKind(domain), score });
+  }
+  return out.sort((a, b) => b.score - a.score || a.domain.localeCompare(b.domain));
 }
