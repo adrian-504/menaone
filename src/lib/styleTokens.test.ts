@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
+// @ts-ignore -- Node's fs, in a test only (the app itself has no Node types).
 import { readFileSync } from 'node:fs';
 
-// Read from disk: Vitest turns CSS imports into empty modules.
-const css = readFileSync(new URL('../styles.css', import.meta.url), 'utf8');
+// Read from disk: Vitest turns CSS imports, even ?raw ones, into empty modules.
+const css: string = readFileSync(new URL('../styles.css', import.meta.url), 'utf8');
 
 /** The stylesheet without its token blocks (`:root{…}` and `[data-theme]{…}`),
  * which are the only places a colour value may be written down. */
