@@ -18,6 +18,7 @@ const GROUPS: Group[] = [
     k('Search and commands', [MOD, 'K']),
     k('Back / forward', [MOD, '['], [MOD, ']']),
     k('Show or hide the sidebar', [MOD, '\\']),
+    k('Show or hide the list beside a record', [MOD, '⇧', '\\']),
     { keys: [[MOD, '1']], does: 'The sidebar, top to bottom: My Day first', note: `${MOD} 1 to ${MOD} 9` },
     { keys: [['>>']], does: 'At the start of a line in notes, meeting notes or quick capture: something we promised the client (it gets a task)' },
     { keys: [['<<']], does: 'Same, for something the client promised us (tracked, no task)' },

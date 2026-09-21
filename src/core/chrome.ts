@@ -115,10 +115,11 @@ export function initSidebarCollapsed(): void {
 }
 
 
-// macOS-conventional shortcut: ⌘\ toggles the sidebar (matches Mail, Notes, Xcode, etc.)
+// macOS-conventional shortcut: ⌘\ toggles the sidebar (matches Mail, Notes, Xcode, etc.);
+// ⇧⌘\ the list beside a record (closed unless you open it).
 document.addEventListener('keydown', (e) => {
-  if ((e.metaKey || e.ctrlKey) && e.key === '\\') {
-    e.preventDefault();
-    toggleSidebar();
-  }
+  if (!(e.metaKey || e.ctrlKey) || e.code !== 'Backslash') return;
+  e.preventDefault();
+  if (e.shiftKey) (window as any).toggleRecordRail?.();
+  else toggleSidebar();
 });
