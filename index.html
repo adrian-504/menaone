@@ -848,12 +848,12 @@
       <span data-icon="archive"></span>
       <div class="card-hd">Data Backup</div>
     </div>
-    <p class="settings-card-desc">Save a full backup of all your tracker data, or restore from a previous backup file.</p>
+    <p class="settings-card-desc">A backup file is a complete copy of everything in MENA One — companies, opportunities, meetings, projects, proposals, tasks, notes, commitments and settings. Restore reads these files and older .json backups too.</p>
     <div class="btn-row">
-      <button class="btn-secondary" onclick="backupAllData()">Export backup file…</button>
-      <label class="btn-secondary file-btn" title="Restore from a previous backup file, or import from the original tracker">
+      <button class="btn-secondary" onclick="backupAllData()">Save a backup file…</button>
+      <label class="btn-secondary file-btn" title="Restore from a backup file, an older .json backup, or the original tracker's export">
         Restore from backup…
-        <input type="file" accept=".json" hidden onchange="restoreFromBackup(this.files[0])">
+        <input type="file" accept=".sqlite3,.json" hidden onchange="restoreFromBackup(this.files[0]); this.value = ''">
       </label>
     </div>
     <div class="settings-subsection">

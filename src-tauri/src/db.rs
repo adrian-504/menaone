@@ -1028,13 +1028,19 @@ pub fn init_connection(path: &PathBuf) -> rusqlite::Result<Connection> {
         let _ = std::fs::create_dir_all(parent);
     }
     let conn = Connection::open(path)?;
+    bring_up_to_date(&conn)?;
+    Ok(conn)
+}
+
+/// Creates what's missing and runs pending migrations — on opening, and after
+/// a full backup from an older version is copied into the open database.
+pub fn bring_up_to_date(conn: &Connection) -> rusqlite::Result<()> {
     conn.execute_batch(SCHEMA_V1)?;
     // Company names are resolved by several older migrations too, and that
     // lookup reads former names — so the table exists before any of them run.
     conn.execute_batch(FOUNDATION_LOCK_MIGRATION)?;
-    run_migrations(&conn)?;
-    seed_defaults(&conn)?;
-    Ok(conn)
+    run_migrations(conn)?;
+    seed_defaults(conn)
 }
 
 /// The schema version this build migrates databases up to.

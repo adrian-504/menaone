@@ -1,24 +1,18 @@
 import { S } from '../lib/state';
 import { toast } from '../lib/ui';
 import { expose, today, showConfirm } from '../lib/utils';
-import { exportBackupJson, importBackupJson, importLegacyBackupJson, loadAllData } from '../lib/db';
-import { saveTextFileAs } from '../lib/files';
+import { importBackupJson, importLegacyBackupJson, loadAllData, exportFullBackup, inspectFullBackup, restoreFullBackup, type FullBackupSummary } from '../lib/db';
 import { refreshAll } from '../lib/registry';
 import { markLoadedAsSaved } from '../lib/persist';
 
-/** Full backup — downloads everything in the SQLite database as one JSON file
- * the user chooses a location for. Replaces the original app's Blob+anchor
- * download (which doesn't map cleanly onto a desktop "Save As" flow). */
+/** Full backup: a complete copy of the database (every record, list and
+ * setting), saved where the user chooses. See full_backup.rs. */
 export async function backupAllData(): Promise<void> {
-  const json = await exportBackupJson();
-  const path = await saveTextFileAs(`MENABIG_Backup_${today()}.json`, json, ['json']);
-  if (!path) return;
-  const btn = document.querySelector<HTMLButtonElement>('.sb-add-btn[onclick="backupAllData()"]');
-  if (btn) {
-    const orig = btn.innerHTML;
-    btn.innerHTML = '<span>Backed up</span>';
-    btn.classList.add('success');
-    setTimeout(() => { btn.innerHTML = orig; btn.classList.remove('success'); }, 2500);
+  try {
+    const path = await exportFullBackup(`MENA One backup ${today()}.sqlite3`);
+    if (path) toast('Backup saved', { tone: 'success', detail: `Everything in MENA One, in ${path.split('/').pop()}` });
+  } catch (err) {
+    toast('Could not save the backup', { tone: 'error', detail: String(err) });
   }
 }
 expose('backupAllData', backupAllData);
@@ -42,7 +36,37 @@ async function reloadStateFromDb(): Promise<void> {
  * format or the original HTML tracker's legacy (v1, localStorage-backed) format,
  * and routes to the matching import command — this is also the primary
  * one-time migration path for bringing data over from the old tracker. */
+function fullSummaryLines(s: FullBackupSummary): string {
+  return [
+    `${s.companies} companies`, `${s.contacts} contacts`, `${s.opportunities} opportunities`, `${s.proposals} proposals`,
+    `${s.agreements} agreements`, `${s.projects} projects`, `${s.meetings} meetings`, `${s.tasks} tasks`, `${s.notes} notes`, `${s.commitments} commitments`,
+  ].map((x) => `• ${x}`).join('\n');
+}
+
+/** A full backup (.sqlite3): checked first, then everything is replaced and the app reloads. */
+async function restoreFullBackupFile(file: File): Promise<void> {
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  let summary: FullBackupSummary;
+  try {
+    summary = await inspectFullBackup(bytes);
+  } catch (err) {
+    toast('Could not restore the backup', { tone: 'error', detail: String(err) });
+    return;
+  }
+  const msg = `Restore "${file.name}"?\n\nEverything in MENA One will be REPLACED with what the backup holds:\n${fullSummaryLines(summary)}\n\nA copy of your current data is saved first, in the automatic backups folder.`;
+  if (!(await showConfirm(msg, { title: 'Restore backup?', confirmLabel: 'Restore' }))) return;
+  try {
+    await restoreFullBackup(bytes);
+    toast('Backup restored — reloading', { tone: 'success' });
+    // Every module reads fresh from the restored database.
+    setTimeout(() => window.location.reload(), 600);
+  } catch (err) {
+    toast('Could not restore the backup', { tone: 'error', detail: String(err) });
+  }
+}
+
 export async function restoreFromBackup(file: File): Promise<void> {
+  if (/\.(sqlite3?|db)$/i.test(file.name)) { await restoreFullBackupFile(file); return; }
   const text = await file.text();
   let parsed: any;
   try {

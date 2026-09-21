@@ -499,6 +499,14 @@ export async function installDevMockIfNeeded(): Promise<void> {
           }
           return items.map((t) => ({ id: t.id, companyId: t.companyId ?? null }));
         }
+        case 'export_full_backup':
+          return 'MENA One backup (sample).sqlite3';
+        case 'inspect_full_backup':
+        case 'restore_full_backup':
+          // The browser preview has no database file: describe the sample data instead.
+          return { schemaVersion: 36, companies: 2, contacts: SAMPLE.contacts.length, opportunities: opportunitiesStore.length, proposals: SAMPLE.proposals.length,
+            agreements: SAMPLE.agreements.length, projects: projectsStore.length, meetings: meetingsStore.length, tasks: SAMPLE.todos.length, notes: SAMPLE.notes.length,
+            commitments: (SAMPLE.commitments || []).length };
         case 'commitments_add': {
           // Same rules as commitments.rs: a line already read from the same source is skipped; ours gets a task.
           const items = ((_payload as any)?.items ?? []) as any[];

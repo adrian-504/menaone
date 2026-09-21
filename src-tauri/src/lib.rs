@@ -6,6 +6,7 @@ pub mod commercial;
 pub mod commitments;
 pub mod company_migration;
 pub mod db;
+pub mod full_backup;
 pub mod insights;
 pub mod integrity;
 pub mod intel;
@@ -261,6 +262,9 @@ pub fn run() {
             commercial::set_proposals_root,
             commands::upsert_todos,
             commitments::get_commitments,
+            full_backup::export_full_backup,
+            full_backup::inspect_full_backup,
+            full_backup::restore_full_backup,
             commitments::commitments_add,
             commitments::upsert_commitments,
             commitments::delete_commitments,

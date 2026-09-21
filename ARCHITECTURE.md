@@ -37,7 +37,7 @@ Concretely:
 | Agreements (ref generation, auto-sync, CRUD, CSV) | `src/core/agreements.ts` |
 | Contacts + contact lists + ActiveCampaign export | `src/core/contacts.ts` |
 | `switchTab()` | `src/core/nav.ts` |
-| Backup/restore (own format + legacy import) | `src/core/backup.ts` |
+| Backup/restore (full database copy; older JSON backups and legacy import still restore) | `src/core/backup.ts`, `src-tauri/src/full_backup.rs` |
 | Dashboard charts | `src/tabs/dashboard.ts` |
 | Follow-up tab | `src/tabs/followup.ts` |
 | Pending/work-queue tab | `src/tabs/pending.ts` |
@@ -104,6 +104,7 @@ The original app (and Opportunity's first cut) both treated "a company" as nothi
 - **Agreements from proposals** are created in Rust (`create_agreements_from_proposals`): idempotent (skips any proposal that already has its auto-created agreement), with reference numbers from the highest existing sequence (`next_agreement_ref`).
 - **Microsoft 365 addresses (v19).** Meetings keep `organizer_email` and `attendee_emails_json`; emails keep `recipients_json`.
 - **Automatic backups** (`backups.rs`). `VACUUM INTO` snapshots in `<app_data_dir>/backups`: one per day (last 14 kept, re-checked hourly), one before any pending migration runs (never pruned; startup refuses to migrate if this copy fails), and manual ones from Settings → Data Backup. Only files with those prefixes are ever pruned.
+- **The backup file** (`full_backup.rs`, since 21 Sep 2026). "Save a backup file…" writes a complete copy of the database (`VACUUM INTO`) where the user chooses — every table, including ones added later, so nothing has to be added to it by hand. "Restore from backup…" checks the file first (opens, intact, a MENA One database, not from a newer version), snapshots the current data, copies the file into the open database with SQLite's backup API, runs the migrations for an older copy, and reloads the app. `.json` backups made before this (the `AppData` format) and the original tracker's export still restore as before. `tests/full_backup.rs`; `examples/full_backup_check.rs` repeats the round trip on a copy of a real database.
 - **Windows portability.** Keychain on macOS / `keyring` (Windows Credential Manager) elsewhere; OneDrive folders resolved per platform (`localfiles.rs` `onedrive_dirs`); `tauri-plugin-opener` instead of `open`; `CommandOrControl` shortcuts; macOS-only menu items gated. Not yet built or run on Windows.
 - **Next:** the push/pull design, outbox and server are in `docs/sync-architecture.md`. PowerPoint generation feasibility is in `spikes/pptx-generator/README.md`.
 
@@ -427,7 +428,7 @@ One surface, hairlines, fewer of everything; tokens and components only, no layo
 ## Commitments and waiting-on (Slice 2)
 
 - Schema 36: `commitments` (direction, text, contact, due date, status open/kept/dropped with closed date and drop reason, company/opportunity/project, source type/id/normalised key, task) with sync columns; `opportunities.waiting_on / waiting_since / waiting_note`.
-- `src-tauri/src/commitments.rs`: `add_commitments` inserts idempotently (unique source key for meeting/note/capture) and creates the task for each open `ours` one. Triggers carry the rules for every write path: task ⇄ commitment status and due date, unlink on delete of what they point at, activity (created/kept/dropped). Company merges, search (`commitment` entity), the integrity report and the JSON backup include them.
+- `src-tauri/src/commitments.rs`: `add_commitments` inserts idempotently (unique source key for meeting/note/capture) and creates the task for each open `ours` one. Triggers carry the rules for every write path: task ⇄ commitment status and due date, unlink on delete of what they point at, activity (created/kept/dropped). Company merges, search (`commitment` entity), the integrity report and both backup formats include them.
 - `src/lib/commitments.ts` parses `>>` / `<<` lines (pure, tested); `src/tabs/commitments.ts` holds the row, sections, dialog and reading from sources; `persist.ts` keeps a task and its commitment equal in memory so neither save undoes the other.
 - Rules: an open task (direct or via a meeting) or open `ours` commitment satisfies "next action"; waiting on the client measures the wait instead of calling it stalled; with us is never stalled and appears in My Day. My Day ranks overdue promises we made just under a countersignature and folds the client's overdue ones into "Owed to you (N)".
 

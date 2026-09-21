@@ -104,6 +104,16 @@ export async function setAppMeta(key: string, value: string): Promise<void> {
 }
 
 /** Asks where to save (system dialog) and writes the file; null when cancelled. */
+/** The full backup (full_backup.rs): a complete copy of the database. */
+export interface FullBackupSummary {
+  schemaVersion: number; companies: number; contacts: number; opportunities: number; proposals: number; agreements: number;
+  projects: number; meetings: number; tasks: number; notes: number; commitments: number;
+}
+export async function exportFullBackup(defaultName: string): Promise<string | null> { return invoke<string | null>('export_full_backup', { defaultName }); }
+/** The file's bytes go as the raw request body, not as JSON. */
+export async function inspectFullBackup(bytes: Uint8Array): Promise<FullBackupSummary> { return invoke<FullBackupSummary>('inspect_full_backup', bytes); }
+export async function restoreFullBackup(bytes: Uint8Array): Promise<FullBackupSummary> { return invoke<FullBackupSummary>('restore_full_backup', bytes); }
+
 export async function saveTextFileDialog(defaultName: string, contents: string, extensions: string[]): Promise<string | null> {
   return invoke<string | null>('save_text_file_dialog', { defaultName, contents, extensions });
 }

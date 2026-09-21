@@ -39,7 +39,7 @@ pub fn backups_dir(app_data_dir: &Path) -> PathBuf {
     app_data_dir.join("backups")
 }
 
-fn snapshot(conn: &Connection, dest: &Path) -> rusqlite::Result<()> {
+pub(crate) fn snapshot(conn: &Connection, dest: &Path) -> rusqlite::Result<()> {
     if let Some(parent) = dest.parent() {
         std::fs::create_dir_all(parent).map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
     }
