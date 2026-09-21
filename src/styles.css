@@ -9,11 +9,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Robot
    override block below, set explicitly by src/core/theme.ts's picker — none
    of them follow prefers-color-scheme, each is a fixed, chosen palette. */
 :root{
-  --bg:#F5F4FB;
+  --bg:#FFFFFF; /* the page is the surface; the tint is the sidebar's */
   --surface:#FFFFFF;
   --surface-2:#F7F6FC;
-  --sidebar-bg:#FFFFFF;
+  --sidebar-bg:#F5F4FB;
   --border:#ECEAF4;
+  /* Sections are separated by a hairline, not boxed. --surface-flat is the
+     quiet fill for things inside a section (inputs, wells); --hover is the
+     one hover tint for rows and flat buttons. */
+  --hairline:#ECEAF4;
+  --surface-flat:#F7F6FC;
+  --hover:rgba(30,27,60,.045);
   --border2:#DEDBEA;
   --accent:#2A5FE0;
   --accent-bg:#EEF2FE;
@@ -78,7 +84,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Robot
 }
 :root[data-theme="dark"]{
   color-scheme:dark;
-  --bg:#19191B;--surface:#212123;--surface-2:#242426;--sidebar-bg:#1D1D20;
+  --bg:#212123;--surface:#212123;--surface-2:#242426;--sidebar-bg:#19191B;
+  --hairline:#2E2E31;--surface-flat:#262628;--hover:rgba(255,255,255,.05);
   --border:#323234;--border2:#3F3F42;--accent:#5B8AF0;--accent-bg:#182644;--accent-border:#2C4A80;
   --accent-2:#9B81F9;--accent-2-bg:#251C42;--accent-2-border:#3E2F6E;
   --text:#EFEFF0;--sub:#9C9CA1;--muted:#8A8A90;
@@ -91,7 +98,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Robot
 }
 :root[data-theme="graphite"]{
   color-scheme:dark;
-  --bg:#1C1C1E;--surface:#242426;--surface-2:#28282A;--sidebar-bg:#1A1A1C;
+  --bg:#242426;--surface:#242426;--surface-2:#28282A;--sidebar-bg:#1C1C1E;
+  --hairline:#333336;--surface-flat:#2A2A2C;--hover:rgba(255,255,255,.05);
   --border:#333335;--border2:#404042;--accent:#8E8E93;--accent-bg:#2C2C2E;--accent-border:#48484A;
   --accent-2:#AEAEB2;--accent-2-bg:#2C2C2E;--accent-2-border:#48484A;
   --text:#E8E8EA;--sub:#9C9CA1;--muted:#909095;
@@ -150,6 +158,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Robot
 
 .tab{display:none}.tab.active{display:block}
 .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:var(--space-4);box-shadow:var(--shadow)}
+/* A section of a page: a top hairline and a heading — no box, shadow or
+   radius. .card stays for things that float (rail, popovers, menus, dialogs). */
+.sec{padding:16px 0 18px;border-top:1px solid var(--hairline);background:none}
+.sec:first-child{border-top:none;padding-top:4px}
 .card-hd{font-size:var(--type-heading);font-weight:600;color:var(--text);display:flex;align-items:center}
 .card-hd{margin-bottom:var(--space-3);gap:var(--space-2)}
 .kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px}
@@ -1060,6 +1072,13 @@ main.workspace .tab.active{animation:none}
 .rec-stat-sub{font-size:var(--type-caption);color:var(--muted)}
 .rec-overview-grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:12px;margin-bottom:12px}
 .rec-overview-grid .card{padding:16px 18px}
+/* Company 360 (visual consolidation): figures without boxes, sections with hairlines. */
+#co-detail .rec-stats{gap:0;padding:4px 0 14px;border-bottom:1px solid var(--hairline);margin-bottom:0}
+#co-detail .rec-stat{border:none;background:none;border-radius:8px;padding:8px 12px 8px 0}
+#co-detail .rec-stat:hover{box-shadow:none;background:var(--hover)}
+#co-detail .rec-overview-grid{gap:32px;margin-bottom:0}
+#co-detail .rec-overview-grid > .sec{border-top:none;padding-top:16px}
+#co-detail .rec-section.sec{margin-bottom:0}
 .rec-props{display:grid;grid-template-columns:110px 1fr;gap:9px 14px;margin:0;align-items:baseline}
 .rec-props dt{font-size:var(--type-secondary);color:var(--muted)}
 .rec-props dd{margin:0;font-size:var(--type-body);color:var(--text);min-width:0;overflow-wrap:anywhere}
@@ -1834,11 +1853,12 @@ body.dnd-active .opp-board .board-column.stage-hidden{display:flex}
 .mdy-holidays-list{display:flex;flex-wrap:wrap;gap:2px 16px}
 .mdy-holiday strong{color:var(--text);font-weight:600;margin-right:3px}
 .mdy-holiday-note{color:var(--muted)}
-.mdy-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(280px,340px);gap:16px;align-items:start}
-.mdy-main,.mdy-rail{display:flex;flex-direction:column;gap:14px;min-width:0}
-.mdy-card{padding:14px 16px}
-.mdy-card .rec-section-hd{margin-bottom:6px}
-.mdy-card .rec-section-hd .rcnt{margin-left:0}
+.mdy-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(280px,340px);gap:32px;align-items:start}
+.mdy-main,.mdy-rail{display:flex;flex-direction:column;min-width:0}
+/* The rail reads as a column beside the day, separated by a hairline. */
+.mdy-rail{border-left:1px solid var(--hairline);padding-left:24px}
+.mdy-sec .rec-section-hd{margin-bottom:6px}
+.mdy-sec .rec-section-hd .rcnt{margin-left:0}
 .mdy-hd-note{margin-left:auto;font-size:var(--type-meta);color:var(--muted)}
 .mdy-meta{font-size:var(--type-secondary);color:var(--sub);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .mdy-sep{margin:0 6px;color:var(--muted)}
@@ -1933,9 +1953,9 @@ body.dnd-active .opp-board .board-column.stage-hidden{display:flex}
 .mdy-up-more{padding-left:48px;font-size:var(--type-meta);color:var(--muted)}
 
 /* Rail */
-.mdy-stats{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.mdy-stat{font:inherit;display:flex;flex-direction:column;gap:1px;min-width:0;text-align:left;padding:9px 10px;border:1px solid var(--border);border-radius:9px;background:var(--surface);cursor:pointer;transition:border-color var(--dur-fast) var(--ease-out),background var(--dur-fast) var(--ease-out)}
-.mdy-stat:hover{border-color:var(--accent-border);background:var(--accent-bg)}
+.mdy-stats{display:grid;grid-template-columns:1fr 1fr;gap:4px 12px}
+.mdy-stat{font:inherit;display:flex;flex-direction:column;gap:1px;min-width:0;text-align:left;padding:7px 8px;margin:0 -8px;border:none;border-radius:8px;background:none;cursor:pointer;transition:background var(--dur-fast) var(--ease-out)}
+.mdy-stat:hover{background:var(--hover)}
 .mdy-stat-label{font-size:var(--type-caption);font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
 .mdy-stat-value{font-size:var(--type-section);font-weight:700;color:var(--text);font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .mdy-stat-sub{font-size:var(--type-meta);color:var(--sub);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}

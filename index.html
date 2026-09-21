@@ -252,7 +252,7 @@
   </header>
   <div class="mdy-layout">
     <div class="mdy-main">
-      <section class="card mdy-card">
+      <section class="sec mdy-sec">
         <div class="rec-section-hd"><h2>Today</h2></div>
         <div id="myday-today"></div>
         <form class="task-quickadd mdy-capture" onsubmit="mydayCapture(event)" autocomplete="off">
@@ -261,25 +261,25 @@
           <div class="qa-chips" id="myday-capture-preview"></div>
         </form>
       </section>
-      <section class="card mdy-card">
+      <section class="sec mdy-sec">
         <div class="rec-section-hd"><h2>Needs your attention</h2><span class="rcnt" id="myday-attention-cnt"></span></div>
         <div id="myday-attention"></div>
       </section>
     </div>
     <aside class="mdy-rail">
-      <section class="card mdy-card">
+      <section class="sec mdy-sec">
         <div class="rec-section-hd"><h2>Coming up</h2><span class="mdy-hd-note">Next 7 days</span></div>
         <div id="myday-upcoming"></div>
       </section>
-      <section class="card mdy-card">
+      <section class="sec mdy-sec">
         <div class="rec-section-hd"><h2>Business</h2></div>
         <div id="myday-pipeline"></div>
       </section>
-      <section class="card mdy-card" id="myday-watch-card" hidden>
+      <section class="sec mdy-sec" id="myday-watch-card" hidden>
         <div class="rec-section-hd"><h2>Watch</h2><div class="rec-section-actions"><button class="btn-sm mdy-mini" onclick="navToModule('intelligence')">All</button></div></div>
         <div id="myday-watch"></div>
       </section>
-      <section class="card mdy-card">
+      <section class="sec mdy-sec">
         <div class="rec-section-hd"><h2>Recent activity</h2></div>
         <div id="myday-activity"></div>
       </section>
@@ -1505,7 +1505,7 @@
     <section class="rec-section rec-overview" id="co-sec-overview" data-section="overview">
       <div class="rec-stats" id="co-detail-kpis"></div>
       <div class="rec-overview-grid">
-        <div class="card rec-facts" id="co-facts-card"><div class="rec-section-hd"><h2>Key facts</h2><div class="rec-section-actions"><button class="btn-sm" id="co-facts-edit-btn" onclick="openEditCompanyModal()">Edit</button></div></div><dl class="rec-props" id="co-facts"></dl><div class="co-facts-edit" id="co-facts-edit" hidden>
+        <div class="sec rec-facts" id="co-facts-card"><div class="rec-section-hd"><h2>Key facts</h2><div class="rec-section-actions"><button class="btn-sm" id="co-facts-edit-btn" onclick="openEditCompanyModal()">Edit</button></div></div><dl class="rec-props" id="co-facts"></dl><div class="co-facts-edit" id="co-facts-edit" hidden>
     <div class="fgrp">
       <label class="flbl">Company Name</label>
       <input class="finp" id="edit-co-name" placeholder="Company name">
@@ -1553,7 +1553,7 @@
       <button class="btn-primary" onclick="saveEditCompany()">Save changes</button>
     </div>
   </div></div>
-        <div class="card rec-notes-card">
+        <div class="sec rec-notes-card">
           <div class="rec-section-hd"><h2>Company notes</h2><span class="rec-count" id="co-notes-entry-count"></span></div>
           <div class="conote-composer">
             <textarea class="rec-notes conote-input" id="co-notes-text" rows="2" placeholder="What's new with this client? Enter to save, Shift+Enter for a new line." oninput="companyNoteComposerInput(this)" onkeydown="companyNoteComposerKey(event)"></textarea>
@@ -1562,45 +1562,45 @@
           <div class="conote-log" id="co-notes-log"></div>
         </div>
       </div>
-      <div class="card" id="co-emails" style="display:none"></div>
+      <div class="sec" id="co-emails" style="display:none"></div>
     </section>
-    <section class="rec-section card" id="co-sec-contacts" data-section="contacts">
+    <section class="rec-section sec" id="co-sec-contacts" data-section="contacts">
       <div class="rec-section-hd"><h2>Contacts</h2><span class="rec-count" id="co-contacts-count"></span><div class="rec-section-actions"><button class="btn-sm" onclick="openContactForCompany()">+ Add</button></div></div>
       <div class="rec-list" id="co-contacts-list"></div>
     </section>
-    <section class="rec-section card" id="co-sec-opportunities" data-section="opportunities">
+    <section class="rec-section sec" id="co-sec-opportunities" data-section="opportunities">
       <div class="rec-section-hd"><h2>Opportunities</h2><span class="rec-count" id="co-opps-count"></span><div class="rec-section-actions"><button class="btn-sm" onclick="createOpportunityForCurrentCompany()">+ New</button></div></div>
       <div class="rec-list" id="co-opps-list"></div>
     </section>
-    <section class="rec-section card" id="co-sec-proposals" data-section="proposals">
+    <section class="rec-section sec" id="co-sec-proposals" data-section="proposals">
       <div class="rec-section-hd"><h2>Proposals</h2><span class="rec-count" id="co-proposals-count"></span><div class="rec-section-actions"><button class="btn-sm" onclick="createProposalForCurrentCompany()">+ New</button></div></div>
       <div class="tbl-wrap rec-table"><table><thead><tr><th>SL#</th><th>Service</th><th>Status</th><th>Sent</th><th>Signed</th><th>MRR</th><th>Log</th><th></th></tr></thead><tbody id="co-proposals-tbody"></tbody></table></div>
     </section>
-    <section class="rec-section card" id="co-sec-projects" data-section="projects">
+    <section class="rec-section sec" id="co-sec-projects" data-section="projects">
       <div class="rec-section-hd"><h2>Projects</h2><span class="rec-count" id="co-projects-tab-count"></span><div class="rec-section-actions"><button class="btn-sm" onclick="createProjectForCurrentCompany()">+ New</button></div></div>
       <div id="cosub-projects-inner"></div>
     </section>
-    <section class="rec-section card" id="co-sec-agreements" data-section="agreements">
+    <section class="rec-section sec" id="co-sec-agreements" data-section="agreements">
       <div class="rec-section-hd"><h2>Agreements</h2><span class="rec-count" id="co-agreements-count"></span><div class="rec-section-actions"><button class="btn-sm" onclick="openAgrForCompany()">+ New</button></div></div>
       <div class="tbl-wrap rec-table"><table><thead><tr><th>Ref</th><th>Type</th><th>Status</th><th>Sent</th><th>Client signed</th><th>MENA signed</th><th>MRR</th><th></th></tr></thead><tbody id="co-agreements-tbody"></tbody></table></div>
     </section>
-    <section class="rec-section card" id="co-sec-meetings" data-section="meetings">
+    <section class="rec-section sec" id="co-sec-meetings" data-section="meetings">
       <div class="rec-section-hd"><h2>Meetings</h2><span class="rec-count" id="co-meetings-tab-count"></span><div class="rec-section-actions"><button class="btn-sm" onclick="createMeetingForCurrentCompany()">+ New</button></div></div>
       <div id="cosub-meetings-inner"></div>
     </section>
-    <section class="rec-section card" id="co-sec-notes" data-section="notes">
+    <section class="rec-section sec" id="co-sec-notes" data-section="notes">
       <div class="rec-section-hd"><h2>Notes</h2><span class="rec-count" id="co-notes-tab-count"></span><div class="rec-section-actions"><button class="btn-sm" onclick="createNoteForCurrentCompany()">+ New</button></div></div>
       <div id="cosub-notes-inner"></div>
     </section>
-    <section class="rec-section card" id="co-sec-tasks" data-section="tasks">
+    <section class="rec-section sec" id="co-sec-tasks" data-section="tasks">
       <div class="rec-section-hd"><h2>Tasks</h2><span class="rec-count" id="co-todos-tab-count"></span><div class="rec-section-actions"><button class="btn-sm" onclick="createTodoForCurrentCompany()">+ New</button></div></div>
       <div id="cosub-todos-inner"></div>
     </section>
-    <section class="rec-section card" id="co-sec-files" data-section="files">
+    <section class="rec-section sec" id="co-sec-files" data-section="files">
       <div class="rec-section-hd"><h2>Files</h2><span class="rec-count" id="co-files-tab-count"></span><div class="rec-section-actions"><button class="btn-sm" onclick="switchTab('files');msFilesOpenSetupWizard()">Match a folder…</button></div></div>
       <div id="cosub-files-inner"></div>
     </section>
-    <section class="rec-section card" id="co-sec-activity" data-section="activity">
+    <section class="rec-section sec" id="co-sec-activity" data-section="activity">
       <div class="rec-section-hd"><h2>Activity</h2><span class="rec-count" id="co-activity-count"></span><div class="rec-section-actions"><button class="btn-sm" onclick="openActivityNote()">+ Log note</button></div></div>
       <div class="feed" id="co-timeline"></div>
     </section>
