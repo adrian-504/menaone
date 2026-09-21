@@ -29,6 +29,14 @@ jobs:
       - run: npm test
       - run: cargo test
         working-directory: src-tauri
+      # Focus rules (docs/ux-conventions.md): every view of the dev preview's
+      # sample data, counted in headless Chrome (installed on macOS runners).
+      - name: Focus check
+        if: runner.os == 'macOS'
+        run: |
+          npx vite --port 1420 --strictPort > vite.log 2>&1 &
+          for i in $(seq 1 60); do curl -sf http://localhost:1420/ > /dev/null && break; sleep 1; done
+          node scripts/focus-check.mjs
 
   windows-installer:
     name: Windows test installer
