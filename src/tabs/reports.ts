@@ -36,7 +36,7 @@ export function renderReports(): void {
   data.forEach((p) => { cts[p.status] = (cts[p.status] || 0) + 1; });
   const bdEl = document.getElementById('rpt-breakdown');
   if (bdEl) bdEl.innerHTML = STATUSES.filter((s) => cts[s]).map((s) => {
-    const c = ST[s] || { c: '#6B7280', ch: '#9CA3AF' };
+    const c = ST[s] || { c: 'var(--muted)' };
     return `<div class="bchip">${statusDot(c, s)}<span class="bchip-n">${cts[s]}</span></div>`;
   }).join('') || `<span class="t-secondary t-muted">No data</span>`;
   const tbodyEl = document.getElementById('rpt-tbody');

@@ -62,7 +62,7 @@ export function renderStageMappingTable(): void {
   const tbody = document.getElementById('stage-map-tbody');
   if (!tbody) return;
   tbody.innerHTML = Object.entries(HS_STAGE_MAP).map(([mena, hs]) => {
-    const cfg = ST[mena] || { c: '#6B7280', ch: '#9CA3AF' };
+    const cfg = ST[mena] || { c: 'var(--muted)' };
     return `<tr>
       <td>
         ${statusDot(cfg, mena)}

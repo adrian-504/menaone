@@ -67,7 +67,7 @@ export function renderDB(): void {
   updateDbBulkBar();
   if (rows.length === 0) { tbody.innerHTML = `<tr><td colspan="11">${emptyState({ icon: 'search', title: 'No proposals match these filters', body: 'Try a different search, or clear the filters.', compact: true })}</td></tr>`; return; }
   tbody.innerHTML = rows.map((p) => {
-    const cfg = ST[p.status] || { c: '#6B7280', ch: '#9CA3AF' };
+    const cfg = ST[p.status] || { c: 'var(--muted)' };
     const optHtml = STATUSES.map((s) => `<option value="${escHtml(s)}" ${p.status === s ? 'selected' : ''}>${escHtml(s)}</option>`).join('')
       + (STATUSES.includes(p.status) ? '' : `<option selected>${escHtml(p.status)}</option>`);
     const fu = needsFollowUp(p);

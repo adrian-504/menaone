@@ -3,6 +3,7 @@ import { S } from '../lib/state';
 import { STATUSES, ST, CC } from '../lib/constants';
 import { escHtml, kpiCard, themeColor, fmtDate, statusDot } from '../lib/utils';
 import { matchesProposalPeriod } from '../lib/period';
+import { statusTone, toneVar } from '../lib/statusTone';
 import { registerTabRenderer } from '../lib/registry';
 import { updateBadge, getFollowups } from '../core/proposals';
 import { isOverdue } from './todo';
@@ -107,7 +108,8 @@ export function renderStatusChart(dp?: Proposal[]): void {
   dp.forEach((p) => { counts[p.status] = (counts[p.status] || 0) + 1; });
   const labels = STATUSES.filter((s) => counts[s]);
   const data = labels.map((s) => counts[s]);
-  const colors = labels.map((s) => (ST[s] || { ch: '#94A3B8' }).ch);
+  // Canvas can't read CSS variables: resolve each status's tone colour.
+  const colors = labels.map((s) => themeColor(toneVar(statusTone('proposal', s))));
   const ctx = document.getElementById('ch-status') as HTMLCanvasElement | null;
   if (!ctx) return;
   S.charts.status = new Chart(ctx, {

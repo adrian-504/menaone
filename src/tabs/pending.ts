@@ -34,8 +34,7 @@ export function wqAgeClass(days: number | null): string {
 
 export function wqAgeColor(days: number | null): string {
   if (days === null || days < 3) return 'var(--green)';
-  if (days < 7) return 'var(--amber)';
-  if (days < 14) return '#C2740E';
+  if (days < 14) return 'var(--amber)';
   return 'var(--red)';
 }
 
@@ -125,7 +124,7 @@ expose('renderPending', renderPending);
 export function wqCard(p: Proposal): string {
   const refDate = p.dateAdded || p.sentDate || null;
   const days = daysSince(refDate);
-  const cfg = WQ_CFG[p.status] || { step: 1, c: '#6B7280', bg: '#F9FAFB', br: '#E5E7EB', label: p.status };
+  const cfg = WQ_CFG[p.status] || { step: 1, c: 'var(--muted)', label: p.status };
   const step = cfg.step;
   const nc = (p.notes || []).length;
   const reviewer = teamMember(p.reviewerId)?.name || defaultReviewer()?.name || 'the reviewer';

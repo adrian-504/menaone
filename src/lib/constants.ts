@@ -1,5 +1,6 @@
 // Business constants. Statuses were simplified in Sprint 4; the service catalog
 // and rate card moved to the database (see commercial.rs).
+import { statusTone, toneVar, type StatusKind } from './statusTone';
 
 /** Proposal statuses (Sprint 4 clean-up). A proposal is won once both
  * parties have signed it; delivery (kickoff, service started) lives on the
@@ -34,22 +35,14 @@ export const LOSS_REASONS = [
   "Other",
 ];
 
-// `c` is the text/dot color used at rest; `ch` (chart) is a slightly punchier
-// variant for chart series and the small status dots — both are shown only as
-// a colored dot + plain-text label (see statusDot() in utils.ts), never as a
-// filled pill background, so there's no separate bg/border pair to maintain.
+// Status dots take their colour from the status's tone (statusTone.ts), as a
+// CSS variable, so a status looks the same in every list and theme.
 export interface StatusStyle { c: string; ch?: string }
 
-export const ST: Record<string, StatusStyle> = {
-  "Proposal Request Received": { c: "#6D28D9", ch: "#8B5CF6" },
-  "Drafting": { c: "#1D4ED8", ch: "#3B82F6" },
-  "In Internal Review": { c: "#92400E", ch: "#F59E0B" },
-  "Sent to Client": { c: "#C2410C", ch: "#F97316" },
-  "Signed by Client": { c: "#0F766E", ch: "#14B8A6" },
-  "Signed by Both Parties": { c: "#166534", ch: "#22C55E" },
-  "Lost": { c: "#991B1B", ch: "#EF4444" },
-  "Withdrawn": { c: "#6B7280", ch: "#94A3B8" },
-};
+const toned = (kind: StatusKind, statuses: readonly string[]): Record<string, StatusStyle> =>
+  Object.fromEntries(statuses.map((s) => [s, { c: `var(${toneVar(statusTone(kind, s))})` }]));
+
+export const ST: Record<string, StatusStyle> = toned('proposal', STATUSES);
 
 // Categorical chart palette — refined/muted rather than neon, but still needs
 // enough distinct hues to stay readable across up to 10 data series.
@@ -96,15 +89,7 @@ export const AGR_TYPES = [
   "Other",
 ];
 
-export const AGR_ST: Record<string, StatusStyle> = {
-  "In Preparation": { c: "#92400E" },
-  "Client Review": { c: "#C2410C" },
-  "Client Signature": { c: "#0F766E" },
-  "MENA Signature": { c: "#0369A1" },
-  "Signed": { c: "#14532D" },
-  "On Hold": { c: "#6B7280" },
-  "Canceled": { c: "#991B1B" },
-};
+export const AGR_ST: Record<string, StatusStyle> = toned('agreement', AGR_STATUSES);
 
 // ── HubSpot deal-stage mapping ──
 export const HS_STAGE_MAP: Record<string, string> = {

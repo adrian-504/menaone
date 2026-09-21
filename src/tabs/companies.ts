@@ -721,7 +721,7 @@ function buildCoRow(name: string, byName: Map<string, Company>, listsByName: Map
   const d = buildCompanyData(name);
   const co = byName.get(name);
   const ref = { id: co?.id ?? null, name };
-  const statusCfg = d.latestStatus ? ST[d.latestStatus] || { c: 'var(--muted)', bg: 'var(--surface-2)', br: 'var(--border)' } : null;
+  const statusCfg = d.latestStatus ? ST[d.latestStatus] || { c: 'var(--muted)' } : null;
   const activeServices = [...new Set(d.clientAgreements.flatMap((a) => (a.lines?.length ? a.lines.map((l) => l.serviceName) : [a.type || ''])).filter(Boolean))];
   const otherServices = [...(services.get(name) || [])].filter((s) => !activeServices.includes(s));
   const todayIso = today();

@@ -19,18 +19,13 @@ import { icon } from '../lib/icons';
 import { showContextMenu } from '../lib/contextMenu';
 import { attachCompanySelector } from '../lib/companySelector';
 import type { Project, Milestone, Note } from '../lib/types';
+import { statusTone, toneVar } from '../lib/statusTone';
 import { currentUser, matchesOwnerFilter, ownerFilterOptions } from '../lib/commercial';
 
-const STATUS_COLOR: Record<string, { c: string }> = {
-  Idea: { c: '#7C3AED' },
-  Planning: { c: '#0369A1' },
-  'Not Started': { c: '#8A8A90' },
-  'In Progress': { c: 'var(--accent)' },
-  'At Risk': { c: '#C2740E' },
-  'On Hold': { c: '#92400E' },
-  Completed: { c: 'var(--green)' },
-  Cancelled: { c: 'var(--red)' },
-};
+// Project status dots use the shared tones (statusTone.ts).
+const STATUS_COLOR: Record<string, { c: string }> = Object.fromEntries(
+  ['Idea', 'Planning', 'Not Started', 'In Progress', 'At Risk', 'On Hold', 'Completed', 'Cancelled'].map((s) => [s, { c: `var(${toneVar(statusTone('project', s))})` }]),
+);
 
 /** Reloads S.projects from the backend — progress/task counts are computed
  * server-side from linked tasks (see hydrate_project in v2_commands.rs), so

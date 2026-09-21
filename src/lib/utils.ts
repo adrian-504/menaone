@@ -170,7 +170,7 @@ export function statusDot(cfg: { c: string; ch?: string }, label: string, extraS
 }
 
 export function badge(status: string): string {
-  const c = ST[status] || { c: '#6B7280', ch: '#9CA3AF' };
+  const c = ST[status] || { c: 'var(--muted)' };
   return statusDot(c, status);
 }
 

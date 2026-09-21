@@ -136,7 +136,7 @@ export function renderAgreements(): void {
   if (data.length === 0) { tbody.innerHTML = `<tr><td colspan="9">${emptyState({ icon: 'document', title: 'No agreements match these filters', compact: true })}</td></tr>`; return; }
   const todayIso = today();
   tbody.innerHTML = data.map((a) => {
-    const sc = AGR_ST[a.status || ''] || { c: '#6B7280', ch: '#9CA3AF' };
+    const sc = AGR_ST[a.status || ''] || { c: 'var(--muted)' };
     const stOpts = AGR_STATUSES.map((st) => `<option value="${escHtml(st)}" ${a.status === st ? 'selected' : ''}>${escHtml(st)}</option>`).join('')
       + (a.status && !AGR_STATUSES.includes(a.status) ? `<option selected>${escHtml(a.status)}</option>` : '') + (!a.status ? '<option value="" selected>Not set</option>' : '');
     const services = a.lines?.length ? [...new Set(a.lines.map((l) => l.serviceName))] : (a.type ? [a.type] : []);

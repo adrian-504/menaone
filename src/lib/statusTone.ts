@@ -4,8 +4,9 @@
 //   amber  — waiting or at risk: with the client, on hold, at risk
 //   accent — moving: open, in progress, being prepared
 //   muted  — not started, withdrawn, ended
-// Pipeline lists keep their per-stage dot colours (constants.ts ST/AGR_ST) so
-// stages stay easy to tell apart; this is the meaning a badge carries.
+// This file is the only source of status colour: the dots in lists
+// (constants.ts ST/AGR_ST) and chart bars take the same tone, so a status
+// has one colour everywhere.
 
 export type Tone = 'green' | 'red' | 'amber' | 'accent' | 'muted';
 export type StatusKind = 'proposal' | 'agreement' | 'service' | 'opportunity' | 'project' | 'task' | 'meeting';
@@ -28,6 +29,11 @@ const TONES: Record<StatusKind, Record<string, Tone>> = {
   task: { Pending: 'muted', 'In Progress': 'accent', Done: 'green' },
   meeting: { Scheduled: 'accent', Held: 'green', Cancelled: 'red' },
 };
+
+/** The CSS variable holding a tone's colour. */
+export function toneVar(t: Tone): string {
+  return `--${t}`;
+}
 
 export function statusTone(kind: StatusKind, status: string | null | undefined): Tone {
   return (status && TONES[kind][status]) || 'muted';
