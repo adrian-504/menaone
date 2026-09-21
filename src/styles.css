@@ -2551,8 +2551,6 @@ body.brief-open{overflow:hidden}
 .pl-edit{min-height:26px}
 .btn-secondary.is-positive{color:var(--green);border-color:var(--green-border)}
 /* Row actions appear on hover or keyboard focus (Focus rule 5). */
-.pr-folder-file .rec-row-actions,#prd-docs .rec-row-actions{visibility:hidden}
-.pr-folder-file:hover .rec-row-actions,.pr-folder-file:focus-within .rec-row-actions,#prd-docs .rec-row:hover .rec-row-actions,#prd-docs .rec-row:focus-within .rec-row-actions{visibility:visible}
 .ctd-copy{opacity:0}.pl-val:hover .ctd-copy,.ctd-copy:focus-visible{opacity:1}
 .md-task-add:not(:focus-within):not(.has-text) > :not(.md-task-title):not(datalist){display:none}
 .md-task-add:not(:focus-within):not(.has-text) .md-task-title{flex:1 1 100%}
@@ -2572,3 +2570,23 @@ body.brief-open{overflow:hidden}
 /* Create dialogs: optional fields behind "More details" (lib/moreDetails.ts). */
 form:not(.show-more) .fgrp-more{display:none !important}
 .more-toggle{margin:2px 0 6px -8px}
+/* Services: categories fold to one line; row actions on hover. */
+details.svc-group > summary,details.svc-review > summary{list-style:none;cursor:pointer}
+details.svc-group > summary::-webkit-details-marker,details.svc-review > summary::-webkit-details-marker{display:none}
+details.svc-group:not([open]) > summary,details.svc-review:not([open]) > summary{margin-bottom:0}
+.svc-group-names{flex:1;min-width:0;margin-left:10px;color:var(--muted);font-size:var(--type-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+details[open] > summary .svc-group-names{visibility:hidden}
+.svc-row .svc-row-actions{opacity:0}
+.svc-row:hover .svc-row-actions,.svc-row:focus-within .svc-row-actions{opacity:1}
+/* Row actions appear on hover or keyboard focus (Focus rule 5). Opacity, not
+   visibility, so Tab still reaches them and shows them. My Day keeps each
+   row's main action visible; only its "…" waits. */
+.rec-row .rec-row-actions{opacity:0;transition:opacity var(--dur-fast) var(--ease-out)}
+.rec-row:hover .rec-row-actions,.rec-row:focus-within .rec-row-actions,.rec-row:focus-visible .rec-row-actions{opacity:1}
+.mdy-att-actions .rec-icon-btn{opacity:0;transition:opacity var(--dur-fast) var(--ease-out)}
+.mdy-att:hover .mdy-att-actions .rec-icon-btn,.mdy-att:focus-within .mdy-att-actions .rec-icon-btn{opacity:1}
+.co-thread-next{visibility:visible;opacity:0}
+.co-thread:hover .co-thread-next,.co-thread:focus-within .co-thread-next,.co-thread:focus-visible .co-thread-next{opacity:1}
+/* Company 360: a section's "+ New" shows when you're in that section. */
+#co-detail .rec-section:not(.is-empty) > .rec-section-hd .rec-section-actions .btn-secondary{opacity:0;transition:opacity var(--dur-fast) var(--ease-out)}
+#co-detail .rec-section:hover > .rec-section-hd .rec-section-actions .btn-secondary,#co-detail .rec-section:focus-within > .rec-section-hd .rec-section-actions .btn-secondary{opacity:1}

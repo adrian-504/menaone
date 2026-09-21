@@ -8,7 +8,8 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
-    "test": "vitest run"
+    "test": "vitest run",
+    "focus-check": "node scripts/focus-check.mjs"
   },
   "dependencies": {
     "@codemirror/commands": "^6.11.0",

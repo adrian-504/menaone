@@ -140,13 +140,15 @@ function renderCatalog(search: string, cat: string): string {
     if (!groups.has(c)) groups.set(c, []);
     groups.get(c)!.push(s);
   }
-  return review + [...groups.entries()].map(([category, list]) => `<section class="sec svc-group">
-    <div class="rec-section-hd"><h2>${escHtml(category)}</h2><span class="rec-count">${list.length}</span></div>
+  // Each category folds to one line; searching or filtering opens them.
+  const open = !!search || !!cat;
+  return review + [...groups.entries()].map(([category, list]) => `<details class="sec svc-group"${open ? ' open' : ''}>
+    <summary class="rec-section-hd"><h2>${escHtml(category)}</h2><span class="rec-count">${list.length}</span><span class="svc-group-names">${escHtml(list.slice(0, 4).map((x) => x.name).join(' · '))}${list.length > 4 ? ' …' : ''}</span></summary>
     <div class="svc-colhd"><span>Service</span><span>Price</span><span>On proposals</span><span></span></div>
     <div class="rec-list">${list.map((s) => {
       const used = usage(s);
       const mergedTarget = s.mergedInto != null ? S.services.find((x) => x.id === s.mergedInto) : undefined;
-      return `<div class="svc-row${s.active ? '' : ' is-unavailable'}" onclick="openServiceEditor(${s.id})">
+      return `<div class="svc-row${s.active ? '' : ' is-unavailable'}" tabindex="0" role="button" onclick="openServiceEditor(${s.id})" onkeydown="if(event.key==='Enter'&&event.target===this)openServiceEditor(${s.id})">
         <div class="svc-row-main">
           <div class="svc-row-title">${escHtml(s.name)}${mergedTarget ? ` <span class="rec-badge">Merged into ${escHtml(mergedTarget.name)}</span>` : s.active ? '' : ' <span class="rec-badge">Retired</span>'}</div>
           <div class="svc-row-sub">${[s.agreementType ? `${s.agreementType} agreement` : 'No agreement type', pricingShape(s)].map(escHtml).join(' · ')}</div>
@@ -154,12 +156,11 @@ function renderCatalog(search: string, cat: string): string {
         <div class="svc-row-price">${catalogPrice(s)}</div>
         <div class="svc-row-use">${used || '<span class="t-muted">0</span>'}</div>
         <div class="svc-row-actions">
-          <button class="btn-secondary btn-sm" onclick="event.stopPropagation();openServiceEditor(${s.id})">Edit</button>
-          <button class="btn-secondary btn-sm" onclick="event.stopPropagation();openServiceMerge(${s.id})" title="Merge this service into another">Merge…</button>
+          <button class="btn-ghost btn-sm" onclick="event.stopPropagation();openServiceMerge(${s.id})" title="Merge this service into another">Merge…</button>
         </div>
       </div>`;
     }).join('')}</div>
-  </section>`).join('');
+  </details>`).join('');
 }
 
 /**
@@ -170,8 +171,8 @@ function renderCatalog(search: string, cat: string): string {
 function renderCatalogueReview(): string {
   const pending = pendingDecisions(S.services);
   if (!pending.length) return '';
-  return `<section class="sec svc-review">
-    <div class="rec-section-hd"><h2>Catalogue clean-up</h2><span class="rec-count">${pending.length}</span></div>
+  return `<details class="sec svc-review">
+    <summary class="rec-section-hd"><h2>Catalogue clean-up</h2><span class="rec-count">${pending.length}</span><span class="svc-group-names">Renames and merges agreed on 16 September, waiting for you</span></summary>
     <p class="svc-review-lede">From the service session on 16 September. Each one is applied only when you say so; old names are kept so proposals already sent still read the same.</p>
     <div class="rec-list">${pending.map((d, i) => `<div class="svc-review-row">
       <div class="svc-row-main">
@@ -181,10 +182,10 @@ function renderCatalogueReview(): string {
       <div class="svc-row-actions">
         ${d.action === 'review' ? '<span class="t-muted t-meta">Needs a decision per proposal</span>'
           : d.blocked ? '<span class="t-muted t-meta">Create the service first</span>'
-          : `<button class="btn-sm btn-primary" onclick="applyCatalogueDecision(${i})">${d.action === 'rename' ? 'Rename' : 'Merge'}</button>`}
+          : `<button class="btn-sm btn-secondary" onclick="applyCatalogueDecision(${i})">${d.action === 'rename' ? 'Rename' : 'Merge'}</button>`}
       </div>
     </div>`).join('')}</div>
-  </section>`;
+  </details>`;
 }
 
 /** Applies one decision after the owner confirms what it will touch. */
