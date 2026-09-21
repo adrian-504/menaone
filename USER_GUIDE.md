@@ -40,6 +40,16 @@ Saving over an older backup file is safe: the new file is written first and only
 
 **Restoring on another Mac:** the backup also holds settings that belong to one computer — the Proposals and client-files folder locations and the reminders already shown. After restoring on a different Mac, open **Settings** and point the folder locations at that Mac's OneDrive, and sign in to Microsoft 365 again.
 
+## 5a. A client's page, pinned notes, decision makers and the Brief
+
+**Where we stand.** A company's page opens with a few plain sentences: the relationship and what they pay, what's in flight and who it's waiting on, when you last met or emailed, who owes what, and any pinned notes. Below them are the open threads, the people, the timeline and the company notes; every other record is under **All records** (click to open or close it — the app remembers which).
+
+**Pinning a note.** In **Company notes**, click the pin beside a note to show it at the top of the page and in the Brief. Click it again to unpin. Pinning doesn't change the note's date.
+
+**Decision maker.** On a company's People list, open a person's **…** menu and choose **Decision maker** (or use the **…** menu on the contact's own page). Decision makers are listed first. It's the only tag — everything else comes from the person's job title.
+
+**The Brief.** Click **Brief** on a company's page, or press ⌘K and type "brief" and the company name. It's one page to read before a meeting: where you stand, open threads, people, open commitments and the next meeting. **Print or save as PDF** prints just that page, always in Light.
+
 ## 6. Exporting data (CSV / HubSpot)
 
 All the export buttons that existed in the old tracker are still here and work the same way — Database tab CSV export, Reports tab CSV export, Agreements CSV, the ActiveCampaign contacts export, and the two HubSpot exports (Deals CSV and Companies CSV) on the Reports tab. Each one now opens a native "Save As" dialog instead of silently dropping a file in your Downloads folder — pick where you want it saved.

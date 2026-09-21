@@ -83,6 +83,7 @@ function renderHeaderMeta(c: Contact, last: string | null): void {
   const meta = document.getElementById('ctd-meta');
   if (!meta) return;
   meta.innerHTML = [
+    c.isDecisionMaker ? '<span class="rec-badge tone-accent">Decision maker</span>' : '',
     c.role ? `<span class="rec-meta">${escHtml(c.role)}</span>` : '',
     c.clientName ? `<span class="rec-meta">${icon('building', 12)} ${companyLink(c.companyId, c.clientName)}</span>` : '',
     ...(c.lists || []).map((l) => `<span class="rec-badge">${escHtml(l)}</span>`),
@@ -161,6 +162,8 @@ export function contactMoreMenu(e: MouseEvent): void {
     ...(c.email ? [{ label: 'Copy email', iconName: 'copy', run: () => w.copyText(c.email, 'Email copied') }] : []),
     ...(c.phone ? [{ label: 'Copy phone', iconName: 'copy', run: () => w.copyText(c.phone, 'Phone copied') }] : []),
     { label: 'Copy details', iconName: 'copy', run: () => w.copyText([c.name, c.role, c.clientName, c.email, c.phone].filter(Boolean).join('\n'), 'Contact details copied') },
+    { label: '', run: () => {}, separator: true },
+    { label: c.isDecisionMaker ? 'Not a decision maker' : 'Mark as decision maker', iconName: 'check', run: () => w.toggleDecisionMaker(c.id) },
     { label: '', run: () => {}, separator: true },
     { label: 'Delete contact', iconName: 'trash', danger: true, run: () => deleteContactWithUndo(c.id) },
   ]);

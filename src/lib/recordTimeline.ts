@@ -22,6 +22,8 @@ export interface TimelineInput {
   projects: Project[];
   /** The project's milestones (loaded with its page). */
   milestones?: Milestone[];
+  /** Company 360: also the company's own meetings, tasks and promises. */
+  company?: { id: number | null; name: string };
 }
 
 export type FutureAction = { kind: 'complete_task' | 'mark_kept' | 'open_meeting'; id: number };
@@ -61,7 +63,10 @@ export function buildRecordTimeline(records: TimelineRecord[], i: TimelineInput)
   const oppIds = records.filter((r) => r.kind === 'opportunity').map((r) => r.id);
   const projectIds = records.filter((r) => r.kind === 'project').map((r) => r.id);
   // Meetings of an opportunity or project count as theirs; their tasks too.
-  const meetingIds = new Set(i.meetings.filter((m) => (m.opportunityId != null && oppIds.includes(m.opportunityId)) || (m.projectId != null && projectIds.includes(m.projectId))).map((m) => m.id));
+  const co = i.company;
+  const ofCompany = (id: number | null | undefined, name: string | null | undefined) =>
+    !!co && (id != null && co.id != null ? id === co.id : !!name && name === co.name);
+  const meetingIds = new Set(i.meetings.filter((m) => (m.opportunityId != null && oppIds.includes(m.opportunityId)) || (m.projectId != null && projectIds.includes(m.projectId)) || ofCompany(m.companyId, m.companyName)).map((m) => m.id));
 
   const out = new Map<string, FutureRow>();
   const put = (row: Omit<FutureRow, 'overdue'>) => {
@@ -76,7 +81,7 @@ export function buildRecordTimeline(records: TimelineRecord[], i: TimelineInput)
   }
   for (const t of i.todos) {
     if (t.status === 'Done' || t.parentId != null) continue;
-    if (!(has('opportunity', t.opportunityId) || has('project', t.projectId) || (t.meetingId != null && meetingIds.has(t.meetingId)))) continue;
+    if (!(has('opportunity', t.opportunityId) || has('project', t.projectId) || (t.meetingId != null && meetingIds.has(t.meetingId)) || ofCompany(t.companyId, t.client))) continue;
     // A promise's task shows as the promise.
     if (i.commitments.some((c) => c.todoId === t.id && c.status === 'open')) continue;
     put({ key: `task:${t.id}`, kind: 'task', date: t.dueDate, time: t.dueTime || null, label: t.title, sub: t.owner || undefined,
@@ -84,7 +89,7 @@ export function buildRecordTimeline(records: TimelineRecord[], i: TimelineInput)
   }
   for (const c of i.commitments) {
     if (c.status !== 'open') continue;
-    if (!(has('opportunity', c.opportunityId) || has('project', c.projectId) || (c.sourceType === 'meeting' && c.sourceId != null && meetingIds.has(c.sourceId)))) continue;
+    if (!(has('opportunity', c.opportunityId) || has('project', c.projectId) || (c.sourceType === 'meeting' && c.sourceId != null && meetingIds.has(c.sourceId)) || (co?.id != null && c.companyId === co.id))) continue;
     put({ key: `commitment:${c.id}`, kind: 'commitment', date: c.dueDate, label: c.text, sub: c.direction === 'ours' ? 'We owe' : 'They owe',
       action: { kind: 'mark_kept', id: c.id } });
   }

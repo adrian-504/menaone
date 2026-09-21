@@ -150,7 +150,7 @@ fn read_proposals(conn: &Connection) -> rusqlite::Result<Vec<Proposal>> {
 
 fn read_contacts(conn: &Connection) -> rusqlite::Result<Vec<Contact>> {
     let mut stmt = conn.prepare(
-        "SELECT id, client_name, name, role, email, phone, whatsapp, service, company_id FROM contacts ORDER BY id",
+        "SELECT id, client_name, name, role, email, phone, whatsapp, service, company_id, is_decision_maker FROM contacts ORDER BY id",
     )?;
     let rows = stmt.query_map([], |r| {
         Ok(Contact {
@@ -164,6 +164,7 @@ fn read_contacts(conn: &Connection) -> rusqlite::Result<Vec<Contact>> {
             service: r.get(7)?,
             company_id: r.get(8)?,
             lists: Vec::new(),
+            is_decision_maker: r.get::<_, i64>(9)? != 0,
         })
     })?;
     let mut contacts: Vec<Contact> = rows.collect::<rusqlite::Result<_>>()?;
@@ -403,15 +404,15 @@ pub fn write_contacts(conn: &mut Connection, items: &[Contact]) -> rusqlite::Res
     tx.execute("DELETE FROM contacts", [])?;
     {
         let mut stmt = tx.prepare(
-            "INSERT INTO contacts (id, client_name, name, role, email, phone, whatsapp, service, company_id)
-             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9)",
+            "INSERT INTO contacts (id, client_name, name, role, email, phone, whatsapp, service, company_id, is_decision_maker)
+             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10)",
         )?;
         let mut lstmt =
             tx.prepare("INSERT OR IGNORE INTO contact_list_members (contact_id, list_name) VALUES (?1,?2)")?;
         for c in items {
             let company_id = crate::opportunities::resolve_company(&tx, c.client_name.as_deref())?;
             stmt.execute(params![
-                c.id, c.client_name, c.name, c.role, c.email, c.phone, c.whatsapp, c.service, company_id
+                c.id, c.client_name, c.name, c.role, c.email, c.phone, c.whatsapp, c.service, company_id, c.is_decision_maker as i64
             ])?;
             for list_name in &c.lists {
                 tx.execute(
@@ -624,7 +625,7 @@ const PROPOSAL_COLS: &[&str] = &[
     "review_requested_at", "reviewed_at", "review_note", "valid_until", "folder_path", "lead_source",
 ];
 const ACTIVITY_NOTE_COLS: &[&str] = &["id", "proposal_id", "note_date", "text"];
-const CONTACT_COLS: &[&str] = &["id", "client_name", "name", "role", "email", "phone", "whatsapp", "service", "company_id"];
+const CONTACT_COLS: &[&str] = &["id", "client_name", "name", "role", "email", "phone", "whatsapp", "service", "company_id", "is_decision_maker"];
 const AGREEMENT_COLS: &[&str] = &[
     "id", "agr_ref", "client", "type", "status", "prepared_by", "date_prepared", "date_sent_to_client",
     "date_client_signed", "date_mena_signed", "date_filed", "monthly_fee", "contract_months", "proposal_id",
@@ -697,7 +698,7 @@ pub fn upsert_contact_rows_in(tx: &Connection, items: &[Contact]) -> rusqlite::R
         let prior = crate::opportunities::prior_company(tx, "contacts", Some("client_name"), c.id)?;
         let company_id = crate::opportunities::company_for_save(tx, prior.as_ref(), c.company_id, c.client_name.as_deref())?;
         tx.prepare_cached(&upsert_sql("contacts", CONTACT_COLS))?.execute(params![
-            c.id, c.client_name, c.name, c.role, c.email, c.phone, c.whatsapp, c.service, company_id
+            c.id, c.client_name, c.name, c.role, c.email, c.phone, c.whatsapp, c.service, company_id, c.is_decision_maker as i64
         ])?;
         tx.execute(
             "DELETE FROM contact_list_members WHERE contact_id = ?1 AND list_name NOT IN (SELECT value FROM json_each(?2))",
@@ -1294,6 +1295,7 @@ pub fn get_app_meta(state: State<DbState>, key: String) -> CmdResult<Option<Stri
 pub const UI_META_KEYS: &[&str] = &[
     "cleanup_kept",
     "company_domains",
+    "company_records_open",
     "dismissed_domains",
     "dismissed_meeting_links",
     "dismissed_people",

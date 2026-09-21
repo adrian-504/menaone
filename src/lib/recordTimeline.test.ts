@@ -69,6 +69,16 @@ describe('buildRecordTimeline', () => {
     expect(t.past.map((a) => a.id)).toEqual([3, 2, 1]);
   });
 
+  it("a company's timeline also has its own meetings, tasks and promises", () => {
+    const t = buildRecordTimeline([], input({
+      company: { id: 1, name: 'Contoso Logistics' },
+      meetings: [meeting(4, { companyId: 1, meetingDate: '2026-09-30' }), meeting(5, { companyId: 2, meetingDate: '2026-09-30' })],
+      todos: [todo(1, { companyId: 1, dueDate: '2026-09-25' }), todo(2, { client: 'Contoso Logistics', dueDate: '2026-09-26' }), todo(3, { companyId: 2, dueDate: '2026-09-26' })],
+      commitments: [promise(1, { companyId: 1, dueDate: '2026-09-24' }), promise(2, { companyId: 2 })],
+    }));
+    expect(t.future.map((r) => r.key)).toEqual(['commitment:1', 'task:1', 'task:2', 'meeting:4']);
+  });
+
   it('a closed record has no dates of its own to come', () => {
     const t = buildRecordTimeline([{ kind: 'opportunity', id: 1 }], input({ opportunities: [opp({ status: 'Won' })] }));
     expect(t.future).toEqual([]);

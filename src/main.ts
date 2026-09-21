@@ -48,6 +48,7 @@ import './tabs/notes';
 import './tabs/todo';
 import './tabs/pricing';
 import './tabs/companies';
+import './tabs/companyBriefView';
 import './tabs/contactPage';
 import './tabs/proposalPage';
 import './tabs/agreementPage';

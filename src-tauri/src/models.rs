@@ -203,6 +203,9 @@ pub struct Contact {
     pub service: Option<String>,
     #[serde(default)]
     pub lists: Vec<String>,
+    /// The only contact tag: someone who decides for the client.
+    #[serde(default)]
+    pub is_decision_maker: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
