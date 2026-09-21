@@ -2070,9 +2070,11 @@ body.dnd-active .opp-board .board-column.stage-hidden{display:flex}
 
 .ct-copy{width:22px;height:22px;margin-left:4px;vertical-align:middle;opacity:0}
 .ct-row:hover .ct-copy,.ct-copy:focus-visible{opacity:1}
-.rec-title-copy{margin-left:6px;vertical-align:middle;opacity:.5}
+.rec-title-copy{margin-left:6px;vertical-align:middle;opacity:0}
+.rec-title:hover .rec-title-copy,.rec-title-copy:focus-visible{opacity:.5}
 .rec-title-copy:hover{opacity:1}
-.rec-eyebrow-copy{width:20px;height:20px;margin-left:4px;vertical-align:middle;opacity:.6}
+.rec-eyebrow-copy{width:20px;height:20px;margin-left:4px;vertical-align:middle;opacity:0}
+.rec-eyebrow:hover .rec-eyebrow-copy,.rec-eyebrow-copy:focus-visible{opacity:.6}
 
 
 /* List beside an open record */
@@ -2534,3 +2536,20 @@ body.brief-open{overflow:hidden}
 .co-thread:hover .co-thread-next,.co-thread:focus-within .co-thread-next{visibility:visible}
 .co-thread-dormant{font:inherit;display:block;margin-top:4px;padding:4px 6px;border:none;background:none;color:var(--muted);font-size:var(--type-secondary);cursor:pointer;text-align:left}
 .co-thread-dormant:hover{color:var(--accent)}
+
+/* ── Read first, edit on demand (src/lib/propsList.ts) ────────────────────── */
+.pl-val{position:relative;cursor:text;border-radius:6px;padding:3px 22px 3px 6px;margin-left:-6px;min-height:26px;display:flex;align-items:center;flex-wrap:wrap;gap:4px;color:var(--text);transition:background var(--dur-fast) var(--ease-out)}
+.pl-val:hover{background:var(--hover)}
+.pl-val:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.pl-val::after{content:"";position:absolute;right:6px;top:50%;width:10px;height:10px;margin-top:-5px;opacity:0;background:currentColor;color:var(--muted);
+  -webkit-mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path d='M11.5 2.5l2 2L6 12H4v-2z' fill='none' stroke='black' stroke-width='1.6' stroke-linejoin='round'/></svg>") center/contain no-repeat;
+  mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path d='M11.5 2.5l2 2L6 12H4v-2z' fill='none' stroke='black' stroke-width='1.6' stroke-linejoin='round'/></svg>") center/contain no-repeat}
+.pl-val:hover::after,.pl-val:focus-visible::after{opacity:1}
+.pl-ro{cursor:default;padding-left:0;margin-left:0}
+.pl-add{color:var(--muted)}
+.pl-multiline{white-space:pre-wrap}
+.pl-edit{min-height:26px}
+.btn-secondary.is-positive{color:var(--green);border-color:var(--green-border)}
+/* Row actions appear on hover or keyboard focus (Focus rule 5). */
+.pr-folder-file .rec-row-actions,#prd-docs .rec-row-actions{visibility:hidden}
+.pr-folder-file:hover .rec-row-actions,.pr-folder-file:focus-within .rec-row-actions,#prd-docs .rec-row:hover .rec-row-actions,#prd-docs .rec-row:focus-within .rec-row-actions{visibility:visible}
