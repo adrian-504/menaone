@@ -1,49 +1,44 @@
-# MENA BIG Tracker — User Guide
+# MENA One — User Guide
 
-Plain-English guide for using and maintaining the app day-to-day. No technical background needed.
+Plain-English guide for using and maintaining the app day to day. No technical background needed.
 
 ## 1. Launching the app
 
-Double-click **MENA BIG Tracker.app** (in your Applications folder, or wherever you keep it). It opens like any other Mac app — its own window, its own icon in the Dock, no browser involved.
+Double-click **MENA One** in your Applications folder (there are copies on the Desktop and in the MENA App OneDrive folder too). It opens like any other Mac app — its own window and Dock icon, no browser involved.
 
-**First launch only:** because this build isn't notarized by Apple yet (see `README.md` if you want that fixed later), macOS may show a warning the very first time. If that happens: right-click (or Control-click) the app icon → **Open** → **Open** again in the dialog that appears. You only need to do this once; after that it opens normally with a plain double-click.
+**First launch only:** the app isn't notarized by Apple yet (see §8), so macOS may warn you the very first time. Right-click (or Control-click) the app → **Open** → **Open** again. After that it opens normally.
 
 ## 2. Where your data lives
 
-Everything you enter — proposals, contacts, agreements, notes, tasks — is stored in one file on this Mac:
+Everything — companies, contacts, opportunities, proposals, agreements, projects, meetings, tasks, notes, commitments and settings — is in one database file on this Mac:
 
 ```
 ~/Library/Application Support/com.menabig.tracker/menabig.sqlite3
 ```
 
-You do not need to open or manage this file directly. It's a real database, not a browser cache — it survives app updates, restarts, and (unlike the old browser version) it can't silently disappear if you clear your browser's history or switch browsers.
+You never need to open it. It survives app updates and restarts. Microsoft 365 sign-in details are kept in the Mac's Keychain, not in this file.
 
-## 3. Importing your existing tracker data (one-time migration)
+**Automatic copies:** the app saves a copy of the database every day (the last 14 are kept), before every update that changes the database, and before any restore, import or wipe. Settings → Data Backup shows them and opens their folder.
 
-If you've been using the old `MENA_BIG_Tracker_24.html` file in a browser, bring that data into the new app once, like this:
+## 3. Importing from the old HTML tracker (one-time, already done)
 
-1. Open `MENA_BIG_Tracker_24.html` in your browser (Safari or Chrome — whichever you normally used it in).
-2. Click **Backup Data** in the left sidebar. This downloads a file named something like `MENABIG_Backup_2026-09-09.json`.
-3. Open the new **MENA BIG Tracker** app.
-4. In the left sidebar, click **Restore from backup** and select the file you just downloaded.
-5. Confirm the prompt showing how many proposals/contacts/agreements/tasks/notes it found. Confirming **replaces everything currently in the app** with what's in that file — that's expected and correct for a first-time import into a brand-new, empty database.
-
-**Important note about Notes / To-Do / Contact Lists / Company Notes:** the old HTML file had a bug (now fixed in this new app) where those four areas were never actually being loaded back into the page after the first time you opened it in a session — meaning if you added things there across multiple browser sessions, only the *last* session's worth of Notes/Tasks/Lists may have actually been saved, and earlier ones may have been silently overwritten. This is a pre-existing issue in the old file, not something the migration causes. Before you rely on the "Restore from backup" step above:
-- Do it anyway — it will bring over whatever is currently sitting in your browser's storage for those sections, which is the best available copy.
-- If something looks missing afterward (a note or task you remember adding), it likely didn't survive that old bug and unfortunately can't be recovered — there's no other copy to pull it from.
-- Proposals, Contacts, and Agreements were **not** affected by that bug (they always loaded correctly), so those should come across complete.
-
-**If you don't have your browser open or a recent backup handy:** a starter file built from the data embedded in the original `MENA_BIG_Tracker_24.html` (175 proposals, 59 contacts, 51 agreements) is kept outside the repository, because it holds real client data. Ask for it, and import it with **Restore from backup**. The browser export above is still the more complete option.
+The data from the old `MENA_BIG_Tracker_24.html` was brought over in September 2026. If you ever need to do it again: in the old file click **Backup Data**, then in MENA One use **Settings → Data Backup → Restore from backup…** and pick that `.json` file. It replaces the proposals, contacts, agreements, tasks and notes with the old file's (commitments are cleared, since the old tracker had none).
 
 ## 4. Backing up your data
 
-Click **Backup Data** in the sidebar footer at any time. You'll get a native "Save As" dialog — choose wherever you want (Desktop, a shared drive, OneDrive, etc.) and it saves one JSON file containing everything: proposals, contacts, agreements, tasks, notes, folders, lists, and company notes.
+**Settings → Data Backup → Save a backup file…** writes one file (`MENA One backup <date>.sqlite3`) wherever you choose. It is a complete copy of everything in MENA One: every record, list and setting, including anything added in later versions.
 
-**Recommendation:** do this weekly, and keep at least one copy somewhere other than this Mac (e.g. your OneDrive/MENA BIG shared drive) in case this computer is ever lost, stolen, or has a hard drive failure.
+**Keep it in the MENA BIG OneDrive only.** The file contains client correspondence — cached Outlook data such as flagged emails, meeting attendees and invite text — so treat it like the client files themselves: not on a personal drive, a USB stick or in email.
+
+Saving over an older backup file is safe: the new file is written first and only then replaces the old one, so a failed save never loses the backup that was there.
+
+**Recommendation:** save one weekly, in the MENA BIG OneDrive, in addition to the automatic daily copies on this Mac (they don't help if the Mac itself is lost).
 
 ## 5. Restoring a backup
 
-Click **Restore from backup**, pick a previously-saved `.json` file (either one made by this app, or the original `.html` tracker's own "Backup Data" export — both are supported). You'll see a summary of what it's about to restore, and restoring **replaces everything currently in the app** — so only do this if you're sure, or have your own backup of the current state saved first if you want to keep both.
+**Settings → Data Backup → Restore from backup…** and pick a backup file. MENA One checks the file first (that it opens, isn't damaged, is a MENA One backup and isn't from a newer version of the app) and shows what it holds before you confirm. Restoring **replaces everything currently in the app**; a copy of your current data is saved first, and if the restore fails part-way the app puts your data back by itself. A backup from an older version is brought up to date automatically. Older `.json` backups also restore.
+
+**Restoring on another Mac:** the backup also holds settings that belong to one computer — the Proposals and client-files folder locations and the reminders already shown. After restoring on a different Mac, open **Settings** and point the folder locations at that Mac's OneDrive, and sign in to Microsoft 365 again.
 
 ## 6. Exporting data (CSV / HubSpot)
 
@@ -58,7 +53,7 @@ npm install
 npm run tauri build
 ```
 
-The finished app appears at `src-tauri/target/release/bundle/macos/MENA BIG Tracker.app`.
+The finished app appears at `src-tauri/target/release/bundle/macos/MENA One.app`. Use `scripts/build-and-sign.sh` so the Microsoft 365 sign-in survives the update.
 
 ## 8. What's needed for a fully "no warnings" build
 

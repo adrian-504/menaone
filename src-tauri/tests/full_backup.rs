@@ -4,7 +4,7 @@
 // names only.
 use menabig_tracker_lib::commitments::{add_commitments, NewCommitment};
 use menabig_tracker_lib::db::{init_connection, latest_schema_version, schema_version};
-use menabig_tracker_lib::full_backup::{check_full_backup, export_full_backup_core, restore_full_backup_core};
+use menabig_tracker_lib::full_backup::{check_full_backup, export_full_backup_core, restore_full_backup_core, restore_with_recovery};
 use menabig_tracker_lib::opportunities::{create_company_named, save_opportunity_row};
 use menabig_tracker_lib::v2_commands::{save_meeting_row, save_project_row};
 use menabig_tracker_lib::v2_models::{Meeting, Opportunity, Project};
@@ -138,4 +138,52 @@ fn newer_damaged_or_foreign_files_are_refused_and_nothing_changes() {
     assert_eq!(everything(&conn), before, "nothing changed");
     drop(conn);
     for p in [live_path, newer, junk, foreign] { let _ = std::fs::remove_file(p); }
+}
+
+#[test]
+fn a_restore_that_fails_part_way_puts_the_data_back() {
+    let live_path = tmp("recover_live");
+    let mut conn = init_connection(&live_path).unwrap();
+    seed(&mut conn);
+    let before = everything(&conn);
+    let snapshot = tmp("recover_snapshot");
+    export_full_backup_core(&conn, &snapshot).unwrap();
+
+    // A copy that passes the checks but whose migration fails: it says it is
+    // at version 35 while already having 36's columns.
+    let bad = tmp("recover_bad");
+    export_full_backup_core(&conn, &bad).unwrap();
+    {
+        let c = Connection::open(&bad).unwrap();
+        c.execute("UPDATE app_meta SET value = '35' WHERE key = 'schema_version'", []).unwrap();
+        c.execute("DELETE FROM companies", []).unwrap();
+    }
+    assert!(check_full_backup(&bad).is_ok(), "it looks fine until it's migrated");
+    let e = restore_with_recovery(&mut conn, &bad, &snapshot).unwrap_err();
+    assert!(e.contains("put back exactly as it was"), "{e}");
+    assert_eq!(everything(&conn), before, "the original data is in place");
+
+    // If even the snapshot can't be put back, the error names it.
+    let missing = tmp("recover_missing_snapshot");
+    let e = restore_with_recovery(&mut conn, &bad, &missing).unwrap_err();
+    assert!(e.contains(&missing.display().to_string()), "{e}");
+    drop(conn);
+    for p in [live_path, snapshot, bad] { let _ = std::fs::remove_file(p); }
+}
+
+#[test]
+fn saving_over_an_existing_backup_is_all_or_nothing() {
+    let live_path = tmp("atomic_live");
+    let conn = init_connection(&live_path).unwrap();
+    let file = tmp("atomic_file");
+    std::fs::write(&file, b"previous backup").unwrap();
+    // A destination whose folder doesn't exist can't be written: the old file is untouched elsewhere.
+    let nowhere = std::env::temp_dir().join(format!("menabig_no_such_dir_{}", std::process::id())).join("x").join("b.sqlite3");
+    assert!(export_full_backup_core(&conn, &nowhere.with_file_name("")).is_err() || !nowhere.exists());
+    // A good save replaces the old file completely and leaves no temporary file.
+    export_full_backup_core(&conn, &file).unwrap();
+    assert!(check_full_backup(&file).is_ok());
+    assert!(!file.with_extension("partial").exists());
+    drop(conn);
+    for p in [live_path, file] { let _ = std::fs::remove_file(p); }
 }

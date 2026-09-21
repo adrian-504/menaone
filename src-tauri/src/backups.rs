@@ -47,8 +47,16 @@ pub(crate) fn snapshot(conn: &Connection, dest: &Path) -> rusqlite::Result<()> {
     // looks like a finished backup.
     let tmp = dest.with_extension("partial");
     let _ = std::fs::remove_file(&tmp);
-    conn.execute("VACUUM INTO ?1", params![tmp.to_string_lossy()])?;
-    std::fs::rename(&tmp, dest).map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
+    if let Err(e) = conn.execute("VACUUM INTO ?1", params![tmp.to_string_lossy()]) {
+        let _ = std::fs::remove_file(&tmp);
+        return Err(e);
+    }
+    // Renaming over an existing file replaces it in one step: a failure above
+    // leaves the previous backup where it was.
+    std::fs::rename(&tmp, dest).map_err(|e| {
+        let _ = std::fs::remove_file(&tmp);
+        rusqlite::Error::ToSqlConversionFailure(Box::new(e))
+    })?;
     Ok(())
 }
 

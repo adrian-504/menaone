@@ -25,7 +25,7 @@ import { ownDomains } from '../lib/clientMatch';
 import { PS, activeMrr, addMoney, currencyOf, fmtMoneyByCurrency, teamMember, defaultReviewer, toReporting, fmtMoney, type MoneyByCurrency } from '../lib/commercial';
 import { isOpenOpportunity, monthlyOf, weightedValue } from '../lib/pipeline';
 import {
-  buildAttention, buildComingUp, buildTimeline, greeting, summaryLine, addDays, isClientMeeting,
+  buildAttention, buildComingUp, buildTimeline, shownAttentionKeys, greeting, summaryLine, addDays, isClientMeeting,
   type AttentionItem, type MyDayInput, type Timeline, type UpcomingDay,
 } from '../lib/myday';
 import type { IntelligenceItem, Meeting, Todo } from '../lib/types';
@@ -88,10 +88,16 @@ async function ensureData(): Promise<boolean> {
 
 // ── Render ──────────────────────────────────────────────────────────────────
 
-export function renderMyDay(): void {
+/** Attention first: a promise's task leaves Today only when its row is on screen. */
+function inputWithShown(): { data: MyDayInput; attention: AttentionItem[] } {
   const data = input();
-  const timeline = buildTimeline(data);
   const attention = buildAttention(data);
+  return { data: { ...data, attentionShown: shownAttentionKeys(attention, showAllAttention ? null : ATTENTION_VISIBLE) }, attention };
+}
+
+export function renderMyDay(): void {
+  const { data, attention } = inputWithShown();
+  const timeline = buildTimeline(data);
   attentionByKey = new Map();
   for (const a of attention) { attentionByKey.set(a.key, a); a.children?.forEach((c) => attentionByKey.set(c.key, c)); }
 
@@ -115,8 +121,7 @@ registerTabRenderer('myday', renderMyDay);
 
 /** One line for the morning notification, e.g. "3 meetings · 2 tasks due · 4 need attention". */
 export function mydaySummaryText(): string {
-  const data = input();
-  const attention = buildAttention(data);
+  const { data, attention } = inputWithShown();
   const line = summaryLine(buildTimeline(data), attention);
   const top = attention[0];
   return top ? `${line} · First: ${top.title} — ${top.reason}` : line;
@@ -429,7 +434,7 @@ export function mydayMoveTask(id: number, days: number): void {
 expose('mydayMoveTask', mydayMoveTask);
 
 export function mydayMoveOverdue(): void {
-  const overdue = buildTimeline(input()).overdue;
+  const overdue = buildTimeline(inputWithShown().data).overdue;
   if (!overdue.length) return;
   const before = overdue.map((t) => [t.id, t.dueDate] as const);
   setTasksDue(overdue.map((t) => t.id), today());
