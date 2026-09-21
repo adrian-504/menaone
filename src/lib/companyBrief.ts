@@ -17,6 +17,9 @@ export const NEGLECT_DAYS = 45;
 export const IN_FLIGHT_SHOWN = 3;
 /** Pinned notes quoted in the brief before "+N pinned". */
 export const PINNED_SHOWN = 3;
+/** An engagement with nothing dated for longer than this is dormant: an old
+ * proposal never closed, say. It isn't "in flight"; Clean-up is where it goes. */
+export const DORMANT_DAYS = 120;
 
 export interface PinnedNote { id: number; body: string; createdAt: string; pinned?: boolean }
 
@@ -114,6 +117,29 @@ export interface CompanyThread {
   /** Most recent date on the thread, for ordering. */
   lastDate: string;
   late: boolean;
+  /** Nothing on it for over DORMANT_DAYS (an active project never is). */
+  dormant: boolean;
+  /** The Clean-up queue that deals with it when dormant. */
+  cleanupQueue: string | null;
+}
+
+/** Where a thread stands, its waiting and next step, for one line on Company 360. */
+export function threadStand(t: EngagementThread): string {
+  const last = t.nodes[t.nodes.length - 1];
+  const status = last.status ? lowerStatus(last.status) : '';
+  return `${last.kind} ${status && !/^(in|sent|signed|on)\b/.test(status) ? 'at ' : ''}${status}`.trim();
+}
+
+function cleanupQueueFor(t: EngagementThread, i: CompanyBriefInput): string | null {
+  const last = t.nodes[t.nodes.length - 1];
+  if (last.kind !== 'proposal') return null;
+  const p = i.proposals.find((x) => x.id === last.id);
+  if (!p) return null;
+  if (p.status === PS.SENT) return 'stale-sent';
+  if (p.status === PS.CLIENT_SIGNED) return 'client-signed';
+  if (p.status === PS.REVIEW) return 'long-review';
+  if (p.status === PS.REQUEST || p.status === PS.DRAFTING) return 'stale-drafting';
+  return null;
 }
 
 function threadLabel(t: EngagementThread, i: CompanyBriefInput): string {
@@ -134,8 +160,7 @@ function threadLabel(t: EngagementThread, i: CompanyBriefInput): string {
 
 function threadPhrase(t: EngagementThread, i: CompanyBriefInput): string {
   const last = t.nodes[t.nodes.length - 1];
-  const status = last.status ? lowerStatus(last.status) : '';
-  const stand = `${last.kind} ${status && !/^(in|sent|signed|on)\b/.test(status) ? 'at ' : ''}${status}`.trim();
+  const stand = threadStand(t);
   let value = '';
   const opp = t.nodes.find((n) => n.kind === 'opportunity');
   const prop = t.nodes.find((n) => n.kind === 'proposal');
@@ -157,7 +182,8 @@ function threadPhrase(t: EngagementThread, i: CompanyBriefInput): string {
 }
 
 /** Every live engagement (open opportunity, live proposal, agreement not yet
- * signed, active project), one per thread, most recently active first. */
+ * signed, active project), one per thread, most recently active first —
+ * dormant ones included and flagged. */
 export function liveThreads(i: CompanyBriefInput, r: Records = companyRecords(i)): CompanyThread[] {
   const seeds: { kind: ThreadKind; id: number }[] = [
     ...r.opportunities.filter((o) => o.status === 'Open').map((o) => ({ kind: 'opportunity' as const, id: o.id })),
@@ -171,10 +197,15 @@ export function liveThreads(i: CompanyBriefInput, r: Records = companyRecords(i)
     if (!thread.nodes.length) continue;
     const key = `${thread.nodes[0].kind}:${thread.nodes[0].id}`;
     if (out.has(key)) continue;
+    const lastNode = thread.nodes[thread.nodes.length - 1];
+    const activeProject = lastNode.kind === 'project' && r.projects.some((p) => p.id === lastNode.id && !['Completed', 'Cancelled'].includes(p.status));
+    const oppUpdated = thread.nodes.filter((n) => n.kind === 'opportunity').map((n) => i.opportunities.find((o) => o.id === n.id)?.updatedAt);
+    const lastDate = maxDate([...thread.nodes.map((n) => n.date), ...oppUpdated]) || '';
+    const dormant = !activeProject && (!lastDate || daysBetween(lastDate, i.today) > DORMANT_DAYS);
     out.set(key, {
       key, record: { kind: thread.nodes[0].kind, id: thread.nodes[0].id }, thread,
       label: threadLabel(thread, i), phrase: threadPhrase(thread, i),
-      lastDate: maxDate(thread.nodes.map((n) => n.date)) || '', late: !!thread.after?.late,
+      lastDate, late: !dormant && !!thread.after?.late, dormant, cleanupQueue: dormant ? cleanupQueueFor(thread, i) : null,
     });
   }
   return [...out.values()].sort((a, b) => b.lastDate.localeCompare(a.lastDate) || a.key.localeCompare(b.key));
@@ -222,14 +253,32 @@ function relationshipClause(i: CompanyBriefInput, r: Records): BriefClause {
   return { key: 'relationship', text: first ? `${label} — first contact ${fmtDate(first)}.` : `${label} — nothing recorded yet.`, links: [], tone: status.tone };
 }
 
-function inFlightClause(threads: CompanyThread[]): BriefClause | null {
+/** Short (Company 360, whose Open threads list follows): the count and what
+ * needs attention — with us, or late. Long (the meeting brief): each one. */
+function inFlightClause(all: CompanyThread[], form: 'short' | 'long'): BriefClause | null {
+  const threads = all.filter((t) => !t.dormant);
   if (!threads.length) return null;
+  const tone: Tone | null = threads.some((t) => t.late) ? 'amber' : null;
+  if (form === 'short') {
+    const heads = threads.filter((t) => t.late || t.thread.after?.waitingOn === 'us');
+    const count = threads.length === 1 ? 'One in flight' : `${threads.length} in flight`;
+    if (!heads.length) return { key: 'inflight', text: `${count}.`, links: [], tone };
+    const shownHeads = heads.slice(0, IN_FLIGHT_SHOWN);
+    const links: BriefLink[] = shownHeads.map((t) => ({ kind: t.record.kind, id: t.record.id, label: t.label || 'Engagement' }));
+    const parts = shownHeads.map((t, n) => {
+      const a = t.thread.after!;
+      const who = a.waitingOn === 'us' ? 'with us' : a.waitingOn === 'them' ? 'with the client' : 'waiting';
+      return `{${n}} ${who}${a.days != null ? ` ${plural(a.days, 'day')}` : ''}`;
+    });
+    const more = heads.length - shownHeads.length;
+    return { key: 'inflight', text: `${count} — ${parts.join('; ')}${more > 0 ? `; and ${more} more` : ''}.`, links, tone };
+  }
   const shown = threads.slice(0, IN_FLIGHT_SHOWN);
   const links: BriefLink[] = shown.map((t) => ({ kind: t.record.kind, id: t.record.id, label: t.label || 'Engagement' }));
   const parts = shown.map((t, n) => `{${n}}: ${t.phrase}`);
   const more = threads.length - shown.length;
   const text = `${threads.length === 1 ? 'In flight' : `${threads.length} in flight`} — ${parts.join('; ')}${more > 0 ? `; and ${more} more` : ''}.`;
-  return { key: 'inflight', text, links, tone: threads.some((t) => t.late) ? 'amber' : null };
+  return { key: 'inflight', text, links, tone };
 }
 
 function rhythmClause(i: CompanyBriefInput, r: Records, isClient: boolean): BriefClause | null {
@@ -289,11 +338,11 @@ function pinnedClause(i: CompanyBriefInput): BriefClause | null {
 }
 
 /** Up to five clauses on where we stand with the company; each only when it has something to say. */
-export function buildCompanyState(i: CompanyBriefInput): BriefClause[] {
+export function buildCompanyState(i: CompanyBriefInput, opts: { inFlight?: 'short' | 'long' } = {}): BriefClause[] {
   const r = companyRecords(i);
   return [
     relationshipClause(i, r),
-    inFlightClause(liveThreads(i, r)),
+    inFlightClause(liveThreads(i, r), opts.inFlight ?? 'short'),
     rhythmClause(i, r, r.clientAgreements.length > 0),
     commitmentsClause(i, r),
     pinnedClause(i),
@@ -348,7 +397,9 @@ export function briefCommandMatches(query: string, names: string[], limit = 5): 
 // ── The meeting page's Client brief ─────────────────────────────────────────
 
 /** The company-level lines of a meeting's Client brief are the company's
- * state (the same clauses as Company 360); the agenda is the meeting's own. */
+ * state (the same clauses as Company 360, with each engagement spelled out,
+ * since the meeting page has no Open threads list); the agenda is the
+ * meeting's own. */
 export function meetingBrief(m: Meeting, i: CompanyBriefInput): { clauses: BriefClause[]; agenda: string[] } {
   const r = companyRecords(i);
   const agenda: string[] = [];
@@ -374,5 +425,5 @@ export function meetingBrief(m: Meeting, i: CompanyBriefInput): { clauses: Brief
     if (ends != null && ends >= 0 && ends <= 90) agenda.push(`Renewal: ${services} ends ${fmtDate(a.endDate)} (${ends} days)`);
     if (a.status && !['Signed', 'On Hold'].includes(a.status)) agenda.push(`Agreement ${a.agrRef || services}: ${a.status.toLowerCase()} — confirm signature`);
   }
-  return { clauses: buildCompanyState(i), agenda: [...new Set(agenda)] };
+  return { clauses: buildCompanyState(i, { inFlight: 'long' }), agenda: [...new Set(agenda)] };
 }

@@ -32,6 +32,13 @@ const SAMPLE: AppData = {
       lines: [{ id: 3, serviceId: 18, serviceName: 'Recruitment', description: null, billing: 'monthly', quantity: 1, unitPrice: 7000, commission: false, sortOrder: 0 }],
       documents: [],
     },
+    // An old proposal never closed: dormant on Company 360, waiting in Clean-up.
+    {
+      id: 4, client: 'Acme Holdings', companyId: 1, type: 'Mobilization', status: 'Sent to Client', sentDate: '2025-04-10',
+      dblSignedDate: null, kickoffDate: null, finance: null, hubspot: null, owner: 'Ahmad', remarks: null, dateAdded: '2025-04-01',
+      monthlyFee: 4000, contractMonths: 12, winLossReason: null, docLink: null, archived: false, archivedAt: null, snoozedUntil: null,
+      dateSentToHassan: '2025-04-05', dateSentToClient: '2025-04-10', dateSigned: null, notes: [], businessEntityId: 1, currency: 'SAR', lines: [], documents: [],
+    },
     // A proposal with no opportunity: its thread starts at the proposal.
     {
       id: 3, client: 'Northwind Trading', companyId: 2, type: 'Payroll', status: 'Sent to Client', sentDate: '2026-09-02',

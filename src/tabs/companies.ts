@@ -13,8 +13,7 @@ import { emptyState } from '../lib/ui';
 import { recordLink } from '../lib/links';
 import { type FeedItem } from '../lib/activityFeed';
 import { renderRecordTimeline } from './recordThread';
-import { threadStripHtml } from '../lib/threadStrip';
-import { liveThreads, lastContactByPerson, orderPeople, relationshipStatus as briefRelationship } from '../lib/companyBrief';
+import { liveThreads, lastContactByPerson, orderPeople, threadStand, relationshipStatus as briefRelationship } from '../lib/companyBrief';
 import { briefInputFor, clausesHtml, companyStateFor, ensurePinnedNotes, setCompanyNotesCache } from './companyState';
 import { renderIcons } from '../core/chrome';
 import { icon } from '../lib/icons';
@@ -1067,16 +1066,39 @@ function renderCompanyState(key: { id: number | null; name: string }): void {
 const THREADS_SHOWN = 5;
 let showAllThreads = false;
 
+/** One line per live engagement — where it stands, who it's waiting on, its
+ * next step on hover; the full strip is on the record. Dormant ones fold
+ * into one line pointing at Clean-up. */
 function renderCompanyThreads(key: { id: number | null; name: string }): void {
   const el = document.getElementById('co-threads');
   const sec = document.getElementById('co-sec-threads');
   if (!el || !sec) return;
-  const threads = liveThreads(briefInputFor(key));
-  sec.hidden = threads.length === 0;
+  const all = liveThreads(briefInputFor(key));
+  const threads = all.filter((t) => !t.dormant);
+  const dormant = all.filter((t) => t.dormant);
+  sec.hidden = all.length === 0;
   const cnt = document.getElementById('co-threads-count'); if (cnt) cnt.textContent = threads.length ? String(threads.length) : '';
   const shown = showAllThreads ? threads : threads.slice(0, THREADS_SHOWN);
-  el.innerHTML = shown.map((t) => threadStripHtml({ ...t.thread, show: true }, null, { prefix: t.label || 'Engagement', labelCurrent: true })).join('')
-    + (threads.length > shown.length ? `<button class="mdy-more" onclick="showAllCompanyThreads()">Show all ${threads.length}</button>` : '');
+  const row = (t: typeof threads[number]) => {
+    const last = t.thread.nodes[t.thread.nodes.length - 1];
+    const a = t.thread.after;
+    const wait = a?.waitingOn && a.days != null ? `${a.waitingOn === 'us' ? 'with us' : 'with client'} ${a.days}d` : '';
+    const n = t.thread.next;
+    return `<div class="co-thread" role="link" tabindex="0" onclick="openRecord('${last.kind}', ${last.id})" onkeydown="if(event.key==='Enter'&&event.target===this)openRecord('${last.kind}', ${last.id})">
+      <span class="co-thread-dot tone-${last.tone}" aria-hidden="true"></span>
+      <span class="co-thread-label">${escHtml(t.label || 'Engagement')}</span>
+      <span class="co-thread-stand">${escHtml(threadStand(t.thread))}</span>
+      ${wait ? `<span class="co-thread-wait${t.late ? ' is-late' : ''}">${escHtml(wait)}</span>` : ''}
+      ${n ? `<button class="btn-ghost btn-sm co-thread-next" onclick="event.stopPropagation();threadNext('${n.action}', '${n.kind}', ${n.id})">${escHtml(n.label)}</button>` : ''}
+    </div>`;
+  };
+  const queues = [...new Set(dormant.map((t) => t.cleanupQueue))];
+  const dormantLine = dormant.length
+    ? `<button class="co-thread-dormant" onclick="openCleanup(${queues.length === 1 && queues[0] ? `'${queues[0]}'` : ''})">${dormant.length} dormant — review in Clean-up</button>`
+    : '';
+  el.innerHTML = shown.map(row).join('')
+    + (threads.length > shown.length ? `<button class="mdy-more" onclick="showAllCompanyThreads()">Show all ${threads.length}</button>` : '')
+    + dormantLine;
 }
 
 export function showAllCompanyThreads(): void {
@@ -1113,15 +1135,18 @@ const COMPANY_SECTIONS: [string, string][] = [
   ['commitments', 'Commitments'], ['opportunities', 'Opportunities'], ['proposals', 'Proposals'], ['projects', 'Projects'],
   ['agreements', 'Agreements'], ['meetings', 'Meetings'], ['notes', 'Notes'], ['tasks', 'Tasks'], ['files', 'Files'],
 ];
+/** The section bar: short, whatever the company has. */
+const COMPANY_NAV: [string, string][] = [['overview', 'Overview'], ['contacts', 'People'], ['activity', 'Timeline'], ['notes-log', 'Notes'], ['records', 'All records']];
 /** The sections inside "All records". */
 const RECORD_SECTIONS = ['commitments', 'opportunities', 'proposals', 'projects', 'agreements', 'meetings', 'notes', 'tasks', 'files'];
 
 function renderCompanySectionNav(counts: Record<string, number | null>): void {
   const nav = document.getElementById('co-section-nav');
   if (!nav) return;
-  nav.innerHTML = COMPANY_SECTIONS.filter(([id]) => id !== 'threads' || counts.threads).map(([id, label]) => {
-    const n = counts[id];
-    return `<button class="rec-section-link${counts[id] === 0 ? ' is-empty' : ''}" data-target="${id}" onclick="scrollToCompanySection('${id}')">${label}${n ? `<span>${n}</span>` : ''}</button>`;
+  // Short: the record kinds and their counts are in the "All records" header.
+  nav.innerHTML = COMPANY_NAV.map(([id, label]) => {
+    const n = id === 'contacts' ? counts.contacts : null;
+    return `<button class="rec-section-link" data-target="${id}" onclick="scrollToCompanySection('${id}')">${label}${n ? `<span>${n}</span>` : ''}</button>`;
   }).join('');
   const summary = document.getElementById('co-records-counts');
   if (summary) {
@@ -1157,7 +1182,8 @@ export function expandCompanySection(id: string): void {
 expose('expandCompanySection', expandCompanySection);
 
 export function scrollToCompanySection(id: string): void {
-  const el = document.getElementById(`co-sec-${id}`);
+  if (id === 'records') setRecordsOpen(true);
+  const el = document.getElementById(id === 'records' ? 'co-records' : `co-sec-${id}`);
   if (!el) return;
   // A record section opens its group (for this visit) and itself.
   if (RECORD_SECTIONS.includes(id)) { setRecordsOpen(true); el.classList.remove('is-empty'); }
@@ -1170,8 +1196,8 @@ expose('scrollToCompanySection', scrollToCompanySection);
 function updateCompanySectionSpy(): void {
   if (!document.getElementById('co-detail')?.classList.contains('open')) return;
   let active = 'overview';
-  for (const [id] of COMPANY_SECTIONS) {
-    const el = document.getElementById(`co-sec-${id}`);
+  for (const [id] of COMPANY_NAV) {
+    const el = document.getElementById(id === 'records' ? 'co-records' : `co-sec-${id}`);
     if (el && el.getBoundingClientRect().top - 110 <= 0) active = id;
   }
   document.querySelectorAll<HTMLElement>('#co-section-nav .rec-section-link').forEach((b) => b.classList.toggle('active', b.dataset.target === active));
@@ -1413,10 +1439,11 @@ export function renderCoContacts(d: CompanyData): void {
   const cntEl = document.getElementById('co-contacts-count'); if (cntEl) cntEl.textContent = d.contacts.length ? String(d.contacts.length) : '';
   const list = document.getElementById('co-contacts-list');
   if (!list) return;
-  if (d.contacts.length === 0) {
-    list.innerHTML = emptyState({ icon: 'people', title: 'No contacts yet', body: 'Add the people you deal with here so everyone knows who to call.', compact: true, action: { label: 'New contact', onclick: 'openContactForCompany()' } });
-    return;
-  }
+  const sec = document.getElementById('co-sec-contacts');
+  const host = sec?.parentElement;
+  // No people yet: one quiet line (its "+ Add" stays), below the rest.
+  if (sec && host) collapseEmptySections(host, [{ el: sec, empty: d.contacts.length === 0 }], document.getElementById(d.contacts.length ? 'co-sec-activity' : 'co-records'));
+  if (d.contacts.length === 0) { list.innerHTML = ''; return; }
   const input = briefInputFor({ id: d.companyId, name: d.name });
   const last = lastContactByPerson(input);
   list.innerHTML = orderPeople(d.contacts, last).map((c) => {

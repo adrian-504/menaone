@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildCompanyState, clauseText, lastContactByPerson, liveThreads, meetingBrief, orderPeople, NEGLECT_DAYS, type CompanyBriefInput } from './companyBrief';
+import { buildCompanyState, clauseText, lastContactByPerson, liveThreads, meetingBrief, orderPeople, DORMANT_DAYS, NEGLECT_DAYS, type CompanyBriefInput } from './companyBrief';
 import type { Agreement, Commitment, Contact, EmailRecord, Meeting, Opportunity, Project, Proposal, Todo } from './types';
 
 const today = '2026-09-21';
@@ -51,7 +51,7 @@ describe('buildCompanyState', () => {
     });
     expect(texts(i)).toEqual([
       ['relationship', 'Active client since Feb 2026 — Payroll at SAR 15,000 a month. CON_PAY_001 ends 31 Jan 2027; notice due 02 Dec 2026.'],
-      ['inflight', 'In flight — Contoso recruitment: proposal in internal review, SAR 7,000 a month, with us 13 days.'],
+      ['inflight', 'One in flight — Contoso recruitment with us 13 days.'],
       ['rhythm', 'Last meeting 15 Sept 2026, Monthly check-in. Next meeting 13 Oct 2026, Renewal terms.'],
       ['commitments', 'We owe 2 (1 late). They owe 1 (1 late). 1 task overdue.'],
       ['pinned', ''],
@@ -87,12 +87,28 @@ describe('buildCompanyState', () => {
   it('an opportunity and its proposal are one engagement, not two', () => {
     const i = input({ opportunities: [opp({ proposalId: 10 }), opp({ id: 2, name: 'Contoso audit', createdAt: '2026-06-10' })], proposals: [prop({})] });
     expect(liveThreads(i).map((t) => t.key)).toEqual(['opportunity:1', 'opportunity:2']);
-    expect(clauseText(buildCompanyState(i)[1])).toMatch(/^2 in flight — Contoso recruitment: proposal in internal review.*; Contoso audit: opportunity at proposal, SAR 42,000\.$/);
+    expect(clauseText(buildCompanyState(i)[1])).toBe('2 in flight — Contoso recruitment with us 13 days.');
+    expect(clauseText(buildCompanyState(i, { inFlight: 'long' })[1])).toMatch(/^2 in flight — Contoso recruitment: proposal in internal review.*; Contoso audit: opportunity at proposal, SAR 42,000\.$/);
+  });
+
+  it(`a thread with nothing dated for over ${DORMANT_DAYS} days is dormant: not in flight, and sent to Clean-up`, () => {
+    const i = input({
+      proposals: [prop({ id: 10, status: 'Sent to Client', dateSentToClient: '2025-07-01', dateAdded: '2025-06-20' }), prop({ id: 11, dateAdded: '2026-09-08' })],
+      projects: [{ id: 30, name: 'Old rollout', companyId: 1, companyName: CO.name, status: 'In Progress', startDate: '2024-01-01' } as Project],
+    });
+    const threads = liveThreads(i);
+    expect(threads.map((t) => [t.key, t.dormant, t.cleanupQueue])).toEqual([
+      ['proposal:11', false, null], ['proposal:10', true, 'stale-sent'], ['project:30', false, null],
+    ]);
+    expect(clauseText(buildCompanyState(i)[1])).toBe('2 in flight — Recruitment with us 13 days.');
+    // Not "late with the client 447 days".
+    expect(threads.find((t) => t.key === 'proposal:10')!.late).toBe(false);
   });
 
   it('more than three engagements: "and N more"', () => {
-    const opps = [1, 2, 3, 4, 5].map((id) => opp({ id, name: `Deal ${id}`, createdAt: `2026-0${id}-01` }));
-    const [, inflight] = buildCompanyState(input({ opportunities: opps }));
+    const opps = [1, 2, 3, 4, 5].map((id) => opp({ id, name: `Deal ${id}`, createdAt: `2026-09-0${id}` }));
+    expect(clauseText(buildCompanyState(input({ opportunities: opps }))[1])).toBe('5 in flight.');
+    const [, inflight] = buildCompanyState(input({ opportunities: opps }), { inFlight: 'long' });
     expect(inflight.links.map((l) => l.label)).toEqual(['Deal 5', 'Deal 4', 'Deal 3']);
     expect(clauseText(inflight)).toMatch(/; and 2 more\.$/);
   });
@@ -148,7 +164,9 @@ describe('the meeting brief', () => {
       notes: [{ id: 1, body: 'Prefers email.', createdAt: '2026-05-02', pinned: true }],
     });
     const brief = meetingBrief(i.meetings[1], i);
-    expect(brief.clauses).toEqual(buildCompanyState(i));
+    expect(brief.clauses).toEqual(buildCompanyState(i, { inFlight: 'long' }));
+    // Everything else is word for word the company page's.
+    expect(brief.clauses.filter((c) => c.key !== 'inflight')).toEqual(buildCompanyState(i).filter((c) => c.key !== 'inflight'));
     expect(brief.agenda).toContain('Follow up from 15 Sept 2026: Send the onboarding checklist');
     expect(brief.agenda).toContain('Contoso recruitment: Agree the headcount');
   });

@@ -2475,9 +2475,7 @@ a.ts-name:focus-visible,.ts-more:focus-visible{outline:2px solid var(--accent);o
 .cs-quotes{display:flex;flex-direction:column;gap:4px;margin-bottom:2px}
 .cs-quote{display:flex;gap:6px;align-items:flex-start;margin:0;color:var(--sub);font-style:italic}
 .cs-quote svg{flex:none;margin-top:4px;color:var(--amber)}
-.co-threads{display:flex;flex-direction:column;gap:6px;container-type:inline-size}
-.co-threads .thread-strip{background:none;border:none;border-bottom:1px solid var(--hairline);border-radius:0;padding:4px 0 8px}
-.co-threads .thread-strip:last-of-type{border-bottom:none}
+.co-threads{display:flex;flex-direction:column;gap:2px}
 .co-dm{margin-left:6px;font-size:var(--type-meta);vertical-align:1px}
 .co-last .rlink{color:inherit}
 .conote-pin.is-pinned{color:var(--amber)}
@@ -2522,3 +2520,17 @@ body.brief-open{overflow:hidden}
   .bv-muted,.bv-date,.bv-sec h2,.bv-quote{color:dimgray !important}
   @page{margin:16mm}
 }
+/* Company 360 open threads: one line each; the next step shows on hover/focus. */
+.co-thread{display:flex;align-items:center;gap:10px;min-height:34px;padding:4px 6px;border-radius:var(--radius-sm);cursor:pointer;font-size:var(--type-body);min-width:0}
+.co-thread:hover,.co-thread:focus-visible{background:var(--hover)}
+.co-thread:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.co-thread-dot{--tone:var(--muted);flex:none;width:7px;height:7px;border-radius:50%;background:var(--tone)}
+.co-thread-dot.tone-green{--tone:var(--green)}.co-thread-dot.tone-amber{--tone:var(--amber)}.co-thread-dot.tone-red{--tone:var(--red)}.co-thread-dot.tone-accent{--tone:var(--accent)}
+.co-thread-label{flex:0 1 auto;min-width:0;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.co-thread-stand{flex:1 1 auto;min-width:0;color:var(--sub);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.co-thread-wait{flex:none;color:var(--muted);font-size:var(--type-meta);font-variant-numeric:tabular-nums}
+.co-thread-wait.is-late{color:var(--amber)}
+.co-thread-next{flex:none;visibility:hidden}
+.co-thread:hover .co-thread-next,.co-thread:focus-within .co-thread-next{visibility:visible}
+.co-thread-dormant{font:inherit;display:block;margin-top:4px;padding:4px 6px;border:none;background:none;color:var(--muted);font-size:var(--type-secondary);cursor:pointer;text-align:left}
+.co-thread-dormant:hover{color:var(--accent)}

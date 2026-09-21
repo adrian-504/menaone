@@ -20,7 +20,7 @@ function briefHtml(name: string): string {
   const key = companyKey(name);
   const input = briefInputFor(key);
   const r = companyRecords(input);
-  const threads = liveThreads(input, r);
+  const threads = liveThreads(input, r).filter((t) => !t.dormant);
   const last = lastContactByPerson(input, r);
   const people = orderPeople(r.contacts, last);
   const now = input.now || `${input.today}T12:00:00`;
@@ -33,7 +33,8 @@ function briefHtml(name: string): string {
     const late = c.dueDate && c.dueDate < input.today;
     return `<li>${escHtml(c.text)}${who ? ` <span class="bv-muted">— ${escHtml(who)}</span>` : ''}${c.dueDate ? ` <span class="bv-muted${late ? ' bv-late' : ''}">· due ${escHtml(fmtDate(c.dueDate))}${late ? ' (late)' : ''}</span>` : ''}</li>`;
   };
-  const state = briefStateHtml(companyStateFor(key));
+  // The Open threads list follows, so the "in flight" clause would only repeat it.
+  const state = briefStateHtml(companyStateFor(key).filter((c) => c.key !== 'inflight'));
   const time = (iso: string | null | undefined) => (iso ? new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '');
   return `<article class="bv-page">
     <header class="bv-head">
@@ -49,9 +50,7 @@ function briefHtml(name: string): string {
     ${ours.length || theirs.length ? `<section class="bv-sec"><h2>Open commitments</h2>
       ${ours.length ? `<h3>We owe</h3><ul>${ours.map(promiseLine).join('')}</ul>` : ''}
       ${theirs.length ? `<h3>They owe</h3><ul>${theirs.map(promiseLine).join('')}</ul>` : ''}</section>` : ''}
-    <section class="bv-sec"><h2>Next meeting</h2>${next
-      ? `<p><strong>${escHtml(next.title)}</strong> — ${escHtml(fmtDate(next.meetingDate))}${next.startAt ? ` at ${escHtml(time(next.startAt))}` : ''}${next.location ? `, ${escHtml(next.location)}` : ''}</p>`
-      : '<p class="bv-muted">None scheduled.</p>'}</section>
+    ${next ? `<section class="bv-sec"><h2>Next meeting</h2><p><strong>${escHtml(next.title)}</strong> — ${escHtml(fmtDate(next.meetingDate))}${next.startAt ? ` at ${escHtml(time(next.startAt))}` : ''}${next.location ? `, ${escHtml(next.location)}` : ''}</p></section>` : ''}
   </article>`;
 }
 
