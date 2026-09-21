@@ -127,3 +127,30 @@ fn company_notes_are_dated_entries_that_survive_the_next_one() {
 
     let _ = std::fs::remove_file(&path);
 }
+
+#[test]
+fn a_record_timeline_reads_several_records_and_the_work_on_them() {
+    use menabig_tracker_lib::activity::RecordRef;
+    use menabig_tracker_lib::opportunities::{create_company_named, save_opportunity_row};
+    use menabig_tracker_lib::v2_models::Opportunity;
+    let (path, mut conn) = fresh_db("records");
+    let company = create_company_named(&mut conn, "Contoso Logistics").unwrap().unwrap();
+    let opp = save_opportunity_row(&mut conn, &Opportunity { name: "Contoso payroll".into(), company_id: Some(company), company_name: Some("Contoso Logistics".into()), stage: "Lead".into(), ..Default::default() }).unwrap().id;
+    let other = save_opportunity_row(&mut conn, &Opportunity { name: "Contoso audit".into(), company_id: Some(company), company_name: Some("Contoso Logistics".into()), stage: "Lead".into(), ..Default::default() }).unwrap().id;
+    upsert_proposal_rows(&mut conn, &[Proposal { id: 7, client: "Contoso Logistics".into(), status: "Drafting".into(), ..Default::default() }]).unwrap();
+    upsert_todo_rows(&mut conn, &[Todo { id: 1, title: "Call the CFO".into(), opportunity_id: Some(opp), status: Some("Pending".into()), ..Default::default() }]).unwrap();
+    upsert_todo_rows(&mut conn, &[Todo { id: 2, title: "Audit prep".into(), opportunity_id: Some(other), status: Some("Pending".into()), ..Default::default() }]).unwrap();
+
+    let this = actions(&conn, ActivityFilter { records: Some(vec![RecordRef { kind: "opportunity".into(), id: opp }]), ..Default::default() });
+    assert!(this.contains(&"opportunity:created".to_string()), "{this:?}");
+    assert!(this.contains(&"task:created".to_string()), "the work on it: {this:?}");
+    let labels: Vec<String> = query_activity(&conn, &ActivityFilter { records: Some(vec![RecordRef { kind: "opportunity".into(), id: opp }]), ..Default::default() })
+        .unwrap().into_iter().filter_map(|a| a.entity_label).collect();
+    assert!(!labels.iter().any(|l| l == "Audit prep" || l == "Contoso audit"), "nothing from the other opportunity: {labels:?}");
+
+    // A whole engagement: the opportunity and its proposal together.
+    let both = actions(&conn, ActivityFilter { records: Some(vec![RecordRef { kind: "opportunity".into(), id: opp }, RecordRef { kind: "proposal".into(), id: 7 }]), ..Default::default() });
+    assert!(both.contains(&"proposal:created".to_string()) && both.contains(&"opportunity:created".to_string()), "{both:?}");
+    drop(conn);
+    let _ = std::fs::remove_file(path);
+}

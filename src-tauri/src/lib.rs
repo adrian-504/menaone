@@ -262,6 +262,7 @@ pub fn run() {
             commercial::set_proposals_root,
             commands::upsert_todos,
             commitments::get_commitments,
+            commands::draft_agreement_for_proposal,
             full_backup::export_full_backup,
             ms365::email_people::ms365_email_people_cached,
             ms365::email_people::ms365_scan_email_people,
