@@ -38,6 +38,9 @@ export interface MyDayInput {
   ownDomains: Set<string>;
   /** Item keys hidden until a date (inclusive of that date's start). */
   snoozed: Record<string, string>;
+  /** Attention rows actually on screen (not snoozed, not behind "Show N more").
+   * When given, a promise's task leaves Today only if its row is one of them. */
+  attentionShown?: Set<string>;
 }
 
 // ── Attention ───────────────────────────────────────────────────────────────
@@ -328,14 +331,22 @@ const byPriority = (t: Todo) => (t.priority === 'High' ? 0 : t.priority === 'Low
 
 /** Tasks of promises we made that "Needs your attention" already shows (late,
  * due today or tomorrow) — listed once, there, with the reason and Mark kept. */
-export function tasksShownAsPromises(i: Pick<MyDayInput, 'today' | 'commitments'>): Set<number> {
+export function tasksShownAsPromises(i: Pick<MyDayInput, 'today' | 'commitments' | 'snoozed' | 'attentionShown'>): Set<number> {
   const tomorrow = addDays(i.today, 1);
+  const rowKey = (c: Commitment) => `commitment:${c.id}:${c.dueDate! < i.today ? 'overdue' : 'due'}`;
+  // A snoozed row, or one behind "Show N more", isn't on screen: its task stays in Today.
+  const visible = (key: string) => !(i.snoozed?.[key] && i.snoozed[key] > i.today) && (!i.attentionShown || i.attentionShown.has(key));
   return new Set((i.commitments || [])
-    .filter((c) => c.direction === 'ours' && c.status === 'open' && c.todoId != null && c.dueDate && c.dueDate <= tomorrow)
+    .filter((c) => c.direction === 'ours' && c.status === 'open' && c.todoId != null && c.dueDate && c.dueDate <= tomorrow && visible(rowKey(c)))
     .map((c) => c.todoId!));
 }
 
-export function buildTimeline(i: Pick<MyDayInput, 'today' | 'now' | 'meetings' | 'todos' | 'commitments'>): Timeline {
+/** The attention rows on screen, when the list shows its first `limit`. */
+export function shownAttentionKeys(items: AttentionItem[], limit: number | null): Set<string> {
+  return new Set((limit == null ? items : items.slice(0, limit)).map((x) => x.key));
+}
+
+export function buildTimeline(i: Pick<MyDayInput, 'today' | 'now' | 'meetings' | 'todos' | 'commitments' | 'snoozed' | 'attentionShown'>): Timeline {
   const promised = tasksShownAsPromises(i);
   const todos = i.todos.filter((t) => !promised.has(t.id));
   const overdue = todos.filter((t) => isOpenTask(t) && !t.parentId && t.dueDate && t.dueDate < i.today)

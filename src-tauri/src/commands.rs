@@ -938,6 +938,20 @@ pub fn create_agreements_from_proposals(conn: &mut Connection) -> rusqlite::Resu
     Ok(read_agreements(conn)?.into_iter().filter(|a| created_ids.contains(&a.id)).collect())
 }
 
+/// "Draft agreement" for one signed proposal (asked for, never automatic).
+pub fn draft_agreement_for_proposal_core(conn: &mut Connection, proposal_id: i64) -> rusqlite::Result<Vec<Agreement>> {
+    let tx = conn.transaction()?;
+    let created_ids = crate::commercial::create_agreements_for(&tx, Some(proposal_id))?;
+    tx.commit()?;
+    Ok(read_agreements(conn)?.into_iter().filter(|a| created_ids.contains(&a.id)).collect())
+}
+
+#[tauri::command]
+pub fn draft_agreement_for_proposal(state: State<DbState>, proposal_id: i64) -> CmdResult<Vec<Agreement>> {
+    let mut conn = state.0.lock().map_err(conn_err)?;
+    draft_agreement_for_proposal_core(&mut conn, proposal_id).map_err(conn_err)
+}
+
 #[tauri::command]
 pub fn sync_agreements_from_proposals(state: State<DbState>) -> CmdResult<Vec<Agreement>> {
     let mut conn = state.0.lock().map_err(conn_err)?;
@@ -1292,6 +1306,7 @@ pub const UI_META_KEYS: &[&str] = &[
     "opportunities_leads_backfilled_v1",
     "reminder_settings",
     "reminders_sent",
+    "timeline_scope",
 ];
 
 pub fn ui_meta_key_allowed(key: &str) -> bool {

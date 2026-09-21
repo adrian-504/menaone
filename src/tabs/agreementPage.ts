@@ -11,10 +11,9 @@ import { companyLink, recordLink } from '../lib/links';
 import { toast, undoToast } from '../lib/ui';
 import { persistAgreements } from '../lib/persist';
 import { notifyNavigated, refreshAll, refreshCompanyViewIfOpen } from '../lib/registry';
-import { getActivity } from '../lib/db';
 import { attachCompanySelector } from '../lib/companySelector';
 import { showMenuAt } from '../lib/contextMenu';
-import { activityItem, renderFeed } from '../lib/activityFeed';
+import { renderRecordTimeline, renderThreadStrip } from './recordThread';
 import { renderIcons } from '../core/chrome';
 import { AGR_STATUSES, AGR_TYPES, SERVICE_STATUSES } from '../lib/constants';
 import { renderLinesEditor } from '../lib/linesEditor';
@@ -84,6 +83,7 @@ export function renderAgreementPage(): void {
         ? `<button class="btn-primary" onclick="agreementFieldChanged('serviceStatus','Active')">Service started</button>` : '';
     actions.innerHTML = `${primary}<button class="loc-nav rec-more" onclick="agreementMoreMenu(event)" title="More" aria-label="More">${icon('more', 16)}</button>`;
   }
+  renderThreadStrip('agd-thread', { kind: 'agreement', id: a.id });
   renderProps(a);
   renderTerm(a);
   renderLines(a);
@@ -170,10 +170,7 @@ function renderDates(a: Agreement): void {
 async function renderActivity(a: Agreement): Promise<void> {
   const el = document.getElementById('agd-activity');
   if (!el) return;
-  const entries = await getActivity({ entityType: 'agreement', entityId: a.id, limit: 100 }).catch(() => []);
-  if (S.currentAgreementId !== a.id) return;
-  el.innerHTML = renderFeed(entries.map(activityItem), { empty: 'Nothing recorded yet.' });
-  renderIcons(el);
+  await renderRecordTimeline({ elId: 'agd-activity', record: { kind: 'agreement', id: a.id }, scopeToggle: false });
 }
 
 export async function agreementFieldChanged(key: string, value: string): Promise<void> {

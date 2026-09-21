@@ -1,7 +1,8 @@
 import { S } from '../lib/state';
 import { emptyState } from '../lib/ui';
 import { recordLink } from '../lib/links';
-import { activityItem, renderFeed } from '../lib/activityFeed';
+import { renderRecordTimeline, renderThreadStrip } from './recordThread';
+import { collapseEmptySections } from '../lib/sectionLayout';
 import { renderIcons } from '../core/chrome';
 import { registerDragSource, registerDropTarget, reorder } from '../lib/dnd';
 import { loadInto } from '../lib/ui';
@@ -9,7 +10,7 @@ import { companyLink } from '../lib/links';
 import { fmtDate, escHtml, expose, statusDot, showConfirm, nextNoteId, today, inCompany } from '../lib/utils';
 import { registerTabRenderer, registerProjectViewRefresher, refreshAll, notifyNavigated } from '../lib/registry';
 import { createListNav } from '../lib/listNav';
-import { getProjects, getMilestones, getLinksFor, setLinksFrom, filesGetByIds, getActivity } from '../lib/db';
+import { getProjects, getMilestones, getLinksFor, setLinksFrom, filesGetByIds } from '../lib/db';
 import { persistProject, persistMilestones, persistOpportunity, persistNotes, saveNotesNow } from '../lib/persist';
 import { companyFromForm, contextFromOpportunity, contextFromProject, projectChain } from '../lib/workGraph';
 import { getAllCompanies } from './companies';
@@ -185,15 +186,29 @@ async function renderProjectDetail(): Promise<void> {
 
   const archiveBtn = document.getElementById('pd-archive-btn'); if (archiveBtn) archiveBtn.textContent = p.archived ? 'Unarchive' : 'Archive';
 
+  renderThreadStrip('pd-thread', { kind: 'project', id: p.id });
   renderMilestones();
   renderProjectTasks(p.id);
-  void renderLinkedNotes(p.id);
   renderProjectMeetings(p.id);
   renderCommitmentSection('pd-commitments', { projectId: p.id }, contextFromProject(S, p));
-  void renderProjectOrigin(p.id);
-  void renderProjectActivity(p.id);
   void renderLinkedEmails('project', p.id, 'pd-emails');
-  void renderLinkedFiles(p.id);
+  await Promise.all([renderLinkedNotes(p.id), renderProjectOrigin(p.id), renderProjectActivity(p.id), renderLinkedFiles(p.id)]);
+  if (S.currentProjectId === p.id) layoutProjectSections();
+}
+
+/** The timeline stays first; below it the sections with content, Files
+ * last, then the empty ones, collapsed. */
+function layoutProjectSections(): void {
+  const host = document.getElementById('pd-main');
+  if (!host) return;
+  const el = (id: string) => document.getElementById(id);
+  const inner = (id: string) => !!el(id)?.querySelector(':scope > .feed-empty');
+  const sections = ['pd-milestones-sec', 'pd-tasks-sec', 'pd-meetings', 'pd-commitments', 'pd-origin', 'pd-notes', 'pd-emails', 'pd-files-sec']
+    .map((id) => el(id)).filter((x): x is HTMLElement => !!x && !x.hidden);
+  collapseEmptySections(host, sections.map((x) => ({
+    el: x,
+    empty: x.id === 'pd-milestones-sec' ? inner('pd-milestones') : x.id === 'pd-tasks-sec' ? inner('pd-tasks') : x.id === 'pd-files-sec' ? inner('pd-files') : !!x.querySelector(':scope > .feed-empty'),
+  })));
 }
 
 async function renderLinkedFiles(projectId: number): Promise<void> {
@@ -222,7 +237,6 @@ async function renderLinkedFiles(projectId: number): Promise<void> {
 async function renderLinkedNotes(projectId: number): Promise<void> {
   const el = document.getElementById('pd-notes');
   if (!el) return;
-  el.style.display = '';
   const links = await getLinksFor('project', projectId);
   if (S.currentProjectId !== projectId) return;
   const noteIds = links.filter((l) => l.fromType === 'note' && l.toType === 'project').map((l) => l.fromId);
@@ -271,38 +285,30 @@ function renderProjectMeetings(projectId: number): void {
         </div>`).join('')}</div>`);
 }
 
-// The engagement chain the project came from: opportunity → proposal →
-// agreement, and the opportunity's contacts. Derived from ids already loaded
-// (Opportunity.projectId / proposalId, Agreement.proposalId) plus one link
-// lookup for the contacts.
+// The client contacts on the opportunity the project came from (the chain
+// itself — opportunity, proposal, agreement — is in the thread strip).
 async function renderProjectOrigin(projectId: number): Promise<void> {
   const el = document.getElementById('pd-origin');
   if (!el) return;
   const o = S.opportunities.find((x) => x.projectId === projectId);
-  if (!o) { el.innerHTML = ''; el.style.display = 'none'; return; }
+  if (!o) { el.innerHTML = ''; el.hidden = true; return; }
   const links = await getLinksFor('opportunity', o.id).catch(() => []);
   if (S.currentProjectId !== projectId) return;
-  const { proposal, agreement, contacts } = projectChain(S, projectId, links);
-  const row = (kind: 'opportunity' | 'proposal' | 'agreement', id: number, iconName: string, label: string, title: string, sub: string) => `<div class="rec-row" onclick="openRecord('${kind}', ${id})">
-      <span class="rec-row-icon">${icon(iconName, 15)}</span>
-      <div class="rec-row-main"><div class="rec-row-title">${recordLink(kind, id, title)}</div><div class="rec-row-sub">${escHtml([label, sub].filter(Boolean).join(' · '))}</div></div>
-    </div>`;
-  el.style.display = '';
-  el.innerHTML = `<div class="rec-section-hd"><h2>Started from</h2></div>
-    <div class="rec-list">
-      ${row('opportunity', o.id, 'briefcase', 'Opportunity', o.name, o.stage)}
-      ${proposal ? row('proposal', proposal.id, 'database', 'Proposal', `${proposal.type && proposal.type !== '—' ? proposal.type : 'Proposal'} · SL#${proposal.id}`, proposal.status || '') : ''}
-      ${agreement ? row('agreement', agreement.id, 'document', 'Agreement', agreement.agrRef || `Agreement #${agreement.id}`, agreement.status || '') : ''}
-    </div>
-    ${contacts.length ? `<div class="rec-row-sub" style="margin-top:8px">Contacts: ${contacts.map((c) => recordLink('contact', c.id, c.name || c.email || 'Contact')).join(', ')}</div>` : ''}`;
+  const { contacts } = projectChain(S, projectId, links);
+  el.hidden = contacts.length === 0;
+  el.innerHTML = `<div class="rec-section-hd"><h2>Client contacts</h2><span class="rec-count">${contacts.length || ''}</span></div>
+    <div class="rec-list">${contacts.map((c) => `<div class="rec-row" onclick="openRecord('contact', ${c.id})">
+      <span class="rec-row-icon">${icon('people', 15)}</span>
+      <div class="rec-row-main"><div class="rec-row-title">${recordLink('contact', c.id, c.name || c.email || 'Contact')}</div><div class="rec-row-sub">${escHtml(c.role || c.email || '')}</div></div>
+    </div>`).join('')}</div>`;
 }
 
 async function renderProjectActivity(projectId: number): Promise<void> {
   const el = document.getElementById('pd-activity');
   if (!el) return;
-  const entries = await getActivity({ entityType: 'project', entityId: projectId, limit: 100 }).catch(() => []);
-  if (S.currentProjectId !== projectId) return;
-  el.innerHTML = `<div class="rec-section-hd"><h2>Activity</h2></div><div class="feed">${renderFeed(entries.map(activityItem), { empty: 'No activity yet.' })}</div>`;
+  await renderRecordTimeline({ elId: 'pd-activity', record: { kind: 'project', id: projectId }, scopeToggle: true,
+    header: '<button class="btn-secondary btn-sm" onclick="createNoteForProject()">+ Log note</button>',
+    milestones: () => S.currentProjectId === projectId ? S.currentProjectMilestones : [] });
 }
 
 registerDragSource('milestone');

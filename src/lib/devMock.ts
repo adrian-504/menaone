@@ -32,6 +32,17 @@ const SAMPLE: AppData = {
       lines: [{ id: 3, serviceId: 18, serviceName: 'Recruitment', description: null, billing: 'monthly', quantity: 1, unitPrice: 7000, commission: false, sortOrder: 0 }],
       documents: [],
     },
+    // A proposal with no opportunity: its thread starts at the proposal.
+    {
+      id: 3, client: 'Northwind Trading', type: 'Payroll', status: 'Sent to Client', sentDate: '2026-09-02',
+      dblSignedDate: null, kickoffDate: null, finance: null, hubspot: null, owner: 'Ahmad',
+      remarks: null, dateAdded: '2026-08-28', monthlyFee: 5000, contractMonths: 12, winLossReason: null,
+      docLink: null, archived: false, archivedAt: null, snoozedUntil: null, dateSentToHassan: '2026-08-30',
+      dateSentToClient: '2026-09-02', dateSigned: null, notes: [], validUntil: '2026-10-02',
+      businessEntityId: 1, currency: 'SAR', reviewerId: 1, reviewStatus: 'approved', reviewedAt: '2026-09-01',
+      lines: [{ id: 4, serviceId: 15, serviceName: 'Payroll', description: null, billing: 'monthly', quantity: 1, unitPrice: 5000, commission: false, sortOrder: 0 }],
+      documents: [],
+    },
   ],
   contacts: [
     { id: 1, clientName: 'Acme Holdings', name: 'Jane Doe', role: 'CEO', email: 'jane@acme.test', phone: null, whatsapp: null, service: null, lists: [] },
@@ -161,9 +172,10 @@ const mockOpp = (id: number, name: string, stage: string, value: number | null, 
   projectId: null, sortOrder: null, archived: false, createdAt: created, updatedAt: created, tags: [], ...extra,
 });
 let opportunitiesStore: Opportunity[] = [
-  mockOpp(1, 'Acme — recruitment for Riyadh site', 'Proposal', 42000, '2026-07-01', { nextAction: 'Chase the signed proposal', expectedCloseDate: '2026-09-30', probability: 60 }),
+  mockOpp(1, 'Acme — recruitment for Riyadh site', 'Proposal', 42000, '2026-07-01', { nextAction: 'Chase the signed proposal', expectedCloseDate: '2026-09-30', probability: 60, proposalId: 2 }),
   mockOpp(2, 'Acme — GOSI audit', 'Discovery', 15000, '2026-06-10'),
-  mockOpp(3, 'Acme — payroll outsourcing', 'Won', 108000, '2026-05-01', { winLossReason: 'Referral / existing relationship' }),
+  // The full chain: opportunity → proposal 1 → agreement 1 → project 1.
+  mockOpp(3, 'Acme — payroll outsourcing', 'Won', 108000, '2026-01-02', { winLossReason: 'Referral / existing relationship', proposalId: 1, projectId: 1 }),
   mockOpp(4, 'Acme — mobilization', 'Lost', 60000, '2026-04-01', { winLossReason: 'Price too high' }),
 ];
 let opportunityActivityStore: OpportunityActivity[] = [];
@@ -469,12 +481,24 @@ export async function installDevMockIfNeeded(): Promise<void> {
         case 'get_activity': {
           const f = (_payload as any)?.filter ?? {};
           const now = Date.now();
-          const rows = [
+          const rows: { id: number; createdAt: string; actor: null; action: string; entityType: string; entityId: number; entityLabel: string; detail: string | null; companyId: number | null; contactId: number | null; opportunityId: number | null; projectId: number | null }[] = [
             { id: 3, createdAt: new Date(now - 3600_000).toISOString(), actor: null, action: 'status_changed', entityType: 'proposal', entityId: 1, entityLabel: 'Acme Holdings — Retainer', detail: 'Proposal Drafted → Proposal sent to Client', companyId: 1, contactId: null, opportunityId: null, projectId: null },
             { id: 2, createdAt: new Date(now - 26 * 3600_000).toISOString(), actor: null, action: 'completed', entityType: 'task', entityId: 1, entityLabel: 'Send renewal pack', detail: null, companyId: 1, contactId: null, opportunityId: null, projectId: null },
             { id: 1, createdAt: '2026-09-01', actor: null, action: 'created', entityType: 'contact', entityId: 1, entityLabel: 'Jane Doe', detail: 'CEO', companyId: 1, contactId: 1, opportunityId: null, projectId: null },
           ];
-          return rows.filter((r) => (f.companyId == null || r.companyId === f.companyId) && (f.contactId == null || r.contactId === f.contactId));
+          rows.push(
+            { id: 10, createdAt: '2026-01-02T09:00:00Z', actor: null, action: 'created', entityType: 'opportunity', entityId: 3, entityLabel: 'Acme — payroll outsourcing', detail: null, companyId: 1, contactId: null, opportunityId: 3, projectId: null },
+            { id: 11, createdAt: '2026-01-10T09:00:00Z', actor: null, action: 'status_changed', entityType: 'proposal', entityId: 1, entityLabel: 'Payroll + PRO (SL# 1)', detail: 'In Internal Review → Sent to Client', companyId: 1, contactId: null, opportunityId: 3, projectId: null },
+            { id: 12, createdAt: '2026-01-20T09:00:00Z', actor: null, action: 'status_changed', entityType: 'proposal', entityId: 1, entityLabel: 'Payroll + PRO (SL# 1)', detail: 'Sent to Client → Signed by Both Parties', companyId: 1, contactId: null, opportunityId: 3, projectId: null },
+            { id: 13, createdAt: '2026-01-26T09:00:00Z', actor: null, action: 'status_changed', entityType: 'agreement', entityId: 1, entityLabel: 'ACME_ADM_001_0126', detail: 'MENA Signature → Signed', companyId: 1, contactId: null, opportunityId: null, projectId: null },
+            { id: 14, createdAt: '2026-02-01T09:00:00Z', actor: null, action: 'created', entityType: 'project', entityId: 1, entityLabel: 'Acme Holdings — Retainer Delivery', detail: null, companyId: 1, contactId: null, opportunityId: 3, projectId: 1 },
+            { id: 15, createdAt: '2026-09-02T09:00:00Z', actor: null, action: 'status_changed', entityType: 'proposal', entityId: 3, entityLabel: 'Payroll (SL# 3)', detail: 'In Internal Review → Sent to Client', companyId: null, contactId: null, opportunityId: null, projectId: null },
+            { id: 16, createdAt: '2026-07-01T09:00:00Z', actor: null, action: 'created', entityType: 'opportunity', entityId: 1, entityLabel: 'Acme — recruitment for Riyadh site', detail: null, companyId: 1, contactId: null, opportunityId: 1, projectId: null },
+          );
+          const recs: { kind: string; id: number }[] | undefined = f.records;
+          const inRecords = (r: typeof rows[number]) => !recs || recs.some((x) => (x.kind === r.entityType && x.id === r.entityId) || (x.kind === 'opportunity' && x.id === r.opportunityId) || (x.kind === 'project' && x.id === r.projectId));
+          return rows.filter((r) => (f.companyId == null || r.companyId === f.companyId) && (f.contactId == null || r.contactId === f.contactId)
+            && (f.entityType == null || (r.entityType === f.entityType && r.entityId === f.entityId)) && inRecords(r));
         }
         case 'rename_company': {
           const p = _payload as any;

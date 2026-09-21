@@ -40,7 +40,7 @@ Client 360 and contact pages · proposals with lines, versions and an internal r
 
 ## How we work now
 
-- **Product slices, since 21 September 2026.** A product review with the owner agreed seven slices, each reviewed before the next: 1 visual consolidation (done), 2 commitments and waiting-on (done), 3 engagement thread, 4 Company 360 as a briefing, 5 the meetings loop and My Day regrouping, 6 proposals (diff, rhythm, handover), 7 search and sidebar consolidation. Between slices, what irritates in daily use still gets fixed first.
+- **Product slices, since 21 September 2026.** A product review with the owner agreed seven slices, each reviewed before the next: 1 visual consolidation (done), 2 commitments and waiting-on (done), 3 engagement thread (built on branch `slice-3`, awaiting review: thread strip, one timeline, no empty boxes), 4 Company 360 as a briefing, 5 the meetings loop and My Day regrouping, 6 proposals (diff, rhythm, handover), 7 search and sidebar consolidation. Between slices, what irritates in daily use still gets fixed first.
 - **No sprint or phase numbers.** Work is named for what it does.
 - **Every install:** back up the live database first, rehearse migrations on a copy, run the tests, then install and check against real data.
 - **Rules, not AI**, everywhere — proposals and Watch included. The owner's standing decision.

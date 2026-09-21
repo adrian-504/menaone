@@ -432,6 +432,12 @@ One surface, hairlines, fewer of everything; tokens and components only, no layo
 - `src/lib/commitments.ts` parses `>>` / `<<` lines (pure, tested); `src/tabs/commitments.ts` holds the row, sections, dialog and reading from sources; `persist.ts` keeps a task and its commitment equal in memory so neither save undoes the other.
 - Rules: an open task (direct or via a meeting) or open `ours` commitment satisfies "next action"; waiting on the client measures the wait instead of calling it stalled; with us is never stalled and appears in My Day. My Day ranks overdue promises we made just under a countersignature and folds the client's overdue ones into "Owed to you (N)".
 
+## Engagement thread and timeline (Slice 3)
+
+- Pure rules: `workGraph.engagementThread` (the chain, gaps, waiting, the one next step) and `recordTimeline.buildRecordTimeline` (past from activity, future from meetings, tasks, commitments and record dates). Renderers: `threadStrip.ts`, `timeline.ts` (also the Now line My Day uses). Page glue and actions: `tabs/recordThread.ts` (`renderThreadStrip`, `renderRecordTimeline`, `threadNext`, `timelineAct`; re-renders open timelines when tasks, meetings or commitments change).
+- Backend: `get_activity` takes `records` (kind + id pairs; an opportunity or project also matches rows tagged with it). `draft_agreement_for_proposal` drafts the agreement for one proposal signed by both, through the same `create_agreements_for` as the bulk sync. `timeline_scope` is a UI app_meta key.
+- `sectionLayout.ts`: `collapseEmptySections` / `sinkEmptySections`, used by Company 360 and the opportunity, project and meeting pages. The project's "Started from" section now lists only the client contacts; the chain is in the strip.
+
 ## People from email
 
 - Contacts → "People from your email": people you correspond with who aren't contacts yet. `ms365/email_people.rs` reads message envelopes only (sender, recipients, date, Outlook's focused/other) from the Inbox and Sent Items for the last 24 months, tallies them per address (sent, received, received as bulk, copied, first and last) and keeps the tally in `app_meta.email_people_scan`; the mailbox is read only when asked.

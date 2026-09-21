@@ -1,4 +1,5 @@
 import { S } from '../lib/state';
+import { collapseEmptySections } from '../lib/sectionLayout';
 import { statusBadge } from '../lib/statusTone';
 import { orderMeetings } from '../lib/meetingOrder';
 import { showContextMenu } from '../lib/contextMenu';
@@ -151,6 +152,11 @@ export function openMeetingDetail(id: number): void {
   renderMeetingNotes(m);
   renderCommitmentSection('md-commitments', { meetingId: m.id }, contextFromMeeting(S, m));
   renderMeetingClientSection(m);
+  // A client section with nothing to offer collapses and sinks below the rest.
+  if (main) {
+    const sections = [...main.children].filter((el): el is HTMLElement => el instanceof HTMLElement && el.classList.contains('rec-section') && !el.hidden);
+    collapseEmptySections(main, sections.map((el) => ({ el, empty: el === clientEl && !!el.querySelector(':scope > .empty-state') })));
+  }
   renderEarlierMeetings(m);
   renderMeetingInvite(m);
 

@@ -77,8 +77,9 @@ function timeOf(at: string): string {
 }
 
 /** Timeline HTML, newest first, grouped by day. */
-export function renderFeed(items: FeedItem[], opts: { empty?: string; limit?: number } = {}): string {
-  const sorted = items.filter((i) => i.at).sort((a, b) => b.at.localeCompare(a.at)).slice(0, opts.limit ?? 200);
+export function renderFeed(items: FeedItem[], opts: { empty?: string; limit?: number; /** Oldest at the top (a timeline above "now"). */ oldestFirst?: boolean } = {}): string {
+  const newest = items.filter((i) => i.at).sort((a, b) => b.at.localeCompare(a.at)).slice(0, opts.limit ?? 200);
+  const sorted = opts.oldestFirst ? newest.reverse() : newest;
   if (!sorted.length) return `<div class="feed-empty">${escHtml(opts.empty || 'Nothing has happened here yet.')}</div>`;
   let html = '';
   let current = '';

@@ -60,6 +60,19 @@ pub struct ActivityFilter {
     pub entity_id: Option<i64>,
     #[serde(default)]
     pub limit: Option<i64>,
+    /// Several records at once (a record's timeline, or a whole engagement):
+    /// each matches its own entries, and for an opportunity or project also
+    /// the entries of work on it (tasks, commitments…) via their
+    /// opportunity/project id.
+    #[serde(default)]
+    pub records: Option<Vec<RecordRef>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct RecordRef {
+    pub kind: String,
+    pub id: i64,
 }
 
 /// Runs `f` with activity logging switched off (bulk restore/wipe).
@@ -79,11 +92,17 @@ pub fn query_activity(conn: &Connection, filter: &ActivityFilter) -> rusqlite::R
            AND (?2 IS NULL OR contact_id = ?2 OR (entity_type = 'contact' AND entity_id = ?2))
            AND (?3 IS NULL OR entity_type = ?3)
            AND (?4 IS NULL OR entity_id = ?4)
+           AND (?6 IS NULL OR EXISTS (
+                 SELECT 1 FROM json_each(?6) r
+                 WHERE (activity.entity_type = json_extract(r.value, '$.kind') AND activity.entity_id = json_extract(r.value, '$.id'))
+                    OR (json_extract(r.value, '$.kind') = 'opportunity' AND activity.opportunity_id = json_extract(r.value, '$.id'))
+                    OR (json_extract(r.value, '$.kind') = 'project' AND activity.project_id = json_extract(r.value, '$.id'))))
          ORDER BY created_at DESC, id DESC
          LIMIT ?5",
     )?;
+    let records = filter.records.as_ref().map(|r| serde_json::to_string(r).unwrap_or_else(|_| "[]".into()));
     let rows = stmt.query_map(
-        params![filter.company_id, filter.contact_id, filter.entity_type, filter.entity_id, filter.limit.unwrap_or(300)],
+        params![filter.company_id, filter.contact_id, filter.entity_type, filter.entity_id, filter.limit.unwrap_or(300), records],
         |r| {
             Ok(ActivityEntry {
                 id: r.get(0)?, created_at: r.get(1)?, actor: r.get(2)?, action: r.get(3)?, entity_type: r.get(4)?,

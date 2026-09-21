@@ -10,7 +10,7 @@ import { markLoadedAsSaved } from '../lib/persist';
 export async function backupAllData(): Promise<void> {
   try {
     const path = await exportFullBackup(`MENA One backup ${today()}.sqlite3`);
-    if (path) toast('Backup saved', { tone: 'success', detail: `Everything in MENA One, in ${path.split('/').pop()}` });
+    if (path) toast('Backup saved', { tone: 'success', duration: 10000, detail: `Everything in MENA One, in ${path.split('/').pop()}. It includes client correspondence (cached Outlook mail and meetings): keep it in the MENA BIG OneDrive only.` });
   } catch (err) {
     toast('Could not save the backup', { tone: 'error', detail: String(err) });
   }

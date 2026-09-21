@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { utcInstant, normalizeMeeting } from './outlookTime';
-import { buildAttention, buildTimeline, buildComingUp, summaryLine, isClientMeeting, type MyDayInput } from './myday';
+import { shownAttentionKeys, buildAttention, buildTimeline, buildComingUp, summaryLine, isClientMeeting, type MyDayInput } from './myday';
 import type { Agreement, Commitment, Meeting, Opportunity, Proposal, Todo } from './types';
 
 const proposal = (over: Partial<Proposal>): Proposal => ({
@@ -205,5 +205,23 @@ describe('commitments and waiting in My Day', () => {
       commitments: [commitment({ id: 1, dueDate: '2026-09-13', todoId: 6, status: 'kept' }), commitment({ id: 2, dueDate: '2026-09-30', todoId: 8, sourceKey: 'b' })],
     });
     expect(buildTimeline(data).anytime.map((x) => x.id).sort()).toEqual([6, 8]);
+  });
+
+  it('a snoozed promise row puts its task back under Overdue, and in the count', () => {
+    const data = input({
+      todos: [todo({ id: 6, dueDate: '2026-09-10' })],
+      commitments: [commitment({ id: 1, dueDate: '2026-09-10', todoId: 6 })],
+      snoozed: { 'commitment:1:overdue': '2026-09-14' },
+    });
+    expect(buildAttention(data).map((x) => x.key)).not.toContain('commitment:1:overdue');
+    const t = buildTimeline(data);
+    expect(t.overdue.map((x) => x.id)).toEqual([6]);
+    expect(summaryLine(t, buildAttention(data))).toContain('1 overdue');
+  });
+
+  it('a promise row behind "Show N more" leaves its task in Today', () => {
+    const data = input({ todos: [todo({ id: 6, dueDate: '2026-09-10' })], commitments: [commitment({ id: 1, dueDate: '2026-09-10', todoId: 6 })] });
+    expect(buildTimeline({ ...data, attentionShown: new Set(['something:else']) }).overdue.map((x) => x.id)).toEqual([6]);
+    expect(buildTimeline({ ...data, attentionShown: shownAttentionKeys(buildAttention(data), 7) }).overdue).toEqual([]);
   });
 });

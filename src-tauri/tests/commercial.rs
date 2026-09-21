@@ -200,3 +200,23 @@ fn pending_agreements_lists_what_drafting_would_create() {
     drop(conn);
     let _ = std::fs::remove_file(path);
 }
+
+#[test]
+fn drafting_one_proposals_agreement_leaves_the_others_alone() {
+    let (path, mut conn) = fresh_db("draft_one");
+    conn.execute(
+        "INSERT INTO proposals (id, client, type, status, date_added) VALUES
+           (1,'Contoso Logistics','Recruitment','Signed by Both Parties','2026-09-01'),
+           (2,'Fabrikam Trading','Payroll','Signed by Both Parties','2026-09-02'),
+           (3,'Northwind Services','Payroll','Drafting','2026-09-03')",
+        [],
+    ).unwrap();
+    let created = menabig_tracker_lib::commands::draft_agreement_for_proposal_core(&mut conn, 2).unwrap();
+    assert_eq!(created.iter().map(|a| a.proposal_id).collect::<Vec<_>>(), vec![Some(2)]);
+    assert!(menabig_tracker_lib::commands::draft_agreement_for_proposal_core(&mut conn, 2).unwrap().is_empty(), "never twice");
+    assert!(menabig_tracker_lib::commands::draft_agreement_for_proposal_core(&mut conn, 3).unwrap().is_empty(), "not for an unsigned proposal");
+    let pending = menabig_tracker_lib::commercial::pending_agreements_core(&conn).unwrap();
+    assert_eq!(pending.iter().map(|p| p.proposal_id).collect::<Vec<_>>(), vec![1], "the other signed one is still waiting to be asked");
+    drop(conn);
+    let _ = std::fs::remove_file(path);
+}

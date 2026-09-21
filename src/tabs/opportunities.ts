@@ -20,9 +20,10 @@ import { fmtDate, escHtml, expose, nextNoteId, today, debounce, showConfirm, day
 import { registerTabRenderer, refreshAll, notifyNavigated } from '../lib/registry';
 import { onChange, touches } from '../lib/changes';
 import { registerDragSource, registerDropTarget } from '../lib/dnd';
-import { activityItem, renderFeed } from '../lib/activityFeed';
+import { renderRecordTimeline, renderThreadStrip } from './recordThread';
+import { sinkEmptySections } from '../lib/sectionLayout';
 import { createListNav } from '../lib/listNav';
-import { getPipelineFacts, getOpportunities, getOpportunityActivity, getLinksFor, setLinksFrom, getActivity, proposalFolderLookup, filesOpen } from '../lib/db';
+import { getPipelineFacts, getOpportunities, getOpportunityActivity, getLinksFor, setLinksFrom, proposalFolderLookup, filesOpen } from '../lib/db';
 import { getAllCompanies } from './companies';
 import { openProjectModal } from './projects';
 import { persistNotes, persistOpportunity, saveNotesNow } from '../lib/persist';
@@ -438,17 +439,45 @@ async function renderOpportunityDetail(): Promise<void> {
   (document.getElementById('od-description') as HTMLTextAreaElement).value = o.description || '';
   (document.getElementById('od-next-action') as HTMLTextAreaElement).value = o.nextAction || '';
 
+  renderThreadStrip('od-thread', { kind: 'opportunity', id: o.id });
+  renderOpportunityNextAction(o);
   await renderOpportunityContacts(o);
   await renderOpportunityNotes(o.id);
   renderOpportunityMeetings(o.id);
   renderOpportunityTasks(o.id);
-  renderOpportunityProposalSection(o);
-  renderOpportunityProjectSection(o);
   renderCommitmentSection('od-commitments', { opportunityId: o.id }, contextFromOpportunity(S, o));
   renderOpportunityWaiting(o);
-  void renderOpportunityFiles(o);
   (window as any).fillTeamNames?.();
-  await renderOpportunityActivity(o.id);
+  await Promise.all([renderOpportunityFiles(o), renderOpportunityActivity(o.id)]);
+  if (S.currentOpportunityId === o.id) layoutOpportunitySections();
+}
+
+/** Description, Next action and the timeline stay first; below them the
+ * sections with content, Files last, then the empty ones, collapsed. */
+function layoutOpportunitySections(): void {
+  const host = document.getElementById('od-main');
+  if (!host) return;
+  const el = (id: string) => document.getElementById(id);
+  sinkEmptySections(host, ['od-tasks', 'od-meetings', 'od-commitments', 'od-contacts', 'od-notes', 'od-files'].map(el));
+}
+
+/** The next open task, as a link; the free-text box only when there is none. */
+function renderOpportunityNextAction(o: Opportunity): void {
+  const box = document.getElementById('od-next-task');
+  const text = document.getElementById('od-next-action') as HTMLTextAreaElement | null;
+  if (!box || !text) return;
+  const open = opportunityTasks(S, o.id).filter((t) => t.status !== 'Done' && t.parentId == null)
+    .sort((a, b) => (a.dueDate || '9999').localeCompare(b.dueDate || '9999'));
+  const t = open[0];
+  text.hidden = !!t;
+  box.innerHTML = t
+    ? `<div class="rec-row od-next-row" onclick="openRecord('task', ${t.id})">
+        <span class="rec-row-icon">${icon('check', 15)}</span>
+        <div class="rec-row-main"><div class="rec-row-title"><a href="#" class="rlink" onclick="event.preventDefault()">${escHtml(t.title)}</a></div>
+          <div class="rec-row-sub">${[t.owner, open.length > 1 ? `${open.length - 1} more open` : ''].filter(Boolean).map((x) => escHtml(x!)).join(' · ')}</div></div>
+        <span class="rec-row-date${t.dueDate && t.dueDate < today() ? ' is-overdue' : ''}">${t.dueDate ? fmtDate(t.dueDate) : 'No date'}</span>
+      </div>`
+    : '';
 }
 
 // ── Waiting on ──────────────────────────────────────────────────────────────
@@ -617,8 +646,10 @@ function renderOpportunityMeetings(oppId: number): void {
 onChange((changes) => {
   const id = S.currentOpportunityId;
   if (id == null || !document.getElementById('opp-detail')?.classList.contains('open')) return;
-  if (touches(changes, 'task')) renderOpportunityTasks(id);
+  const o = S.opportunities.find((x) => x.id === id);
+  if (touches(changes, 'task')) { renderOpportunityTasks(id); if (o) renderOpportunityNextAction(o); }
   if (touches(changes, 'meeting')) renderOpportunityMeetings(id);
+  if (touches(changes, 'task') || touches(changes, 'meeting')) layoutOpportunitySections();
 });
 
 /** Tasks for the opportunity: linked to it directly or from one of its meetings. */
@@ -632,45 +663,17 @@ function renderOpportunityTasks(oppId: number): void {
     (tasks.length === 0 ? `<div class="feed-empty">No tasks yet.</div>` : `<div class="task-group">${tasks.map((t) => taskRowHtml(t, { compact: true })).join('')}</div>`);
 }
 
-// ── Proposal / Project lifecycle ─────────────────────────────────────────────────
+// ── Creating the next record (the thread strip's next step) ─────────────────
 
-function renderOpportunityProposalSection(o: Opportunity): void {
-  const el = document.getElementById('od-proposal');
-  if (!el) return;
-  const p = o.proposalId != null ? S.proposals.find((x) => x.id === o.proposalId) : null;
-  el.innerHTML = `<div class="rec-section-hd"><h2>Proposal</h2></div>` +
-    (p
-      ? `<div class="rec-row" onclick="openRecord('proposal', ${p.id})">
-          <span class="rec-row-icon">${icon('database', 15)}</span>
-          <div class="rec-row-main"><div class="rec-row-title">${recordLink('proposal', p.id, `${p.type || 'Proposal'} · SL#${p.id}`)}</div><div class="rec-row-sub">${escHtml(p.status || '')}</div></div>
-        </div>`
-      : `<div class="feed-empty">No proposal yet. <a href="#" class="rec-add-link" onclick="event.preventDefault();createProposalForOpportunity()">Create one</a></div>`);
-}
-
-function renderOpportunityProjectSection(o: Opportunity): void {
-  const el = document.getElementById('od-project');
-  if (!el) return;
-  const p = o.projectId != null ? S.projects.find((x) => x.id === o.projectId) : null;
-  el.innerHTML = `<div class="rec-section-hd"><h2>Project</h2></div>` +
-    (p
-      ? `<div class="rec-row" onclick="openRecord('project', ${p.id})">
-          <span class="rec-row-icon">${icon('target', 15)}</span>
-          <div class="rec-row-main"><div class="rec-row-title">${recordLink('project', p.id, p.name)}</div><div class="rec-row-sub">${escHtml(p.status)}</div></div>
-        </div>`
-      : o.stage === 'Won'
-        ? `<div class="feed-empty">Won — ready to deliver. <a href="#" class="rec-add-link" onclick="event.preventDefault();createProjectForOpportunity()">Start a project</a></div>`
-        : `<div class="feed-empty">A project can be started once this opportunity is won.</div>`);
-}
-
-export function createProposalForOpportunity(): void {
-  const o = currentOpportunity();
+export function createProposalForOpportunity(id?: number): void {
+  const o = id != null ? S.opportunities.find((x) => x.id === id) : currentOpportunity();
   if (!o) return;
   (window as any).openProposalBuilder?.({ client: o.companyName || o.name, opportunityId: o.id, currency: o.currency, businessEntityId: o.businessEntityId ?? null });
 }
 expose('createProposalForOpportunity', createProposalForOpportunity);
 
-export function createProjectForOpportunity(): void {
-  const o = currentOpportunity();
+export function createProjectForOpportunity(id?: number): void {
+  const o = id != null ? S.opportunities.find((x) => x.id === id) : currentOpportunity();
   if (!o) return;
   S.opportunityLinkPending = o.id;
   S.opportunityLinkPendingKind = 'project';
@@ -686,7 +689,7 @@ export function createProjectForOpportunity(): void {
 }
 expose('createProjectForOpportunity', createProjectForOpportunity);
 
-// ── Activity ─────────────────────────────────────────────────
+// ── Timeline (replaces Activity) ────────────────────────────
 
 const ACTIVITY_LABEL: Record<string, string> = {
   created: 'Opportunity created', stage_changed: 'Stage changed',
@@ -698,9 +701,8 @@ async function renderOpportunityActivity(oppId: number): Promise<void> {
   if (!el) return;
   const activity = await getOpportunityActivity(oppId);
   if (S.currentOpportunityId !== oppId) return;
-  const unified = await getActivity({ entityType: 'opportunity', entityId: oppId, limit: 100 }).catch(() => []);
-  if (S.currentOpportunityId !== oppId) return;
-  el.innerHTML = `<div class="rec-section-hd"><h2>Activity</h2></div><div class="feed">${renderFeed(unified.map(activityItem), { empty: 'No activity yet.' })}</div>`;
+  await renderRecordTimeline({ elId: 'od-activity', record: { kind: 'opportunity', id: oppId }, scopeToggle: true,
+    header: '<button class="btn-secondary btn-sm" onclick="createNoteForOpportunity()">+ Log note</button>' });
 
   // "Days in stage" needs the activity log (to find when the current stage
   // was entered) — appended to the badges row here, once this fetch
