@@ -2,6 +2,7 @@ import { S } from './state';
 import {
   persist, persistReturning, upsertProposals, deleteProposals, upsertContacts, deleteContacts,
   upsertAgreements, deleteAgreements, upsertTodos, deleteTodos, upsertNotes, deleteNotes, saveNoteFolders,
+  upsertCommitments, deleteCommitments,
   saveContactLists, saveCompanyNote, saveProject, saveMilestones, saveOpportunity, saveMeeting,
   createCompany, getCompanies,
 } from './db';
@@ -38,6 +39,7 @@ const trackers = {
   agreements: tracker('agreements', 'agreement', () => S.agreements, upsertAgreements, deleteAgreements),
   todos: tracker('tasks', 'task', () => S.todos, upsertTodos, deleteTodos),
   notes: tracker('notes', 'note', () => S.notes, upsertNotes, deleteNotes),
+  commitments: tracker('commitments', 'commitment', () => S.commitments, upsertCommitments, deleteCommitments),
 };
 
 function saveChanges<T extends { id: number }>(t: ChangeTracker<T>): Promise<void> {
@@ -90,7 +92,7 @@ export function markLoadedAsSaved(): void {
   const mark = <T extends { id: number }>(t: ChangeTracker<T>) => {
     t.saved = new Map(t.current().map((item) => [item.id, JSON.stringify(item)]));
   };
-  mark(trackers.proposals); mark(trackers.contacts); mark(trackers.agreements); mark(trackers.todos); mark(trackers.notes);
+  mark(trackers.proposals); mark(trackers.contacts); mark(trackers.agreements); mark(trackers.todos); mark(trackers.notes); mark(trackers.commitments);
   savedCompanyNotes = new Map(Object.entries(S.companyNotes).filter(([, v]) => (v || '').trim()));
 }
 
@@ -107,7 +109,51 @@ export function markAgreementsSaved(items: { id: number }[]): void {
 export function persistProposals(): void { void saveChanges(trackers.proposals); }
 export function persistContacts(): void { void saveChanges(trackers.contacts); }
 export function persistAgreements(): void { void saveChanges(trackers.agreements); }
-export function persistTodos(): void { void saveChanges(trackers.todos); }
+export function persistTodos(): void {
+  if (commitmentsFollowTasks()) void saveChanges(trackers.commitments);
+  void saveChanges(trackers.todos);
+}
+export function persistCommitments(): void {
+  if (tasksFollowCommitments()) void saveChanges(trackers.todos);
+  void saveChanges(trackers.commitments);
+}
+
+/** Records the backend created itself (commitments and their tasks) as saved. */
+export function markCommitmentsSaved(commitments: { id: number }[], tasks: { id: number }[]): void {
+  for (const c of commitments) trackers.commitments.saved.set(c.id, JSON.stringify(c));
+  for (const t of tasks) trackers.todos.saved.set(t.id, JSON.stringify(t));
+}
+
+// An `ours` commitment and its task move together — done ⇄ kept, reopened ⇄
+// open, due date ⇄ due date. The database does the same with triggers; doing
+// it here too keeps the in-memory copies equal, so neither save undoes the
+// other. Whichever side was just edited leads.
+function commitmentsFollowTasks(): boolean {
+  let changed = false;
+  for (const c of S.commitments) {
+    if (c.todoId == null || c.status === 'dropped') continue;
+    const t = S.todos.find((x) => x.id === c.todoId);
+    if (!t) { c.todoId = null; changed = true; continue; }
+    const done = t.status === 'Done';
+    if (done && c.status === 'open') { c.status = 'kept'; c.closedAt = new Date().toISOString(); changed = true; }
+    else if (!done && c.status === 'kept') { c.status = 'open'; c.closedAt = null; changed = true; }
+    if ((t.dueDate || null) !== (c.dueDate || null)) { c.dueDate = t.dueDate || null; changed = true; }
+  }
+  return changed;
+}
+
+function tasksFollowCommitments(): boolean {
+  let changed = false;
+  for (const c of S.commitments) {
+    if (c.todoId == null || c.status === 'dropped') continue;
+    const t = S.todos.find((x) => x.id === c.todoId);
+    if (!t) continue;
+    if (c.status === 'kept' && t.status !== 'Done') { t.status = 'Done'; t.completedAt = t.completedAt || new Date().toLocaleDateString('en-CA'); changed = true; }
+    else if (c.status === 'open' && t.status === 'Done') { t.status = 'Pending'; t.completedAt = null; changed = true; }
+    if ((t.dueDate || null) !== (c.dueDate || null)) { t.dueDate = c.dueDate || null; changed = true; }
+  }
+  return changed;
+}
 export function persistNotes(): void { void saveChanges(trackers.notes); }
 /** Saves pending task / note changes and resolves once they are in the
  * database — for writes that refer to a record just created (entity links). */

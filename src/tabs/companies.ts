@@ -4,6 +4,7 @@ import { S } from '../lib/state';
 import { toast, undoToast } from '../lib/ui';
 import { renderBulkBar } from '../lib/bulkBar';
 import { STATUSES, ST, AGR_ST } from '../lib/constants';
+import { renderCompanyCommitments } from './commitments';
 import { today, fmtDate, escHtml, expose, showConfirm, statusDot, showTextPrompt, getClients, companyRef, inCompany, daysSince, daysUntil, strColor, type CompanyRef } from '../lib/utils';
 import { shownColumns, sortState, setSort, sortRows, headerCells, openColumnPicker, agoLabel, type Column, type SortState } from '../lib/tableColumns';
 import { companyLists, companyNamesInList, contactsInCompanyList, contactsAtCompanies, createSavedList, renameSavedList, removeSavedList, updateSmartListFilters, addCompaniesToList, removeCompaniesFromList, addToCompanyListChoices, exportToActiveCampaign, listById, sameFilters, cleanFilters, listChipLabel, listsForCompany } from '../core/lists';
@@ -1033,8 +1034,9 @@ function renderCompanyDetail(): void {
   void loadCompanyNoteEntries();
   if (d.companyId != null) void renderLinkedEmailsForCompany(d.companyId, 'co-emails');
 
+  const openCommitments = renderCompanyCommitments(ref);
   renderCompanySectionNav({
-    overview: null, contacts: d.contacts.length, opportunities: opps.length, proposals: d.proposals.length,
+    overview: null, commitments: openCommitments, contacts: d.contacts.length, opportunities: opps.length, proposals: d.proposals.length,
     projects: projects.length, agreements: d.agreements.length, meetings: meetings.length, notes: notes.length,
     tasks: tasks.filter((t) => t.status !== 'Done').length, files: null, activity: null,
   });
@@ -1084,7 +1086,7 @@ function renderCompanyFacts(d: CompanyData): void {
 }
 
 const COMPANY_SECTIONS: [string, string][] = [
-  ['overview', 'Overview'], ['contacts', 'Contacts'], ['opportunities', 'Opportunities'], ['proposals', 'Proposals'],
+  ['overview', 'Overview'], ['commitments', 'Commitments'], ['contacts', 'Contacts'], ['opportunities', 'Opportunities'], ['proposals', 'Proposals'],
   ['projects', 'Projects'], ['agreements', 'Agreements'], ['meetings', 'Meetings'], ['notes', 'Notes'],
   ['tasks', 'Tasks'], ['files', 'Files'], ['activity', 'Activity'],
 ];

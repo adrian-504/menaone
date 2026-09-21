@@ -1,4 +1,4 @@
-import type { PipelineFact, Service, RateCard, BusinessEntity, TeamMember, Proposal, Contact, Agreement, Todo, Note, Area, Project, Milestone, Meeting, InboxItem, NoteTemplate, MicrosoftAccountStatus, EmailRecord, EmailCompletedRecord, IntelligenceItem, Company, Opportunity, ThemeId, ReviewQueueEntry, SavedList } from './types';
+import type { PipelineFact, Service, RateCard, BusinessEntity, TeamMember, Proposal, Contact, Agreement, Todo, Note, Area, Project, Milestone, Meeting, InboxItem, NoteTemplate, MicrosoftAccountStatus, EmailRecord, EmailCompletedRecord, IntelligenceItem, Company, Opportunity, ThemeId, ReviewQueueEntry, SavedList, Commitment } from './types';
 
 /** Today as YYYY-MM-DD in local time (state.ts can't import utils). */
 const localToday = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })();
@@ -14,6 +14,7 @@ export const S = {
   contacts: [] as Contact[],
   agreements: [] as Agreement[],
   todos: [] as Todo[],
+  commitments: [] as Commitment[],
   notes: [] as Note[],
   noteFolders: ['Meeting Notes', 'Client Notes', 'Internal'] as string[],
   contactLists: [] as string[],

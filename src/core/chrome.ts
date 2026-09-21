@@ -52,6 +52,7 @@ const NEW_ITEM_TYPES: { label: string; iconName: string; run: () => void }[] = [
   { label: 'Proposal', iconName: 'database', run: () => (window as any).openAddModal?.(null) },
   { label: 'Agreement', iconName: 'document', run: () => (window as any).openAgrModal?.(null) },
   { label: 'Note', iconName: 'note', run: () => { (window as any).switchTab?.('notes'); (window as any).createNewNote?.(null); } },
+  { label: 'Commitment', iconName: 'flag', run: () => (window as any).openCommitmentModal?.() },
 ];
 
 /** "+ New" starts from where you are: the open record's own create actions

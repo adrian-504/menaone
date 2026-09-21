@@ -35,6 +35,7 @@ const SAMPLE: AppData = {
   ],
   contacts: [
     { id: 1, clientName: 'Acme Holdings', name: 'Jane Doe', role: 'CEO', email: 'jane@acme.test', phone: null, whatsapp: null, service: null, lists: [] },
+    { id: 2, clientName: 'Acme Holdings', companyId: 1, name: 'Omar Haddad', role: 'Finance manager', email: 'omar@acme.test', phone: null, whatsapp: null, service: null, lists: [] },
   ],
   agreements: [
     {
@@ -77,6 +78,13 @@ const SAMPLE: AppData = {
   noteFolders: ['Meeting Notes', 'Client Notes', 'Client Notes/Acme Holdings', 'Internal'],
   contactLists: [],
   companyNotes: {},
+  // Fictional commitments from the Monthly check-in (meeting 2): one each way.
+  commitments: [
+    { id: 1, direction: 'ours', text: 'Send the revised quote for three people', contactId: null, dueDate: '2026-09-19', status: 'open', closedAt: null, dropReason: null,
+      companyId: 1, opportunityId: 1, projectId: null, sourceType: 'meeting', sourceId: 2, sourceKey: 'send the revised quote for three people', todoId: 6, createdAt: '2026-09-15T10:00:00Z', updatedAt: null },
+    { id: 2, direction: 'theirs', text: 'Omar to share the October headcount', contactId: 2, dueDate: '2026-09-18', status: 'open', closedAt: null, dropReason: null,
+      companyId: 1, opportunityId: 1, projectId: null, sourceType: 'meeting', sourceId: 2, sourceKey: 'omar to share the october headcount', todoId: null, createdAt: '2026-09-15T10:00:00Z', updatedAt: null },
+  ],
 };
 
 const SAMPLE_PROJECTS: Project[] = [
@@ -490,6 +498,43 @@ export async function installDevMockIfNeeded(): Promise<void> {
             if (idx > -1) SAMPLE.todos[idx] = t; else SAMPLE.todos.push(t);
           }
           return items.map((t) => ({ id: t.id, companyId: t.companyId ?? null }));
+        }
+        case 'commitments_add': {
+          // Same rules as commitments.rs: a line already read from the same source is skipped; ours gets a task.
+          const items = ((_payload as any)?.items ?? []) as any[];
+          const out = { commitments: [] as any[], tasks: [] as any[] };
+          const list = (SAMPLE.commitments ||= []);
+          for (const n of items) {
+            if (n.sourceType !== 'manual' && n.sourceType !== 'capture' && list.some((c) => c.sourceType === n.sourceType && c.sourceId === (n.sourceId ?? null) && c.sourceKey === n.sourceKey)) continue;
+            const id = Math.max(0, ...list.map((c) => c.id)) + 1;
+            const c: any = { id, direction: n.direction, text: n.text, contactId: n.contactId ?? null, dueDate: n.dueDate ?? null, status: n.kept ? 'kept' : 'open',
+              closedAt: null, dropReason: null, companyId: n.companyId ?? null, opportunityId: n.opportunityId ?? null, projectId: n.projectId ?? null,
+              sourceType: n.sourceType, sourceId: n.sourceId ?? null, sourceKey: n.sourceKey ?? null, todoId: null, createdAt: new Date().toISOString(), updatedAt: null };
+            if (n.direction === 'ours' && !n.kept) {
+              const tid = Math.max(0, ...SAMPLE.todos.map((t) => t.id)) + 1;
+              const client = n.companyId === 1 ? 'Acme Holdings' : null;
+              const t: any = { id: tid, title: n.text, type: client ? 'client' : 'general', client, companyId: n.companyId ?? null, priority: 'Medium', dueDate: n.dueDate ?? null,
+                status: 'Pending', description: null, createdAt: new Date().toISOString().slice(0, 10), completedAt: null, projectId: n.projectId ?? null, parentId: null,
+                areaId: null, section: null, sortOrder: null, recurrenceRule: null, meetingId: n.meetingId ?? null, opportunityId: n.opportunityId ?? null, tags: [], owner: null };
+              SAMPLE.todos.push(t);
+              c.todoId = tid;
+              out.tasks.push(t);
+            }
+            list.push(c);
+            out.commitments.push(c);
+          }
+          return out;
+        }
+        case 'upsert_commitments': {
+          const items = ((_payload as any)?.items ?? []) as any[];
+          const list = (SAMPLE.commitments ||= []);
+          for (const c of items) { const i = list.findIndex((x) => x.id === c.id); if (i > -1) list[i] = c; else list.push(c); }
+          return items.map((c) => ({ id: c.id, companyId: c.companyId ?? null }));
+        }
+        case 'delete_commitments': {
+          const ids = ((_payload as any)?.ids ?? []) as number[];
+          SAMPLE.commitments = (SAMPLE.commitments || []).filter((c) => !ids.includes(c.id));
+          return null;
         }
         case 'delete_todos': {
           const ids = ((_payload as any)?.ids ?? []) as number[];

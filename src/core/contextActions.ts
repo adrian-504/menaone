@@ -38,6 +38,7 @@ export function contextCreateActions(): ContextAction[] {
         a('ctx-co-opportunity', 'Opportunity', `New Opportunity for ${name}`, g, 'briefcase', () => w().createOpportunityForCurrentCompany?.()),
         a('ctx-co-meeting', 'Meeting', `New Meeting with ${name}`, g, 'meeting', () => w().createMeetingForCurrentCompany?.()),
         a('ctx-co-task', 'Task', `New Task for ${name}`, g, 'check', () => w().createTodoForCompany?.(name)),
+        a('ctx-co-commitment', 'Commitment', `New Commitment with ${name}`, g, 'flag', () => w().createCommitmentForCurrentCompany?.()),
         a('ctx-co-note', 'Note', `New Note for ${name}`, g, 'note', () => w().createNoteForCompany?.(name)),
         a('ctx-co-proposal', 'Proposal', `New Proposal for ${name}`, g, 'database', () => w().createProposalForCurrentCompany?.()),
         a('ctx-co-project', 'Project', `New Project for ${name}`, g, 'target', () => w().createProjectForCurrentCompany?.()),
@@ -52,6 +53,7 @@ export function contextCreateActions(): ContextAction[] {
         ...(o.proposalId == null ? [a('ctx-opp-proposal', 'Proposal', 'New Proposal for this Opportunity', g, 'database', () => w().createProposalForOpportunity?.())] : []),
         a('ctx-opp-meeting', 'Meeting', 'New Meeting for this Opportunity', g, 'meeting', () => w().createMeetingForOpportunity?.(o.id)),
         a('ctx-opp-task', 'Task', 'New Task for this Opportunity', g, 'check', () => w().createTodoForOpportunity?.(o.id)),
+        a('ctx-opp-commitment', 'Commitment', 'New Commitment for this Opportunity', g, 'flag', () => w().createCommitmentFor?.('opportunity', o.id)),
         a('ctx-opp-note', 'Note', 'New Note for this Opportunity', g, 'note', () => { void w().createNoteForOpportunity?.(); }),
         ...(o.stage === 'Won' && o.projectId == null ? [a('ctx-opp-project', 'Project', 'New Project from this Opportunity', g, 'target', () => w().createProjectForOpportunity?.())] : []),
       ];
@@ -62,6 +64,7 @@ export function contextCreateActions(): ContextAction[] {
       return [
         a('ctx-pj-meeting', 'Meeting', 'New Meeting for this Project', g, 'meeting', () => w().createMeetingForProject?.(key)),
         a('ctx-pj-task', 'Task', 'New Task in this Project', g, 'check', () => w().createTodoForCurrentProject?.()),
+        a('ctx-pj-commitment', 'Commitment', 'New Commitment for this Project', g, 'flag', () => w().createCommitmentFor?.('project', key)),
         a('ctx-pj-note', 'Note', 'New Note for this Project', g, 'note', () => { void w().createNoteForProject?.(); }),
       ];
     }
@@ -72,6 +75,7 @@ export function contextCreateActions(): ContextAction[] {
       return [
         ...(m.noteId != null ? [a('ctx-mt-note', 'Note', 'Open the Older Meeting Note', g, 'note', () => w().openRecord?.('note', m.noteId))] : []),
         a('ctx-mt-task', 'Task', 'New Task from this Meeting', g, 'check', () => w().createTodoForMeeting?.(m.id)),
+        a('ctx-mt-commitment', 'Commitment', 'New Commitment from this Meeting', g, 'flag', () => w().createCommitmentFor?.('meeting', m.id)),
       ];
     }
     case 'note': {

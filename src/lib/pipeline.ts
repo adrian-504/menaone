@@ -43,27 +43,42 @@ export interface OpportunityHealth {
   closeOverdue: boolean;
   closingSoon: boolean;
   noNextAction: boolean;
+  /** No activity for over STALLED_DAYS and not waiting on anyone. */
+  stalled: boolean;
+  /** Who it's waiting on, and for how many days. */
+  waiting: { on: 'us' | 'them'; days: number | null } | null;
 }
 
-export function opportunityHealth(o: Opportunity, fact: PipelineFact | undefined, today: string): OpportunityHealth {
+/** Work already planned on the opportunity: an open task (its own or from one
+ * of its meetings) or an open commitment we owe. */
+export interface OpportunityWork { openWork: boolean }
+
+export function opportunityHealth(o: Opportunity, fact: PipelineFact | undefined, today: string, work?: OpportunityWork): OpportunityHealth {
   const reasons: string[] = [];
   let score = 100;
   const lastActivity = fact?.lastActivityAt || o.createdAt;
   const sinceActivity = daysBetween(lastActivity, today);
   const inStage = daysBetween(fact?.stageEnteredAt || o.createdAt, today);
   const closeIn = o.expectedCloseDate ? daysBetween(today, o.expectedCloseDate) : null;
-  const noNextAction = !(o.nextAction && o.nextAction.trim());
+  // A task or a promise is a next action; the free-text box is the fallback.
+  const noNextAction = !(o.nextAction && o.nextAction.trim()) && !work?.openWork;
   const closeOverdue = closeIn != null && closeIn < 0;
   const closingSoon = closeIn != null && closeIn >= 0 && closeIn <= CLOSING_SOON_DAYS;
-  if (sinceActivity != null && sinceActivity > 30) { score -= 45; reasons.push(`No activity for ${sinceActivity} days`); }
-  else if (sinceActivity != null && sinceActivity > STALLED_DAYS) { score -= 25; reasons.push(`No activity for ${sinceActivity} days`); }
+  const waitingOn = o.waitingOn === 'us' || o.waitingOn === 'them' ? o.waitingOn : null;
+  const waiting = waitingOn ? { on: waitingOn, days: daysBetween(o.waitingSince || lastActivity, today) } : null;
+  // Waiting on the client: the wait is what's measured. With us: never stalled — it's ours to move.
+  const quiet = waitingOn === 'them' ? waiting!.days : waitingOn === 'us' ? null : sinceActivity;
+  const quietWhat = waitingOn === 'them' ? 'Waiting on the client for' : 'No activity for';
+  if (quiet != null && quiet > 30) { score -= 45; reasons.push(`${quietWhat} ${quiet} days`); }
+  else if (quiet != null && quiet > STALLED_DAYS) { score -= 25; reasons.push(`${quietWhat} ${quiet} days`); }
   if (closeOverdue) { score -= 20; reasons.push(`Close date passed ${-closeIn!} days ago`); }
   if (noNextAction) { score -= 15; reasons.push('No next action'); }
   if (inStage != null && inStage > LONG_IN_STAGE_DAYS) { score -= 10; reasons.push(`${inStage} days in ${o.stage}`); }
   if (o.estimatedValue == null) { score -= 10; reasons.push('No value'); }
   score = Math.max(0, score);
   const label = score >= 70 ? 'Healthy' : score >= 40 ? 'Needs attention' : 'At risk';
-  return { score, label, tone: score >= 70 ? 'green' : score >= 40 ? 'amber' : 'red', reasons, daysSinceActivity: sinceActivity, daysInStage: inStage, closeOverdue, closingSoon, noNextAction };
+  const stalled = !waitingOn && sinceActivity != null && sinceActivity > STALLED_DAYS;
+  return { score, label, tone: score >= 70 ? 'green' : score >= 40 ? 'amber' : 'red', reasons, daysSinceActivity: sinceActivity, daysInStage: inStage, closeOverdue, closingSoon, noNextAction, stalled, waiting };
 }
 
 export interface StageRow {

@@ -546,6 +546,7 @@
          notes before and during the meeting, the outcome first afterwards
          (meetings.ts renderMeetingNotes). -->
     <section class="sec rec-section md-notes" id="md-notes"></section>
+    <section class="sec rec-section" id="md-commitments" hidden></section>
     <section class="sec rec-section md-client" id="md-client"></section>
     <section class="sec rec-section md-people" id="md-people" hidden></section>
     </div>
@@ -632,6 +633,52 @@
       <div class="fact">
         <button type="button" class="btn-secondary" onclick="closeMeetingModal()">Cancel</button>
         <button type="submit" class="btn-primary" id="meeting-submit-btn">Create meeting</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-ov" id="modal-commitment" onclick="if(event.target===this)closeCommitmentModal()">
+  <div class="modal">
+    <div class="modal-hd"><div class="modal-title" id="commitment-modal-title">New commitment</div><button class="modal-close" onclick="closeCommitmentModal()">×</button></div>
+    <form id="commitment-form" onsubmit="submitCommitment(event)" autocomplete="off">
+      <div class="fg">
+        <div class="fgrp fgrp-full">
+          <label class="flbl">Who owes it</label>
+          <div class="segmented" id="cm-direction">
+            <button type="button" data-dir="ours" class="active" onclick="setCommitmentDirection('ours')">We owe it</button>
+            <button type="button" data-dir="theirs" onclick="setCommitmentDirection('theirs')">They owe it</button>
+          </div>
+        </div>
+        <div class="fgrp fgrp-full">
+          <label class="flbl">What was promised *</label>
+          <input class="finp" name="cmText" required placeholder="e.g. Send the revised quote">
+        </div>
+        <div class="fgrp">
+          <label class="flbl" id="cm-who-label">Promised to</label>
+          <select class="finp" name="cmContact"><option value="">— Nobody in particular —</option></select>
+        </div>
+        <div class="fgrp">
+          <label class="flbl">Due</label>
+          <input type="date" class="finp" name="cmDue">
+        </div>
+        <div class="fgrp">
+          <label class="flbl">Company</label>
+          <input class="finp" name="cmCompany" placeholder="Search or type a company">
+        </div>
+        <div class="fgrp">
+          <label class="flbl">Opportunity</label>
+          <select class="finp" name="cmOpportunity"><option value="">— No opportunity —</option></select>
+        </div>
+        <div class="fgrp">
+          <label class="flbl">Project</label>
+          <select class="finp" name="cmProject"><option value="">— No project —</option></select>
+        </div>
+        <div class="fgrp fgrp-full form-hint" id="cm-hint">What we owe gets a task; ticking either one ticks both. Tip: in notes, a line starting with &gt;&gt; is something we owe, &lt;&lt; something the client owes.</div>
+      </div>
+      <div class="fact">
+        <button type="button" class="btn-secondary" onclick="closeCommitmentModal()">Cancel</button>
+        <button type="submit" class="btn-primary" id="commitment-submit-btn">Create commitment</button>
       </div>
     </form>
   </div>
@@ -892,6 +939,7 @@
         <div id="pd-tasks"></div>
       </section>
     </div>
+    <section class="sec rec-section" id="pd-commitments" hidden></section>
     <div class="sec rec-section" id="pd-origin" style="display:none"></div>
     <div class="rec-grid-2">
       <div class="sec rec-section" id="pd-notes"></div>
@@ -1060,6 +1108,7 @@
       <div class="sec rec-section" id="od-proposal"></div>
       <div class="sec rec-section" id="od-project"></div>
     </div>
+    <section class="sec rec-section" id="od-commitments" hidden></section>
     <section class="sec rec-section" id="od-files"></section>
     <div class="sec rec-section" id="od-activity"></div>
     </div>
@@ -1073,6 +1122,7 @@
           <dt>Value</dt><dd><input id="od-value-inp" type="number" class="td-input" placeholder="0" onchange="autoSaveOpportunityNumber('estimatedValue',this.value)"></dd>
           <dt>Probability</dt><dd><input id="od-probability-inp" type="number" min="0" max="100" class="td-input" placeholder="%" onchange="autoSaveOpportunityNumber('probability',this.value)"></dd>
           <dt>Expected close</dt><dd><input id="od-close-date-inp" type="date" class="td-input" onchange="autoSaveOpportunityField('expectedCloseDate',this.value)"></dd>
+          <dt>Waiting on</dt><dd id="od-waiting"></dd>
         </dl>
       </section>
     </aside>
@@ -1567,6 +1617,10 @@
     <section class="rec-section sec" id="co-sec-contacts" data-section="contacts">
       <div class="rec-section-hd"><h2>Contacts</h2><span class="rec-count" id="co-contacts-count"></span><div class="rec-section-actions"><button class="btn-secondary btn-sm" onclick="openContactForCompany()">+ Add</button></div></div>
       <div class="rec-list" id="co-contacts-list"></div>
+    </section>
+    <section class="rec-section sec" id="co-sec-commitments" data-section="commitments">
+      <div class="rec-section-hd"><h2>Commitments</h2><span class="rec-count" id="co-commitments-count"></span><div class="rec-section-actions"><button class="btn-secondary btn-sm" onclick="createCommitmentForCurrentCompany()">+ New</button></div></div>
+      <div id="co-commitments-list"></div>
     </section>
     <section class="rec-section sec" id="co-sec-opportunities" data-section="opportunities">
       <div class="rec-section-hd"><h2>Opportunities</h2><span class="rec-count" id="co-opps-count"></span><div class="rec-section-actions"><button class="btn-secondary btn-sm" onclick="createOpportunityForCurrentCompany()">+ New</button></div></div>

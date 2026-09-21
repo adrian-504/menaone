@@ -20,6 +20,7 @@ import { showContextMenu } from '../lib/contextMenu';
 import { attachCompanySelector } from '../lib/companySelector';
 import type { Project, Milestone, Note } from '../lib/types';
 import { statusTone, toneVar } from '../lib/statusTone';
+import { renderCommitmentSection } from './commitments';
 import { currentUser, matchesOwnerFilter, ownerFilterOptions } from '../lib/commercial';
 
 // Project status dots use the shared tones (statusTone.ts).
@@ -188,6 +189,7 @@ async function renderProjectDetail(): Promise<void> {
   renderProjectTasks(p.id);
   void renderLinkedNotes(p.id);
   renderProjectMeetings(p.id);
+  renderCommitmentSection('pd-commitments', { projectId: p.id }, contextFromProject(S, p));
   void renderProjectOrigin(p.id);
   void renderProjectActivity(p.id);
   void renderLinkedEmails('project', p.id, 'pd-emails');

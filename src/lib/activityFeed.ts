@@ -20,11 +20,11 @@ export interface FeedItem {
 
 const ENTITY_ICON: Record<string, string> = {
   proposal: 'database', agreement: 'document', contact: 'people', task: 'check', note: 'note',
-  meeting: 'meeting', opportunity: 'briefcase', project: 'target', company: 'building',
+  meeting: 'meeting', opportunity: 'briefcase', project: 'target', company: 'building', commitment: 'flag',
 };
 const ENTITY_NOUN: Record<string, string> = {
   proposal: 'Proposal', agreement: 'Agreement', contact: 'Contact', task: 'Task', note: 'Note',
-  meeting: 'Meeting', opportunity: 'Opportunity', project: 'Project', company: 'Company',
+  meeting: 'Meeting', opportunity: 'Opportunity', project: 'Project', company: 'Company', commitment: 'Commitment',
 };
 const LINKABLE = new Set(['proposal', 'agreement', 'contact', 'task', 'note', 'meeting', 'opportunity', 'project', 'company']);
 
@@ -40,7 +40,10 @@ export function activityItem(a: ActivityEntry): FeedItem {
   const s = subject(a);
   const base = { at: a.createdAt, iconName: ENTITY_ICON[a.entityType] || 'clock' };
   switch (a.action) {
+    case 'kept': return { ...base, tone: 'green', iconName: 'check', html: `Commitment kept · ${s}` };
+    case 'dropped': return { ...base, tone: 'muted', html: `Commitment dropped · ${s}`, detail: a.detail };
     case 'created': {
+      if (a.entityType === 'commitment') return { ...base, tone: 'accent', html: `Commitment made · ${s}`, detail: a.detail };
       const verb = a.entityType === 'contact' ? 'added' : a.entityType === 'meeting' ? 'scheduled' : 'created';
       return { ...base, tone: 'accent', html: `${noun} ${verb} · ${s}`, detail: a.entityType === 'proposal' || a.entityType === 'agreement' ? a.detail : a.entityType === 'contact' ? a.detail : null };
     }

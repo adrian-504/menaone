@@ -22,6 +22,33 @@ describe('pipeline health', () => {
     expect(stale.reasons).toEqual(expect.arrayContaining(['No next action', 'Close date passed 43 days ago']));
   });
 
+  it('counts an open task or promise as a next action', () => {
+    const fact = { opportunityId: 1, stageEnteredAt: '2026-09-01', lastActivityAt: '2026-09-10', stages: [] };
+    expect(opportunityHealth(opp({ nextAction: null }), fact, '2026-09-13').noNextAction).toBe(true);
+    expect(opportunityHealth(opp({ nextAction: null }), fact, '2026-09-13', { openWork: true }).noNextAction).toBe(false);
+    expect(opportunityHealth(opp({ nextAction: 'Call' }), fact, '2026-09-13', { openWork: false }).noNextAction).toBe(false);
+  });
+
+  it('waiting on the client measures the wait, and is not called stalled', () => {
+    const fact = { opportunityId: 1, stageEnteredAt: '2026-06-01', lastActivityAt: '2026-06-01', stages: [] };
+    const plain = opportunityHealth(opp({ nextAction: 'x' }), fact, '2026-09-13');
+    expect(plain.stalled).toBe(true);
+    const them = opportunityHealth(opp({ nextAction: 'x', waitingOn: 'them', waitingSince: '2026-09-01' }), fact, '2026-09-13');
+    expect(them.stalled).toBe(false);
+    expect(them.waiting).toEqual({ on: 'them', days: 12 });
+    expect(them.reasons.some((r) => r.startsWith('No activity'))).toBe(false);
+    const long = opportunityHealth(opp({ nextAction: 'x', waitingOn: 'them', waitingSince: '2026-08-20' }), fact, '2026-09-13');
+    expect(long.reasons).toContain('Waiting on the client for 24 days');
+  });
+
+  it('with us, it is never stalled — it is ours to move', () => {
+    const fact = { opportunityId: 1, stageEnteredAt: '2026-06-01', lastActivityAt: '2026-06-01', stages: [] };
+    const us = opportunityHealth(opp({ nextAction: 'x', waitingOn: 'us', waitingSince: '2026-09-09' }), fact, '2026-09-13');
+    expect(us.stalled).toBe(false);
+    expect(us.waiting).toEqual({ on: 'us', days: 4 });
+    expect(us.reasons.some((r) => /activity|Waiting/.test(r))).toBe(false);
+  });
+
   it('weights value by probability, falling back to the stage', () => {
     expect(weightedValue(opp({ probability: 50 }))).toBe(5000);
     expect(weightedValue(opp({ stage: 'Negotiation' }))).toBe(7500);

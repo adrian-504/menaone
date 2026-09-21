@@ -19,6 +19,8 @@ const GROUPS: Group[] = [
     k('Back / forward', [MOD, '['], [MOD, ']']),
     k('Show or hide the sidebar', [MOD, '\\']),
     { keys: [[MOD, '1']], does: 'The sidebar, top to bottom: My Day first', note: `${MOD} 1 to ${MOD} 9` },
+    { keys: [['>>']], does: 'At the start of a line in notes, meeting notes or quick capture: something we promised the client (it gets a task)' },
+    { keys: [['<<']], does: 'Same, for something the client promised us (tracked, no task)' },
     k('New task / new note', [MOD, 'T'], [MOD, 'N']),
     k('Close a dialog or the open record', ['Esc']),
     k('This list', ['?']),

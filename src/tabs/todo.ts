@@ -399,6 +399,8 @@ export function taskRowHtml(t: Todo, opts: { list?: string; compact?: boolean } 
   const meta: string[] = [];
   if (t.status === 'In Progress') meta.push('<span class="task-state">In progress</span>');
   if (t.owner) meta.push(`<span class="task-owner" title="Owner">${icon('people', 11)}${escHtml(t.owner)}</span>`);
+  const promise = S.commitments.find((c) => c.todoId === t.id && c.direction === 'ours');
+  if (promise) meta.push(`<span class="task-promise" title="This task is a commitment">${icon('flag', 11)}Promised${promise.companyId != null ? ` to ${escHtml(S.companies.find((c) => c.id === promise.companyId)?.name || 'the client')}` : ''}</span>`);
   if (t.dueDate && !(opts.list === 'today' && t.dueDate === todayIso() && !t.dueTime)) {
     meta.push(`<span class="task-due${over ? ' overdue' : t.dueDate === todayIso() ? ' today' : ''}">${icon('calendar', 11)}${escHtml(dueLabel(t))}</span>`);
   }

@@ -66,6 +66,10 @@ function quickActions(): Action[] {
       run: () => { switchTab('projects'); (window as any).openProjectModal(null); },
     },
     {
+      id: 'new-commitment', label: 'New Commitment', group: 'Create', iconName: 'plus',
+      run: () => (window as any).openCommitmentModal(),
+    },
+    {
       id: 'new-note', label: 'New Note', group: 'Create', iconName: 'plus',
       run: () => { switchTab('notes'); (window as any).createNewNote(); },
     },
@@ -88,6 +92,7 @@ function entityIcon(t: EntityKind): string {
     case 'meeting': return 'meeting';
     case 'intelligence': return 'bolt';
     case 'opportunity': return 'briefcase';
+    case 'commitment': return 'flag';
     default: return 'search';
   }
 }
@@ -99,6 +104,8 @@ function openSearchResult(r: SearchResult): void {
   if (r.entityType === 'company') { openRecord('company', r.entityId || r.title); return; }
   if (RECORD_KINDS.has(r.entityType)) { openRecord(r.entityType as RecordKind, r.entityId); return; }
   if (r.entityType === 'intelligence') { switchTab('intelligence'); (window as any).openIntelModal(r.entityId); }
+  // A commitment opens where it lives: its meeting or note, else its opportunity, project or company.
+  if (r.entityType === 'commitment') (window as any).openCommitmentSource?.(r.entityId);
 }
 
 let selIndex = 0;
@@ -151,11 +158,11 @@ expose('onPaletteInput', onPaletteInput);
  * "business objects first, then work items, then reference material" —
  * rather than whatever order the backend's relevance ranking happens to
  * interleave entity types in. */
-const ENTITY_GROUP_ORDER: EntityKind[] = ['company', 'opportunity', 'project', 'contact', 'task', 'note', 'meeting', 'proposal', 'agreement', 'intelligence'];
+const ENTITY_GROUP_ORDER: EntityKind[] = ['company', 'opportunity', 'project', 'contact', 'commitment', 'task', 'note', 'meeting', 'proposal', 'agreement', 'intelligence'];
 const ENTITY_GROUP_LABEL: Partial<Record<EntityKind, string>> = {
   company: 'Companies', opportunity: 'Opportunities', project: 'Projects', contact: 'Contacts',
   task: 'Tasks', note: 'Notes', meeting: 'Meetings', proposal: 'Proposals',
-  agreement: 'Agreements', intelligence: 'Intelligence',
+  agreement: 'Agreements', intelligence: 'Intelligence', commitment: 'Commitments',
 };
 
 function renderPalette(results: SearchResult[]): void {

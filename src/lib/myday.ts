@@ -10,7 +10,7 @@
 
 import { PS } from './commercial';
 import { daysBetween, isOpenOpportunity, opportunityHealth } from './pipeline';
-import type { Agreement, EmailRecord, Meeting, Opportunity, PipelineFact, Project, Proposal, Todo } from './types';
+import type { Agreement, Commitment, EmailRecord, Meeting, Opportunity, PipelineFact, Project, Proposal, Todo } from './types';
 import type { RecordKind } from './navHistory';
 import { localIsoDate } from './outlookTime';
 
@@ -26,6 +26,10 @@ export interface MyDayInput {
   meetings: Meeting[];
   todos: Todo[];
   projects: Project[];
+  /** Promises made and owed (commitments.ts). */
+  commitments?: Commitment[];
+  /** Company names, for commitment rows. */
+  companies?: { id: number; name: string }[];
   emails: EmailRecord[];
   inboxCount: number;
   /** Reviewer name for "waiting for …" wording. */
@@ -40,12 +44,13 @@ export interface MyDayInput {
 
 export type AttentionAction =
   | 'open' | 'prepare' | 'follow_up' | 'send_to_client' | 'start_drafting'
-  | 'open_followups' | 'open_action_required' | 'open_inbox' | 'open_opportunities' | 'open_review_queue' | 'open_cleanup';
+  | 'open_followups' | 'open_action_required' | 'open_inbox' | 'open_opportunities' | 'open_review_queue' | 'open_cleanup'
+  | 'mark_kept' | 'toggle_group';
 
 export interface AttentionItem {
   key: string;
   /** Section the rule belongs to — used for the icon and for grouping. */
-  kind: 'proposal' | 'review' | 'followup' | 'opportunity' | 'agreement' | 'meeting' | 'project' | 'email' | 'inbox';
+  kind: 'proposal' | 'review' | 'followup' | 'opportunity' | 'agreement' | 'meeting' | 'project' | 'email' | 'inbox' | 'commitment';
   score: number;
   tone: 'red' | 'amber' | 'accent';
   title: string;
@@ -58,6 +63,8 @@ export interface AttentionItem {
   action: { kind: AttentionAction; label: string; /** Clean-up queue, for open_cleanup. */ queue?: string };
   /** Set on group rows: the items folded into it. */
   children?: AttentionItem[];
+  /** The commitment a row is about (for Mark kept). */
+  commitmentId?: number;
 }
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
@@ -127,19 +134,59 @@ function proposalItems(i: MyDayInput): AttentionItem[] {
   return out;
 }
 
+/** Whether an opportunity already has work planned: an open task (its own or
+ * from one of its meetings) or an open promise we made. */
+export function hasOpenWork(o: Opportunity, i: Pick<MyDayInput, 'todos' | 'meetings' | 'commitments'>): boolean {
+  const meetingIds = new Set(i.meetings.filter((m) => m.opportunityId === o.id).map((m) => m.id));
+  const task = i.todos.some((t) => t.status !== 'Done' && (t.opportunityId === o.id || (t.meetingId != null && meetingIds.has(t.meetingId))));
+  return task || (i.commitments || []).some((c) => c.direction === 'ours' && c.status === 'open' && c.opportunityId === o.id);
+}
+
 function opportunityItems(i: MyDayInput): AttentionItem[] {
   const facts = new Map(i.pipelineFacts.map((f) => [f.opportunityId, f]));
   const out: AttentionItem[] = [];
   for (const o of i.opportunities) {
     if (!isOpenOpportunity(o)) continue;
-    const h = opportunityHealth(o, facts.get(o.id), i.today);
+    const h = opportunityHealth(o, facts.get(o.id), i.today, { openWork: hasOpenWork(o, i) });
     const base = { record: { kind: 'opportunity' as RecordKind, id: o.id }, companyId: o.companyId, companyName: o.companyName, title: o.name };
     if (h.closeOverdue || h.tone === 'red') {
       out.push({ ...base, key: `opportunity:${o.id}:risk`, kind: 'opportunity', score: 56 + (h.closeOverdue ? 6 : 0), tone: 'red',
         reason: `At risk — ${h.reasons[0] || 'needs attention'}`, action: { kind: 'open', label: 'Open' } });
-    } else if (!(o.nextAction && o.nextAction.trim())) {
+    } else if (h.waiting?.on === 'us') {
+      const d = h.waiting.days ?? 0;
+      out.push({ ...base, key: `opportunity:${o.id}:with-us`, kind: 'opportunity', score: 50 + Math.min(d, 30) / 3, tone: d > 7 ? 'amber' : 'accent',
+        reason: `With you for ${days(d)} — the next move is yours${o.waitingNote ? `: ${o.waitingNote}` : ''}`, when: days(d), action: { kind: 'open', label: 'Open' } });
+    } else if (h.noNextAction) {
       out.push({ ...base, key: `opportunity:${o.id}:next`, kind: 'opportunity', score: 32, tone: 'accent',
         reason: `${o.stage} · no next step set`, action: { kind: 'open', label: 'Set next step' } });
+    }
+  }
+  return out;
+}
+
+/** Promises: ours overdue (just under a countersignature), ours due today or
+ * tomorrow, and the client's overdue ones folded into one row. */
+function commitmentItems(i: MyDayInput): AttentionItem[] {
+  const tomorrow = addDays(i.today, 1);
+  const out: AttentionItem[] = [];
+  for (const c of i.commitments || []) {
+    if (c.status !== 'open' || !c.dueDate) continue;
+    const company = c.companyId != null ? (i.companies || []).find((x) => x.id === c.companyId)?.name ?? null : null;
+    const record = c.opportunityId != null ? { kind: 'opportunity' as RecordKind, id: c.opportunityId }
+      : c.projectId != null ? { kind: 'project' as RecordKind, id: c.projectId }
+      : c.sourceType === 'meeting' && c.sourceId != null ? { kind: 'meeting' as RecordKind, id: c.sourceId }
+      : c.companyId != null ? { kind: 'company' as RecordKind, id: c.companyId } : undefined;
+    const base = { kind: 'commitment' as const, title: c.text, record, companyId: c.companyId, companyName: company, commitmentId: c.id };
+    const late = daysBetween(c.dueDate, i.today) ?? 0;
+    if (c.direction === 'ours' && c.dueDate < i.today) {
+      out.push({ ...base, key: `commitment:${c.id}:overdue`, score: 90, tone: 'red',
+        reason: `You promised this for ${shortDate(c.dueDate)} — ${days(late)} late`, when: days(late), action: { kind: 'mark_kept', label: 'Mark kept' } });
+    } else if (c.direction === 'ours' && (c.dueDate === i.today || c.dueDate === tomorrow)) {
+      out.push({ ...base, key: `commitment:${c.id}:due`, score: 60, tone: 'amber',
+        reason: `You promised this for ${c.dueDate === i.today ? 'today' : 'tomorrow'}`, when: c.dueDate === i.today ? 'Today' : 'Tomorrow', action: { kind: 'mark_kept', label: 'Mark kept' } });
+    } else if (c.direction === 'theirs' && c.dueDate < i.today) {
+      out.push({ ...base, key: `commitment:${c.id}:owed`, score: 24, tone: 'accent',
+        reason: `Promised to you for ${shortDate(c.dueDate)} — chase it or mark it kept`, when: days(late), action: { kind: 'mark_kept', label: 'Mark kept' } });
     }
   }
   return out;
@@ -231,6 +278,9 @@ const GROUPS: GroupRule[] = [
   { folds: (x) => x.key.endsWith(':waiting-review'),
     make: (items) => ({ key: 'group:review', kind: 'review', tone: items.some((x) => x.tone === 'amber') ? 'amber' : 'accent', title: `${plural(items.length, 'proposal')} waiting for review`,
       reason: `In internal review — the oldest for ${days(Math.max(...items.map((x) => parseInt(x.when || '0', 10))))}`, action: { kind: 'open_review_queue', label: 'Open' } }) },
+  { over: 0, folds: (x) => x.key.endsWith(':owed'),
+    make: (items) => ({ key: 'group:owed', kind: 'commitment', tone: 'accent', title: `Owed to you (${items.length})`,
+      reason: 'Clients promised these and the date has passed', action: { kind: 'toggle_group', label: 'Show' } }) },
   { folds: (x) => x.key.endsWith(':next'),
     make: (items) => ({ key: 'group:opportunity', kind: 'opportunity', tone: 'accent', title: `${plural(items.length, 'opportunity', 'opportunities')} with no next step`,
       reason: 'Decide the next step for each, or close it', action: { kind: 'open_cleanup', label: 'Clean up', queue: 'opportunity-incomplete' } }) },
@@ -241,7 +291,7 @@ const snoozedNow = (i: MyDayInput, key: string) => !!i.snoozed[key] && i.snoozed
 /** Everything that needs attention, most urgent first. */
 export function buildAttention(i: MyDayInput): AttentionItem[] {
   let items = [
-    ...proposalItems(i), ...opportunityItems(i), ...agreementItems(i), ...meetingItems(i), ...projectItems(i), ...emailItems(i),
+    ...proposalItems(i), ...opportunityItems(i), ...commitmentItems(i), ...agreementItems(i), ...meetingItems(i), ...projectItems(i), ...emailItems(i),
   ];
   if (i.inboxCount > 0) items.push({ key: 'inbox', kind: 'inbox', title: `${plural(i.inboxCount, 'item')} in your Inbox`, score: 30, tone: 'accent', reason: 'Captured but not sorted yet', action: { kind: 'open_inbox', label: 'Sort' } });
   items = items.filter((x) => !snoozedNow(i, x.key));

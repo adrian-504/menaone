@@ -141,6 +141,8 @@ export function actionItems(markdown: string | null | undefined): string[] {
     const m = /^\s*[-*+]\s+\[ \]\s+(.+?)\s*$/.exec(line);
     if (!m) continue;
     const title = m[1].replace(/\s+/g, ' ').trim();
+    // "- [ ] >> …" is a commitment: it gets its task that way, not twice.
+    if (/^(>>|<<)/.test(title)) continue;
     if (title && !out.some((t) => sameTitle(t, title))) out.push(title);
   }
   return out;

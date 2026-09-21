@@ -19,6 +19,7 @@ import {
   isOpenOpportunity, opportunityHealth, pipelineByStage, weightedValue, winLossBy, dealSizeBand, reasonCounts, daysToSign, monthlyOf,
   daysBetween, type WinLossRow,
 } from '../lib/pipeline';
+import { hasOpenWork } from '../lib/myday';
 
 const pct = (v: number | null) => (v == null ? '—' : `${Math.round(v * 100)}%`);
 const money = (m: MoneyByCurrency) => (Object.keys(m).length ? fmtMoneyByCurrency(m) : '—');
@@ -62,7 +63,7 @@ export async function renderPipelineInsights(): Promise<void> {
   const weighted: MoneyByCurrency = {};
   const closing: MoneyByCurrency = {};
   let closingCount = 0;
-  const health = new Map(open.map((o) => [o.id, opportunityHealth(o, byId.get(o.id), td)] as const));
+  const health = new Map(open.map((o) => [o.id, opportunityHealth(o, byId.get(o.id), td, { openWork: hasOpenWork(o, S) })] as const));
   for (const o of open) {
     const cur = (o.currency || 'SAR').toUpperCase();
     addMoney(value, cur, o.estimatedValue);

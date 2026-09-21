@@ -3,6 +3,9 @@
 // with quick capture, the pipeline, watch items and recent activity.
 // The rules live in lib/myday.ts; this file renders and handles actions.
 
+import { setCommitmentKept, readCommitmentsFrom } from './commitments';
+import { parseTaskInput } from '../lib/taskParse';
+import { EMPTY_CONTEXT } from '../lib/workGraph';
 import { renderOfficeStrip } from './officeStrip';
 import { S } from '../lib/state';
 import { companyLink, recordLink } from '../lib/links';
@@ -52,6 +55,7 @@ function input(): MyDayInput {
     today: today(), now: new Date(),
     proposals: S.proposals, opportunities: S.opportunities, pipelineFacts: S.pipelineFacts, agreements: S.agreements,
     meetings: S.meetings, todos: S.todos, projects: S.projects, emails: S.emails, inboxCount: unprocessedInboxItems().length,
+    commitments: S.commitments, companies: S.companies,
     reviewerName: (p) => teamMember(p.reviewerId)?.name || reviewer,
     ownDomains: ownDomains(), snoozed,
   };
@@ -212,7 +216,7 @@ function todayHtml(t: Timeline, data: MyDayInput): string {
 
 const KIND_ICON: Record<AttentionItem['kind'], string> = {
   proposal: 'database', review: 'check', followup: 'repeat', opportunity: 'briefcase', agreement: 'document',
-  meeting: 'meeting', project: 'target', email: 'mail', inbox: 'inbox',
+  meeting: 'meeting', project: 'target', email: 'mail', inbox: 'inbox', commitment: 'flag',
 };
 
 function attentionRow(a: AttentionItem, child = false): string {
@@ -273,6 +277,10 @@ export async function mydayAct(key: string): Promise<void> {
     case 'open_action_required': w.navToModule('action-required'); return;
     case 'open_inbox': w.navToModule('inbox'); return;
     case 'open_cleanup': w.openCleanup(a.action.queue); return;
+    case 'toggle_group': w.mydayToggleGroup(a.key); return;
+    case 'mark_kept':
+      if (a.commitmentId != null) { setCommitmentKept(a.commitmentId, true); toast(`Kept: ${a.title}`); renderMyDay(); }
+      return;
     default: open();
   }
 }
@@ -457,6 +465,7 @@ export function mydayCapture(e: Event): void {
   const input = document.getElementById('myday-capture-input') as HTMLInputElement | null;
   const raw = input?.value.trim();
   if (!raw || !input) return;
+  if (/^(>>|<<)/.test(raw)) { void captureCommitment(raw).then((ok) => { if (ok) { input.value = ''; mydayCapturePreview(); renderMyDay(); } }); return; }
   const task = addTaskFromText(raw, { dueDate: today() });
   if (!task) return;
   input.value = '';
@@ -466,6 +475,22 @@ export function mydayCapture(e: Event): void {
   undoToast(`Added "${task.title}" to ${where}`, () => { deleteTodo(task.id, { silent: true }); renderMyDay(); });
 }
 expose('mydayCapture', mydayCapture);
+
+/** A commitment typed into quick capture: `>> …` we owe, `<< …` they owe.
+ * "@Company" (or a company name in the text) says whose it is. */
+export async function captureCommitment(raw: string): Promise<boolean> {
+  const body = raw.replace(/^(>>|<<)\s*/, '');
+  const parsed = parseTaskInput(body, { today: new Date(), projects: [], companies: S.companies.filter((c) => !c.archived).map((c) => ({ id: c.id, name: c.name })) });
+  const co = parsed.companyName ? S.companies.find((c) => c.name === parsed.companyName) : undefined;
+  const explicit = parsed.tokens.find((t) => t.kind === 'company' && t.text.startsWith('@'));
+  const text = explicit ? raw.replace(explicit.text, ' ') : raw;
+  const n = await readCommitmentsFrom('capture', null, [text], { ...EMPTY_CONTEXT, companyId: co?.id ?? null, companyName: co?.name ?? null });
+  if (!n) { toast('Nothing to add — write what was promised after >> or <<'); return false; }
+  toast(raw.startsWith('>>') ? `Commitment added${co ? ` for ${co.name}` : ''}, with a task` : `Noted: ${co ? co.name : 'the client'} owes you this`);
+  return true;
+}
+
+expose('captureCommitment', captureCommitment);
 
 export function mydayCaptureKey(e: KeyboardEvent): void {
   // Handled here rather than by implicit form submission, which not every

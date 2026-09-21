@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { utcInstant, normalizeMeeting } from './outlookTime';
 import { buildAttention, buildTimeline, buildComingUp, summaryLine, isClientMeeting, type MyDayInput } from './myday';
-import type { Agreement, Meeting, Opportunity, Proposal, Todo } from './types';
+import type { Agreement, Commitment, Meeting, Opportunity, Proposal, Todo } from './types';
 
 const proposal = (over: Partial<Proposal>): Proposal => ({
   id: 1, client: 'Co', type: 'Payroll', status: 'Sent to Client', sentDate: null, dblSignedDate: null, kickoffDate: null, finance: null, hubspot: null,
@@ -138,5 +138,53 @@ describe('coming up', () => {
       ['2026-09-16', ['task', 'proposal']],
       ['2026-09-20', ['agreement']],
     ]);
+  });
+});
+
+const commitment = (over: Partial<Commitment>): Commitment => ({
+  id: 1, direction: 'ours', text: 'Send the quote', contactId: null, dueDate: null, status: 'open', closedAt: null, dropReason: null,
+  companyId: 1, opportunityId: null, projectId: null, sourceType: 'meeting', sourceId: 1, sourceKey: 'send the quote', todoId: null,
+  createdAt: '2026-09-01', updatedAt: null, ...over,
+});
+
+describe('commitments and waiting in My Day', () => {
+  it('an open task or promise is a next step; without one the opportunity asks for it', () => {
+    const o = opp({ id: 7, nextAction: null });
+    const bare = buildAttention(input({ opportunities: [o] })).map((x) => x.key);
+    expect(bare).toContain('opportunity:7:next');
+    const withTask = buildAttention(input({ opportunities: [o], todos: [todo({ opportunityId: 7 })] })).map((x) => x.key);
+    expect(withTask).not.toContain('opportunity:7:next');
+    const viaMeeting = buildAttention(input({ opportunities: [o], meetings: [meeting({ id: 3, opportunityId: 7, meetingDate: '2026-09-01' })], todos: [todo({ meetingId: 3 })] })).map((x) => x.key);
+    expect(viaMeeting).not.toContain('opportunity:7:next');
+    const withPromise = buildAttention(input({ opportunities: [o], commitments: [commitment({ opportunityId: 7 })] })).map((x) => x.key);
+    expect(withPromise).not.toContain('opportunity:7:next');
+    const doneTask = buildAttention(input({ opportunities: [o], todos: [todo({ opportunityId: 7, status: 'Done' })] })).map((x) => x.key);
+    expect(doneTask).toContain('opportunity:7:next');
+  });
+
+  it('an opportunity with us says for how long', () => {
+    const items = buildAttention(input({ opportunities: [opp({ id: 7, nextAction: 'x', waitingOn: 'us', waitingSince: '2026-09-09' })] }));
+    const row = items.find((x) => x.key === 'opportunity:7:with-us')!;
+    expect(row.reason).toBe('With you for 4 days — the next move is yours');
+  });
+
+  it('our overdue promise sits just under a countersignature; due soon is medium', () => {
+    const items = buildAttention(input({
+      proposals: [proposal({ id: 1, status: 'Signed by Client', dateSigned: '2026-09-12' })],
+      commitments: [commitment({ id: 1, dueDate: '2026-09-10' }), commitment({ id: 2, dueDate: '2026-09-14', sourceKey: 'b' }), commitment({ id: 3, dueDate: '2026-09-20', sourceKey: 'c' })],
+    }));
+    expect(items.map((x) => x.key)).toEqual(['proposal:1:countersign', 'commitment:1:overdue', 'commitment:2:due']);
+    expect(items[1]).toMatchObject({ tone: 'red', action: { kind: 'mark_kept', label: 'Mark kept' }, reason: 'You promised this for 10 Sept — 3 days late' });
+    expect(items[2].reason).toBe('You promised this for tomorrow');
+  });
+
+  it("the client's overdue promises fold into one row", () => {
+    const items = buildAttention(input({ commitments: [
+      commitment({ id: 1, direction: 'theirs', dueDate: '2026-09-10' }), commitment({ id: 2, direction: 'theirs', dueDate: '2026-09-12', sourceKey: 'b' }),
+      commitment({ id: 3, direction: 'theirs', dueDate: '2026-09-20', sourceKey: 'c' }), commitment({ id: 4, direction: 'theirs', status: 'kept', dueDate: '2026-09-01', sourceKey: 'd' }),
+    ] }));
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({ key: 'group:owed', title: 'Owed to you (2)', action: { kind: 'toggle_group' } });
+    expect(items[0].children!.map((x) => x.commitmentId)).toEqual([1, 2]);
   });
 });

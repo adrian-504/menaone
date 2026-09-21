@@ -61,6 +61,7 @@ import { startReminders } from './tabs/reminders';
 import { rememberFilters } from './lib/rememberFilters';
 import './tabs/inbox';
 import './tabs/meetings';
+import './tabs/commitments';
 import './tabs/files';
 import './tabs/settings';
 import './tabs/actionRequired';
@@ -193,6 +194,7 @@ async function init(): Promise<void> {
   S.contacts = data.contacts;
   S.agreements = data.agreements;
   S.todos = data.todos;
+  S.commitments = data.commitments || [];
   S.notes = data.notes;
   S.noteFolders = data.noteFolders.length ? data.noteFolders : ['Meeting Notes', 'Client Notes', 'Internal'];
   S.contactLists = data.contactLists;

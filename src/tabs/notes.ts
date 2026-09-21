@@ -10,6 +10,7 @@ import { companyLink, recordLink } from '../lib/links';
 import { today, fmtDate, escHtml, nextNoteId, expose, positionFloatingPopup, showTextPrompt, showConfirm, debounce, inCompany } from '../lib/utils';
 import { showContextMenu, showMenuAt, type ContextMenuItem } from '../lib/contextMenu';
 import { persistNotes, persistNoteFolders, persistTodos, saveNotesNow, saveTodosNow } from '../lib/persist';
+import { readCommitmentsFrom } from './commitments';
 import { contextFromNote, replaceLinks, taskFields, unconvertedActionItems, actionItems } from '../lib/workGraph';
 import { blankTask } from './todo';
 import { registerTabRenderer, refreshProjectViewIfOpen, notifyNavigated, getActiveTabId } from '../lib/registry';
@@ -379,7 +380,7 @@ function getOrCreateEditor(): EditorView {
     onKeyDown: (e) => handleEditorMenuKey(e),
     placeholder: 'Start writing, or type / for headings, lists and more…',
   });
-  noteEditorView.contentDOM.addEventListener('blur', () => setTimeout(hideFloatingToolbar, 120));
+  noteEditorView.contentDOM.addEventListener('blur', () => { setTimeout(hideFloatingToolbar, 120); void readNoteCommitments(); });
   return noteEditorView;
 }
 
@@ -831,6 +832,16 @@ function noteTasks(n: Note, links: EntityLink[]): Todo[] {
   const linked = new Set(links.filter((l) => l.fromType === 'task' && l.toType === 'note' && l.toId === n.id).map((l) => l.fromId));
   const meetingIds = new Set(S.meetings.filter((m) => m.noteId === n.id).map((m) => m.id));
   return S.todos.filter((t) => linked.has(t.id) || (t.meetingId != null && meetingIds.has(t.meetingId)));
+}
+
+/** `>>` / `<<` lines in the note become commitments with the note's context.
+ * Read when the editor loses focus — once a line is finished, never mid-typing. */
+async function readNoteCommitments(): Promise<void> {
+  const n = currentNote();
+  if (!n || !/(>>|<<)/.test(n.content || '')) return;
+  if (S.noteChanged) saveCurrentNote();
+  const links = await getLinksFor('note', n.id);
+  await readCommitmentsFrom('note', n.id, [n.content], contextFromNote(S, n, links));
 }
 
 /** Turns the note's unchecked action items ("- [ ] Send the model") into

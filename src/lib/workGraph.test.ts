@@ -112,6 +112,9 @@ describe('work graph: action items', () => {
   it('finds unchecked checklist items once each', () => {
     expect(actionItems(md)).toEqual(['Send revised Saudization model', 'Share the headcount plan']);
   });
+  it('leaves commitment lines to the commitment path: one commitment, one task', () => {
+    expect(actionItems('- [ ] >> Send the quote\n- [ ] << Omar to share data\n- [ ] Book the room')).toEqual(['Book the room']);
+  });
   it('skips items that already have a task with the same title', () => {
     expect(unconvertedActionItems(md, [{ title: 'send revised  Saudization model' } as Todo])).toEqual(['Share the headcount plan']);
   });

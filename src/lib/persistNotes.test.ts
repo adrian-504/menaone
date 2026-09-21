@@ -11,6 +11,7 @@ vi.mock('./db', () => ({
   saveContactLists: vi.fn(async () => {}),
   upsertProposals: vi.fn(async () => []), deleteProposals: vi.fn(), upsertContacts: vi.fn(async () => []), deleteContacts: vi.fn(),
   upsertAgreements: vi.fn(async () => []), deleteAgreements: vi.fn(), upsertTodos: vi.fn(async () => []), deleteTodos: vi.fn(),
+  upsertCommitments: vi.fn(async () => []), deleteCommitments: vi.fn(),
   upsertNotes: vi.fn(async () => []), deleteNotes: vi.fn(), getCompanies: vi.fn(async () => []), saveProject: vi.fn(),
   saveMilestones: vi.fn(), saveOpportunity: vi.fn(), saveMeeting: vi.fn(), createCompany: vi.fn(),
 }));

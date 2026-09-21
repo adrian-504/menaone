@@ -8,8 +8,7 @@ import type {
   IntelligenceItem, IntelligenceKind, Attachment, Company, Opportunity, OpportunityActivity, ProjectActivity,
   CompanyMigrationReport, ReviewQueueEntry, RecordCompanyLink, LocalBackup, ActivityEntry, ActivityFilter,
   CommercialSetup, Service, RateCard, BusinessEntity, TeamMember, ProposalFolder,
-  PipelineFact, ProposalTemplate, TemplateDetail, TemplateInspection, TokenInfo, GenerateResult, ProposalLibraryInfo, SavedList,
-} from './types';
+  PipelineFact, ProposalTemplate, TemplateDetail, TemplateInspection, TokenInfo, GenerateResult, ProposalLibraryInfo, SavedList, Commitment } from './types';
 
 // Thin wrappers around the Rust/SQLite command layer (src-tauri/src/commands.rs).
 // Proposals, contacts, agreements, tasks and notes are written per record:
@@ -30,6 +29,18 @@ export interface PendingAgreement { proposalId: number; client: string; agreemen
 /** What drafting from proposals would create, without creating it. */
 export async function pendingAgreementsFromProposals(): Promise<PendingAgreement[]> { return invoke<PendingAgreement[]>('pending_agreements_from_proposals'); }
 export async function upsertTodos(items: Todo[]): Promise<RecordCompanyLink[]> { return (await invoke<RecordCompanyLink[] | null>('upsert_todos', { items })) ?? []; }
+// Commitments (commitments.rs): saved by id; new ones from a source go through
+// commitmentsAdd, which skips lines already read and creates the tasks.
+export interface NewCommitment {
+  direction: 'ours' | 'theirs'; text: string; contactId?: number | null; dueDate?: string | null; kept?: boolean;
+  companyId?: number | null; opportunityId?: number | null; projectId?: number | null; meetingId?: number | null;
+  sourceType: 'meeting' | 'note' | 'capture' | 'manual'; sourceId?: number | null; sourceKey?: string | null;
+}
+export async function commitmentsAdd(items: NewCommitment[]): Promise<{ commitments: Commitment[]; tasks: Todo[] }> {
+  return (await invoke<{ commitments: Commitment[]; tasks: Todo[] } | null>('commitments_add', { items })) ?? { commitments: [], tasks: [] };
+}
+export async function upsertCommitments(items: Commitment[]): Promise<RecordCompanyLink[]> { return (await invoke<RecordCompanyLink[] | null>('upsert_commitments', { items })) ?? []; }
+export async function deleteCommitments(ids: number[]): Promise<void> { await invoke('delete_commitments', { ids }); }
 export async function deleteTodos(ids: number[]): Promise<void> { await invoke('delete_todos', { ids }); }
 export async function upsertNotes(items: Note[]): Promise<RecordCompanyLink[]> { return (await invoke<RecordCompanyLink[] | null>('upsert_notes', { items })) ?? []; }
 export async function deleteNotes(ids: number[]): Promise<void> { await invoke('delete_notes', { ids }); }

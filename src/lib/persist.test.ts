@@ -11,6 +11,7 @@ vi.mock('./db', () => {
     persistReturning: async (_label: string, fn: () => Promise<unknown>) => { try { return await fn(); } catch { return undefined; } },
     upsertProposals: links(), deleteProposals: ok(), upsertContacts: links(), deleteContacts: ok(),
     upsertAgreements: links(), deleteAgreements: ok(), upsertTodos: links(), deleteTodos: ok(),
+    upsertCommitments: links(), deleteCommitments: ok(),
     upsertNotes: links(), deleteNotes: ok(), getCompanies: vi.fn(async () => [{ id: 7, name: 'Acme Test Co' }]), saveNoteFolders: ok(), saveContactLists: ok(),
     saveCompanyNote: ok(), saveProject: ok(), saveMilestones: ok(),
     saveOpportunity: ok(), saveMeeting: ok(), createCompany: ok(),
@@ -19,8 +20,8 @@ vi.mock('./db', () => {
 
 import * as db from './db';
 import { S } from './state';
-import { markLoadedAsSaved, persistProposals, proposalsAndAgreementsSaved } from './persist';
-import type { Proposal } from './types';
+import { markLoadedAsSaved, persistProposals, proposalsAndAgreementsSaved, persistTodos, persistCommitments, saveTodosNow } from './persist';
+import type { Commitment, Proposal, Todo } from './types';
 
 const proposal = (id: number, status = 'Proposal Request Received'): Proposal => ({
   id, client: 'Acme Test Co', type: 'Workforce', status, sentDate: null, dblSignedDate: null, kickoffDate: null,
@@ -92,5 +93,62 @@ describe('persisting only what changed', () => {
     expect(S.companies.map((c) => c.id)).toEqual([7]);
     await save();
     expect(db.upsertProposals).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('a commitment and its task move together in memory', () => {
+  const task = (over: Partial<Todo> = {}): Todo => ({ id: 5, title: 'Send the quote', type: 'general', client: null, priority: 'Medium', dueDate: '2026-09-24', status: 'Pending', description: null,
+    createdAt: null, completedAt: null, projectId: null, parentId: null, areaId: null, section: null, sortOrder: null, recurrenceRule: null, tags: [], meetingId: null, ...over });
+  const promise = (over: Partial<Commitment> = {}): Commitment => ({ id: 1, direction: 'ours', text: 'Send the quote', contactId: null, dueDate: '2026-09-24', status: 'open', closedAt: null,
+    dropReason: null, companyId: null, opportunityId: null, projectId: null, sourceType: 'manual', sourceId: null, sourceKey: null, todoId: 5, createdAt: null, updatedAt: null, ...over });
+  const settle = () => new Promise((r) => setTimeout(r, 0));
+
+  beforeEach(() => {
+    S.proposals = [];
+    S.todos = [task()];
+    S.commitments = [promise()];
+    markLoadedAsSaved();
+    vi.clearAllMocks();
+  });
+
+  it('completing the task keeps the commitment, and both are saved', async () => {
+    S.todos[0].status = 'Done';
+    persistTodos();
+    await saveTodosNow(); await settle();
+    expect(S.commitments[0].status).toBe('kept');
+    expect(vi.mocked(db.upsertCommitments).mock.calls[0][0][0].status).toBe('kept');
+  });
+
+  it('marking the commitment kept completes the task; reopening reopens it', async () => {
+    S.commitments[0].status = 'kept';
+    persistCommitments();
+    await settle();
+    expect(S.todos[0].status).toBe('Done');
+    S.commitments[0].status = 'open';
+    persistCommitments();
+    await settle();
+    expect(S.todos[0].status).toBe('Pending');
+  });
+
+  it('a new due date on either one moves the other', async () => {
+    S.todos[0].dueDate = '2026-09-30';
+    persistTodos();
+    expect(S.commitments[0].dueDate).toBe('2026-09-30');
+    S.commitments[0].dueDate = '2026-10-02';
+    persistCommitments();
+    expect(S.todos[0].dueDate).toBe('2026-10-02');
+  });
+
+  it('deleting the task leaves the commitment open, without a task', () => {
+    S.todos = [];
+    persistTodos();
+    expect(S.commitments[0]).toMatchObject({ status: 'open', todoId: null });
+  });
+
+  it('a dropped commitment leaves its task alone', () => {
+    S.commitments[0].status = 'dropped';
+    S.todos[0].status = 'Done';
+    persistTodos();
+    expect(S.commitments[0].status).toBe('dropped');
   });
 });

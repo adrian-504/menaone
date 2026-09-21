@@ -9,6 +9,9 @@
 import { statusBadge } from '../lib/statusTone';
 import { addMoney, fmtMoneyByCurrency, currentUser, matchesOwnerFilter, ownerFilterOptions, type MoneyByCurrency } from '../lib/commercial';
 import { opportunityHealth } from '../lib/pipeline';
+import { hasOpenWork } from '../lib/myday';
+import { stampWaiting, waitingFromCommitments, type WaitingOn } from '../lib/commitments';
+import { renderCommitmentSection } from './commitments';
 import { openOutcomeDialog } from '../core/proposals';
 import { S } from '../lib/state';
 import { loadInto, toast } from '../lib/ui';
@@ -108,9 +111,12 @@ const APPROACHING_CLOSE_DAYS = 7;
 /** Health chips from real activity (pipeline facts), not the last edit. */
 function indicatorChips(o: Opportunity): string {
   if (o.status !== 'Open') return '';
-  const h = opportunityHealth(o, S.pipelineFacts.find((f) => f.opportunityId === o.id), today());
+  const h = opportunityHealth(o, S.pipelineFacts.find((f) => f.opportunityId === o.id), today(), { openWork: hasOpenWork(o, S) });
+  const d = h.waiting?.days;
   return [
-    h.daysSinceActivity != null && h.daysSinceActivity > 14 ? `<span class="rec-badge tone-red" title="Last activity ${h.daysSinceActivity} days ago">Stalled</span>` : '',
+    h.waiting?.on === 'them' ? `<span class="rec-badge tone-${d != null && d > 14 ? 'red' : 'amber'}" title="${escHtml(o.waitingNote || 'Waiting on the client')}">Waiting on client${d != null ? ` · ${d}d` : ''}</span>` : '',
+    h.waiting?.on === 'us' ? `<span class="rec-badge tone-accent" title="${escHtml(o.waitingNote || 'The next move is ours')}">With us${d != null ? ` · ${d}d` : ''}</span>` : '',
+    h.stalled ? `<span class="rec-badge tone-red" title="Last activity ${h.daysSinceActivity} days ago">Stalled</span>` : '',
     h.closeOverdue ? `<span class="rec-badge tone-red">Close date passed</span>` : '',
     h.noNextAction ? `<span class="rec-badge tone-amber">No next action</span>` : '',
     h.closingSoon ? `<span class="rec-badge tone-amber">Closing soon</span>` : '',
@@ -438,10 +444,61 @@ async function renderOpportunityDetail(): Promise<void> {
   renderOpportunityTasks(o.id);
   renderOpportunityProposalSection(o);
   renderOpportunityProjectSection(o);
+  renderCommitmentSection('od-commitments', { opportunityId: o.id }, contextFromOpportunity(S, o));
+  renderOpportunityWaiting(o);
   void renderOpportunityFiles(o);
   (window as any).fillTeamNames?.();
   await renderOpportunityActivity(o.id);
 }
+
+// ── Waiting on ──────────────────────────────────────────────────────────────
+
+/** Us / Them / —, since when, and what for. When the client has an open
+ * promise and nothing is set, it's offered as a suggestion — never set by itself. */
+function renderOpportunityWaiting(o: Opportunity): void {
+  const el = document.getElementById('od-waiting');
+  if (!el) return;
+  const cur = o.waitingOn ?? null;
+  const seg = ([['us', 'Us'], ['them', 'Them'], ['', '—']] as const).map(([v, label]) =>
+    `<button class="${(cur ?? '') === v ? 'active' : ''}" onclick="setOpportunityWaiting('${v}')">${label}</button>`).join('');
+  const suggestion = !cur ? waitingFromCommitments(S.commitments.filter((c) => c.opportunityId === o.id)) : null;
+  const promised = suggestion ? S.commitments.find((c) => c.id === suggestion.commitmentId) : undefined;
+  el.innerHTML = `<div class="segmented od-wait-seg" role="group" aria-label="Waiting on">${seg}</div>
+    ${cur && o.waitingSince ? `<div class="od-wait-since">since ${escHtml(fmtDate(o.waitingSince))}</div>` : ''}
+    ${cur ? `<input class="td-input od-wait-note" value="${escHtml(o.waitingNote || '')}" placeholder="What for? (one line)" onchange="setOpportunityWaitingNote(this.value)">` : ''}
+    ${suggestion && promised ? `<div class="od-wait-suggest">The client promised “${escHtml(promised.text)}” on ${escHtml(fmtDate(suggestion.since))}.
+      <button class="btn-ghost btn-sm" onclick="acceptWaitingSuggestion()">Waiting on them since then</button></div>` : ''}`;
+}
+
+export function setOpportunityWaiting(value: string): void {
+  const o = currentOpportunity();
+  if (!o) return;
+  Object.assign(o, stampWaiting(o, (value || null) as WaitingOn | null, today()));
+  if (!o.waitingOn) o.waitingNote = null;
+  void saveAndSyncOpportunity(o).then(() => { void renderOpportunityDetail(); renderOpportunitiesList(); });
+}
+expose('setOpportunityWaiting', setOpportunityWaiting);
+
+export function setOpportunityWaitingNote(value: string): void {
+  const o = currentOpportunity();
+  if (!o) return;
+  o.waitingNote = value.trim() || null;
+  void saveAndSyncOpportunity(o);
+}
+expose('setOpportunityWaitingNote', setOpportunityWaitingNote);
+
+export function acceptWaitingSuggestion(): void {
+  const o = currentOpportunity();
+  if (!o) return;
+  const s = waitingFromCommitments(S.commitments.filter((c) => c.opportunityId === o.id));
+  if (!s) return;
+  const promised = S.commitments.find((c) => c.id === s.commitmentId);
+  o.waitingOn = 'them';
+  o.waitingSince = s.since;
+  o.waitingNote = promised?.text ?? null;
+  void saveAndSyncOpportunity(o).then(() => { void renderOpportunityDetail(); renderOpportunitiesList(); });
+}
+expose('acceptWaitingSuggestion', acceptWaitingSuggestion);
 
 function debounceOppSave(fn: () => void): void {
   if (oppAutoSaveTimer) clearTimeout(oppAutoSaveTimer);

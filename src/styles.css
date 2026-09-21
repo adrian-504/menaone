@@ -1239,6 +1239,32 @@ body.dnd-active .board-column.drop-target{background:var(--accent-bg)!important}
 .md-link-btn{font:inherit;border:none;background:none;padding:0;color:var(--accent);cursor:pointer;font-weight:600}
 .md-link-btn:hover{text-decoration:underline}
 .task-owner{display:inline-flex;align-items:center;gap:3px;color:var(--sub);font-weight:600}
+.task-promise{display:inline-flex;align-items:center;gap:3px;color:var(--accent);font-weight:600}
+/* Commitments: → we owe it, ← they owe it. Rows divided by hairlines like every list. */
+.cm-list{display:flex;flex-direction:column}
+.cm-row{display:flex;align-items:flex-start;gap:9px;padding:8px 0;border-top:1px solid var(--hairline)}
+.cm-list > .cm-row:first-child,.cm-group > .cm-group-label + .cm-row{border-top:none}
+.cm-row .task-check{margin-top:2px}
+.cm-row .task-check:disabled{opacity:.4;cursor:default}
+.cm-dir{flex:none;font-weight:700;color:var(--accent);line-height:1.45}
+.cm-dir.is-theirs{color:var(--amber)}
+.cm-main{flex:1;min-width:0}
+.cm-text{font-size:var(--type-body);color:var(--text);line-height:1.45}
+.cm-meta{font-size:var(--type-meta);color:var(--muted);margin-top:1px}
+.cm-overdue{color:var(--red);font-weight:600}
+.cm-row.is-closed .cm-text{color:var(--muted)}
+.cm-row.is-dropped .cm-text{text-decoration:line-through;text-decoration-color:var(--border2)}
+.cm-group + .cm-group{margin-top:8px}
+.cm-group-label{font-size:var(--type-caption);font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:4px 0 2px}
+.cm-empty{font-size:var(--type-secondary);color:var(--muted);padding:4px 0}
+.cm-closed{margin-top:8px;font-size:var(--type-secondary)}
+.cm-closed summary{cursor:pointer;color:var(--sub);font-weight:600}
+/* Opportunity: Waiting on (Us / Them / —). */
+.od-wait-seg button{padding:0 10px}
+.od-wait-since{font-size:var(--type-meta);color:var(--muted);margin-top:4px}
+.od-wait-note{margin-top:4px;width:100%}
+.od-wait-suggest{margin-top:6px;font-size:var(--type-meta);color:var(--sub);line-height:1.45}
+.od-wait-suggest .btn-ghost{margin-top:3px;padding-left:0;color:var(--accent);font-weight:600}
 /* Earlier meetings with the client, and the Outlook invite, beside the page. */
 #meeting-detail .rec-side{position:static}
 .md-earlier-list{display:flex;flex-direction:column;gap:12px}

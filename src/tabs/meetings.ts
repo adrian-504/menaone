@@ -14,7 +14,8 @@ import { attachCompanySelector } from '../lib/companySelector';
 import { openOutlookMeetingModal } from './calendar';
 import { persistMeeting } from '../lib/persist';
 import type { Meeting } from '../lib/types';
-import { companyFromForm, contextFromCompany, contextFromOpportunity, contextFromProject, inheritCompany, EMPTY_CONTEXT, type WorkContext } from '../lib/workGraph';
+import { renderCommitmentSection } from './commitments';
+import { contextFromMeeting, companyFromForm, contextFromCompany, contextFromOpportunity, contextFromProject, inheritCompany, EMPTY_CONTEXT, type WorkContext } from '../lib/workGraph';
 import { icon } from '../lib/icons';
 import { isMeetingOver, writeUpState } from '../lib/meetingRecap';
 import { flushMeetingNotes, isOver, renderEarlierMeetings, renderMeetingInvite, renderMeetingNotes } from './meetingNotes';
@@ -142,11 +143,13 @@ export function openMeetingDetail(id: number): void {
   const notesEl = document.getElementById('md-notes');
   const clientEl = document.getElementById('md-client');
   const peopleEl = document.getElementById('md-people');
-  if (main && notesEl && clientEl && peopleEl) {
-    if (isOver(m)) main.append(notesEl, clientEl, peopleEl);
-    else main.append(clientEl, peopleEl, notesEl);
+  const promisesEl = document.getElementById('md-commitments');
+  if (main && notesEl && clientEl && peopleEl && promisesEl) {
+    if (isOver(m)) main.append(notesEl, promisesEl, clientEl, peopleEl);
+    else main.append(clientEl, peopleEl, notesEl, promisesEl);
   }
   renderMeetingNotes(m);
+  renderCommitmentSection('md-commitments', { meetingId: m.id }, contextFromMeeting(S, m));
   renderMeetingClientSection(m);
   renderEarlierMeetings(m);
   renderMeetingInvite(m);

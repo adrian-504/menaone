@@ -16,14 +16,15 @@ import { createNoteEditor } from '../lib/markdownEditor';
 import { parseTaskInput } from '../lib/taskParse';
 import { contextFromMeeting, taskFields } from '../lib/workGraph';
 import { blankTask, taskRowHtml, toggleTodoDone } from './todo';
+import { readCommitmentsFrom, toggleCommitmentKept } from './commitments';
 import { SECTION_LABEL, earlierMeetings, isMeetingOver, meetingSections, previewLines, type NoteField, type SectionKey } from '../lib/meetingRecap';
 import type { Meeting } from '../lib/types';
 
 const PLACEHOLDER: Record<NoteField, string> = {
   agenda: 'What this meeting is about. Start a line with - for a point',
   discussion: 'Notes as the meeting happens. - for a bullet, [ ] for a checkbox, **bold**',
-  decisions: 'What was decided?',
-  followUp: 'What happens next, and anything to prepare',
+  decisions: 'What was decided? Start a line with >> for what we owe, << for what the client owes',
+  followUp: 'What happens next. >> something we owe, << something the client owes',
 };
 
 const editors = new Map<NoteField, EditorView>();
@@ -95,6 +96,8 @@ export function renderMeetingNotes(m: Meeting, focus?: SectionKey): void {
       onImageFile: () => toast('Images go in Notes or Files — meeting notes are text'),
       resolveAttachmentUrl: () => undefined,
     }));
+    // Promises are read once a line is finished: when the box loses focus.
+    host.addEventListener('focusout', () => { void readMeetingCommitments(m.id); });
   }
   renderMeetingTasks(m);
   renderIcons(el);
@@ -113,11 +116,24 @@ function saveField(id: number, field: NoteField, value: string): void {
 
 /** Saves a pending edit straight away (leaving the page). */
 export function flushMeetingNotes(): void {
-  if (!saveTimer || S.meetingEditId == null) return;
-  clearTimeout(saveTimer);
-  saveTimer = null;
+  if (S.meetingEditId == null) return;
   const m = meeting(S.meetingEditId);
-  if (m) void persistMeeting(m);
+  if (saveTimer) {
+    clearTimeout(saveTimer);
+    saveTimer = null;
+    if (m) void persistMeeting(m);
+  }
+  if (m) void readMeetingCommitments(m.id);
+}
+
+/** `>>` / `<<` lines in the meeting's notes become commitments with its
+ * company, opportunity, project and the meeting itself. */
+export async function readMeetingCommitments(id: number): Promise<void> {
+  const m = meeting(id);
+  if (!m) return;
+  const texts = [m.discussion, m.decisions, m.followUp, m.actionItems];
+  if (!texts.some((t) => t && /(>>|<<)/.test(t))) return;
+  await readCommitmentsFrom('meeting', m.id, texts, contextFromMeeting(S, m));
 }
 
 export function openMeetingSection(k: SectionKey): void {
@@ -258,7 +274,8 @@ export function renderEarlierMeetings(m: Meeting): void {
     <div class="md-earlier-list">${earlier.map((e) => {
       const decisions = previewLines(e.decisions, 3);
       const notes = decisions.length ? [] : previewLines(e.discussion, 2);
-      const open = S.todos.filter((t) => t.meetingId === e.id && t.status !== 'Done');
+      const open = S.todos.filter((t) => t.meetingId === e.id && t.status !== 'Done' && !S.commitments.some((c) => c.todoId === t.id));
+      const promises = S.commitments.filter((c) => c.sourceType === 'meeting' && c.sourceId === e.id && c.status === 'open');
       return `<div class="md-earlier-item">
         <div class="md-earlier-hd">${recordLink('meeting', e.id, e.title)}<span class="md-earlier-date">${escHtml(fmtDate(e.meetingDate))}</span></div>
         ${decisions.length ? `<div class="md-earlier-label">Decided</div><ul class="md-earlier-points">${decisions.map((d) => `<li>${escHtml(d)}</li>`).join('')}</ul>` : ''}
@@ -266,12 +283,22 @@ export function renderEarlierMeetings(m: Meeting): void {
         ${open.length ? `<div class="md-earlier-label">Still open</div>${open.slice(0, 4).map((t) => `<div class="md-earlier-task">
             <button class="task-check" onclick="completeEarlierAction(${t.id})" aria-label="Complete" title="Complete"></button>
             <span>${escHtml(t.title)}${t.owner ? ` <span class="md-earlier-owner">· ${escHtml(t.owner)}</span>` : ''}</span></div>`).join('')}${open.length > 4 ? `<div class="md-earlier-more">and ${open.length - 4} more</div>` : ''}` : ''}
-        ${!decisions.length && !notes.length && !open.length ? '<div class="md-earlier-empty">Nothing written up</div>' : ''}
+        ${promises.length ? `<div class="md-earlier-label">Promised</div>${promises.slice(0, 4).map((c) => `<div class="md-earlier-task">
+            <button class="task-check" onclick="toggleEarlierCommitment(${c.id})" aria-label="Mark kept" title="Mark kept"></button>
+            <span><span class="cm-dir${c.direction === 'theirs' ? ' is-theirs' : ''}" aria-label="${c.direction === 'ours' ? 'We owe it' : 'They owe it'}">${c.direction === 'ours' ? '→' : '←'}</span> ${escHtml(c.text)}${c.dueDate ? ` <span class="md-earlier-owner">· ${escHtml(fmtDate(c.dueDate))}</span>` : ''}</span></div>`).join('')}` : ''}
+        ${!decisions.length && !notes.length && !open.length && !promises.length ? '<div class="md-earlier-empty">Nothing written up</div>' : ''}
       </div>`;
     }).join('')}</div>
     <div class="md-earlier-foot">${companyLink(client.id, client.name, { className: 'rlink' }).replace(`>${escHtml(client.name)}<`, `>All meetings with ${escHtml(client.name)}<`)}</div>`;
   renderIcons(el);
 }
+
+export function toggleEarlierCommitment(id: number): void {
+  toggleCommitmentKept(id);
+  const m = S.meetingEditId != null ? meeting(S.meetingEditId) : undefined;
+  if (m) renderEarlierMeetings(m);
+}
+expose('toggleEarlierCommitment', toggleEarlierCommitment);
 
 export function completeEarlierAction(id: number): void {
   toggleTodoDone(id);

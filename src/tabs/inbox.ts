@@ -60,6 +60,11 @@ export async function captureInboxItem(e: Event): Promise<void> {
   const itemType = (f.elements.namedItem('inboxType') as HTMLSelectElement).value;
   const content = (f.elements.namedItem('inboxContent') as HTMLInputElement).value.trim();
   if (!content) return;
+  // ">> …" / "<< …" is a commitment, not something to sort later.
+  if (/^(>>|<<)/.test(content)) {
+    if (await (window as any).captureCommitment?.(content)) (f.elements.namedItem('inboxContent') as HTMLInputElement).value = '';
+    return;
+  }
   const created = await addInboxItem(itemType, content);
   S.inboxItems.unshift(created);
   (f.elements.namedItem('inboxContent') as HTMLInputElement).value = '';

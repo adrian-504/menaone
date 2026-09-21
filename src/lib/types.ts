@@ -270,6 +270,8 @@ export interface AppData {
   services?: Service[];
   businessEntities?: BusinessEntity[];
   teamMembers?: TeamMember[];
+  /** Absent before schema 36. */
+  commitments?: Commitment[];
 }
 
 // ═══════════════ V2: Work Hub entities ═══════════════
@@ -359,7 +361,7 @@ export interface Meeting {
 }
 
 /** Polymorphic entity kind used by entity_links, tags, and search. */
-export type EntityKind = 'proposal' | 'contact' | 'agreement' | 'task' | 'note' | 'project' | 'meeting' | 'company' | 'email' | 'intelligence' | 'opportunity' | 'msfile';
+export type EntityKind = 'proposal' | 'contact' | 'agreement' | 'task' | 'note' | 'project' | 'meeting' | 'company' | 'email' | 'intelligence' | 'opportunity' | 'msfile' | 'commitment';
 
 // ═══════════════ OPPORTUNITIES (Core Refinement & Product Maturity, Stage 2) ═══════════════
 
@@ -460,6 +462,33 @@ export interface Opportunity {
   createdAt: string | null;
   updatedAt: string | null;
   tags: string[];
+  /** Who the next move belongs to: us, the client ('them'), or nobody. */
+  waitingOn?: 'us' | 'them' | null;
+  /** When it started waiting on that side (YYYY-MM-DD). */
+  waitingSince?: string | null;
+  waitingNote?: string | null;
+}
+
+/** Who promised what to whom, by when (src/lib/commitments.ts, commitments.rs). */
+export interface Commitment {
+  id: number;
+  /** ours: we owe it (it has a task). theirs: the client owes it. */
+  direction: 'ours' | 'theirs';
+  text: string;
+  contactId: number | null;
+  dueDate: string | null;
+  status: 'open' | 'kept' | 'dropped';
+  closedAt: string | null;
+  dropReason: string | null;
+  companyId: number | null;
+  opportunityId: number | null;
+  projectId: number | null;
+  sourceType: 'meeting' | 'note' | 'capture' | 'manual' | null;
+  sourceId: number | null;
+  sourceKey: string | null;
+  todoId: number | null;
+  createdAt: string | null;
+  updatedAt: string | null;
 }
 
 export interface OpportunityActivity {
