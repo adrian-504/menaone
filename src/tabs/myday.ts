@@ -399,8 +399,20 @@ async function loadIntel(): Promise<void> {
   </div>`).join(''));
 }
 
+// The rail stays quieter than the day: six recent entries, more on request.
+const ACTIVITY_SHOWN = 6;
+let activityAll = false;
+
+export function mydayMoreActivity(): void {
+  activityAll = true;
+  void loadActivity();
+}
+expose('mydayMoreActivity', mydayMoreActivity);
+
 async function loadActivity(): Promise<void> {
-  const entries = await getActivity({ limit: 8 }).catch(() => []);
+  const entries = await getActivity({ limit: activityAll ? 20 : ACTIVITY_SHOWN + 1 }).catch(() => []);
+  const more = !activityAll && entries.length > ACTIVITY_SHOWN;
+  if (!activityAll) entries.splice(ACTIVITY_SHOWN);
   const el = document.getElementById('myday-activity');
   if (!el) return;
   const html = entries.length
@@ -413,7 +425,8 @@ async function loadActivity(): Promise<void> {
         return `<div class="mdy-act"><span class="feed-icon feed-${f.tone || 'muted'}">${icon(f.iconName, 11)}</span><div class="mdy-act-line">${f.html}</div><span class="mdy-act-when">${escHtml(when)}</span></div>`;
       }).join('')
     : `<div class="mdy-empty compact">Nothing logged yet.</div>`;
-  if (el.innerHTML !== html) el.innerHTML = html;
+  const withMore = more ? `${html}<button class="mdy-more" onclick="mydayMoreActivity()">Show more</button>` : html;
+  if (el.innerHTML !== withMore) el.innerHTML = withMore;
 }
 
 // ── Actions ─────────────────────────────────────────────────────────────────

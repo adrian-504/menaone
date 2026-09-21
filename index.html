@@ -1080,8 +1080,8 @@
     <div class="thread-host" id="od-thread" hidden></div>
     <div class="rec-layout">
     <div class="rec-main rec-stack" id="od-main">
-      <section class="sec rec-section"><div class="rec-section-hd"><h2>Description</h2></div><textarea id="od-description" class="rec-notes" placeholder="What is this opportunity about?" oninput="autoSaveOpportunityField('description',this.value)"></textarea></section>
       <section class="sec rec-section" id="od-next"><div class="rec-section-hd"><h2>Next action</h2></div><div id="od-next-task"></div><textarea id="od-next-action" class="rec-notes" placeholder="What happens next?" oninput="autoSaveOpportunityField('nextAction',this.value)"></textarea></section>
+      <section class="sec rec-section od-desc" id="od-desc-sec"><div class="rec-section-hd"><h2>Description</h2></div><div id="od-desc-view"></div><textarea id="od-description" class="rec-notes" placeholder="What is this opportunity about?" hidden oninput="autoSaveOpportunityField('description',this.value)" onblur="endOpportunityDescription()" onkeydown="if(event.key==='Escape')this.blur()"></textarea></section>
       <div class="sec rec-section" id="od-activity"></div>
       <div class="sec rec-section" id="od-tasks"></div>
       <div class="sec rec-section" id="od-meetings"></div>

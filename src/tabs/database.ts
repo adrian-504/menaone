@@ -1,7 +1,9 @@
 import { S } from '../lib/state';
 import { companyLink } from '../lib/links';
 import { STATUSES, ST } from '../lib/constants';
-import { fmtDate, escHtml, expose, debounce } from '../lib/utils';
+import { fmtDate, escHtml, expose, debounce, statusDot } from '../lib/utils';
+import { icon } from '../lib/icons';
+import { showContextMenu, showMenuAt } from '../lib/contextMenu';
 import { emptyState } from '../lib/ui';
 import { needsFollowUp, getFollowups } from '../core/proposals';
 import { PS, isInPreparation, isWon, isLost, lineTotals, fmtMoney, currencyOf, ownerName, entityById, teamMember } from '../lib/commercial';
@@ -12,7 +14,7 @@ import { saveCsv } from '../lib/files';
 import { renderBulkBar, hideBulkBar } from '../lib/bulkBar';
 import { persistProposals } from '../lib/persist';
 import { undoToast } from '../lib/ui';
-import { updateStatus, updateBadge } from '../core/proposals';
+import { updateStatus, updateBadge, changeProposalStatus } from '../core/proposals';
 import { refreshAll } from '../lib/registry';
 import { LOSS_REASONS } from '../lib/constants';
 import { activeTeam } from '../lib/commercial';
@@ -68,18 +70,16 @@ export function renderDB(): void {
   if (rows.length === 0) { tbody.innerHTML = `<tr><td colspan="11">${emptyState({ icon: 'search', title: 'No proposals match these filters', body: 'Try a different search, or clear the filters.', compact: true })}</td></tr>`; return; }
   tbody.innerHTML = rows.map((p) => {
     const cfg = ST[p.status] || { c: 'var(--muted)' };
-    const optHtml = STATUSES.map((s) => `<option value="${escHtml(s)}" ${p.status === s ? 'selected' : ''}>${escHtml(s)}</option>`).join('')
-      + (STATUSES.includes(p.status) ? '' : `<option selected>${escHtml(p.status)}</option>`);
     const fu = needsFollowUp(p);
     const services = p.lines?.length ? lineTotals(p.lines, p.contractMonths).serviceNames : (p.type && p.type !== '—' ? [p.type] : []);
     const review = p.status === PS.REVIEW ? `<span class="db-review ${p.reviewStatus === 'approved' ? 't-positive' : 't-muted'}">${p.reviewStatus === 'approved' ? 'Approved' : 'Awaiting review'}</span>` : '';
     const monthly = p.monthlyFee ? fmtMoney(p.monthlyFee, currencyOf(p)) : p.oneTimeFee ? `${fmtMoney(p.oneTimeFee, currencyOf(p))} once` : '—';
-    return `<tr data-proposal-id="${p.id}" class="rec-tr${p.archived ? ' archived-row' : ''}${fu ? ' db-row-followup' : ''}${dbSelected.has(p.id) ? ' is-selected' : ''}" onclick="if(!event.target.closest('a,button,select,input'))openRecord('proposal', ${p.id})">
+    return `<tr data-proposal-id="${p.id}" class="rec-tr${p.archived ? ' archived-row' : ''}${fu ? ' db-row-followup' : ''}${dbSelected.has(p.id) ? ' is-selected' : ''}" onclick="if(!event.target.closest('a,button,select,input'))openRecord('proposal', ${p.id})" oncontextmenu="proposalRowMenu(event, ${p.id})">
       <td class="td-chk"><input type="checkbox" ${dbSelected.has(p.id) ? 'checked' : ''} onchange="dbSelect(${p.id}, this.checked)" aria-label="Select SL# ${p.id}"></td>
       <td class="td-id">${p.id}</td>
       <td class="td-c strong" title="${escHtml(p.client)}">${companyLink(p.companyId, p.client)}${p.archived ? ' <span class="chip">Archived</span>' : ''}</td>
       <td class="db-services" title="${escHtml(services.join(', '))}">${services.length ? services.map((sv) => `<span class="chip">${escHtml(sv)}</span>`).join(' ') : '<span class="t-muted">To be confirmed</span>'}</td>
-      <td><select class="ssel status-select" style="color:${cfg.ch || cfg.c}" onchange="statusSelectChanged(${p.id}, this)" aria-label="Status">${optHtml}</select>${review}</td>
+      <td class="td-status">${statusDot(cfg, p.status)}${review}<button class="rec-icon-btn row-more" onclick="proposalRowMenu(event, ${p.id})" title="Change status…" aria-label="Change status of SL# ${p.id}">${icon('more', 14)}</button></td>
       <td class="t-sub">${escHtml(ownerName(p) || '—')}</td>
       <td class="td-d">${fmtDate(p.dateAdded)}</td>
       <td class="td-d">${fmtDate(p.dateSentToClient || p.sentDate)}${fu ? ' <span class="db-fu" title="No answer for over 10 days">follow up</span>' : ''}</td>
@@ -89,6 +89,20 @@ export function renderDB(): void {
     </tr>`;
   }).join('');
 }
+/** A row's status reads as text; it changes from here (right-click or "…") or on the proposal page. */
+export function proposalRowMenu(e: MouseEvent, id: number): void {
+  const p = S.proposals.find((x) => x.id === id);
+  if (!p) return;
+  const items = [
+    { label: 'Open', iconName: 'document', run: () => (window as any).openRecord('proposal', id) },
+    { label: '', run: () => {}, separator: true },
+    ...STATUSES.filter((st) => st !== p.status).map((st) => ({ label: `Status: ${st}`, iconName: 'check', run: () => { void changeProposalStatus(id, st).then(() => renderDB()); } })),
+  ];
+  if (e.type === 'contextmenu') showContextMenu(e, items);
+  else { e.stopPropagation(); showMenuAt(e.currentTarget as HTMLElement, items); }
+}
+expose('proposalRowMenu', proposalRowMenu);
+
 registerTabRenderer('database', () => {
   if (S.proposalBuilderOpen) return;
   if (S.currentProposalId != null && document.getElementById('pr-detail')?.classList.contains('open')) { (window as any).renderProposalPage?.(); return; }

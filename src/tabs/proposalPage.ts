@@ -452,7 +452,7 @@ function renderReview(p: Proposal): void {
     body = `<div class="pr-review-state tone-amber">${icon('edit', 14)} ${escHtml(name)} asked for changes${p.reviewedAt ? ` on ${fmtDate(p.reviewedAt)}` : ''}</div>${p.reviewNote ? `<p class="pr-review-note">${escHtml(p.reviewNote)}</p>` : ''}`;
   } else if (p.status === PS.REVIEW) {
     body = `<div class="pr-review-state tone-accent">${icon('clock', 14)} With ${escHtml(name)} since ${fmtDate(p.reviewRequestedAt || p.dateSentToHassan)}</div>
-      <textarea class="finp pr-review-input" id="prd-review-note" rows="2" placeholder="Comments from the review (optional)"></textarea>
+      <textarea class="finp pr-review-input" id="prd-review-note" data-typing rows="2" placeholder="Comments from the review (optional)"></textarea>
       <div class="btn-row">
         <button class="btn-secondary is-positive" onclick="proposalRecordReview('approved')">${icon('check', 13)} Approved</button>
         <button class="btn-secondary" onclick="proposalRecordReview('changes_requested')">Changes requested</button>

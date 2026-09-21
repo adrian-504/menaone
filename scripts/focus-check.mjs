@@ -2,8 +2,9 @@
 // dev preview (npm run dev — sample data only, never the real database) in
 // headless Chrome at 1440x900 and counts what is visible before scrolling,
 // outside the sidebar, location bar and record rail: input boxes, buttons,
-// blue (primary) buttons. Fails when a view shows more than one primary, or a
-// page is over its targets. `node scripts/focus-check.mjs [--json]`
+// blue (primary) buttons. Fails when a view shows more than one primary, a
+// select sits in a list row, an empty text box comes first, or a page is over
+// its targets. `node scripts/focus-check.mjs [--json]`
 import { spawn } from 'node:child_process';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -49,7 +50,12 @@ const COUNT = `(() => {
   const buttons = btns.length;
   const names = btns.map((b) => (b.textContent || '').trim().slice(0, 20) || b.getAttribute('aria-label') || b.title);
   const primary = [...document.querySelectorAll('.btn-primary')].filter(vis).length;
-  return JSON.stringify({ inputs: inputs.length, filters, buttons, primary, height: document.scrollingElement.scrollHeight, names });
+  // A list row is read, not edited: no select in a table row.
+  const rowSelects = [...document.querySelectorAll('tbody tr select')].filter(vis).length;
+  // The first thing on a page shouldn't be an empty box asking to be filled (a create page's first field is an input, not this).
+  const first = inputs.slice().sort((a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top)[0];
+  const emptyBoxFirst = !!first && first.tagName === 'TEXTAREA' && !first.value.trim() && !first.hasAttribute('data-typing'); // data-typing: a box whose job right now is to be typed in (rule 2)
+  return JSON.stringify({ inputs: inputs.length, filters, buttons, primary, height: document.scrollingElement.scrollHeight, names, rowSelects, emptyBoxFirst });
 })()`;
 
 const port = 9400 + Math.floor(Math.random() * 400);
@@ -79,6 +85,8 @@ for (const [name, js, t] of VIEWS.filter(([n]) => !process.env.ONLY || n.startsW
   if (t.buttons != null && c.buttons > t.buttons) problems.push(`${c.buttons} buttons (target ≤${t.buttons})`);
   if (t.filters != null && c.filters > t.filters) problems.push(`${c.filters} filter controls (target ≤${t.filters})`);
   if (t.fitsScreen && c.height > 900) problems.push(`${c.height}px tall (target one screen)`);
+  if (c.rowSelects) problems.push(`${c.rowSelects} selects in list rows`);
+  if (c.emptyBoxFirst) problems.push('an empty text box comes first');
   results.push({ name, ...c, problems });
 }
 ws.close(); chrome.kill();

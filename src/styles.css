@@ -2604,3 +2604,13 @@ details[open] > summary .svc-group-names{visibility:hidden}
 .mdy-biz-part:hover{color:var(--accent)}
 .mdy-biz-label{color:var(--muted)}
 .mdy-biz-sep{color:var(--muted)}
+/* List rows: status reads as text; "…" (hover or focus) or right-click changes it. */
+.td-status{white-space:nowrap}
+.td-status .row-more{margin-left:4px;vertical-align:middle;opacity:0;transition:opacity var(--dur-fast) var(--ease-out)}
+tr:hover .td-status .row-more,tr:focus-within .td-status .row-more{opacity:1}
+/* Opportunity description: text, or one quiet line when there's none. */
+.od-desc.is-quiet{display:flex;align-items:baseline;gap:12px;padding-top:10px;padding-bottom:10px}
+.od-desc.is-quiet .rec-section-hd{margin-bottom:0}
+.od-desc.is-quiet h2{font-weight:500;color:var(--sub)}
+.od-desc-add{font:inherit;background:none;border:none;padding:0;cursor:pointer;color:var(--muted)}
+.od-desc-add:hover{color:var(--accent)}

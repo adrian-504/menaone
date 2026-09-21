@@ -398,7 +398,7 @@ export async function openOpportunityDetail(id: number): Promise<void> {
   // A deleted opportunity (an old link or history entry) must not leave the
   // page showing the previous one under a missing id: go to the list instead.
   if (!o) { if (S.currentOpportunityId != null) closeOpportunityDetail(); return; }
-  if (S.currentOpportunityId !== id) { resetPropsLists('od-'); waitNoteEditing = false; }
+  if (S.currentOpportunityId !== id) { resetPropsLists('od-'); waitNoteEditing = false; descEditing = false; }
   S.currentOpportunityId = id;
   document.getElementById('opp-list-view')?.classList.add('hidden');
   document.getElementById('opp-detail')?.classList.add('open');
@@ -433,7 +433,7 @@ async function renderOpportunityDetail(): Promise<void> {
   ].filter(Boolean).join('');
 
   renderOpportunityProps(o);
-  (document.getElementById('od-description') as HTMLTextAreaElement).value = o.description || '';
+  renderOpportunityDescription(o);
   (document.getElementById('od-next-action') as HTMLTextAreaElement).value = o.nextAction || '';
 
   renderThreadStrip('od-thread', { kind: 'opportunity', id: o.id });
@@ -457,6 +457,38 @@ function layoutOpportunitySections(): void {
   const el = (id: string) => document.getElementById(id);
   sinkEmptySections(host, ['od-tasks', 'od-meetings', 'od-commitments', 'od-contacts', 'od-notes', 'od-files'].map(el));
 }
+
+// Description reads as text (or one quiet line when there's none); a click opens the box.
+let descEditing = false;
+
+function renderOpportunityDescription(o: Opportunity): void {
+  const view = document.getElementById('od-desc-view');
+  const box = document.getElementById('od-description') as HTMLTextAreaElement | null;
+  const sec = document.getElementById('od-desc-sec');
+  if (!view || !box || !sec) return;
+  if (!descEditing) box.value = o.description || '';
+  box.hidden = !descEditing;
+  sec.classList.toggle('is-quiet', !descEditing && !o.description);
+  view.innerHTML = descEditing ? ''
+    : o.description
+      ? `<div class="pl-val pl-multiline od-desc-text" tabindex="0" role="button" aria-label="Edit the description" onclick="editOpportunityDescription()" onkeydown="if(event.key==='Enter'){event.preventDefault();editOpportunityDescription()}">${escHtml(o.description)}</div>`
+      : `<button type="button" class="pl-add od-desc-add" onclick="editOpportunityDescription()">Add a description</button>`;
+}
+
+export function editOpportunityDescription(): void {
+  descEditing = true;
+  const o = currentOpportunity(); if (!o) return;
+  renderOpportunityDescription(o);
+  const box = document.getElementById('od-description') as HTMLTextAreaElement | null;
+  box?.focus();
+}
+expose('editOpportunityDescription', editOpportunityDescription);
+
+export function endOpportunityDescription(): void {
+  descEditing = false;
+  const o = currentOpportunity(); if (o) renderOpportunityDescription(o);
+}
+expose('endOpportunityDescription', endOpportunityDescription);
 
 /** The next open task, as a link; the free-text box only when there is none. */
 function renderOpportunityNextAction(o: Opportunity): void {

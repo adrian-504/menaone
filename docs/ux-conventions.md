@@ -26,7 +26,8 @@ Every page tells you where to look. The owner's test: opening any page should ne
 3. **One blue button per screen** — what you most likely came to do. Everything else is secondary, ghost, or in "…". A dialog is its own screen.
 4. **Nothing that is both empty and non-actionable.** No dash columns or rows, no "Not yet", no "choose X to see Y" panels, no empty-state sentence for something that isn't the page's job. An empty section is one line with its action, or not there.
 5. **Row actions appear on hover or focus** (faded, not hidden, so Tab reaches them) and stay in the row's "…". My Day's attention rows keep their one main action visible.
-6. **The squint test:** if you can't tell in a second where to look, the page fails. `npm run focus-check` counts, per view at 1440×900 before scrolling, the inputs, buttons and blue buttons, and fails above one blue button or a page's targets.
+6. On a record page the first thing is never an empty box asking to be filled: an empty Description is one quiet "Add a description" line, and Next action leads the opportunity. My Day's rail stays quieter than the day: six recent entries, then "Show more".
+7. **The squint test:** if you can't tell in a second where to look, the page fails. `npm run focus-check` counts, per view at 1440×900 before scrolling, the inputs, buttons and blue buttons, and fails above one blue button, on a select in a list row, when an empty text box comes first (boxes marked `data-typing`, like a review comment that's due, are exempt), or over a page's targets.
 
 ## Pages and records
 
@@ -45,6 +46,7 @@ Every page tells you where to look. The owner's test: opening any page should ne
 ## Lists
 
 - List pages share one toolbar (`.toolbar` / `.fbar`): segmented view filter where it helps, search (placeholders end in "…"), at most two filters (the two used most), and a count on the right. Any other filters sit behind one **Filters** button that counts those in use (`src/lib/filterBar.ts`); Clear appears when anything is set. The period select stays in the page header. Meetings has All / Upcoming / Past plus search by title, company or attendee.
+- List rows are read, not edited: a status is a dot and text; right-click the row, or its "…" (on hover or focus), to change it — or do it on the record's page. `focus-check` fails on a select in a list row.
 - The opportunity board collapses empty stages into slim labelled strips so stages with opportunities fit without scrolling sideways; while a card is dragged, the strips widen again as drop targets.
 - At the minimum window size (1080×680) no page scrolls sideways, and every creation dialog fits or scrolls with its Create button reachable.
 
