@@ -29,16 +29,16 @@ function renderGallery(): void {
   const project = S.projects[0];
   const opp = S.opportunities[0];
   const contact = S.contacts[0];
-  const tokens = ['--bg', '--surface', '--surface-2', '--border', '--text', '--sub', '--muted', '--accent', '--accent-2', '--green', '--amber', '--red'];
+  const tokens = ['--bg', '--surface', '--surface-2', '--sidebar-bg', '--hairline', '--border', '--text', '--sub', '--muted', '--accent', '--accent-2', '--green', '--amber', '--red'];
 
   el.innerHTML = [
-    section('Themes', row(THEMES.map((t) => `<button class="${t.id === S.theme ? 'btn-primary' : 'btn-secondary'}" onclick="setTheme('${t.id}')">${t.name}</button>`).join('')), 'Switch themes here and scroll the page — every component below should read well in all six.'),
+    section('Themes', row(THEMES.map((t) => `<button class="${t.id === S.theme ? 'btn-primary' : 'btn-secondary'}" onclick="setTheme('${t.id}')">${t.name}</button>`).join('')), 'Switch themes here and scroll the page — every component below should read well in all four (Auto shows Light or Dark, as the Mac is set).'),
     section('Colour tokens', row(tokens.map((t) => `<div style="display:flex;flex-direction:column;align-items:center;gap:4px;font-size:var(--type-meta);color:var(--sub)"><div style="width:56px;height:36px;border-radius:8px;border:1px solid var(--border2);background:var(${t})"></div>${t}</div>`).join(''))),
     section('Type scale', ['title', 'section', 'heading', 'body', 'secondary', 'meta', 'caption'].map((t) => `<div style="font-size:var(--type-${t});${t === 'title' || t === 'section' ? 'font-weight:700' : t === 'heading' ? 'font-weight:600' : ''};margin-bottom:6px">--type-${t} · Proposal for Providing Workforce Services</div>`).join('')),
-    section('Buttons', row(`<button class="btn-primary">Primary</button><button class="btn-secondary">Secondary</button><button class="btn-danger">Danger</button><button class="btn-secondary btn-sm">Small</button><button class="btn-primary" disabled>Disabled</button>`)),
+    section('Buttons', row(`<button class="btn-primary">Primary</button><button class="btn-secondary">Secondary</button><button class="btn-ghost">Ghost</button><button class="btn-danger">Danger</button><button class="btn-primary btn-sm">Small primary</button><button class="btn-secondary btn-sm">Small</button><button class="btn-ghost btn-sm">Small ghost</button><button class="btn-primary" disabled>Disabled</button>`)),
     section('Inputs', row(`<input type="text" placeholder="Text input"><select class="fsel"><option>Select</option></select><select class="ssel"><option>Filter select</option></select><input type="date"><textarea class="fsel" rows="2" placeholder="Textarea"></textarea>`)),
     section('Segmented control', `<div class="segmented"><button class="active">All</button><button>Client</button><button>Internal</button></div>`),
-    section('Chips and badges', row(`<span class="chip">Chip</span><span class="chip chip-accent">Accent chip</span>${badge('Sent to Client')}${badge('Signed by Both Parties')}`)),
+    section('Chips and badges', row(`<span class="chip">Chip</span><span class="chip chip-accent">Accent chip</span>${badge('Sent to Client')}${badge('Signed by Both Parties')}<span class="rec-badges"><span class="rec-badge tone-green">Header status</span><span class="rec-badge tone-amber">Second status</span><span class="rec-badge">Plain</span></span><span class="rec-badge tone-red">Status in a list</span>`)),
     section('Record links', row([
       company ? companyLink(company.id, company.name) : '',
       project ? recordLink('project', project.id, project.name) : '',

@@ -18,8 +18,7 @@ const GROUPS: Group[] = [
     k('Search and commands', [MOD, 'K']),
     k('Back / forward', [MOD, '['], [MOD, ']']),
     k('Show or hide the sidebar', [MOD, '\\']),
-    k('My Day', [MOD, '1']),
-    { keys: [[MOD, '2']], does: 'Tasks, Opportunities, Projects, Pending, Notes, Companies, Contacts, Follow-Up', note: `${MOD} 2 to ${MOD} 9` },
+    { keys: [[MOD, '1']], does: 'The sidebar, top to bottom: My Day first', note: `${MOD} 1 to ${MOD} 9` },
     k('New task / new note', [MOD, 'T'], [MOD, 'N']),
     k('Close a dialog or the open record', ['Esc']),
     k('This list', ['?']),
@@ -92,6 +91,18 @@ export function closeShortcutSheet(): void {
   document.getElementById('modal-shortcuts')?.classList.remove('open');
 }
 expose('closeShortcutSheet', closeShortcutSheet);
+
+// ⌘1–⌘9: the first nine modules in the sidebar, in the order shown there
+// (modules hidden until Microsoft 365 is connected are skipped).
+document.addEventListener('keydown', (e) => {
+  if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey || !/^[1-9]$/.test(e.key)) return;
+  if (S.commandPaletteOpen || document.querySelector('.modal-ov.open')) return;
+  const items = [...document.querySelectorAll<HTMLElement>('#sidebar .sb-item[data-tab]')].filter((b) => b.offsetParent !== null);
+  const target = items[Number(e.key) - 1];
+  if (!target) return;
+  e.preventDefault();
+  (window as any).navToModule?.(target.dataset.tab);
+});
 
 document.addEventListener('keydown', (e) => {
   const t = e.target as HTMLElement;

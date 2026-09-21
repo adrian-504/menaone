@@ -7,6 +7,7 @@
 import { S } from '../lib/state';
 import { escHtml, expose } from '../lib/utils';
 import { toast } from '../lib/ui';
+import { getActiveTabId } from '../lib/registry';
 import { getAppMeta, setAppMeta } from '../lib/db';
 import { DEFAULT_REMINDERS, dueReminders, pruneSent, type Reminder, type ReminderSettings } from '../lib/reminders';
 import { mydaySummaryText } from './myday';
@@ -65,6 +66,8 @@ async function notify(r: Reminder): Promise<void> {
     }
   }
   // Inside the app, the reminder also offers a way straight to the record.
+  // The morning summary says what My Day already shows: no toast over it.
+  if (!r.record && getActiveTabId() === 'myday') return;
   if (document.hasFocus() || !granted) {
     toast(r.title, { detail: r.body, duration: 12000, action: r.record ? { label: 'Open', run: () => w.openRecord(r.record!.kind, r.record!.id) } : { label: 'My Day', run: () => w.navToModule('myday') } });
   }
