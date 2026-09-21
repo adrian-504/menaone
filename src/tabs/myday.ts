@@ -7,6 +7,7 @@ import { setCommitmentKept, readCommitmentsFrom } from './commitments';
 import { parseTaskInput } from '../lib/taskParse';
 import { EMPTY_CONTEXT } from '../lib/workGraph';
 import { renderOfficeStrip } from './officeStrip';
+import { nowLineHtml } from '../lib/timeline';
 import { S } from '../lib/state';
 import { companyLink, recordLink } from '../lib/links';
 import { escHtml, expose, fmtDate, today } from '../lib/utils';
@@ -191,7 +192,7 @@ function todayHtml(t: Timeline, data: MyDayInput): string {
   }
   if (t.timed.length) {
     parts.push(`<div class="mdy-timeline">${t.timed.map((e) => {
-      if (e.type === 'now') return `<div class="mdy-now"><span class="mdy-now-time">${escHtml(hhmm(e.at))}</span><span class="mdy-now-line"></span></div>`;
+      if (e.type === 'now') return nowLineHtml(hhmm(e.at));
       if (e.type === 'meeting') {
         return `<div class="mdy-slot${e.past ? ' is-past' : ''}${e.current ? ' is-current' : ''}">
           <div class="mdy-time">${escHtml(hhmm(e.meeting.startAt))}<span>${escHtml(hhmm(e.meeting.endAt))}</span></div>

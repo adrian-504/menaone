@@ -15,10 +15,11 @@ import { companyLink, recordLink } from '../lib/links';
 import { emptyState, toast, undoToast } from '../lib/ui';
 import { persistProposals, persistContacts } from '../lib/persist';
 import { notifyNavigated, refreshAll, refreshCompanyViewIfOpen } from '../lib/registry';
-import { getActivity, saveOpportunity, filesOpen, filesRevealInFinder, filesStatPaths, proposalFolderLookup, proposalFolderCreate } from '../lib/db';
+import { saveOpportunity, filesOpen, filesRevealInFinder, filesStatPaths, proposalFolderLookup, proposalFolderCreate } from '../lib/db';
 import { attachCompanySelector } from '../lib/companySelector';
 import { showMenuAt, type ContextMenuItem } from '../lib/contextMenu';
-import { activityItem, renderFeed } from '../lib/activityFeed';
+import { renderFeed } from '../lib/activityFeed';
+import { renderRecordTimeline, renderThreadStrip } from './recordThread';
 import { renderIcons } from '../core/chrome';
 import { ST, LEAD_SOURCES } from '../lib/constants';
 import { renderLinesEditor, lineForService } from '../lib/linesEditor';
@@ -104,6 +105,7 @@ export function renderProposalPage(): void {
   ].filter(Boolean).join('');
 
   renderActions(p);
+  renderThreadStrip('prd-thread', { kind: 'proposal', id: p.id });
   renderStages(p);
   renderToolbar(p);
   renderProps(p);
@@ -675,10 +677,8 @@ expose('addProposalPageNote', addProposalPageNote);
 async function renderActivity(p: Proposal): Promise<void> {
   const el = document.getElementById('prd-activity');
   if (!el) return;
-  const entries = await getActivity({ entityType: 'proposal', entityId: p.id, limit: 100 }).catch(() => []);
-  if (S.currentProposalId !== p.id) return;
-  el.innerHTML = renderFeed(entries.filter((e) => e.action !== 'note_added').map(activityItem), { empty: 'Nothing recorded yet.' });
-  renderIcons(el);
+  // Notes have their own section above, so they stay out of the timeline.
+  await renderRecordTimeline({ elId: 'prd-activity', record: { kind: 'proposal', id: p.id }, scopeToggle: false, skipPast: (action) => action === 'note_added' });
 }
 
 // ═══════════════ New proposal ═══════════════

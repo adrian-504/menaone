@@ -108,7 +108,7 @@ export function renderMeetingClientSection(m: Meeting): void {
           <div class="rec-row-end"><button class="btn-secondary btn-sm" onclick="confirmMeetingLink(${m.id}, ${s.company.id}, true)">Link</button></div>
         </div>`).join('')}</div>
         <div class="btn-row md-client-actions"><button class="btn-secondary btn-sm" onclick="dismissMeetingLink(${m.id})">None of these</button></div>`
-      : emptyState({ icon: 'building', title: meetingEmails(m).length ? 'No client matched the attendees' : 'No attendee emails', body: meetingPeople(m).some((p) => p.status === 'new' && p.guess) ? 'Add the people below as contacts — the meeting links to their company, and future meetings link by themselves.' : 'Pick the client above, or add attendees\' email addresses to their contacts so future meetings link by themselves.', compact: true }));
+      : emptyState({ icon: 'building', title: meetingEmails(m).length ? 'No client matched the attendees' : 'No attendee emails', body: meetingPeople(m).some((p) => p.status === 'new' && p.guess) ? 'Add the attendees as contacts — the meeting links to their company, and future meetings link by themselves.' : 'Pick the client above, or add attendees\' email addresses to their contacts so future meetings link by themselves.', compact: true }));
     renderIcons(el);
     renderMeetingPeople(m);
     return;

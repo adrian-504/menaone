@@ -7,6 +7,9 @@
 // and the person can change any field before saving.
 
 import type { Agreement, Company, Contact, EntityKind, EntityLink, Meeting, Note, Opportunity, Project, Proposal, Todo } from './types';
+import { statusTone, type Tone } from './statusTone';
+import { proposalWaitingOn, type WaitingOn } from './commitments';
+import { isAgreementActive } from './commercial';
 
 /** The records a new record belongs to. */
 export interface WorkContext {
@@ -185,4 +188,180 @@ export function proposalProject(g: Pick<GraphData, 'opportunities' | 'projects'>
 export function opportunityTasks(g: Pick<GraphData, 'todos' | 'meetings'>, opportunityId: number): Todo[] {
   const meetingIds = new Set(g.meetings.filter((m) => m.opportunityId === opportunityId).map((m) => m.id));
   return g.todos.filter((t) => t.opportunityId === opportunityId || (t.meetingId != null && meetingIds.has(t.meetingId)));
+}
+
+// ── The engagement thread: opportunity → proposal → agreement → project ────
+
+export type ThreadKind = 'opportunity' | 'proposal' | 'agreement' | 'project';
+const THREAD_ORDER: ThreadKind[] = ['opportunity', 'proposal', 'agreement', 'project'];
+
+export interface ThreadNode {
+  kind: ThreadKind;
+  id: number;
+  label: string;
+  status: string | null;
+  tone: Tone;
+  /** The one date that matters for this step, and what it is. */
+  date: string | null;
+  dateLabel: string;
+  /** Agreements beside the one shown (a proposal with several). */
+  others?: { id: number; label: string }[];
+}
+
+export interface ThreadGap {
+  days: number | null;
+  /** Only on the gap after the last step of an open thread. */
+  waitingOn?: WaitingOn | null;
+  late?: boolean;
+}
+
+export interface ThreadNext {
+  label: string;
+  /** open: go to that record (its own page has the button for the step). */
+  action: 'create_proposal' | 'draft_agreement' | 'create_project' | 'open';
+  kind: ThreadKind;
+  id: number;
+}
+
+export interface EngagementThread {
+  nodes: ThreadNode[];
+  /** gaps[i] is between nodes[i] and nodes[i + 1]. */
+  gaps: ThreadGap[];
+  /** Time since the last step, and who it waits on — open threads only. */
+  after: ThreadGap | null;
+  /** Later steps that don't exist yet (never ones before the first node). */
+  missing: ThreadKind[];
+  next: ThreadNext | null;
+  closed: boolean;
+  /** Worth a strip: more than one step, or something to do next. */
+  show: boolean;
+}
+
+/** Days from `a` to `b` (YYYY-MM-DD…), or null. */
+function daysFrom(a: string | null | undefined, b: string | null | undefined): number | null {
+  if (!a || !b) return null;
+  const d = (Date.parse(`${b.slice(0, 10)}T00:00:00Z`) - Date.parse(`${a.slice(0, 10)}T00:00:00Z`)) / 86_400_000;
+  return Number.isFinite(d) ? Math.round(d) : null;
+}
+
+/** The label for a proposal's next step — the same wording as the proposal page's main button. */
+export function proposalNextStepLabel(p: Pick<Proposal, 'status' | 'reviewStatus'>): string | null {
+  switch (p.status) {
+    case 'Proposal Request Received': return 'Start drafting';
+    case 'Drafting': return 'Submit for review';
+    case 'In Internal Review': return p.reviewStatus === 'approved' ? 'Mark sent to client' : 'Record review';
+    case 'Sent to Client': return 'Record signature';
+    case 'Signed by Client': return 'Signed by both parties';
+    default: return null;
+  }
+}
+
+const later = (a: string | null | undefined, b: string | null | undefined) => ((a || '') > (b || '') ? a : b) || null;
+
+function opportunityNode(o: Opportunity): ThreadNode {
+  return { kind: 'opportunity', id: o.id, label: o.name, status: o.stage, tone: statusTone('opportunity', o.status), date: o.createdAt?.slice(0, 10) || null, dateLabel: 'Created' };
+}
+function proposalNode(p: Proposal): ThreadNode {
+  const sent = p.dateSentToClient || p.sentDate;
+  return { kind: 'proposal', id: p.id, label: `${p.type || 'Proposal'} (SL# ${p.id})`, status: p.status, tone: statusTone('proposal', p.status),
+    date: (sent || p.dateAdded || null)?.slice(0, 10) || null, dateLabel: sent ? 'Sent' : 'Created' };
+}
+function agreementNode(a: Agreement, others: Agreement[]): ThreadNode {
+  const signed = later(a.dateClientSigned, a.dateMenaSigned);
+  const date = signed || a.dateSentToClient || a.datePrepared || a.createdAt;
+  return { kind: 'agreement', id: a.id, label: a.agrRef || a.type || 'Agreement', status: a.status, tone: statusTone('agreement', a.status),
+    date: date?.slice(0, 10) || null, dateLabel: signed ? 'Signed' : a.dateSentToClient ? 'Sent' : 'Prepared',
+    ...(others.length ? { others: others.map((x) => ({ id: x.id, label: x.agrRef || x.type || 'Agreement' })) } : {}) };
+}
+function projectNode(p: Project): ThreadNode {
+  return { kind: 'project', id: p.id, label: p.name, status: p.status, tone: statusTone('project', p.status), date: p.startDate || null, dateLabel: 'Started' };
+}
+
+/** The chain a record belongs to, from its first existing step to its last,
+ * with the gaps between them and the one next action. Derived only from links
+ * that exist: opportunities.proposal_id / project_id and agreements.proposal_id. */
+export function engagementThread(record: { kind: ThreadKind; id: number }, g: GraphData, today: string): EngagementThread {
+  let opportunity: Opportunity | undefined;
+  let proposal: Proposal | undefined;
+  let project: Project | undefined;
+  let agreements: Agreement[] = [];
+  if (record.kind === 'opportunity') opportunity = g.opportunities.find((o) => o.id === record.id);
+  if (record.kind === 'proposal') proposal = g.proposals.find((p) => p.id === record.id);
+  if (record.kind === 'agreement') {
+    const a = g.agreements.find((x) => x.id === record.id);
+    if (a) { agreements = [a]; proposal = a.proposalId != null ? g.proposals.find((p) => p.id === a.proposalId) : undefined; }
+  }
+  if (record.kind === 'project') {
+    project = g.projects.find((p) => p.id === record.id);
+    opportunity = project ? originOpportunity(g, project.id) : undefined;
+  }
+  if (!opportunity && proposal) opportunity = g.opportunities.find((o) => o.proposalId === proposal!.id);
+  if (!proposal && opportunity?.proposalId != null) proposal = g.proposals.find((p) => p.id === opportunity!.proposalId);
+  if (!project && opportunity?.projectId != null) project = g.projects.find((p) => p.id === opportunity!.projectId);
+  if (proposal && record.kind !== 'agreement') agreements = g.agreements.filter((a) => a.proposalId === proposal!.id);
+  if (proposal && record.kind === 'agreement') agreements = [...agreements, ...g.agreements.filter((a) => a.proposalId === proposal!.id && a.id !== record.id)];
+
+  // Several agreements: the one being viewed, else the active one, else the latest.
+  const byLatest = [...agreements].sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '') || b.id - a.id);
+  const shownAgreement = record.kind === 'agreement' ? agreements[0] : byLatest.find((a) => isAgreementActive(a, today)) || byLatest[0];
+  const otherAgreements = byLatest.filter((a) => a !== shownAgreement);
+
+  const nodes: ThreadNode[] = [];
+  if (opportunity) nodes.push(opportunityNode(opportunity));
+  if (proposal) nodes.push(proposalNode(proposal));
+  if (shownAgreement) nodes.push(agreementNode(shownAgreement, otherAgreements));
+  if (project) nodes.push(projectNode(project));
+
+  const last = nodes[nodes.length - 1];
+  const closed = (opportunity?.status === 'Lost')
+    || (!!proposal && ['Lost', 'Withdrawn'].includes(proposal.status))
+    || (last?.kind === 'project' && ['Completed', 'Cancelled'].includes(project!.status))
+    || (last?.kind === 'agreement' && shownAgreement!.status === 'Canceled');
+
+  // Later steps not there yet. A project only links through an opportunity,
+  // so a thread without one never shows an empty project step.
+  const lastIndex = last ? THREAD_ORDER.indexOf(last.kind) : -1;
+  const missing = closed || !last ? [] : THREAD_ORDER.slice(lastIndex + 1).filter((k) => k !== 'project' || !!opportunity);
+
+  const gaps: ThreadGap[] = nodes.slice(1).map((n, i) => ({ days: daysFrom(nodes[i].date, n.date) }));
+
+  // Who the last step waits on, and since when.
+  let after: ThreadGap | null = null;
+  if (last && !closed) {
+    let waitingOn: WaitingOn | null = null;
+    let since: string | null = last.date;
+    if (last.kind === 'opportunity') {
+      waitingOn = opportunity!.waitingOn ?? null;
+      since = opportunity!.waitingSince || last.date;
+    } else if (last.kind === 'proposal') {
+      waitingOn = proposalWaitingOn(proposal!.status, proposal!.archived);
+      since = proposal!.status === 'Signed by Client' ? (proposal!.dateSigned || last.date) : last.date;
+    } else if (last.kind === 'agreement') {
+      const a = shownAgreement!;
+      if (a.status === 'Client Review' || a.status === 'Client Signature') { waitingOn = 'them'; since = a.dateSentToClient || last.date; }
+      else if (a.status === 'MENA Signature') { waitingOn = 'us'; since = a.dateClientSigned || last.date; }
+      else if (a.status === 'In Preparation') { waitingOn = 'us'; since = a.datePrepared || a.createdAt || last.date; }
+    }
+    if (last.kind !== 'project') {
+      const days = daysFrom(since, today);
+      const limit = waitingOn === 'them' ? (last.kind === 'proposal' ? 10 : 14) : 7;
+      after = { days, waitingOn, late: !!waitingOn && days != null && days > limit };
+    }
+  }
+
+  // The one thing to do next, for the first missing step. Nothing is created without asking.
+  let next: ThreadNext | null = null;
+  if (last && !closed) {
+    if (last.kind === 'opportunity' && opportunity!.status === 'Open') next = { label: 'Create proposal', action: 'create_proposal', kind: 'opportunity', id: opportunity!.id };
+    else if (last.kind === 'opportunity' && opportunity!.status === 'Won' && !project) next = { label: 'Create project', action: 'create_project', kind: 'opportunity', id: opportunity!.id };
+    else if (last.kind === 'proposal' && proposal!.status === 'Signed by Both Parties') next = { label: 'Draft agreement', action: 'draft_agreement', kind: 'proposal', id: proposal!.id };
+    else if (last.kind === 'proposal') {
+      const label = proposalNextStepLabel(proposal!);
+      if (label) next = { label, action: 'open', kind: 'proposal', id: proposal!.id };
+    } else if (last.kind === 'agreement' && opportunity && !project && ['Signed', 'Filed'].includes(shownAgreement!.status || '')) {
+      next = { label: 'Create project', action: 'create_project', kind: 'opportunity', id: opportunity.id };
+    }
+  }
+
+  return { nodes, gaps, after, missing, next, closed, show: nodes.length > 1 || next != null };
 }

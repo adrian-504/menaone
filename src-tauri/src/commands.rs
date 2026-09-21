@@ -1306,6 +1306,7 @@ pub const UI_META_KEYS: &[&str] = &[
     "opportunities_leads_backfilled_v1",
     "reminder_settings",
     "reminders_sent",
+    "timeline_scope",
 ];
 
 pub fn ui_meta_key_allowed(key: &str) -> bool {

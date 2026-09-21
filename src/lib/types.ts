@@ -674,6 +674,8 @@ export interface ActivityFilter {
   contactId?: number;
   entityType?: string;
   entityId?: number;
+  /** Any of these records (an opportunity or project also matches rows tagged with it). */
+  records?: { kind: string; id: number }[];
   limit?: number;
 }
 

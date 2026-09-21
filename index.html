@@ -922,10 +922,10 @@
         <button class="loc-nav rec-more" onclick="projectMoreMenu(event)" title="More" aria-label="More"><span data-icon="more" data-icon-size="16"></span></button>
       </div>
     </header>
+    <div class="thread-host" id="pd-thread" hidden></div>
     <div class="rec-layout">
-    <div class="rec-main">
-    <div class="rec-grid-2">
-      <section class="sec rec-section">
+    <div class="rec-main rec-stack" id="pd-main">
+      <section class="sec rec-section" id="pd-milestones-sec">
         <div class="rec-section-hd"><h2>Milestones</h2><span class="rec-count" id="pd-milestone-cnt"></span></div>
         <div id="pd-milestones"></div>
         <form class="milestone-add-row" onsubmit="addMilestone(event)">
@@ -934,23 +934,20 @@
           <button type="submit" class="btn-secondary btn-sm">Add</button>
         </form>
       </section>
-      <section class="sec rec-section">
+      <section class="sec rec-section" id="pd-tasks-sec">
         <div class="rec-section-hd"><h2>Tasks</h2><span class="rec-count" id="pd-task-cnt"></span><div class="rec-section-actions"><button class="btn-secondary btn-sm" onclick="createTodoForCurrentProject()">+ New</button></div></div>
         <div id="pd-tasks"></div>
       </section>
-    </div>
-    <section class="sec rec-section" id="pd-commitments" hidden></section>
-    <div class="sec rec-section" id="pd-origin" style="display:none"></div>
-    <div class="rec-grid-2">
-      <div class="sec rec-section" id="pd-notes"></div>
       <div class="sec rec-section" id="pd-meetings"></div>
-    </div>
-    <div class="sec rec-section" id="pd-emails" style="display:none"></div>
-    <section class="sec rec-section">
-      <div class="rec-section-hd"><h2>Files</h2><span class="rec-count" id="pd-files-cnt"></span></div>
-      <div id="pd-files"></div>
-    </section>
-    <div class="sec rec-section" id="pd-activity"></div>
+      <section class="sec rec-section" id="pd-commitments" hidden></section>
+      <div class="sec rec-section" id="pd-origin" hidden></div>
+      <div class="sec rec-section" id="pd-notes"></div>
+      <div class="sec rec-section" id="pd-emails" style="display:none"></div>
+      <section class="sec rec-section" id="pd-files-sec">
+        <div class="rec-section-hd"><h2>Files</h2><span class="rec-count" id="pd-files-cnt"></span></div>
+        <div id="pd-files"></div>
+      </section>
+      <div class="sec rec-section" id="pd-activity"></div>
     </div>
     <aside class="rec-side">
       <section class="sec rec-side-card">
@@ -1096,21 +1093,18 @@
         <button class="loc-nav rec-more" onclick="opportunityMoreMenu(event)" title="More" aria-label="More"><span data-icon="more" data-icon-size="16"></span></button>
       </div>
     </header>
+    <div class="thread-host" id="od-thread" hidden></div>
     <div class="rec-layout">
-    <div class="rec-main">
-    <div class="rec-grid-2">
+    <div class="rec-main rec-stack" id="od-main">
       <section class="sec rec-section"><div class="rec-section-hd"><h2>Description</h2></div><textarea id="od-description" class="rec-notes" placeholder="What is this opportunity about?" oninput="autoSaveOpportunityField('description',this.value)"></textarea></section>
-      <section class="sec rec-section"><div class="rec-section-hd"><h2>Next action</h2></div><textarea id="od-next-action" class="rec-notes" placeholder="What happens next?" oninput="autoSaveOpportunityField('nextAction',this.value)"></textarea></section>
+      <section class="sec rec-section" id="od-next"><div class="rec-section-hd"><h2>Next action</h2></div><div id="od-next-task"></div><textarea id="od-next-action" class="rec-notes" placeholder="What happens next?" oninput="autoSaveOpportunityField('nextAction',this.value)"></textarea></section>
+      <div class="sec rec-section" id="od-tasks"></div>
+      <div class="sec rec-section" id="od-meetings"></div>
+      <section class="sec rec-section" id="od-commitments" hidden></section>
       <div class="sec rec-section" id="od-contacts"></div>
       <div class="sec rec-section" id="od-notes"></div>
-      <div class="sec rec-section" id="od-meetings"></div>
-      <div class="sec rec-section" id="od-tasks"></div>
-      <div class="sec rec-section" id="od-proposal"></div>
-      <div class="sec rec-section" id="od-project"></div>
-    </div>
-    <section class="sec rec-section" id="od-commitments" hidden></section>
-    <section class="sec rec-section" id="od-files"></section>
-    <div class="sec rec-section" id="od-activity"></div>
+      <section class="sec rec-section" id="od-files"></section>
+      <div class="sec rec-section" id="od-activity"></div>
     </div>
     <aside class="rec-side">
       <section class="sec rec-side-card">
@@ -1714,6 +1708,7 @@
     </div>
     <div class="rec-actions" id="agd-actions"></div>
   </header>
+  <div class="thread-host" id="agd-thread" hidden></div>
   <div class="ctd-grid">
     <aside class="sec ctd-props-card">
       <div class="rec-section-hd"><h2>Details</h2><span class="rec-save-state" id="agd-save-state"></span></div>
@@ -1732,10 +1727,7 @@
         <div class="rec-section-hd"><h2>Signature trail</h2></div>
         <dl class="rec-props pr-props" id="agd-dates"></dl>
       </section>
-      <section class="rec-section sec">
-        <div class="rec-section-hd"><h2>Activity</h2></div>
-        <div class="feed" id="agd-activity"></div>
-      </section>
+      <section class="rec-section sec" id="agd-activity"></section>
     </div>
   </div>
 </div>
@@ -1829,6 +1821,7 @@
     </div>
     <div class="rec-actions" id="prd-actions"></div>
   </header>
+  <div class="thread-host" id="prd-thread" hidden></div>
   <ol class="pr-stages" id="prd-stages" aria-label="Progress"></ol>
   <div class="pr-toolbar" id="prd-toolbar"></div>
   <div class="ctd-grid pr-grid">
@@ -1863,10 +1856,7 @@
         </div>
         <div class="feed" id="prd-notes"></div>
       </section>
-      <section class="rec-section sec">
-        <div class="rec-section-hd"><h2>Activity</h2></div>
-        <div class="feed" id="prd-activity"></div>
-      </section>
+      <section class="rec-section sec" id="prd-activity"></section>
     </div>
   </div>
 </div>

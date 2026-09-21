@@ -5,6 +5,7 @@ import { toast, undoToast } from '../lib/ui';
 import { renderBulkBar } from '../lib/bulkBar';
 import { STATUSES, ST, AGR_ST } from '../lib/constants';
 import { renderCompanyCommitments } from './commitments';
+import { collapseEmptySections } from '../lib/sectionLayout';
 import { today, fmtDate, escHtml, expose, showConfirm, statusDot, showTextPrompt, getClients, companyRef, inCompany, daysSince, daysUntil, strColor, type CompanyRef } from '../lib/utils';
 import { shownColumns, sortState, setSort, sortRows, headerCells, openColumnPicker, agoLabel, type Column, type SortState } from '../lib/tableColumns';
 import { companyLists, companyNamesInList, contactsInCompanyList, contactsAtCompanies, createSavedList, renameSavedList, removeSavedList, updateSmartListFilters, addCompaniesToList, removeCompaniesFromList, addToCompanyListChoices, exportToActiveCampaign, listById, sameFilters, cleanFilters, listChipLabel, listsForCompany } from '../core/lists';
@@ -1116,28 +1117,8 @@ function applyCompanySectionLayout(counts: Record<string, number | null>): void 
   const host = anchor?.parentElement;
   if (!host || !anchor) return;
   const movable = COMPANY_SECTIONS.filter(([id]) => !['overview', 'activity', 'files'].includes(id));
-  const empties: HTMLElement[] = [];
-  for (const [id] of movable) {
-    const el = document.getElementById(`co-sec-${id}`);
-    if (!el) continue;
-    const empty = counts[id] === 0;
-    el.classList.toggle('is-empty', empty);
-    const hd = el.querySelector('.rec-section-hd');
-    let hint = el.querySelector<HTMLElement>('.rec-empty-hint');
-    if (empty && !hint && hd) {
-      hint = document.createElement('span');
-      hint.className = 'rec-empty-hint';
-      hint.textContent = 'None yet';
-      hint.title = 'Click to open this section';
-      hint.onclick = () => expandCompanySection(id);
-      hd.insertBefore(hint, hd.querySelector('.rec-section-actions'));
-    } else if (!empty && hint) {
-      hint.remove();
-    }
-    if (empty) empties.push(el);
-    else host.insertBefore(el, anchor); // sections with content keep their order, above Files
-  }
-  for (const el of empties) host.insertBefore(el, anchor); // then the empty ones, together
+  collapseEmptySections(host, movable.map(([id]) => document.getElementById(`co-sec-${id}`)).filter((el): el is HTMLElement => !!el)
+    .map((el) => ({ el, empty: counts[el.id.replace('co-sec-', '')] === 0 })), anchor);
 }
 
 /** Clicking a collapsed section opens it for this visit. */

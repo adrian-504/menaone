@@ -12,7 +12,9 @@ import { S } from '../lib/state';
 import { notifyNavigated } from '../lib/registry';
 import { currentPlace, openRecord, navBack, navForward, closeCurrentRecord, openRecordLink, placeCompany, navBackFromRecord } from './router';
 import { placeKey } from '../lib/navHistory';
-import type { Company, Meeting, Note, Opportunity, Project, Proposal, Todo } from '../lib/types';
+import { engagementThread } from '../lib/workGraph';
+import { threadStripHtml } from '../lib/threadStrip';
+import type { Agreement, Company, Meeting, Note, Opportunity, Project, Proposal, Todo } from '../lib/types';
 
 const w = window as any;
 const tick = () => new Promise((r) => setTimeout(r, 0));
@@ -182,5 +184,37 @@ describe('router: company shown beside a record', () => {
     for (const [tab, kind, key] of [['projects', 'project', 11], ['opportunities', 'opportunity', 5], ['meetings', 'meeting', 13]] as const) {
       expect(placeCompany({ tab, kind, key })).toEqual({ id: 1, name: 'Globex Renamed' });
     }
+  });
+});
+
+describe('router: the thread strip', () => {
+  it('Proposal → Agreement → Project through the strip, one history step each', async () => {
+    const detail = document.createElement('div'); detail.id = 'agr-detail'; document.body.appendChild(detail);
+    S.opportunities = [{ ...S.opportunities[0], proposalId: 7, projectId: 11, stage: 'Won', status: 'Won', createdAt: '2026-08-01' } as Opportunity];
+    S.proposals[0] = { ...S.proposals[0], type: 'Payroll', status: 'Signed by Both Parties', dateSentToClient: '2026-08-10', archived: false } as Proposal;
+    S.agreements = [{ id: 21, agrRef: 'GLX_PAY_001', proposalId: 7, status: 'Signed', dateMenaSigned: '2026-09-01', createdAt: '2026-08-20' } as Agreement];
+    S.projects[0] = { ...S.projects[0], status: 'In Progress', startDate: '2026-09-10' } as Project;
+    const agreement = page('agr-detail', (id) => { S.currentAgreementId = id; }, (id) => S.agreements.some((a) => a.id === id));
+    w.openAgreementPage = agreement.open; w.closeAgreementPage = agreement.close;
+    // Clicks a node in the strip as it renders for the open record.
+    const clickStrip = async (from: { kind: 'proposal' | 'agreement' | 'project'; id: number }, to: string) => {
+      const host = document.createElement('div');
+      host.innerHTML = threadStripHtml(engagementThread(from, S, '2026-09-21'), from);
+      const current = host.querySelector('[aria-current="page"]');
+      expect(current?.tagName).toBe('SPAN'); // the open record is not a link
+      const link = host.querySelector<HTMLAnchorElement>(`a[data-rkind="${to}"]`)!;
+      openRecordLink(new Event('click'), link); await tick();
+    };
+
+    w.switchTab('database'); await tick();
+    openRecord('proposal', 7); await tick();
+    await clickStrip({ kind: 'proposal', id: 7 }, 'agreement');
+    expect(where()).toBe('agreements/agreement/21');
+    await clickStrip({ kind: 'agreement', id: 21 }, 'project');
+    expect(where()).toBe('projects/project/11');
+    navBack(); await tick();
+    expect(where()).toBe('agreements/agreement/21');
+    navBack(); await tick();
+    expect(where()).toBe('database/proposal/7');
   });
 });
