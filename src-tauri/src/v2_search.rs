@@ -32,7 +32,7 @@ pub fn reindex_project(conn: &Connection, id: i64) -> rusqlite::Result<()> {
 
 pub fn reindex_meeting(conn: &Connection, id: i64) -> rusqlite::Result<()> {
     let row = conn.query_row(
-        "SELECT title, COALESCE(agenda,''), COALESCE(discussion,''), COALESCE(company_name,'') FROM meetings WHERE id = ?1",
+        "SELECT title, COALESCE(agenda,'') || ' ' || COALESCE(decisions,'') || ' ' || COALESCE(follow_up,''), COALESCE(discussion,''), COALESCE(company_name,'') FROM meetings WHERE id = ?1",
         params![id],
         |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?, r.get::<_, String>(2)?, r.get::<_, String>(3)?)),
     );

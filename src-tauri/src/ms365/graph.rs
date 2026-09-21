@@ -70,7 +70,7 @@ async fn graph_get_url(access_token: &str, url: &str) -> Result<serde_json::Valu
         client()
             .get(url)
             .bearer_auth(access_token)
-            .header("Prefer", r#"outlook.timezone="UTC""#)
+            .header("Prefer", r#"outlook.timezone="UTC", outlook.body-content-type="text""#)
     )
     .await?;
     handle_response(resp).await
@@ -315,7 +315,7 @@ pub struct GraphEvent {
 /// against a complete read, never a truncated one.
 pub async fn list_calendar_view(access_token: &str, start_iso: &str, end_iso: &str) -> Result<(Vec<GraphEvent>, bool), String> {
     let query = format!(
-        "/me/calendarView?startDateTime={start}&endDateTime={end}&$select=id,subject,bodyPreview,start,end,location,organizer,attendees,isCancelled,isOnlineMeeting,onlineMeeting,webLink,seriesMasterId,type&$orderby=start/dateTime&$top=250",
+        "/me/calendarView?startDateTime={start}&endDateTime={end}&$select=id,subject,bodyPreview,body,start,end,location,organizer,attendees,isCancelled,isOnlineMeeting,onlineMeeting,webLink,seriesMasterId,type&$orderby=start/dateTime&$top=250",
         start = urlencode(start_iso),
         end = urlencode(end_iso),
     );
@@ -326,9 +326,9 @@ pub async fn list_calendar_view(access_token: &str, start_iso: &str, end_iso: &s
 /// deleted meeting apart from one that moved outside the synced range.
 pub async fn get_event(access_token: &str, event_id: &str) -> Result<Option<GraphEvent>, String> {
     let url = format!(
-        "{GRAPH_BASE}/me/events/{event_id}?$select=id,subject,bodyPreview,start,end,location,organizer,attendees,isCancelled,isOnlineMeeting,onlineMeeting,webLink,seriesMasterId,type"
+        "{GRAPH_BASE}/me/events/{event_id}?$select=id,subject,bodyPreview,body,start,end,location,organizer,attendees,isCancelled,isOnlineMeeting,onlineMeeting,webLink,seriesMasterId,type"
     );
-    let resp = send(client().get(url).bearer_auth(access_token).header("Prefer", r#"outlook.timezone="UTC""#)).await?;
+    let resp = send(client().get(url).bearer_auth(access_token).header("Prefer", r#"outlook.timezone="UTC", outlook.body-content-type="text""#)).await?;
     if resp.status().as_u16() == 404 {
         return Ok(None);
     }

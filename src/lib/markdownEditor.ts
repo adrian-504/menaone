@@ -87,7 +87,8 @@ const WIKILINK_RE = /\[\[([^\]]+)\]\]/g;
  * editable text throughout. */
 function buildDecorations(view: EditorView, resolveWikilink: (t: string) => number | null, resolveAttachment: (id: string, img: HTMLImageElement) => void): DecorationSet {
   const builder = new RangeSetBuilder<Decoration>();
-  const cursorLine = view.state.doc.lineAt(view.state.selection.main.head).number;
+  // Markers only show while someone is editing: an unfocused editor reads clean.
+  const cursorLine = view.hasFocus ? view.state.doc.lineAt(view.state.selection.main.head).number : -1;
   const marks: { from: number; to: number; deco: Decoration }[] = [];
 
   const addMarker = (from: number, to: number) => {

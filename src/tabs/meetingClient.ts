@@ -133,8 +133,7 @@ function buildBrief(m: Meeting, company: Company): Brief {
     .filter((x) => x.id !== m.id && !x.isCancelled && inCompany(ref, x.companyId, x.companyName) && (x.meetingDate || '') < date)
     .sort((a, b) => (b.meetingDate || '').localeCompare(a.meetingDate || ''))[0];
   if (previous) {
-    const follow = [previous.followUp, previous.decisions].filter((t) => t && t.trim()).map((t) => t!.trim().split('\n')[0]).join(' · ');
-    lines.push(`<div class="md-brief-row">${icon('meeting', 13)}<div><strong>Last meeting</strong> ${recordLink('meeting', previous.id, previous.title)} · ${fmtDate(previous.meetingDate)}${follow ? `<div class="rec-muted">${escHtml(follow.slice(0, 180))}</div>` : ''}</div></div>`);
+    // The last meetings themselves are in "Earlier with …" beside the page.
     if (previous.followUp?.trim()) agenda.push(`Follow up from ${fmtDate(previous.meetingDate)}: ${previous.followUp.trim().split('\n')[0]}`);
     const prevTasks = S.todos.filter((t) => t.meetingId === previous.id && t.status !== 'Done');
     if (prevTasks.length) agenda.push(`Open actions from last meeting: ${prevTasks.slice(0, 3).map((t) => t.title).join('; ')}`);
@@ -195,9 +194,7 @@ export function addSuggestedAgenda(meetingId: number): void {
   const add = agenda.filter((a) => !existing.includes(a)).map((a) => `- ${a}`).join('\n');
   if (!add) { toast('The suggested points are already in the agenda'); return; }
   m.agenda = existing ? `${existing}\n${add}` : add;
-  const box = document.getElementById('md-agenda') as HTMLTextAreaElement | null;
-  if (box) { box.value = m.agenda; box.dispatchEvent(new Event('input')); }
-  void persistMeeting(m).then(replaceMeeting);
+  void persistMeeting(m).then((saved) => { replaceMeeting(saved); (window as any).openMeetingSection?.('agenda'); });
   toast('Suggested agenda added — edit it as you like', { tone: 'success' });
 }
 expose('addSuggestedAgenda', addSuggestedAgenda);

@@ -398,6 +398,7 @@ export function taskRowHtml(t: Todo, opts: { list?: string; compact?: boolean } 
   const inCompanyList = opts.list?.startsWith('company:');
   const meta: string[] = [];
   if (t.status === 'In Progress') meta.push('<span class="task-state">In progress</span>');
+  if (t.owner) meta.push(`<span class="task-owner" title="Owner">${icon('people', 11)}${escHtml(t.owner)}</span>`);
   if (t.dueDate && !(opts.list === 'today' && t.dueDate === todayIso() && !t.dueTime)) {
     meta.push(`<span class="task-due${over ? ' overdue' : t.dueDate === todayIso() ? ' today' : ''}">${icon('calendar', 11)}${escHtml(dueLabel(t))}</span>`);
   }
@@ -543,7 +544,7 @@ export function blankTask(fields: Partial<Todo>): Todo {
   return {
     id: nextTodoId(), title: '', type: 'general', client: null, priority: 'Medium', dueDate: null, dueTime: null, someday: false,
     status: 'Pending', description: null, createdAt: todayIso(), completedAt: null, projectId: null, parentId: null,
-    areaId: null, section: null, sortOrder: null, recurrenceRule: null, meetingId: null, tags: [],
+    areaId: null, section: null, sortOrder: null, recurrenceRule: null, meetingId: null, tags: [], owner: null,
     ...fields,
   };
 }
@@ -878,6 +879,8 @@ function afterTodoListChange(): void {
   if (S.taskDetailId != null) refreshDetailChrome();
   refreshProjectViewIfOpen();
   refreshCompanyViewIfOpen();
+  // An open meeting page lists its action items.
+  (window as any).refreshMeetingActions?.();
 }
 
 // ── Drag and drop ───────────────────────────────────────────────────────────
@@ -1097,6 +1100,8 @@ function renderTaskDetail(): void {
       <dl class="td-props">
         <dt>When</dt>
         <dd><button id="td-when" class="td-chip${isOverdue(t) ? ' overdue' : ''}" onclick="event.stopPropagation();openDatePopover(this,[${t.id}])">${icon(t.someday ? 'archive' : 'calendar', 13)}${t.someday ? 'Someday' : t.dueDate ? escHtml(whenLabel(t)) : 'Add date'}</button></dd>
+        <dt>Owner</dt>
+        <dd><input class="td-input" list="td-owners" value="${escHtml(t.owner || '')}" placeholder="Nobody yet" onchange="taskDetailSet('owner', this.value)"><datalist id="td-owners">${S.team.filter((m) => m.active !== false).map((m) => `<option value="${escHtml(m.name)}">`).join('')}</datalist></dd>
         <dt>Priority</dt>
         <dd>${seg('priority', t.priority, [['High', 'High'], ['Medium', 'Medium'], ['Low', 'Low']])}</dd>
         <dt>Status</dt>
@@ -1179,6 +1184,7 @@ export function taskDetailSet(field: string, value: string): void {
       inheritTaskCompany(t);
       break;
     case 'section': t.section = value.trim() || null; break;
+    case 'owner': t.owner = value.trim() || null; break;
     case 'recurrenceRule': t.recurrenceRule = value || null; break;
     case 'client': {
       const name = value.trim();

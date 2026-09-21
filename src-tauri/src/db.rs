@@ -707,7 +707,36 @@ const CODE_MIGRATIONS: &[(i64, fn(&Connection) -> rusqlite::Result<()>)] = &[
     // Services can be merged: the retired name stays, pointing at the survivor.
     (33, migrate_service_merges),
     (34, migrate_identity_foundation),
+    // The Outlook invite text gets its own column instead of filling Discussion;
+    // tasks get an owner.
+    (35, migrate_meeting_invite_text),
 ];
+
+fn migrate_meeting_invite_text(conn: &Connection) -> rusqlite::Result<()> {
+    let has = conn
+        .prepare("PRAGMA table_info(meetings)")?
+        .query_map([], |r| r.get::<_, String>(1))?
+        .collect::<rusqlite::Result<Vec<_>>>()?
+        .iter()
+        .any(|c| c == "invite_text");
+    if !has {
+        conn.execute_batch("ALTER TABLE meetings ADD COLUMN invite_text TEXT;")?;
+    }
+    crate::meeting_text::move_invite_text(conn)?;
+    // Action items say who does them: tasks get an owner like companies do.
+    let todo_cols = conn
+        .prepare("PRAGMA table_info(todos)")?
+        .query_map([], |r| r.get::<_, String>(1))?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    if !todo_cols.iter().any(|c| c == "owner") {
+        conn.execute_batch("ALTER TABLE todos ADD COLUMN owner TEXT;")?;
+    }
+    if !todo_cols.iter().any(|c| c == "owner_id") {
+        conn.execute_batch("ALTER TABLE todos ADD COLUMN owner_id INTEGER REFERENCES team_members(id) ON DELETE SET NULL;")?;
+    }
+    conn.execute_batch("CREATE INDEX IF NOT EXISTS idx_todos_owner_id ON todos(owner_id);")?;
+    Ok(())
+}
 
 /// The catalogue carried the same service under several names (Company
 /// Constitution / Business Setup, Workforce / Employer of Record, PRO / Admin

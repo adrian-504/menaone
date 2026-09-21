@@ -53,6 +53,8 @@ const SAMPLE: AppData = {
     { id: 2, title: 'Prepare Q3 recruitment report', type: 'general', client: null, priority: 'Medium', dueDate: '2026-09-15', status: 'In Progress', description: null, createdAt: '2026-09-02', completedAt: null, projectId: null, parentId: null, areaId: null, section: null, sortOrder: 2, recurrenceRule: null, meetingId: null, tags: ['reporting'] },
     { id: 3, title: 'Gather Q3 numbers', type: 'general', client: null, priority: 'Medium', dueDate: '2026-09-12', status: 'Done', description: null, createdAt: '2026-09-02', completedAt: '2026-09-08', projectId: null, parentId: 2, areaId: null, section: null, sortOrder: 1, recurrenceRule: null, meetingId: null, tags: [] },
     { id: 4, title: 'Draft summary slide', type: 'general', client: null, priority: 'Low', dueDate: '2026-09-14', status: 'Pending', description: null, createdAt: '2026-09-02', completedAt: null, projectId: null, parentId: 2, areaId: null, section: null, sortOrder: 2, recurrenceRule: null, meetingId: null, tags: [] },
+    { id: 6, title: 'Send the revised quote for three people', type: 'client', client: 'Acme Holdings', priority: 'Medium', dueDate: '2026-09-19', status: 'Pending', description: 'From meeting: Monthly check-in', createdAt: '2026-09-15', completedAt: null, projectId: null, parentId: null, areaId: null, section: null, sortOrder: 4, recurrenceRule: null, meetingId: 2, tags: [], owner: 'Ahmad Abdallah' },
+    { id: 7, title: 'Share the October headcount', type: 'client', client: 'Acme Holdings', priority: 'Medium', dueDate: null, status: 'Pending', description: 'From meeting: Monthly check-in', createdAt: '2026-09-15', completedAt: null, projectId: null, parentId: null, areaId: null, section: null, sortOrder: 5, recurrenceRule: null, meetingId: 2, tags: [], owner: 'Omar Haddad' },
     { id: 5, title: 'Weekly payroll review', type: 'general', client: null, priority: 'Medium', dueDate: '2026-09-11', status: 'Pending', description: null, createdAt: '2026-09-01', completedAt: null, projectId: null, parentId: null, areaId: null, section: null, sortOrder: 3, recurrenceRule: 'weekly', meetingId: null, tags: ['payroll'] },
   ],
   notes: [
@@ -107,7 +109,9 @@ const mockMeeting = (id: number, title: string, date: string, emails: { email: s
 });
 let meetingsStore: Meeting[] = [
   { ...mockMeeting(1, 'Acme — payroll kickoff', '2026-08-20', [{ email: 'jane@acme.test', name: 'Jane Doe' }]), companyName: 'Acme Holdings', companyId: 1, followUp: 'Send the onboarding checklist\nConfirm GOSI access', decisions: 'Start payroll from October' },
-  mockMeeting(2, 'Monthly check-in', '2026-09-15', [{ email: 'jane@acme.test', name: 'Jane Doe' }, { email: 'omar@acme.test', name: 'Omar Haddad' }]),
+  { ...mockMeeting(2, 'Monthly check-in', '2026-09-15', [{ email: 'jane@acme.test', name: 'Jane Doe' }, { email: 'omar@acme.test', name: 'Omar Haddad' }]), companyName: 'Acme Holdings', companyId: 1,
+    discussion: '- Headcount goes from 4 to **3** people\n- Omar wants the GOSI report monthly\n- [ ] Check the October payroll calendar', decisions: '- Price on three people from November\n- Monthly GOSI report from us',
+    nextMeeting: '2026-10-13', inviteText: '________________________________\nMicrosoft Teams meeting\nJoin: https://teams.microsoft.com/l/meetup-join/demo\nMeeting ID: 000 000 000\n________________________________' },
   mockMeeting(3, 'Intro call — Northwind', '2026-09-16', [{ email: 'lina@northwind.test', name: 'Lina Saleh' }]),
   ...todaysMockMeetings(),
 ];

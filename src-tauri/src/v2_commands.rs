@@ -292,9 +292,10 @@ pub(crate) fn row_to_meeting(r: &rusqlite::Row) -> rusqlite::Result<Meeting> {
         company_id: r.get(25)?,
         organizer_email: r.get(26)?,
         attendee_emails: r.get::<_, Option<String>>(27)?.map(|s| parse_attendee_emails(&s)).unwrap_or_default(),
+        invite_text: r.get(28)?,
     })
 }
-pub(crate) const MEETING_SELECT: &str = "SELECT id, title, meeting_date, company_name, project_id, note_id, attendees_json, agenda, discussion, decisions, action_items, follow_up, next_meeting, created_at, updated_at, outlook_event_id, start_at, end_at, organizer, location, is_online_meeting, online_meeting_url, is_cancelled, source, opportunity_id, company_id, organizer_email, attendee_emails_json FROM meetings";
+pub(crate) const MEETING_SELECT: &str = "SELECT id, title, meeting_date, company_name, project_id, note_id, attendees_json, agenda, discussion, decisions, action_items, follow_up, next_meeting, created_at, updated_at, outlook_event_id, start_at, end_at, organizer, location, is_online_meeting, online_meeting_url, is_cancelled, source, opportunity_id, company_id, organizer_email, attendee_emails_json, invite_text FROM meetings";
 
 #[tauri::command]
 pub fn get_meetings(state: State<DbState>) -> CmdResult<Vec<Meeting>> {

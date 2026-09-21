@@ -533,35 +533,21 @@
         <div class="rec-badges" id="md-badges"></div>
       </div>
       <div class="rec-actions">
-        <span id="md-save-confirm" class="rec-saved-note" style="display:none"><span data-icon="check" data-icon-size="12"></span> Filed to Notes · <a href="#" class="rlink" onclick="event.preventDefault();viewMeetingNote()">View note</a></span>
         <a id="md-join-btn" href="#" target="_blank" rel="noopener" class="btn-primary" style="display:none">Join Teams</a>
         <button class="btn-secondary in-menu" id="md-edit-schedule-btn" style="display:none" onclick="editCurrentMeetingSchedule()">Edit schedule</button>
         <button class="btn-secondary" onclick="recordNewMenu(event)" aria-haspopup="menu"><span data-icon="plus" data-icon-size="13"></span> New</button>
-        <button class="btn-primary" onclick="saveAndFileMeetingNotes()">Save &amp; file notes</button>
         <button class="btn-secondary btn-danger-ghost in-menu" id="md-delete-btn" onclick="deleteCurrentMeeting()">Delete</button>
         <button class="loc-nav rec-more" onclick="meetingMoreMenu(event)" title="More" aria-label="More"><span data-icon="more" data-icon-size="16"></span></button>
       </div>
     </header>
     <div class="rec-layout">
-    <div class="rec-main">
+    <div class="rec-main" id="md-main">
+    <!-- The meeting's notes, in the order that suits the moment: prep and
+         notes before and during the meeting, the outcome first afterwards
+         (meetings.ts renderMeetingNotes). -->
+    <section class="card rec-section md-notes" id="md-notes"></section>
     <section class="card rec-section md-client" id="md-client"></section>
     <section class="card rec-section md-people" id="md-people" hidden></section>
-    <div class="rec-grid-2">
-      <section class="card rec-section"><div class="rec-section-hd"><h2>Agenda</h2></div><textarea id="md-agenda" class="rec-notes" placeholder="What's this meeting about?" oninput="autoSaveMeetingField('agenda',this.value)"></textarea></section>
-      <section class="card rec-section"><div class="rec-section-hd"><h2>Discussion</h2></div><textarea id="md-discussion" class="rec-notes" placeholder="Notes as the meeting happens…" oninput="autoSaveMeetingField('discussion',this.value)"></textarea></section>
-      <section class="card rec-section"><div class="rec-section-hd"><h2>Decisions</h2></div><textarea id="md-decisions" class="rec-notes" placeholder="What was decided?" oninput="autoSaveMeetingField('decisions',this.value)"></textarea></section>
-      <section class="card rec-section">
-        <div class="rec-section-hd"><h2>Action items</h2></div>
-        <div id="md-tasks-list" class="md-tasks-list"></div>
-        <input id="md-task-input" class="td-input md-task-input" placeholder="Add a task and press Enter…" onkeydown="if(event.key==='Enter'){event.preventDefault();addMeetingTask(this.value);this.value='';}">
-        <div id="md-legacy-actions" class="rec-legacy-text" style="display:none"></div>
-      </section>
-    </div>
-    <section class="card rec-section">
-      <div class="rec-section-hd"><h2>Follow-up</h2></div>
-      <textarea id="md-followup" class="rec-notes" placeholder="Follow-up notes…" oninput="autoSaveMeetingField('followUp',this.value)"></textarea>
-      <dl class="rec-inline-props rec-props-spaced"><div><dt>Next meeting</dt><dd><input type="date" id="md-next-meeting" class="td-input" onchange="autoSaveMeetingField('nextMeeting',this.value)"></dd></div></dl>
-    </section>
     </div>
     <aside class="rec-side">
       <section class="card rec-side-card">
@@ -570,10 +556,12 @@
           <dt>Company</dt><dd><input id="md-company-inp" class="td-input" placeholder="No company" onchange="autoSaveMeetingCompany(this.value)"><span class="md-rel-link" id="md-company-link"></span></dd>
           <dt>Project</dt><dd><select id="md-project-sel" class="td-select" onchange="autoSaveMeetingProject(this.value)"></select><span class="md-rel-link" id="md-project-link"></span></dd>
           <dt>Opportunity</dt><dd><select id="md-opportunity-sel" class="td-select" onchange="autoSaveMeetingOpportunity(this.value)"></select><span class="md-rel-link" id="md-opportunity-link"></span></dd>
-          <dt>Note</dt><dd id="md-note-link"></dd>
+          <dt id="md-note-dt" hidden>Older note</dt><dd id="md-note-link" hidden></dd>
         </dl>
         <div class="rec-side-extra" id="md-outlook-card" style="display:none"><div id="md-outlook-info"></div></div>
       </section>
+      <section class="card rec-side-card md-earlier" id="md-earlier" hidden></section>
+      <section class="card rec-side-card md-invite" id="md-invite" hidden></section>
     </aside>
     </div>
   </div>
@@ -591,6 +579,7 @@
         <button class="active" data-when="all" onclick="setMeetingFilter('all')">All</button>
         <button data-when="upcoming" onclick="setMeetingFilter('upcoming')">Upcoming</button>
         <button data-when="past" onclick="setMeetingFilter('past')">Past</button>
+        <button data-when="writeup" onclick="setMeetingFilter('writeup')" title="Past meetings with no notes, decisions or action items">Needs write-up</button>
       </div>
       <input type="text" class="f-search" id="meeting-search" placeholder="Search title, company, attendee…" oninput="renderMeetingsTab()" aria-label="Search meetings">
       <span class="rcnt" id="meeting-count"></span>

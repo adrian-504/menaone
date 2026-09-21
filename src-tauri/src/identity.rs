@@ -30,12 +30,26 @@ pub fn owner_id_for_name_sql(n: usize) -> String {
 /// Tables whose `owner` text is linked to the team directory.
 pub const OWNED_TABLES: [&str; 3] = ["companies", "opportunities", "projects"];
 
+/// Tasks got an owner later (schema 35); before that migration has run they
+/// are left out.
+const TASKS: &str = "todos";
+
+fn owner_tables(conn: &Connection) -> rusqlite::Result<Vec<&'static str>> {
+    let tasks_have_owner = conn
+        .prepare("PRAGMA table_info(todos)")?
+        .query_map([], |r| r.get::<_, String>(1))?
+        .collect::<rusqlite::Result<Vec<_>>>()?
+        .iter()
+        .any(|c| c == "owner_id");
+    Ok(OWNED_TABLES.iter().copied().chain(tasks_have_owner.then_some(TASKS)).collect())
+}
+
 /// Links owner names that match a team member but aren't linked yet — after a
 /// member is added or renamed, or records arrive through an import. Rows that
 /// already have the right link aren't touched, so nothing counts as edited.
 pub fn relink_owners(conn: &Connection) -> rusqlite::Result<usize> {
     let mut linked = 0;
-    for table in OWNED_TABLES {
+    for table in owner_tables(conn)? {
         linked += conn.execute(
             &format!(
                 "UPDATE {table} SET owner_id = (SELECT t.id FROM team_members t
@@ -51,7 +65,7 @@ pub fn relink_owners(conn: &Connection) -> rusqlite::Result<usize> {
 
 /// A team member's new name follows onto the records they own.
 pub fn rename_owner(conn: &Connection, member_id: i64, new_name: &str) -> rusqlite::Result<()> {
-    for table in OWNED_TABLES {
+    for table in owner_tables(conn)? {
         conn.execute(
             &format!("UPDATE {table} SET owner = ?2 WHERE owner_id = ?1 AND owner IS NOT ?2"),
             params![member_id, new_name.trim()],

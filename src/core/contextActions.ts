@@ -70,7 +70,7 @@ export function contextCreateActions(): ContextAction[] {
       if (!m) return [];
       const g = 'This Meeting';
       return [
-        a('ctx-mt-note', 'Note', m.noteId != null ? 'Open the Meeting Note' : 'New Meeting Note', g, 'note', () => { void w().openMeetingNote?.(m.id); }),
+        ...(m.noteId != null ? [a('ctx-mt-note', 'Note', 'Open the Older Meeting Note', g, 'note', () => w().openRecord?.('note', m.noteId))] : []),
         a('ctx-mt-task', 'Task', 'New Task from this Meeting', g, 'check', () => w().createTodoForMeeting?.(m.id)),
       ];
     }

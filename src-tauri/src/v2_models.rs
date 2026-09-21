@@ -123,6 +123,9 @@ pub struct Meeting {
     pub is_online_meeting: bool,
     #[serde(default)]
     pub online_meeting_url: Option<String>,
+    /// The invite's text from Outlook, kept apart from the meeting's notes.
+    #[serde(default)]
+    pub invite_text: Option<String>,
     #[serde(default)]
     pub is_cancelled: bool,
     #[serde(default = "default_meeting_source")]

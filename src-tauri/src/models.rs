@@ -312,6 +312,10 @@ pub struct Todo {
     /// The opportunity this task is part of, when it is sales work.
     #[serde(default)]
     pub opportunity_id: Option<i64>,
+    /// Who does it: a team member's name (linked by `owner_id` in the
+    /// database) or anyone else, such as the client's contact.
+    #[serde(default)]
+    pub owner: Option<String>,
     /// "HH:MM" on `due_date`, when the task has a time.
     #[serde(default)]
     pub due_time: Option<String>,

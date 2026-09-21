@@ -139,3 +139,26 @@ fn activity_records_who_was_signed_in() {
     drop(conn);
     let _ = std::fs::remove_file(path);
 }
+
+#[test]
+fn task_owners_link_to_the_team_and_follow_renames() {
+    use menabig_tracker_lib::commands::upsert_todo_rows;
+    use menabig_tracker_lib::models::Todo;
+    use menabig_tracker_lib::identity::rename_owner;
+    let (path, mut conn) = fresh_db("task_owner");
+    let jane = member(&conn, "Jane Tester", "jane@example.test");
+    upsert_todo_rows(&mut conn, &[
+        Todo { id: 1, title: "Send the quote".into(), owner: Some("jane tester".into()), ..Default::default() },
+        Todo { id: 2, title: "Share the headcount".into(), owner: Some("Omar at Contoso".into()), ..Default::default() },
+    ]).unwrap();
+    assert_eq!(one::<i64>(&conn, "SELECT owner_id FROM todos WHERE id = 1"), jane);
+    assert_eq!(one::<Option<i64>>(&conn, "SELECT owner_id FROM todos WHERE id = 2"), None, "someone outside the team stays text");
+    let version: i64 = one(&conn, "SELECT row_version FROM todos WHERE id = 1");
+    upsert_todo_rows(&mut conn, &[Todo { id: 1, title: "Send the quote".into(), owner: Some("jane tester".into()), ..Default::default() }]).unwrap();
+    assert_eq!(one::<i64>(&conn, "SELECT row_version FROM todos WHERE id = 1"), version, "an unchanged save isn't an edit");
+
+    rename_owner(&conn, jane, "Jane Q. Tester").unwrap();
+    assert_eq!(one::<String>(&conn, "SELECT owner FROM todos WHERE id = 1"), "Jane Q. Tester");
+    drop(conn);
+    let _ = std::fs::remove_file(path);
+}

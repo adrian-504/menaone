@@ -585,7 +585,8 @@ pub fn upsert_meeting_from_event(conn: &Connection, e: &graph::GraphEvent, now: 
         &e.attendees.iter().map(|a| a.email_address.name.clone().or(a.email_address.address.clone()).unwrap_or_default()).collect::<Vec<_>>(),
     ).unwrap_or_else(|_| "[]".into());
     let location = e.location.as_ref().and_then(|l| l.display_name.clone());
-    let description = e.body.as_ref().and_then(|b| b.content.clone()).or_else(|| e.body_preview.clone());
+    let invite_text = e.body.as_ref().and_then(|b| b.content.as_deref()).or(e.body_preview.as_deref())
+        .and_then(crate::meeting_text::invite_plain_text);
     let start_at = e.start.as_ref().map(|s| utc_instant(&s.date_time, &s.time_zone));
     let end_at = e.end.as_ref().map(|s| utc_instant(&s.date_time, &s.time_zone));
     let is_online = e.is_online_meeting.unwrap_or(false);
@@ -594,7 +595,7 @@ pub fn upsert_meeting_from_event(conn: &Connection, e: &graph::GraphEvent, now: 
     let meeting_date = start_at.as_deref().and_then(|s| s.get(0..10)).map(|d| d.to_string());
 
     conn.execute(
-        "INSERT INTO meetings (title, meeting_date, attendees_json, discussion, outlook_event_id, start_at, end_at,
+        "INSERT INTO meetings (title, meeting_date, attendees_json, invite_text, outlook_event_id, start_at, end_at,
             organizer, location, is_online_meeting, online_meeting_url, is_cancelled, source, last_synced_at, created_at, updated_at,
             organizer_email, attendee_emails_json)
          VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,'outlook',?13,?13,?13,?14,?15)
@@ -603,16 +604,18 @@ pub fn upsert_meeting_from_event(conn: &Connection, e: &graph::GraphEvent, now: 
            start_at=excluded.start_at, end_at=excluded.end_at, organizer=excluded.organizer, location=excluded.location,
            is_online_meeting=excluded.is_online_meeting, online_meeting_url=excluded.online_meeting_url,
            is_cancelled=excluded.is_cancelled, last_synced_at=excluded.last_synced_at, updated_at=excluded.last_synced_at,
-           organizer_email=excluded.organizer_email, attendee_emails_json=excluded.attendee_emails_json
+           organizer_email=excluded.organizer_email, attendee_emails_json=excluded.attendee_emails_json,
+           invite_text=COALESCE(excluded.invite_text, meetings.invite_text)
          -- An unchanged event is left alone, so a re-sync doesn't count as an edit of every meeting.
          WHERE meetings.title IS NOT excluded.title OR meetings.meeting_date IS NOT excluded.meeting_date
             OR meetings.attendees_json IS NOT excluded.attendees_json OR meetings.start_at IS NOT excluded.start_at
             OR meetings.end_at IS NOT excluded.end_at OR meetings.organizer IS NOT excluded.organizer
             OR meetings.location IS NOT excluded.location OR meetings.is_online_meeting IS NOT excluded.is_online_meeting
             OR meetings.online_meeting_url IS NOT excluded.online_meeting_url OR meetings.is_cancelled IS NOT excluded.is_cancelled
-            OR meetings.organizer_email IS NOT excluded.organizer_email OR meetings.attendee_emails_json IS NOT excluded.attendee_emails_json",
+            OR meetings.organizer_email IS NOT excluded.organizer_email OR meetings.attendee_emails_json IS NOT excluded.attendee_emails_json
+            OR (excluded.invite_text IS NOT NULL AND meetings.invite_text IS NOT excluded.invite_text)",
         params![
-            e.subject.clone().unwrap_or_else(|| "(No subject)".into()), meeting_date, attendees_json, description,
+            e.subject.clone().unwrap_or_else(|| "(No subject)".into()), meeting_date, attendees_json, invite_text,
             e.id, start_at, end_at, organizer, location, is_online as i64, online_url, is_cancelled as i64, now,
             organizer_email, attendee_emails_json,
         ],
@@ -715,12 +718,12 @@ pub enum DeletedOutlookMeeting {
 
 /// Applies an Outlook deletion to the local meeting. A meeting holding the
 /// user's own work is never deleted; it's marked cancelled instead. The
-/// discussion field isn't counted: sync fills it from the Outlook invite.
+/// invite text isn't counted: it came from Outlook.
 pub fn remove_deleted_outlook_meeting(conn: &Connection, outlook_event_id: &str) -> rusqlite::Result<DeletedOutlookMeeting> {
     let row: Option<(i64, bool)> = conn
         .query_row(
             "SELECT id,
-                COALESCE(TRIM(agenda),'') <> '' OR COALESCE(TRIM(decisions),'') <> '' OR COALESCE(TRIM(action_items),'') <> ''
+                COALESCE(TRIM(agenda),'') <> '' OR COALESCE(TRIM(discussion),'') <> '' OR COALESCE(TRIM(decisions),'') <> '' OR COALESCE(TRIM(action_items),'') <> ''
                 OR COALESCE(TRIM(follow_up),'') <> '' OR COALESCE(TRIM(next_meeting),'') <> '' OR note_id IS NOT NULL
                 OR EXISTS (SELECT 1 FROM todos t WHERE t.meeting_id = meetings.id)
                 OR EXISTS (SELECT 1 FROM documents d WHERE d.meeting_id = meetings.id)

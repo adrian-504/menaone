@@ -235,7 +235,7 @@ fn read_todos(conn: &Connection) -> rusqlite::Result<Vec<Todo>> {
     let mut stmt = conn.prepare(
         "SELECT id, title, type, client, priority, due_date, status, description, created_at, completed_at,
                 project_id, parent_id, area_id, section, sort_order, recurrence_rule, meeting_id, company_id,
-                due_time, someday, opportunity_id
+                due_time, someday, opportunity_id, owner
          FROM todos ORDER BY COALESCE(sort_order, id), id",
     )?;
     let rows = stmt.query_map([], |r| {
@@ -262,6 +262,7 @@ fn read_todos(conn: &Connection) -> rusqlite::Result<Vec<Todo>> {
             due_time: r.get(18)?,
             someday: r.get::<_, i64>(19)? != 0,
             opportunity_id: r.get(20)?,
+            owner: r.get(21)?,
         })
     })?;
     let mut todos: Vec<Todo> = rows.collect::<rusqlite::Result<_>>()?;
@@ -467,9 +468,9 @@ pub fn write_todos(conn: &mut Connection, items: &[Todo]) -> rusqlite::Result<()
     tx.execute("DELETE FROM entity_tags WHERE entity_type = 'task'", [])?;
     {
         let mut stmt = tx.prepare(
-            "INSERT INTO todos (id, title, type, client, priority, due_date, status, description, created_at, completed_at,
-                project_id, parent_id, area_id, section, sort_order, recurrence_rule, meeting_id, due_time, someday)
-             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19)",
+            &format!("INSERT INTO todos (id, title, type, client, priority, due_date, status, description, created_at, completed_at,
+                project_id, parent_id, area_id, section, sort_order, recurrence_rule, meeting_id, due_time, someday, owner, owner_id)
+             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,{})", crate::identity::owner_id_for_name_sql(20)),
         )?;
         let mut tagstmt = tx.prepare("INSERT OR IGNORE INTO entity_tags (entity_type, entity_id, tag) VALUES ('task', ?1, ?2)")?;
         for (i, t) in items.iter().enumerate() {
@@ -477,7 +478,7 @@ pub fn write_todos(conn: &mut Connection, items: &[Todo]) -> rusqlite::Result<()
             stmt.execute(params![
                 t.id, t.title, t.r#type, t.client, t.priority, t.due_date, t.status, t.description,
                 t.created_at, t.completed_at, t.project_id, t.parent_id, t.area_id, t.section,
-                sort_order, t.recurrence_rule, t.meeting_id, t.due_time, t.someday as i64,
+                sort_order, t.recurrence_rule, t.meeting_id, t.due_time, t.someday as i64, t.owner,
             ])?;
             for tag in &t.tags {
                 tagstmt.execute(params![t.id, tag])?;
@@ -779,10 +780,12 @@ pub fn upsert_todo_rows(conn: &mut Connection, items: &[Todo]) -> rusqlite::Resu
 pub fn upsert_todo_rows_in(tx: &Connection, items: &[Todo]) -> rusqlite::Result<()> {
     // A new subtask and its new parent can arrive in the same batch in either order.
     tx.execute("PRAGMA defer_foreign_keys = ON", [])?;
-    let sql = "INSERT INTO todos (id, title, type, client, priority, due_date, status, description, created_at, completed_at,
-                   project_id, parent_id, area_id, section, sort_order, recurrence_rule, meeting_id, due_time, someday, opportunity_id)
+    let owner_id = crate::identity::owner_id_for_name_sql(21);
+    let sql = format!("INSERT INTO todos (id, title, type, client, priority, due_date, status, description, created_at, completed_at,
+                   project_id, parent_id, area_id, section, sort_order, recurrence_rule, meeting_id, due_time, someday, opportunity_id,
+                   owner, owner_id)
                VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,
-                   COALESCE(?15, (SELECT COALESCE(MAX(sort_order), -1) + 1 FROM todos)), ?16, ?17, ?18, ?19, ?20)
+                   COALESCE(?15, (SELECT COALESCE(MAX(sort_order), -1) + 1 FROM todos)), ?16, ?17, ?18, ?19, ?20, ?21, {owner_id})
                ON CONFLICT(id) DO UPDATE SET
                    title = excluded.title, type = excluded.type, client = excluded.client, priority = excluded.priority,
                    due_date = excluded.due_date, status = excluded.status, description = excluded.description,
@@ -790,7 +793,7 @@ pub fn upsert_todo_rows_in(tx: &Connection, items: &[Todo]) -> rusqlite::Result<
                    parent_id = excluded.parent_id, area_id = excluded.area_id, section = excluded.section,
                    sort_order = COALESCE(?15, todos.sort_order), recurrence_rule = excluded.recurrence_rule,
                    meeting_id = excluded.meeting_id, due_time = excluded.due_time, someday = excluded.someday,
-                   opportunity_id = excluded.opportunity_id
+                   opportunity_id = excluded.opportunity_id, owner = excluded.owner, owner_id = excluded.owner_id
                WHERE todos.title IS NOT excluded.title OR todos.type IS NOT excluded.type OR todos.client IS NOT excluded.client
                    OR todos.priority IS NOT excluded.priority OR todos.due_date IS NOT excluded.due_date
                    OR todos.status IS NOT excluded.status OR todos.description IS NOT excluded.description
@@ -800,13 +803,15 @@ pub fn upsert_todo_rows_in(tx: &Connection, items: &[Todo]) -> rusqlite::Result<
                    OR todos.sort_order IS NOT COALESCE(?15, todos.sort_order)
                    OR todos.recurrence_rule IS NOT excluded.recurrence_rule OR todos.meeting_id IS NOT excluded.meeting_id
                    OR todos.due_time IS NOT excluded.due_time OR todos.someday IS NOT excluded.someday
-                   OR todos.opportunity_id IS NOT excluded.opportunity_id";
+                   OR todos.opportunity_id IS NOT excluded.opportunity_id OR todos.owner IS NOT excluded.owner
+                   OR todos.owner_id IS NOT excluded.owner_id");
     for t in items {
         let prior = crate::opportunities::prior_company(tx, "todos", Some("client"), t.id)?;
-        tx.prepare_cached(sql)?.execute(params![
+        tx.prepare_cached(&sql)?.execute(params![
             t.id, t.title, t.r#type, t.client, t.priority, t.due_date, t.status, t.description,
             t.created_at, t.completed_at, t.project_id, t.parent_id, t.area_id, t.section,
             t.sort_order, t.recurrence_rule, t.meeting_id, t.due_time, t.someday as i64, t.opportunity_id,
+            t.owner,
         ])?;
         tx.execute(
             "DELETE FROM entity_tags WHERE entity_type = 'task' AND entity_id = ?1 AND tag NOT IN (SELECT value FROM json_each(?2))",

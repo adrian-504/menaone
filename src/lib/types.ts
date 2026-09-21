@@ -240,6 +240,8 @@ export interface Todo {
   companyId?: number | null;
   /** The opportunity this task belongs to (Work Graph). */
   opportunityId?: number | null;
+  /** Who does it: a team member's name or anyone else (the client's contact). */
+  owner?: string | null;
 }
 
 export interface Note {
@@ -352,6 +354,8 @@ export interface Meeting {
   /** From Outlook sync. */
   organizerEmail?: string | null;
   attendeeEmails?: string[];
+  /** The invite's text from Outlook — kept apart from the notes. Read-only. */
+  inviteText?: string | null;
 }
 
 /** Polymorphic entity kind used by entity_links, tags, and search. */

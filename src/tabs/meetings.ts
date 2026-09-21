@@ -6,21 +6,19 @@ import { renderIcons } from '../core/chrome';
 import { loadInto, emptyState } from '../lib/ui';
 import { toast } from '../lib/ui';
 import { companyLink, recordLink } from '../lib/links';
-import { fmtDate, escHtml, expose, nextNoteId, today, showConfirm, inCompany } from '../lib/utils';
+import { fmtDate, escHtml, expose, today, showConfirm, inCompany } from '../lib/utils';
 import { registerTabRenderer, refreshAll, refreshBadges, notifyNavigated } from '../lib/registry';
-import { getMeetings, deleteMeeting, ms365CancelOutlookMeeting, setLinksFrom, getLinksFor } from '../lib/db';
+import { getMeetings, deleteMeeting, ms365CancelOutlookMeeting } from '../lib/db';
 import { getAllCompanies } from './companies';
 import { attachCompanySelector } from '../lib/companySelector';
 import { openOutlookMeetingModal } from './calendar';
-import { persistTodos, persistNotes, persistMeeting } from '../lib/persist';
-import { toggleTodoDone, deleteTodo, taskRowHtml } from './todo';
-import type { Meeting, Note } from '../lib/types';
-import { addLinks, companyFromForm, contextFromCompany, contextFromMeeting, contextFromOpportunity, contextFromProject, inheritCompany, taskFields, EMPTY_CONTEXT, type WorkContext } from '../lib/workGraph';
-import { blankTask } from './todo';
+import { persistMeeting } from '../lib/persist';
+import type { Meeting } from '../lib/types';
+import { companyFromForm, contextFromCompany, contextFromOpportunity, contextFromProject, inheritCompany, EMPTY_CONTEXT, type WorkContext } from '../lib/workGraph';
 import { icon } from '../lib/icons';
+import { isMeetingOver, writeUpState } from '../lib/meetingRecap';
+import { flushMeetingNotes, isOver, renderEarlierMeetings, renderMeetingInvite, renderMeetingNotes } from './meetingNotes';
 import { renderMeetingClientSection, meetingSuggestionsBanner, meetingSuggestionChip } from './meetingClient';
-
-let meetingAutoSaveTimer: ReturnType<typeof setTimeout> | null = null;
 
 /** Time-of-day only (no date) — shared by the row list, detail badges, and
  * the Outlook info card below, so a meeting's time renders identically
@@ -45,9 +43,9 @@ async function renderMeetingsTab(): Promise<void> {
 registerTabRenderer('meetings', () => { void renderMeetingsTab(); });
 expose('renderMeetingsTab', () => { if (document.getElementById('meeting-detail')?.classList.contains('open')) return; renderMeetingList(); });
 
-let meetingWhen: 'all' | 'upcoming' | 'past' = 'all';
+let meetingWhen: 'all' | 'upcoming' | 'past' | 'writeup' = 'all';
 
-export function setMeetingFilter(when: 'all' | 'upcoming' | 'past'): void {
+export function setMeetingFilter(when: 'all' | 'upcoming' | 'past' | 'writeup'): void {
   meetingWhen = when;
   document.querySelectorAll<HTMLElement>('#meeting-when-seg button').forEach((b) => b.classList.toggle('active', b.dataset.when === when));
   renderMeetingList();
@@ -59,19 +57,23 @@ function renderMeetingList(): void {
   if (!el) return;
   const q = ((document.getElementById('meeting-search') as HTMLInputElement | null)?.value || '').trim().toLowerCase();
   const todayIso = today();
+  const now = new Date();
+  const tasksOf = (id: number) => S.todos.filter((t) => t.meetingId === id && t.parentId == null);
+  const state = new Map(S.meetings.map((m) => [m.id, writeUpState(m, tasksOf(m.id), isMeetingOver(m, now, todayIso))]));
   const shown = S.meetings.filter((m) => {
     if (meetingWhen === 'upcoming' && !((m.meetingDate || '') >= todayIso)) return false;
     if (meetingWhen === 'past' && !(m.meetingDate && m.meetingDate < todayIso)) return false;
+    if (meetingWhen === 'writeup' && !state.get(m.id)?.needsWriteUp) return false;
     return !q || [m.title, m.companyName, ...(m.attendees || [])].some((v) => (v || '').toLowerCase().includes(q));
   });
   // What's coming first (soonest at the top), history below — the order the
   // Calendar already uses, so the two modules can't disagree.
-  const { upcoming, past } = orderMeetings(shown, meetingWhen, todayIso);
+  const { upcoming, past } = orderMeetings(shown, meetingWhen === 'writeup' ? 'all' : meetingWhen, todayIso);
   const sorted = [...upcoming, ...past];
   const count = document.getElementById('meeting-count');
   if (count) count.textContent = `${sorted.length} meeting${sorted.length === 1 ? '' : 's'}`;
   if (sorted.length === 0 && S.meetings.length > 0) {
-    el.innerHTML = `<div class="card">${emptyState({ icon: 'search', title: 'No meetings match', body: q ? 'Try another name, company or attendee.' : meetingWhen === 'upcoming' ? 'Nothing scheduled from today on.' : 'No past meetings yet.', compact: true })}</div>`;
+    el.innerHTML = `<div class="card">${emptyState({ icon: meetingWhen === 'writeup' && !q ? 'check' : 'search', title: meetingWhen === 'writeup' && !q ? 'Every meeting is written up' : 'No meetings match', body: q ? 'Try another name, company or attendee.' : meetingWhen === 'upcoming' ? 'Nothing scheduled from today on.' : meetingWhen === 'writeup' ? 'Past meetings all have notes, decisions or action items.' : 'No past meetings yet.', compact: true })}</div>`;
     renderIcons(el);
     return;
   }
@@ -90,7 +92,7 @@ function renderMeetingList(): void {
       companyLink(m.companyId, m.companyName),
       (m.attendees || []).length ? `${m.attendees.length} attendee${m.attendees.length !== 1 ? 's' : ''}` : '',
       meetingSuggestionChip(m),
-    ].filter(Boolean).join(' · ')}</div>
+    ].filter(Boolean).join(' · ')}${marks(state.get(m.id))}</div>
   </div>`;
   // In "All" the two groups are separated, so a meeting tomorrow can't end up
   // below one next month.
@@ -99,10 +101,21 @@ function renderMeetingList(): void {
   renderIcons(el);
 }
 
+/** What the list shows about a meeting's write-up. */
+function marks(w: ReturnType<typeof writeUpState> | undefined): string {
+  if (!w) return '';
+  const out: string[] = [];
+  if (w.openActions) out.push(`<span class="meeting-mark">${icon('check', 11)}${w.openActions} open action${w.openActions === 1 ? '' : 's'}</span>`);
+  if (w.hasNotes) out.push(`<span class="meeting-mark" title="Has notes">${icon('note', 11)}Notes</span>`);
+  if (w.needsWriteUp) out.push('<span class="meeting-mark is-todo">Not written up</span>');
+  return out.length ? `<span class="meeting-marks">${out.join('')}</span>` : '';
+}
+
 export function openMeetingDetail(id: number): void {
   const m = S.meetings.find((x) => x.id === id);
   // A deleted meeting (an old link or history entry): back to the list, not a stale page.
   if (!m) { if (S.meetingEditId != null && document.getElementById('meeting-detail')?.classList.contains('open')) closeMeetingDetail(); return; }
+  if (S.meetingEditId !== id) flushMeetingNotes();
   S.meetingEditId = id;
   (document.getElementById('md-title') as HTMLElement).textContent = m.title;
   (document.getElementById('md-badges') as HTMLElement).innerHTML = [
@@ -123,24 +136,20 @@ export function openMeetingDetail(id: number): void {
   oppSel.value = m.opportunityId != null ? String(m.opportunityId) : '';
   renderMeetingRelationLinks(m);
 
-  (document.getElementById('md-agenda') as HTMLTextAreaElement).value = m.agenda || '';
-  (document.getElementById('md-discussion') as HTMLTextAreaElement).value = m.discussion || '';
-  (document.getElementById('md-decisions') as HTMLTextAreaElement).value = m.decisions || '';
-  (document.getElementById('md-followup') as HTMLTextAreaElement).value = m.followUp || '';
-  (document.getElementById('md-next-meeting') as HTMLInputElement).value = m.nextMeeting || '';
-
-  const legacyEl = document.getElementById('md-legacy-actions') as HTMLElement;
-  if (m.actionItems && m.actionItems.trim()) {
-    legacyEl.style.display = '';
-    legacyEl.textContent = `From before this page was live-editable:\n${m.actionItems}`;
-  } else {
-    legacyEl.style.display = 'none';
+  // Before and during the meeting, the client brief comes first to prepare;
+  // afterwards the recap does.
+  const main = document.getElementById('md-main');
+  const notesEl = document.getElementById('md-notes');
+  const clientEl = document.getElementById('md-client');
+  const peopleEl = document.getElementById('md-people');
+  if (main && notesEl && clientEl && peopleEl) {
+    if (isOver(m)) main.append(notesEl, clientEl, peopleEl);
+    else main.append(clientEl, peopleEl, notesEl);
   }
-  renderMeetingTasks(m);
+  renderMeetingNotes(m);
   renderMeetingClientSection(m);
-
-  const saveConfirm = document.getElementById('md-save-confirm') as HTMLElement;
-  saveConfirm.style.display = 'none';
+  renderEarlierMeetings(m);
+  renderMeetingInvite(m);
 
   const joinBtn = document.getElementById('md-join-btn') as HTMLAnchorElement;
   const editScheduleBtn = document.getElementById('md-edit-schedule-btn') as HTMLElement;
@@ -182,6 +191,7 @@ export function editCurrentMeetingSchedule(): void {
 expose('editCurrentMeetingSchedule', editCurrentMeetingSchedule);
 
 export function closeMeetingDetail(): void {
+  flushMeetingNotes();
   S.meetingEditId = null;
   document.getElementById('meeting-detail')?.classList.remove('open');
   document.getElementById('meeting-list-view')?.classList.remove('hidden');
@@ -225,69 +235,17 @@ function currentMeeting(): Meeting | undefined {
   return S.meetings.find((x) => x.id === S.meetingEditId);
 }
 
-function renderMeetingTasks(m: Meeting): void {
-  const list = document.getElementById('md-tasks-list');
-  if (!list) return;
-  const tasks = S.todos.filter((t) => t.meetingId === m.id);
-  list.innerHTML = tasks.length === 0
-    ? `<div class="feed-empty">No action items yet — add them below as they come up.</div>`
-    : `<div class="task-group">${tasks.map((t) => taskRowHtml(t, { compact: true })).join('')}</div>`;
-}
-
-/** Live one-at-a-time task capture — this *is* the Action Items list now,
- * not a free-text field parsed in bulk afterward. Each entry is a real,
- * immediately-persisted Todo linked to this meeting (and its project/client,
- * whatever they're currently set to). */
-export function addMeetingTask(rawTitle: string): void {
-  const title = rawTitle.trim();
-  const m = currentMeeting();
-  if (!title || !m) return;
-  // The task belongs to the meeting's company, project and opportunity.
-  const t = blankTask({ ...taskFields(contextFromMeeting(S, m)), title, description: `From meeting: ${m.title}` });
-  S.todos.push(t);
-  persistTodos();
-  refreshBadges();
-  renderMeetingTasks(m);
-}
-expose('addMeetingTask', addMeetingTask);
-
-export function toggleMeetingTask(id: number): void {
-  toggleTodoDone(id);
-  const m = currentMeeting();
-  if (m) renderMeetingTasks(m);
-}
-expose('toggleMeetingTask', toggleMeetingTask);
-
-export async function removeMeetingTask(id: number): Promise<void> {
-  deleteTodo(id);
-  const m = currentMeeting();
-  if (m) renderMeetingTasks(m);
-}
-expose('removeMeetingTask', removeMeetingTask);
-
-function debounceMeetingSave(fn: () => void): void {
-  if (meetingAutoSaveTimer) clearTimeout(meetingAutoSaveTimer);
-  meetingAutoSaveTimer = setTimeout(fn, 500);
-}
-
-type MeetingTextField = 'agenda' | 'discussion' | 'decisions' | 'followUp' | 'nextMeeting';
-
-export function autoSaveMeetingField(field: MeetingTextField, value: string): void {
-  const m = currentMeeting();
-  if (!m) return;
-  m[field] = value.trim() || null;
-  debounceMeetingSave(() => { void persistMeeting(m); });
-}
-expose('autoSaveMeetingField', autoSaveMeetingField);
-
 /** "Open" links beside the meeting's project and opportunity pickers. */
 function renderMeetingRelationLinks(m: Meeting): void {
   const project = m.projectId != null ? S.projects.find((p) => p.id === m.projectId) : undefined;
   const opp = m.opportunityId != null ? S.opportunities.find((o) => o.id === m.opportunityId) : undefined;
   const set = (id: string, html: string) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
   set('md-company-link', m.companyName ? companyLink(m.companyId, m.companyName, { className: 'md-open-link' }).replace(`>${escHtml(m.companyName)}<`, '>Open<') : '');
+  // Meeting notes live on this page now; a note filed from it before stays reachable.
   const note = m.noteId != null ? S.notes.find((n) => n.id === m.noteId) : undefined;
-  set('md-note-link', note ? recordLink('note', note.id, note.title || 'Meeting note') : `<a href="#" class="rlink md-muted-link" onclick="event.preventDefault();openMeetingNote()">Start the meeting note</a>`);
+  set('md-note-link', note ? recordLink('note', note.id, note.title || 'Meeting note') : '');
+  document.getElementById('md-note-dt')!.hidden = !note;
+  document.getElementById('md-note-link')!.hidden = !note;
   set('md-project-link', project ? recordLink('project', project.id, 'Open', { className: 'md-open-link' }) : '');
   set('md-opportunity-link', opp ? recordLink('opportunity', opp.id, 'Open', { className: 'md-open-link' }) : '');
 }
@@ -323,93 +281,6 @@ export function autoSaveMeetingOpportunity(value: string): void {
 }
 expose('autoSaveMeetingOpportunity', autoSaveMeetingOpportunity);
 
-function compileMeetingNoteMarkdown(m: Meeting): string {
-  const parts: string[] = [];
-  if (m.agenda) parts.push(`## Agenda\n${m.agenda}`);
-  if (m.discussion) parts.push(`## Discussion\n${m.discussion}`);
-  if (m.decisions) parts.push(`## Decisions\n${m.decisions}`);
-  if (m.followUp) parts.push(`## Follow-Up\n${m.followUp}`);
-  const tasks = S.todos.filter((t) => t.meetingId === m.id && t.parentId == null);
-  if (tasks.length) parts.push(`## Action Items\n${tasks.map((t) => `- [${t.status === 'Done' ? 'x' : ' '}] ${t.title.replace(/\n/g, ' ')}`).join('\n')}`);
-  if (m.nextMeeting) parts.push(`## Next Meeting\n${fmtDate(m.nextMeeting)}`);
-  return parts.join('\n\n');
-}
-
-/** Compiles the meeting's live-edited fields into a real Markdown Note (the
- * Notes system, with backlinks/relations/search) that belongs to the meeting's
- * company, project and opportunity. Idempotent: re-pressing after more edits
- * updates the same Note (via the meeting's `noteId`) rather than creating a
- * duplicate. Text written in the note itself is only replaced after asking.
- * Tasks are never touched here — they're already real, saved, linked Todos. */
-export async function saveAndFileMeetingNotes(): Promise<void> {
-  const m = currentMeeting();
-  if (!m) return;
-  const content = compileMeetingNoteMarkdown(m);
-  if (!content.trim()) { toast('Add some notes before filing — there is nothing to save yet'); return; }
-  const existing = m.noteId != null ? S.notes.find((n) => n.id === m.noteId) : undefined;
-  // Ask only when the note holds text this page didn't write (edited in Notes, or filed before this session).
-  if (existing?.content?.trim() && existing.content.trim() !== content.trim() && existing.content !== lastFiledContent.get(m.id)
-    && !(await showConfirm(`Replace the text of the note "${existing.title || 'Untitled'}" with this meeting's notes? Anything written directly in that note will be replaced.`, { confirmLabel: 'Replace' }))) return;
-  const noteId = await fileMeetingNote(m, content);
-  if (noteId == null) return;
-  lastFiledContent.set(m.id, content);
-  const saveConfirm = document.getElementById('md-save-confirm') as HTMLElement;
-  saveConfirm.style.display = '';
-}
-expose('saveAndFileMeetingNotes', saveAndFileMeetingNotes);
-
-/** The note text this session last filed for each meeting. */
-const lastFiledContent = new Map<number, string>();
-
-/** Writes (or creates) the meeting's note with the meeting's context: company
- * id, and links to its project and opportunity added to whatever the note is
- * already linked to. Returns the note id. */
-async function fileMeetingNote(m: Meeting, content: string | null): Promise<number | null> {
-  const ctx = contextFromMeeting(S, m);
-  let note = m.noteId != null ? S.notes.find((n) => n.id === m.noteId) : undefined;
-  if (note) {
-    if (content != null) note.content = content;
-    if (ctx.companyName && !note.clientName) { note.clientName = ctx.companyName; note.companyId = ctx.companyId; }
-    note.updatedAt = today();
-  } else {
-    note = {
-      id: nextNoteId(), title: m.meetingDate ? `${m.title} — ${fmtDate(m.meetingDate)}` : m.title, content: content ?? '', folder: '',
-      clientName: ctx.companyName || '', companyId: ctx.companyId, tags: [], pinned: false, createdAt: today(), updatedAt: today(),
-    };
-    S.notes.unshift(note);
-  }
-  persistNotes();
-  const noteId = note.id;
-  if (m.projectId != null || m.opportunityId != null) {
-    const links = await getLinksFor('note', noteId);
-    await setLinksFrom('note', noteId, addLinks(links, 'note', noteId, [{ toType: 'project', toId: m.projectId }, { toType: 'opportunity', toId: m.opportunityId }]));
-  }
-  if (m.noteId !== noteId) {
-    m.noteId = noteId;
-    await persistMeeting(m);
-  }
-  return noteId;
-}
-
-/** "Meeting note": opens the meeting's note, creating it (with the meeting's
- * company, project and opportunity) when there isn't one yet. */
-export async function openMeetingNote(id?: number): Promise<void> {
-  const m = id != null ? S.meetings.find((x) => x.id === id) : currentMeeting();
-  if (!m) return;
-  const existing = m.noteId != null && S.notes.some((n) => n.id === m.noteId);
-  const content = compileMeetingNoteMarkdown(m) || '## Notes\n\n\n## Action Items\n- [ ] ';
-  const noteId = existing ? m.noteId : await fileMeetingNote(m, content);
-  if (!existing && noteId != null) lastFiledContent.set(m.id, content);
-  if (noteId != null) (window as any).openRecord('note', noteId);
-}
-expose('openMeetingNote', openMeetingNote);
-
-export function viewMeetingNote(): void {
-  const m = currentMeeting();
-  if (!m || m.noteId == null) return;
-  (window as any).openRecord('note', m.noteId);
-}
-expose('viewMeetingNote', viewMeetingNote);
 
 /** The meeting the dialog edits (null: a new meeting), and for a new meeting
  * the context it was started from (company, project, opportunity). */

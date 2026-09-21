@@ -1208,7 +1208,61 @@ body.dnd-active .board-column.drop-target{background:var(--accent-bg)!important}
 .btn-danger-ghost{color:var(--red)!important}
 .btn-danger-ghost:hover{background:var(--red-bg)!important;border-color:var(--red-border)!important}
 .md-tasks-list{display:flex;flex-direction:column;gap:5px;margin-bottom:8px}
-.md-task-input{width:100%;border:1px dashed var(--border2)!important}
+/* Meeting page: one card of notes written with the Notes editor. Sections
+   read like a document; an empty editor is a quiet line, not a grey box. */
+.md-doc{display:flex;flex-direction:column}
+.md-sec{padding:12px 0;border-top:1px solid var(--border)}
+.md-sec:first-child{border-top:none;padding-top:2px}
+.md-sec-hd{display:flex;align-items:baseline;gap:8px;margin-bottom:6px}
+.md-sec-hd h3{margin:0;font-size:var(--type-caption);font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--sub)}
+.md-sec-count{font-size:var(--type-meta);color:var(--muted);font-weight:600}
+.md-editor{min-height:30px;border-radius:8px;margin:0 -8px;padding:4px 8px;cursor:text;transition:background var(--dur-fast) var(--ease-out)}
+.md-editor:hover{background:color-mix(in srgb,var(--text) 3%,transparent)}
+.md-editor:focus-within{background:none;box-shadow:inset 0 0 0 1px var(--accent-border)}
+.md-editor.notes-editor .cm-editor{font-size:var(--type-body);line-height:1.65}
+.md-add-row{display:flex;flex-wrap:wrap;gap:6px;padding-top:10px;border-top:1px solid var(--border)}
+.md-add-sec{font:inherit;font-size:var(--type-secondary);display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border:1px dashed var(--border2);border-radius:999px;background:none;color:var(--sub);cursor:pointer}
+.md-add-sec:hover{border-color:var(--accent-border);color:var(--accent);background:var(--accent-bg)}
+.md-task-add{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:4px}
+.md-task-add input{font:inherit;font-size:var(--type-secondary);padding:6px 9px;border:1px dashed var(--border2);border-radius:8px;background:none;color:var(--text);outline:none;min-width:0}
+.md-task-add input:focus{border-style:solid;border-color:var(--accent-border);background:var(--surface)}
+.md-task-title{flex:1;min-width:160px!important}
+.md-task-owner{width:130px;flex:none}
+.md-task-due{width:130px;flex:none;color:var(--sub)!important}
+.md-next{display:flex;align-items:center;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);font-size:var(--type-secondary);position:relative}
+.md-next-label{display:inline-flex;align-items:center;gap:6px;color:var(--sub);font-weight:600}
+.md-next-date{font:inherit;padding:3px 9px;border:1px solid var(--border);border-radius:7px;background:var(--surface);color:var(--text);cursor:pointer}
+.md-next-date.is-unset{color:var(--muted);border-style:dashed}
+.md-next-date:hover{border-color:var(--accent-border)}
+.md-next-clear{display:inline-flex;border:none;background:none;color:var(--muted);cursor:pointer;padding:3px;border-radius:5px}
+.md-next-clear:hover{color:var(--text);background:var(--surface-2)}
+/* The native picker opens from this field; it only shows where showPicker isn't supported. */
+.md-next-input{position:absolute;left:110px;bottom:0;width:1px;height:1px;opacity:0;pointer-events:none;border:none;padding:0}
+.md-next-input.is-picking:focus{position:static;width:auto;height:auto;opacity:1;pointer-events:auto;font:inherit;border:1px solid var(--accent-border);border-radius:7px;padding:2px 6px}
+.md-link-btn{font:inherit;border:none;background:none;padding:0;color:var(--accent);cursor:pointer;font-weight:600}
+.md-link-btn:hover{text-decoration:underline}
+.task-owner{display:inline-flex;align-items:center;gap:3px;color:var(--sub);font-weight:600}
+/* Earlier meetings with the client, and the Outlook invite, beside the page. */
+#meeting-detail .rec-side{position:static}
+.md-earlier-list{display:flex;flex-direction:column;gap:12px}
+.md-earlier-item + .md-earlier-item{padding-top:12px;border-top:1px solid var(--border)}
+.md-earlier-hd{display:flex;align-items:baseline;justify-content:space-between;gap:8px;font-size:var(--type-secondary);font-weight:600}
+.md-earlier-date{flex:none;font-size:var(--type-meta);color:var(--muted);font-weight:500}
+.md-earlier-label{font-size:var(--type-caption);font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:8px 0 3px}
+.md-earlier-points{margin:0;padding-left:16px;font-size:var(--type-secondary);line-height:1.5;color:var(--text)}
+.md-earlier-points.is-notes{color:var(--sub);margin-top:6px}
+.md-earlier-task{display:flex;align-items:flex-start;gap:7px;font-size:var(--type-secondary);line-height:1.45;padding:2px 0}
+.md-earlier-task .task-check{flex:none;width:14px;height:14px;margin-top:2px}
+.md-earlier-owner,.md-earlier-more,.md-earlier-empty{color:var(--muted)}
+.md-earlier-more,.md-earlier-empty{font-size:var(--type-meta);margin-top:4px}
+.md-earlier-foot{margin-top:12px;padding-top:10px;border-top:1px solid var(--border);font-size:var(--type-secondary)}
+.md-invite-text{font-size:var(--type-secondary);line-height:1.5;color:var(--sub);white-space:pre-wrap;overflow-wrap:anywhere}
+.md-invite-text.is-clamped{max-height:9em;overflow:hidden;-webkit-mask-image:linear-gradient(#000 65%,transparent)}
+.md-invite-more{margin-top:6px;font-size:var(--type-secondary)}
+/* Meetings list: what was written up. */
+.meeting-marks{display:inline-flex;gap:10px;margin-left:12px}
+.meeting-mark{display:inline-flex;align-items:center;gap:3px;color:var(--sub);font-weight:600}
+.meeting-mark.is-todo{color:var(--amber)}
 .rec-legacy-text{font-size:var(--type-meta);color:var(--muted);white-space:pre-wrap;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)}
 .rec-section .card-hd{font-size:var(--type-heading);font-weight:700;margin-bottom:10px}
 .milestone-add-row{display:flex;gap:6px;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)}

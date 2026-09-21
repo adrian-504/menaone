@@ -22,6 +22,7 @@ pub mod feefill;
 pub mod master;
 pub mod generator;
 pub mod identity;
+pub mod meeting_text;
 pub mod v2_commands;
 pub mod v2_models;
 pub mod v2_search;
