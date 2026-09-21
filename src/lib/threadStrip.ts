@@ -48,13 +48,16 @@ export function threadStripHtml(t: EngagementThread, current: { kind: ThreadKind
   // A next step on an existing record (e.g. the proposal's own) comes straight
   // after it; one that creates the next record sits in that record's place.
   const ownStep = t.next?.action === 'open' ? t.next : null;
-  if (ownStep) parts.push(`${gapHtml(t.after)}<span class="ts-node is-missing">${nextBtn(ownStep)}</span>`);
+  // On that record's own page the header already offers its next step.
+  const ownHere = !!ownStep && !!current && ownStep.kind === current.kind && ownStep.id === current.id;
+  const ownShown = !!ownStep && !ownHere;
+  if (ownShown) parts.push(`${gapHtml(t.after)}<span class="ts-node is-missing">${nextBtn(ownStep!)}</span>`);
   t.missing.forEach((kind, i) => {
-    const first = i === 0 && !ownStep;
+    const first = i === 0 && !ownShown;
     parts.push(gapHtml(first ? t.after : null));
-    parts.push(`<span class="ts-node is-missing"><span class="ts-dot" aria-hidden="true"></span><span class="ts-kind">${KIND_LABEL[kind]}</span>${first && t.next ? nextBtn(t.next) : ''}</span>`);
+    parts.push(`<span class="ts-node is-missing"><span class="ts-dot" aria-hidden="true"></span><span class="ts-kind">${KIND_LABEL[kind]}</span>${first && t.next && !ownStep ? nextBtn(t.next) : ''}</span>`);
   });
-  if (!t.missing.length && !ownStep && t.after) parts.push(gapHtml(t.after));
+  if (!t.missing.length && !ownShown && t.after) parts.push(gapHtml(t.after));
   const prefix = o.prefix ? `<span class="ts-prefix" title="${escHtml(o.prefix)}">${escHtml(o.prefix)}</span>` : '';
   return `<nav class="thread-strip" aria-label="${escHtml(o.prefix ? `Where ${o.prefix} stands` : 'Where this work stands')}">${prefix}${parts.join('')}</nav>`;
 }

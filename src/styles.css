@@ -473,10 +473,11 @@ body{display:flex;min-height:100vh}
 .sb-search-btn kbd{margin-left:auto;font:inherit;font-size:var(--type-caption);background:var(--surface-2);border:1px solid var(--border);border-radius:4px;padding:1px 5px;color:var(--muted)}
 .sb-nav{flex:1;overflow-y:auto;overflow-x:hidden;padding:2px 10px 6px;display:flex;flex-direction:column;gap:2px}
 .sb-nav::-webkit-scrollbar{width:0}
-.sb-item{font:inherit;display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:9px;cursor:pointer;color:var(--sub);font-size:var(--type-body);font-weight:450;transition:background var(--dur-base) var(--ease-out),color var(--dur-base) var(--ease-out),box-shadow var(--dur-base) var(--ease-out),transform var(--dur-fast) var(--ease-out);white-space:nowrap;overflow:hidden;text-decoration:none;background:none;border:none;width:100%;text-align:left}
+.sb-item{font:inherit;display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:9px;cursor:pointer;color:var(--sub);font-size:var(--type-body);font-weight:450;transition:transform var(--dur-fast) var(--ease-out);white-space:nowrap;overflow:hidden;text-decoration:none;background:none;border:none;width:100%;text-align:left}
 .sb-item:hover{background:var(--surface-2);color:var(--text)}
 .sb-item:hover .sb-icon{transform:scale(1.08)}
 .sb-item:active{transform:scale(.98)}
+/* The active item switches at once: an animated fade left two items looking active while moving between pages. */
 .sb-item.active{background:var(--accent);color:var(--on-accent);font-weight:600;box-shadow:0 2px 8px rgba(42,95,224,.25)}
 .sb-item.active .icon{color:var(--on-accent)}
 .sb-item-sub{padding-left:26px}
@@ -2070,9 +2071,11 @@ body.dnd-active .opp-board .board-column.stage-hidden{display:flex}
 
 .ct-copy{width:22px;height:22px;margin-left:4px;vertical-align:middle;opacity:0}
 .ct-row:hover .ct-copy,.ct-copy:focus-visible{opacity:1}
-.rec-title-copy{margin-left:6px;vertical-align:middle;opacity:.5}
+.rec-title-copy{margin-left:6px;vertical-align:middle;opacity:0}
+.rec-title:hover .rec-title-copy,.rec-title-copy:focus-visible{opacity:.5}
 .rec-title-copy:hover{opacity:1}
-.rec-eyebrow-copy{width:20px;height:20px;margin-left:4px;vertical-align:middle;opacity:.6}
+.rec-eyebrow-copy{width:20px;height:20px;margin-left:4px;vertical-align:middle;opacity:0}
+.rec-eyebrow:hover .rec-eyebrow-copy,.rec-eyebrow-copy:focus-visible{opacity:.6}
 
 
 /* List beside an open record */
@@ -2409,7 +2412,7 @@ dd:has(> .md-rel-link:not(:empty)) > select{flex:1;min-width:0}
 /* ── Engagement thread strip (src/lib/threadStrip.ts) ─────────────────────── */
 /* Wraps to a second line rather than truncating; the step name never goes. */
 .thread-host{margin:-6px 0 16px;container-type:inline-size}
-.thread-strip{display:flex;flex-wrap:wrap;align-items:center;row-gap:4px;min-width:0;padding:6px 10px;background:var(--surface-flat);border:1px solid var(--hairline);border-radius:var(--radius);font-size:var(--type-secondary)}
+.thread-strip{display:flex;flex-wrap:wrap;align-items:center;row-gap:4px;min-width:0;padding:0 2px;font-size:var(--type-secondary)}
 .ts-prefix{flex:0 0 auto;max-width:24ch;margin-right:10px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ts-node{--tone:var(--muted);display:inline-flex;align-items:center;gap:6px;flex:0 0 auto;max-width:100%;min-width:0;padding:3px 8px;border-radius:var(--radius-sm);white-space:nowrap}
 .ts-node.tone-green{--tone:var(--green)}.ts-node.tone-amber{--tone:var(--amber)}.ts-node.tone-red{--tone:var(--red)}.ts-node.tone-accent{--tone:var(--accent)}
@@ -2419,7 +2422,6 @@ dd:has(> .md-rel-link:not(:empty)) > select{flex:1;min-width:0}
 a.ts-name{color:var(--text);text-decoration:none}
 a.ts-name:hover{color:var(--accent);text-decoration:underline}
 a.ts-name:focus-visible,.ts-more:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
-.ts-node.is-current{background:var(--selected)}
 .ts-node.is-current .ts-kind{color:var(--text);font-weight:600}
 .ts-node.is-missing .ts-dot{background:none;border:1px dashed var(--muted)}
 .ts-more{font:inherit;font-size:var(--type-meta);padding:0 5px;border:1px solid var(--hairline);border-radius:10px;background:var(--surface);color:var(--sub);cursor:pointer}
@@ -2433,8 +2435,6 @@ a.ts-name:focus-visible,.ts-more:focus-visible{outline:2px solid var(--accent);o
 @container (max-width:560px){.ts-who{display:none}}
 /* Proposal page: the strip sits on the stage rail, so it's quiet — one header, not two bars. */
 #prd-thread{margin:-8px 0 4px}
-#prd-thread .thread-strip{background:none;border:none;padding:0 2px}
-#prd-thread .ts-node.is-current{background:none}
 
 /* ── Record timeline (src/lib/timeline.ts) ────────────────────────────────── */
 .rec-stack > .rec-section{margin-top:0}
@@ -2534,3 +2534,83 @@ body.brief-open{overflow:hidden}
 .co-thread:hover .co-thread-next,.co-thread:focus-within .co-thread-next{visibility:visible}
 .co-thread-dormant{font:inherit;display:block;margin-top:4px;padding:4px 6px;border:none;background:none;color:var(--muted);font-size:var(--type-secondary);cursor:pointer;text-align:left}
 .co-thread-dormant:hover{color:var(--accent)}
+
+/* ── Read first, edit on demand (src/lib/propsList.ts) ────────────────────── */
+.pl-val{position:relative;cursor:text;border-radius:6px;padding:3px 22px 3px 6px;margin-left:-6px;min-height:26px;display:flex;align-items:center;flex-wrap:wrap;gap:4px;color:var(--text);transition:background var(--dur-fast) var(--ease-out)}
+.pl-val:hover{background:var(--hover)}
+.pl-val:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.pl-val::after{content:"";position:absolute;right:6px;top:50%;width:10px;height:10px;margin-top:-5px;opacity:0;background:currentColor;color:var(--muted);
+  -webkit-mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path d='M11.5 2.5l2 2L6 12H4v-2z' fill='none' stroke='black' stroke-width='1.6' stroke-linejoin='round'/></svg>") center/contain no-repeat;
+  mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path d='M11.5 2.5l2 2L6 12H4v-2z' fill='none' stroke='black' stroke-width='1.6' stroke-linejoin='round'/></svg>") center/contain no-repeat}
+.pl-val:hover::after,.pl-val:focus-visible::after{opacity:1}
+.pl-ro{cursor:default;padding-left:0;margin-left:0}
+.pl-add{color:var(--muted)}
+.pl-multiline{white-space:pre-wrap}
+.pl-edit{min-height:26px}
+.btn-secondary.is-positive{color:var(--green);border-color:var(--green-border)}
+/* Row actions appear on hover or keyboard focus (Focus rule 5). */
+.ctd-copy{opacity:0}.pl-val:hover .ctd-copy,.ctd-copy:focus-visible{opacity:1}
+.md-task-add:not(:focus-within):not(.has-text) > :not(.md-task-title):not(datalist){display:none}
+.md-task-add:not(:focus-within):not(.has-text) .md-task-title{flex:1 1 100%}
+/* New proposal: services by search, the five most used, the catalogue on demand. */
+.prb-service-search{position:relative;max-width:480px}
+.prb-service-menu{position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:50;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-md);padding:5px;max-height:280px;overflow-y:auto}
+.prb-service-menu[hidden]{display:none}
+.prb-top{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:10px 0 4px}
+.prb-top .prb-chip svg{color:var(--muted)}
+.prb-browse{margin-left:2px}
+.prb-service-picker{margin-top:10px}
+#prb-lines:not(:empty){margin-top:12px}
+.prb-defaults{display:flex;align-items:center;gap:10px;color:var(--sub);font-size:var(--type-body);margin:2px 0 10px}
+.prb-defaults[hidden]{display:none}
+.prb-summary[hidden],.prb-folder[hidden]{display:none}
+.prb-defaults .rlink{font:inherit;background:none;border:none;padding:0;color:var(--accent);cursor:pointer}
+/* Create dialogs: optional fields behind "More details" (lib/moreDetails.ts). */
+form:not(.show-more) .fgrp-more{display:none !important}
+.more-toggle{margin:2px 0 6px -8px}
+/* Services: categories fold to one line; row actions on hover. */
+details.svc-group > summary,details.svc-review > summary{list-style:none;cursor:pointer}
+details.svc-group > summary::-webkit-details-marker,details.svc-review > summary::-webkit-details-marker{display:none}
+details.svc-group:not([open]) > summary,details.svc-review:not([open]) > summary{margin-bottom:0}
+.svc-group-names{flex:1;min-width:0;margin-left:10px;color:var(--muted);font-size:var(--type-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+details[open] > summary .svc-group-names{visibility:hidden}
+.svc-row .svc-row-actions{opacity:0}
+.svc-row:hover .svc-row-actions,.svc-row:focus-within .svc-row-actions{opacity:1}
+/* Row actions appear on hover or keyboard focus (Focus rule 5). Opacity, not
+   visibility, so Tab still reaches them and shows them. My Day keeps each
+   row's main action visible; only its "…" waits. */
+.rec-row .rec-row-actions{opacity:0;transition:opacity var(--dur-fast) var(--ease-out)}
+.rec-row:hover .rec-row-actions,.rec-row:focus-within .rec-row-actions,.rec-row:focus-visible .rec-row-actions{opacity:1}
+.mdy-att-actions .rec-icon-btn{opacity:0;transition:opacity var(--dur-fast) var(--ease-out)}
+.mdy-att:hover .mdy-att-actions .rec-icon-btn,.mdy-att:focus-within .mdy-att-actions .rec-icon-btn{opacity:1}
+.co-thread-next{visibility:visible;opacity:0}
+.co-thread:hover .co-thread-next,.co-thread:focus-within .co-thread-next,.co-thread:focus-visible .co-thread-next{opacity:1}
+/* Company 360: a section's "+ New" shows when you're in that section. */
+#co-detail .rec-section:not(.is-empty) > .rec-section-hd .rec-section-actions .btn-secondary{opacity:0;transition:opacity var(--dur-fast) var(--ease-out)}
+#co-detail .rec-section:hover > .rec-section-hd .rec-section-actions .btn-secondary,#co-detail .rec-section:focus-within > .rec-section-hd .rec-section-actions .btn-secondary{opacity:1}
+/* Filter bars: search + two filters; the rest behind "Filters" (lib/filterBar.ts). */
+.fbar-more{position:relative;display:inline-flex;align-items:center;gap:4px}
+.fbar-more-btn.has-active{color:var(--accent);border-color:var(--accent-border)}
+.fbar-panel{position:absolute;top:calc(100% + 6px);left:0;z-index:60;display:flex;flex-direction:column;gap:8px;min-width:260px;padding:12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-md)}
+.fbar-panel[hidden]{display:none}
+.fbar-panel-row{display:flex;flex-direction:column;gap:3px}
+.fbar-panel-row > .fsel,.fbar-panel-row > select{width:100%}
+.fbar-panel-label{font-size:var(--type-meta);color:var(--muted)}
+.fbar-clear[hidden]{display:none}
+.pr-copy-name{opacity:0}.pr-next-name:hover .pr-copy-name,.pr-copy-name:focus-visible{opacity:1}
+/* My Day: the business numbers as one quiet line. */
+.mdy-biz{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 8px;font-size:var(--type-secondary);color:var(--text)}
+.mdy-biz-part{font:inherit;background:none;border:none;padding:2px 0;color:inherit;cursor:pointer;font-variant-numeric:tabular-nums}
+.mdy-biz-part:hover{color:var(--accent)}
+.mdy-biz-label{color:var(--muted)}
+.mdy-biz-sep{color:var(--muted)}
+/* List rows: status reads as text; "…" (hover or focus) or right-click changes it. */
+.td-status{white-space:nowrap}
+.td-status .row-more{margin-left:4px;vertical-align:middle;opacity:0;transition:opacity var(--dur-fast) var(--ease-out)}
+tr:hover .td-status .row-more,tr:focus-within .td-status .row-more{opacity:1}
+/* Opportunity description: text, or one quiet line when there's none. */
+.od-desc.is-quiet{display:flex;align-items:baseline;gap:12px;padding-top:10px;padding-bottom:10px}
+.od-desc.is-quiet .rec-section-hd{margin-bottom:0}
+.od-desc.is-quiet h2{font-weight:500;color:var(--sub)}
+.od-desc-add{font:inherit;background:none;border:none;padding:0;cursor:pointer;color:var(--muted)}
+.od-desc-add:hover{color:var(--accent)}

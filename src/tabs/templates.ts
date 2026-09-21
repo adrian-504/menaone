@@ -37,7 +37,7 @@ export async function renderTemplatesView(container: HTMLElement): Promise<void>
   await loadTemplates();
   container.innerHTML = `
     <section class="sec tpl-intro">
-      <div class="rec-section-hd"><h2>Proposal templates</h2><div class="rec-section-actions"><button class="btn-primary" onclick="addProposalTemplate()">${icon('plus', 13)} Add template…</button></div></div>
+      <div class="rec-section-hd"><h2>Proposal templates</h2><div class="rec-section-actions"><button class="btn-secondary" onclick="addProposalTemplate()">${icon('plus', 13)} Add template…</button></div></div>
       <p class="settings-card-desc">A template is a PowerPoint deck. For each proposal, MENA One keeps the slides it needs, fills in the client's details and the fee table, and saves the result in the client's OneDrive folder.</p>
       ${guideHtml()}
     </section>

@@ -62,9 +62,9 @@ let railKind: RecordKind | null = null;
 
 export function railEnabled(): boolean {
   try {
-    const v = localStorage.getItem(PREF_KEY);
-    return v == null ? window.innerWidth >= 1280 : v === 'on';
-  } catch { return window.innerWidth >= 1280; }
+    // Closed unless you've opened it (Focus: the record comes first).
+    return localStorage.getItem(PREF_KEY) === 'on';
+  } catch { return false; }
 }
 
 export function supportsRail(kind: RecordKind | undefined): boolean {
@@ -76,11 +76,12 @@ export function updateRecordRail(kind: RecordKind | undefined, key: number | str
   const main = document.querySelector('main');
   const rail = document.getElementById('record-rail');
   const toggle = document.getElementById('loc-rail') as HTMLButtonElement | null;
-  const supported = supportsRail(kind) && key != null;
+  // Never beside a create page (the builder is proposal 'new').
+  const supported = supportsRail(kind) && key != null && key !== 'new';
   if (toggle) {
     toggle.hidden = !supported;
     toggle.classList.toggle('active', supported && railEnabled());
-    toggle.title = railEnabled() ? 'Hide the list' : 'Show the list beside the record';
+    toggle.title = railEnabled() ? 'Hide the list (⇧⌘\\)' : 'Show the list beside the record (⇧⌘\\)';
   }
   const on = supported && railEnabled();
   main?.classList.toggle('with-rail', on);

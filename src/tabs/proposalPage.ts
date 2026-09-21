@@ -20,6 +20,7 @@ import { attachCompanySelector } from '../lib/companySelector';
 import { showMenuAt, type ContextMenuItem } from '../lib/contextMenu';
 import { renderFeed } from '../lib/activityFeed';
 import { renderRecordTimeline, renderThreadStrip } from './recordThread';
+import { endPropsEdit, mountPropsList, propsEditButton, propsListHtml, resetPropsLists, type PropField } from '../lib/propsList';
 import { renderIcons } from '../core/chrome';
 import { ST, LEAD_SOURCES } from '../lib/constants';
 import { renderLinesEditor, lineForService } from '../lib/linesEditor';
@@ -28,6 +29,7 @@ import {
   PS, PROPOSAL_STAGES, stageIndex, isWon, isLost, isWithdrawn, isClosed, lineTotals, syncProposalTotals, fmtMoney, currencyOf,
   teamMember, reviewers, defaultReviewer, activeTeam, ownerName, entityById, defaultEntity, activeServices, newLine,
   suggestedFileName, nextDocumentId, nextLineId, nextDeckFileName,
+  currentUser,
 } from '../lib/commercial';
 import type { Proposal, CommercialLine, ProposalFolder, Opportunity, LocalFileItem } from '../lib/types';
 
@@ -49,6 +51,7 @@ function showView(view: 'list' | 'detail' | 'builder'): void {
 export function openProposalPage(id: number): void {
   if (!S.proposals.some((p) => p.id === id)) { toast('That proposal no longer exists', { tone: 'error' }); return; }
   const changed = S.currentProposalId !== id;
+  if (changed) { resetPropsLists('prd-'); linesEditing = null; }
   S.currentProposalId = id;
   S.proposalBuilderOpen = false;
   showView('detail');
@@ -138,11 +141,23 @@ function nextStep(p: Proposal): { label: string; run: string } | null {
   }
 }
 
+/** The one document action worth a button where the proposal stands: open
+ * the deck once there is one, generate it while drafting; the rest are in "…". */
+function contextualTool(p: Proposal): { label: string; run: string } | null {
+  const folder = folderCache?.proposalId === p.id ? folderCache.info : null;
+  const deck = latestDeck(p, folder);
+  if (deck) return { label: 'Open PowerPoint', run: `proposalOpenFile('${escHtml(deck.path.replace(/\\/g, '\\\\').replace(/'/g, "\\'"))}')` };
+  if (p.status === PS.REQUEST || p.status === PS.DRAFTING) return { label: 'Generate proposal', run: `openGenerateProposal(${p.id})` };
+  return null;
+}
+
 function renderActions(p: Proposal): void {
   const el = document.getElementById('prd-actions');
   if (!el) return;
   const step = nextStep(p);
+  const tool = contextualTool(p);
   el.innerHTML = [
+    tool ? `<button class="btn-secondary" onclick="${tool.run}">${escHtml(tool.label)}</button>` : '',
     step ? `<button class="btn-primary" onclick="${step.run}">${escHtml(step.label)}</button>` : '',
     `<button class="loc-nav rec-more" onclick="proposalMoreMenu(event)" title="More" aria-label="More">${icon('more', 16)}</button>`,
   ].join('');
@@ -184,6 +199,12 @@ export function proposalMoreMenu(e: MouseEvent): void {
   const p = currentProposal();
   if (!p) return;
   const items: ContextMenuItem[] = [];
+  const folder = folderCache?.proposalId === p.id ? folderCache.info : null;
+  const deck = latestDeck(p, folder);
+  items.push({ label: 'Generate proposal', iconName: 'bolt', run: () => void (window as any).openGenerateProposal?.(p.id) });
+  if (deck) items.push({ label: 'Open PowerPoint', iconName: 'document', run: () => void proposalOpenFile(deck.path) });
+  if (folder?.exists) items.push({ label: 'Open proposal folder', iconName: 'folder', run: () => void proposalOpenFolder() });
+  items.push({ label: '', run: () => {}, separator: true });
   if (!isClosed(p)) {
     if (p.status === PS.SENT) items.push({ label: 'Snooze follow-up 7 days', iconName: 'clock', run: () => { snoozeProposal(p.id, 7); renderProposalPage(); } });
     items.push({ label: 'Mark as lost', iconName: 'close', run: () => openWlModal(p.id, 'lost') });
@@ -278,20 +299,10 @@ function latestDeck(p: Proposal, folder: ProposalFolder | null): { path: string;
   return decks.length ? { path: decks[0].path, name: decks[0].name } : null;
 }
 
+/** Document tools live in the header ("Open PowerPoint" / "Generate proposal") and in "…";
+ * the folder lookup finishing can change which one applies. */
 function renderToolbar(p: Proposal): void {
-  const el = document.getElementById('prd-toolbar');
-  if (!el) return;
-  const folder = folderCache?.proposalId === p.id ? folderCache.info : null;
-  const deck = latestDeck(p, folder);
-  const btn = (label: string, iconName: string, onclick: string, opts: { disabled?: boolean; title?: string } = {}) =>
-    `<button class="pr-tool" onclick="${onclick}"${opts.disabled ? ' disabled' : ''}${opts.title ? ` title="${escHtml(opts.title)}"` : ''}>${icon(iconName, 15)}<span>${label}</span></button>`;
-  el.innerHTML = [
-    btn('Generate proposal', 'bolt', `openGenerateProposal(${p.id})`, { title: 'Build the deck from a proposal template into the client folder' }),
-    btn('Proposal folder', 'folder', 'proposalOpenFolder()', { disabled: !folder?.exists, title: folder?.exists ? folder.path || '' : 'The client folder does not exist yet — create it under Documents.' }),
-    btn('Open PowerPoint', 'document', deck ? `proposalOpenFile('${escHtml(deck.path.replace(/'/g, "\\'"))}')` : '', { disabled: !deck, title: deck ? deck.name : 'No proposal deck found in the folder yet.' }),
-    btn('Commercials', 'dollar', `document.getElementById('prd-commercials-sec')?.scrollIntoView({behavior:'smooth'})`),
-    btn('Supporting documents', 'link', `document.getElementById('prd-documents-sec')?.scrollIntoView({behavior:'smooth'})`),
-  ].join('');
+  renderActions(p);
 }
 
 export async function proposalOpenFolder(): Promise<void> {
@@ -332,35 +343,40 @@ function renderProps(p: Proposal): void {
   const opps = S.opportunities.filter((o) => (ref.id != null && o.companyId === ref.id) || (o.companyName || '').toLowerCase() === p.client.toLowerCase());
   const linkedOpp = S.opportunities.find((o) => o.proposalId === p.id);
   const contacts = S.contacts.filter((c) => (ref.id != null && c.companyId === ref.id) || (c.clientName || '').toLowerCase() === p.client.toLowerCase());
-  const fields: Field[] = [
-    { key: 'client', label: 'Company', kind: 'text', value: p.client },
-    { key: 'opportunity', label: 'Opportunity', kind: 'select', value: linkedOpp ? String(linkedOpp.id) : '', options: [['', 'None'], ...opps.map((o) => [String(o.id), `${o.name} · ${o.stage}`] as [string, string])] },
-    { key: 'primaryContactId', label: 'Contact', kind: 'select', value: p.primaryContactId != null ? String(p.primaryContactId) : '', options: [['', 'Not set'], ...contacts.map((c) => [String(c.id), [c.name, c.role].filter(Boolean).join(' · ')] as [string, string])] },
-    { key: 'ownerId', label: 'Owner', kind: 'select', value: p.ownerId != null ? String(p.ownerId) : p.owner ? `legacy:${p.owner}` : '', options: teamOptions(p.ownerId, p.owner) },
-    { key: 'reviewerId', label: 'Reviewer', kind: 'select', value: p.reviewerId != null ? String(p.reviewerId) : '', options: teamOptions(p.reviewerId, null, true) },
-    { key: 'businessEntityId', label: 'Entity', kind: 'select', value: p.businessEntityId != null ? String(p.businessEntityId) : '', options: [['', 'Not set'], ...S.businessEntities.filter((e) => e.active || e.id === p.businessEntityId).map((e) => [String(e.id), e.name] as [string, string])] },
-    { key: 'currency', label: 'Currency', kind: 'select', value: currencyOf(p), options: CURRENCIES().map((c) => [c, c] as [string, string]) },
-    { key: 'dateAdded', label: 'Received', kind: 'date', value: p.dateAdded || '' },
-    { key: 'sentDate', label: 'Sent', kind: 'date', value: p.dateSentToClient || p.sentDate || '' },
-    { key: 'dblSignedDate', label: 'Signed', kind: 'date', value: p.dblSignedDate || '' },
-    { key: 'kickoffDate', label: 'Kickoff', kind: 'date', value: p.kickoffDate || '' },
-    { key: 'contractMonths', label: 'Term', kind: 'select', value: p.contractMonths ? String(p.contractMonths) : '', options: [['', 'Not set'], ...[3, 6, 12, 24, 36].map((m) => [String(m), `${m} months`] as [string, string]), ...(p.contractMonths && ![3, 6, 12, 24, 36].includes(p.contractMonths) ? [[String(p.contractMonths), `${p.contractMonths} months`] as [string, string]] : [])] },
-    { key: 'validUntil', label: 'Valid until', kind: 'date', value: p.validUntil || '' },
-    { key: 'leadSource', label: 'Source', kind: 'select', value: p.leadSource || '', options: [['', 'Not set'], ...LEAD_SOURCES.map((s) => [s, s] as [string, string]), ...(p.leadSource && !LEAD_SOURCES.includes(p.leadSource) ? [[p.leadSource, p.leadSource] as [string, string]] : [])] },
-    { key: 'hubspot', label: 'In HubSpot', kind: 'select', value: p.hubspot || '', options: [['', 'Not set'], ['Yes', 'Yes'], ['No', 'No']] },
-    { key: 'finance', label: 'Sent to finance', kind: 'select', value: p.finance || '', options: [['', 'Not set'], ['Yes', 'Yes'], ['No', 'No']] },
-    { key: 'remarks', label: 'Remarks', kind: 'textarea', value: p.remarks || '', placeholder: 'Anything the team should know' },
+  const contact = p.primaryContactId != null ? S.contacts.find((c) => c.id === p.primaryContactId) : undefined;
+  const entity = entityById(p.businessEntityId);
+  const txt = (v: string | null | undefined) => (v ? escHtml(v) : '');
+  const date = (v: string | null | undefined) => (v ? escHtml(fmtDate(v)) : '');
+  const sel = (key: string, value: string, options: [string, string][]) => () =>
+    `<select class="td-select" id="prd-f-${key}" onchange="proposalFieldChanged('${key}', this.value)">${options.map(([v, l]) => `<option value="${escHtml(v)}"${v === value ? ' selected' : ''}>${escHtml(l)}</option>`).join('')}</select>`;
+  const inp = (key: string, type: string, value: string, placeholder = '') => () =>
+    `<input class="td-input" id="prd-f-${key}" type="${type}" value="${escHtml(value)}" placeholder="${escHtml(placeholder)}" onchange="proposalFieldChanged('${key}', this.value)" onkeydown="if(event.key==='Enter')this.blur()">`;
+  const months = [3, 6, 12, 24, 36];
+  const onRail = true; // Received, sent, signed and kickoff dates are on the stage rail; they show here only under Edit.
+  const fields: PropField[] = [
+    { key: 'client', label: 'Company', display: companyLink(p.companyId, p.client), always: true, control: inp('client', 'text', p.client),
+      mount: (dd) => { const c = dd.querySelector<HTMLInputElement>('input'); if (c) attachCompanySelector(c, { onSelect: (name) => { endPropsEdit(); void proposalFieldChanged('client', name); } }); } },
+    { key: 'opportunity', label: 'Opportunity', display: linkedOpp ? recordLink('opportunity', linkedOpp.id, linkedOpp.name) : '', control: opps.length ? sel('opportunity', linkedOpp ? String(linkedOpp.id) : '', [['', 'None'], ...opps.map((o) => [String(o.id), `${o.name} · ${o.stage}`] as [string, string])]) : undefined },
+    { key: 'primaryContactId', label: 'Contact', display: contact ? recordLink('contact', contact.id, contact.name || 'Contact') : '', control: contacts.length ? sel('primaryContactId', p.primaryContactId != null ? String(p.primaryContactId) : '', [['', 'Not set'], ...contacts.map((c) => [String(c.id), [c.name, c.role].filter(Boolean).join(' · ')] as [string, string])]) : undefined },
+    { key: 'ownerId', label: 'Owner', display: txt(ownerName(p)), always: true, control: sel('ownerId', p.ownerId != null ? String(p.ownerId) : p.owner ? `legacy:${p.owner}` : '', teamOptions(p.ownerId, p.owner)) },
+    { key: 'reviewerId', label: 'Reviewer', display: txt(teamMember(p.reviewerId)?.name), control: sel('reviewerId', p.reviewerId != null ? String(p.reviewerId) : '', teamOptions(p.reviewerId, null, true)) },
+    { key: 'businessEntityId', label: 'Entity', display: txt(entity?.name), control: sel('businessEntityId', p.businessEntityId != null ? String(p.businessEntityId) : '', [['', 'Not set'], ...S.businessEntities.filter((e) => e.active || e.id === p.businessEntityId).map((e) => [String(e.id), e.name] as [string, string])]) },
+    { key: 'currency', label: 'Currency', display: entity && entity.currency === currencyOf(p) ? '' : txt(currencyOf(p)), control: sel('currency', currencyOf(p), CURRENCIES().map((c) => [c, c] as [string, string])) },
+    { key: 'dateAdded', label: 'Received', display: onRail ? '' : date(p.dateAdded), control: inp('dateAdded', 'date', p.dateAdded || '') },
+    { key: 'sentDate', label: 'Sent', display: '', control: inp('sentDate', 'date', p.dateSentToClient || p.sentDate || '') },
+    { key: 'dblSignedDate', label: 'Signed', display: '', control: inp('dblSignedDate', 'date', p.dblSignedDate || '') },
+    { key: 'kickoffDate', label: 'Kickoff', display: p.kickoffDate && isWon(p) ? date(p.kickoffDate) : '', control: inp('kickoffDate', 'date', p.kickoffDate || '') },
+    { key: 'contractMonths', label: 'Term', display: p.contractMonths ? `${p.contractMonths} months` : '', control: sel('contractMonths', p.contractMonths ? String(p.contractMonths) : '', [['', 'Not set'], ...months.map((m) => [String(m), `${m} months`] as [string, string]), ...(p.contractMonths && !months.includes(p.contractMonths) ? [[String(p.contractMonths), `${p.contractMonths} months`] as [string, string]] : [])]) },
+    { key: 'validUntil', label: 'Valid until', display: date(p.validUntil), control: inp('validUntil', 'date', p.validUntil || '') },
+    { key: 'leadSource', label: 'Source', display: txt(p.leadSource), control: sel('leadSource', p.leadSource || '', [['', 'Not set'], ...LEAD_SOURCES.map((x) => [x, x] as [string, string]), ...(p.leadSource && !LEAD_SOURCES.includes(p.leadSource) ? [[p.leadSource, p.leadSource] as [string, string]] : [])]) },
+    { key: 'hubspot', label: 'In HubSpot', display: txt(p.hubspot), control: sel('hubspot', p.hubspot || '', [['', 'Not set'], ['Yes', 'Yes'], ['No', 'No']]) },
+    { key: 'finance', label: 'Sent to finance', display: txt(p.finance), control: sel('finance', p.finance || '', [['', 'Not set'], ['Yes', 'Yes'], ['No', 'No']]) },
+    { key: 'remarks', label: 'Remarks', display: p.remarks ? `<span class="pl-multiline">${escHtml(p.remarks)}</span>` : '',
+      control: () => `<textarea class="td-input pr-remarks" id="prd-f-remarks" rows="2" placeholder="Anything the team should know" onchange="proposalFieldChanged('remarks', this.value)">${escHtml(p.remarks || '')}</textarea>` },
   ];
-  el.innerHTML = fields.map((f) => {
-    const on = `proposalFieldChanged('${f.key}', this.value)`;
-    let control = '';
-    if (f.kind === 'select') control = `<select class="td-select" id="prd-f-${f.key}" onchange="${on}">${(f.options || []).map(([v, l]) => `<option value="${escHtml(v)}"${v === f.value ? ' selected' : ''}>${escHtml(l)}</option>`).join('')}</select>`;
-    else if (f.kind === 'textarea') control = `<textarea class="td-input pr-remarks" id="prd-f-${f.key}" rows="2" placeholder="${escHtml(f.placeholder || '')}" onchange="${on}">${escHtml(f.value)}</textarea>`;
-    else control = `<input class="td-input" id="prd-f-${f.key}" type="${f.kind}" value="${escHtml(f.value)}" placeholder="${escHtml(f.placeholder || '')}" onchange="${on}" onkeydown="if(event.key==='Enter')this.blur()">`;
-    return `<dt>${f.label}</dt><dd>${control}</dd>`;
-  }).join('');
-  const company = document.getElementById('prd-f-client') as HTMLInputElement | null;
-  if (company) attachCompanySelector(company, { onSelect: (name) => proposalFieldChanged('client', name) });
+  el.innerHTML = propsListHtml('prd-props', fields, () => { const cur = currentProposal(); if (cur) renderProps(cur); });
+  const act = document.getElementById('prd-props-act'); if (act) act.innerHTML = propsEditButton('prd-props');
+  mountPropsList('prd-props');
 }
 
 export async function proposalFieldChanged(key: string, value: string): Promise<void> {
@@ -432,22 +448,21 @@ function renderReview(p: Proposal): void {
   if (p.reviewStatus === 'approved') {
     body = `<div class="pr-review-state tone-green">${icon('check', 14)} Approved by ${escHtml(name)}${p.reviewedAt ? ` on ${fmtDate(p.reviewedAt)}` : ''}</div>${p.reviewNote ? `<p class="pr-review-note">${escHtml(p.reviewNote)}</p>` : ''}`;
   } else if (p.reviewStatus === 'changes_requested') {
-    body = `<div class="pr-review-state tone-amber">${icon('edit', 14)} ${escHtml(name)} asked for changes${p.reviewedAt ? ` on ${fmtDate(p.reviewedAt)}` : ''}</div>${p.reviewNote ? `<p class="pr-review-note">${escHtml(p.reviewNote)}</p>` : ''}
-      ${p.status === PS.DRAFTING ? `<div class="btn-row"><button class="btn-secondary" onclick="proposalStep('${PS.REVIEW}')">Submit again</button></div>` : ''}`;
+    // "Submit for review" is the header's main action while drafting.
+    body = `<div class="pr-review-state tone-amber">${icon('edit', 14)} ${escHtml(name)} asked for changes${p.reviewedAt ? ` on ${fmtDate(p.reviewedAt)}` : ''}</div>${p.reviewNote ? `<p class="pr-review-note">${escHtml(p.reviewNote)}</p>` : ''}`;
   } else if (p.status === PS.REVIEW) {
     body = `<div class="pr-review-state tone-accent">${icon('clock', 14)} With ${escHtml(name)} since ${fmtDate(p.reviewRequestedAt || p.dateSentToHassan)}</div>
-      <textarea class="finp pr-review-input" id="prd-review-note" rows="2" placeholder="Comments from the review (optional)"></textarea>
+      <textarea class="finp pr-review-input" id="prd-review-note" data-typing rows="2" placeholder="Comments from the review (optional)"></textarea>
       <div class="btn-row">
-        <button class="btn-primary" onclick="proposalRecordReview('approved')">${icon('check', 13)} Approved</button>
+        <button class="btn-secondary is-positive" onclick="proposalRecordReview('approved')">${icon('check', 13)} Approved</button>
         <button class="btn-secondary" onclick="proposalRecordReview('changes_requested')">Changes requested</button>
       </div>`;
   } else if (at >= 0 && at < stageIndex(PS.REVIEW)) {
-    body = `<p class="pr-review-note">Every proposal is reviewed by ${escHtml(name)} before it goes to the client.</p>
-      ${p.status === PS.DRAFTING ? `<div class="btn-row"><button class="btn-secondary" onclick="proposalStep('${PS.REVIEW}')">Submit for review</button></div>` : ''}`;
-  } else {
-    body = `<p class="pr-review-note rec-muted">No review was recorded in MENA One for this proposal.</p>`;
+    body = `<p class="pr-review-note">Reviewed by ${escHtml(name)} before it goes to the client.</p>`;
   }
-  el.innerHTML = `<div class="rec-section-hd"><h2>Internal review</h2>${reviewer ? `<span class="rec-count">${escHtml(reviewer.name)}</span>` : ''}</div>${body}`;
+  // Nothing recorded and nothing to do: no section.
+  el.hidden = !body;
+  el.innerHTML = body ? `<div class="rec-section-hd"><h2>Internal review</h2></div>${body}` : '';
 }
 
 export function proposalRecordReview(outcome: 'approved' | 'changes_requested'): void {
@@ -463,14 +478,34 @@ expose('proposalRecordReview', proposalRecordReview);
 
 // ── Commercials ──
 
+/** null: the default for the stage (open while pricing is the job — Request and Drafting — or when there are no lines). */
+let linesEditing: boolean | null = null;
+
+export function toggleProposalLines(): void {
+  const p = currentProposal();
+  if (!p) return;
+  linesEditing = !linesOpen(p);
+  renderCommercials(p);
+}
+expose('toggleProposalLines', toggleProposalLines);
+
+function linesOpen(p: Proposal): boolean {
+  if (isWon(p) && (p.lines || []).length) return false;
+  if (!(p.lines || []).length) return true;
+  return linesEditing ?? (p.status === PS.REQUEST || p.status === PS.DRAFTING);
+}
+
 function renderCommercials(p: Proposal): void {
   const count = document.getElementById('prd-lines-count'); if (count) count.textContent = (p.lines || []).length ? String(p.lines!.length) : '';
+  const open = linesOpen(p);
+  const act = document.getElementById('prd-lines-act');
+  if (act) act.innerHTML = (p.lines || []).length && !(isWon(p)) ? `<button class="btn-ghost btn-sm" onclick="toggleProposalLines()" aria-pressed="${open}">${open ? 'Done' : 'Edit'}</button>` : '';
   renderLinesEditor(`proposal:${p.id}`, 'prd-lines', {
     lines: () => p.lines || [],
     setLines: (lines) => { p.lines = lines; },
     currency: () => currencyOf(p),
     contractMonths: () => p.contractMonths,
-    editable: !isWon(p) || (p.lines || []).length === 0,
+    editable: open,
     onChange: () => {
       syncProposalTotals(p);
       persistProposals();
@@ -511,14 +546,17 @@ async function renderDocuments(p: Proposal): Promise<void> {
   }
   const serviceLabel = lineTotals(p.lines, p.contractMonths).serviceNames.join(' & ') || p.type || 'Services';
   const suggested = nextDeckFileName(p, serviceLabel, today(), info.files.map((f) => f.name));
-  if (actions) actions.innerHTML = info.exists ? `<button class="btn-secondary btn-sm" onclick="proposalRevealFile('${escHtml((info.path || '').replace(/'/g, "\\'"))}')">Show in Finder</button>` : '';
+  // The folder path below opens it in Finder; no second button for the same thing.
+  if (actions) actions.innerHTML = '';
   if (!info.root) {
     folderEl.innerHTML = `<div class="pr-folder-line rec-muted">${icon('folder', 14)} No Proposals folder found in OneDrive. Choose it in Settings → Proposals.</div>`;
   } else if (!info.exists) {
     folderEl.innerHTML = `<div class="pr-folder-line">${icon('folder', 14)}<span>No folder for ${escHtml(p.client)} yet in <code class="path-code">${escHtml(info.root)}</code></span><button class="btn-secondary btn-sm" onclick="proposalCreateFolder()">Create folder</button></div>`;
   } else {
-    folderEl.innerHTML = `<div class="pr-folder-line">${icon('folder', 14)}<button class="rlink pr-folder-path" onclick="proposalOpenFolder()">${escHtml(info.path || '')}</button></div>
-      <div class="pr-next-name"><span class="rec-muted">Next file name</span><code>${escHtml(suggested)}</code><button class="rec-icon-btn" onclick="copyText('${escHtml(suggested.replace(/'/g, "\\'"))}','File name copied')" title="Copy file name" aria-label="Copy file name">${icon('copy', 13)}</button></div>`;
+    // The folder by name (like Files); the full path is on hover.
+    const folderName = (info.path || '').split('/').filter(Boolean).pop() || p.client;
+    folderEl.innerHTML = `<div class="pr-folder-line">${icon('folder', 14)}<button class="rlink pr-folder-path" onclick="proposalOpenFolder()" title="${escHtml(info.path || '')}">${escHtml(folderName)}</button></div>
+      <div class="pr-next-name"><span class="rec-muted">Next file name</span><code>${escHtml(suggested)}</code><button class="rec-icon-btn pr-copy-name" onclick="copyText('${escHtml(suggested.replace(/'/g, "\\'"))}','File name copied')" title="Copy file name" aria-label="Copy file name">${icon('copy', 13)}</button></div>`;
   }
 
   // Generated decks: their own version history above; everything else is supporting.
@@ -556,8 +594,8 @@ function renderDeckHistory(p: Proposal): void {
   const decks = (p.documents || []).filter((d) => d.kind === 'proposal');
   const count = document.getElementById('prd-decks-count'); if (count) count.textContent = decks.length ? String(decks.length) : '';
   if (!decks.length) {
-    el.innerHTML = emptyState({ icon: 'document', title: 'No proposal generated yet', body: 'Generate the deck from this proposal; each generation is kept as its own version.', compact: true, action: { label: 'Generate proposal', onclick: `openGenerateProposal(${p.id})` } });
-    renderIcons(el);
+    // Nothing generated yet: the section's own "Generate proposal" is the whole story.
+    el.innerHTML = '';
     return;
   }
   const paths = decks.map((d) => d.path).filter((x): x is string => !!x);
@@ -581,7 +619,7 @@ expose('generateCurrentProposal', generateCurrentProposal);
 
 function folderFileRow(f: LocalFileItem): string {
   const path = escHtml(f.path.replace(/'/g, "\\'"));
-  return `<div class="rec-row pr-folder-file" onclick="proposalOpenFile('${path}')">
+  return `<div class="rec-row pr-folder-file" tabindex="0" onkeydown="if(event.key==='Enter'&&event.target===this)this.click()" onclick="proposalOpenFile('${path}')">
     <span class="rec-row-icon">${icon('document', 15)}</span>
     <div class="rec-row-main"><div class="rec-row-title">${escHtml(f.name)}</div><div class="rec-row-sub">In the client folder${f.modifiedAt ? ` · modified ${fmtDate(f.modifiedAt.slice(0, 10))}` : ''}</div></div>
     <div class="rec-row-actions"><button class="btn-secondary btn-sm" onclick="event.stopPropagation();proposalAttachFile('${path}')">Add to proposal</button></div>
@@ -650,7 +688,8 @@ function renderRelated(p: Proposal): void {
     project ? row('project', project.id, 'briefcase', project.name, `Project · ${project.status}`) : '',
     contact ? row('contact', contact.id, 'people', contact.name || 'Contact', ['Contact', contact.role, contact.email].filter(Boolean).join(' · ')) : '',
   ].filter(Boolean);
-  el.innerHTML = rows.length ? rows.join('') : emptyState({ icon: 'link', title: 'Not linked to anything yet', body: 'Choose an opportunity or contact under Details. The agreement appears here once the proposal is signed by both parties.', compact: true });
+  el.innerHTML = rows.join('');
+  const sec = document.getElementById('prd-related-sec'); if (sec) sec.hidden = !rows.length;
 }
 
 function renderNotes(p: Proposal): void {
@@ -717,7 +756,9 @@ export function openProposalBuilder(prefill: BuilderPrefill = {}): void {
   const entity = entityById(prefill.businessEntityId) || defaultEntity();
   setOptions('prb-entity', S.businessEntities.filter((e) => e.active).map((e) => [String(e.id), `${e.name} (${e.currency})`]), entity ? String(entity.id) : '');
   setOptions('prb-currency', CURRENCIES().map((c) => [c, c]), prefill.currency || entity?.currency || 'SAR');
-  setOptions('prb-owner', [['', 'Not set'], ...activeTeam().map((t) => [String(t.id), t.name] as [string, string])]);
+  const me = currentUser();
+  setOptions('prb-owner', [['', 'Not set'], ...activeTeam().map((t) => [String(t.id), t.name] as [string, string])], me ? String(me.id) : '');
+  browseAll = false; showEntityFields = !!(prefill.currency && entity && prefill.currency !== entity.currency); showWorkflowFields = false;
   const reviewer = defaultReviewer();
   setOptions('prb-reviewer', [['', 'Not set'], ...reviewers().map((t) => [String(t.id), t.name] as [string, string])], reviewer ? String(reviewer.id) : '');
   setOptions('prb-source', [['', 'Not set'], ...LEAD_SOURCES.map((s) => [s, s] as [string, string])]);
@@ -731,8 +772,10 @@ export function openProposalBuilder(prefill: BuilderPrefill = {}): void {
   const client = document.getElementById('prb-client') as HTMLInputElement | null;
   if (client) attachCompanySelector(client, { onSelect: (name) => { client.value = name; prbClientChanged(); } });
   prbClientChanged(prefill.opportunityId, prefill.contactId);
+  setVal('prb-service-q', '');
   renderServicePicker();
   prbRefreshLines();
+  renderDefaultsLines();
   const page = document.getElementById('pr-builder'); if (page) renderIcons(page);
   notifyNavigated();
   if (!prefill.client) window.setTimeout(() => client?.focus(), 50);
@@ -787,7 +830,10 @@ export function prbClientChanged(opportunityId?: number, contactId?: number): vo
     renderIcons(info);
   }
   const selectedOpp = opportunityId != null ? String(opportunityId) : val('prb-opportunity');
-  setOptions('prb-opportunity', [['', opps.length ? 'None' : 'No open opportunities'], ...opps.map((o) => [String(o.id), `${o.name} · ${o.stage}`] as [string, string])], opps.some((o) => String(o.id) === selectedOpp) ? selectedOpp : '');
+  setOptions('prb-opportunity', [['', 'None'], ...opps.map((o) => [String(o.id), `${o.name} · ${o.stage}`] as [string, string])], opps.some((o) => String(o.id) === selectedOpp) ? selectedOpp : '');
+  // Opportunity and contact appear once there's a company — the opportunity only when it has some.
+  const links = document.getElementById('prb-links'); if (links) links.hidden = !client;
+  const oppGrp = document.getElementById('prb-opportunity-grp'); if (oppGrp) oppGrp.hidden = !opps.length;
   const selectedContact = contactId != null ? String(contactId) : val('prb-contact');
   setOptions('prb-contact', [['', 'Not set'], ...contacts.map((c) => [String(c.id), [c.name, c.role].filter(Boolean).join(' · ')] as [string, string]), ['new', 'Add a new contact…']], contacts.some((c) => String(c.id) === selectedContact) ? selectedContact : '');
   prbContactChanged();
@@ -814,6 +860,7 @@ export function prbStatusChanged(): void {
   const grp = document.getElementById('prb-sent-grp');
   if (grp) grp.hidden = val('prb-status') !== PS.SENT;
   renderBuilderSummary();
+  renderDefaultsLines();
 }
 expose('prbStatusChanged', prbStatusChanged);
 
@@ -821,86 +868,209 @@ export function prbEntityChanged(): void {
   const entity = entityById(Number(val('prb-entity')));
   if (entity) setVal('prb-currency', entity.currency);
   prbRefreshLines();
+  renderDefaultsLines();
 }
 expose('prbEntityChanged', prbEntityChanged);
 
-function renderServicePicker(): void {
-  const el = document.getElementById('prb-service-picker');
-  if (!el) return;
-  const groups = new Map<string, typeof S.services>();
-  for (const s of activeServices()) {
-    const cat = s.category || 'Other';
-    if (!groups.has(cat)) groups.set(cat, []);
-    groups.get(cat)!.push(s);
-  }
-  const chosen = new Set(draftLines.map((l) => l.serviceId).filter((x) => x != null));
-  el.innerHTML = [...groups.entries()].map(([cat, services]) => `<div class="prb-cat"><div class="prb-cat-name">${escHtml(cat)}</div><div class="prb-chips">${services.map((s) =>
-    `<button type="button" class="prb-chip${chosen.has(s.id) ? ' on' : ''}" aria-pressed="${chosen.has(s.id)}" onclick="prbToggleService(${s.id})">${chosen.has(s.id) ? icon('check', 11) : ''}${escHtml(s.name)}</button>`).join('')}</div></div>`).join('')
-    || emptyState({ icon: 'dollar', title: 'The service catalog is empty', body: 'Add services under Services first.', compact: true });
-  renderIcons(el);
+// Services: a search box and the five used most; the whole catalogue on demand.
+let browseAll = false;
+let serviceMenuIndex = 0;
+
+/** The services used most on proposals so far (catalogue order when there's no history). */
+function topServices(n = 5): typeof S.services {
+  const counts = new Map<number, number>();
+  for (const p of S.proposals) for (const l of p.lines || []) if (l.serviceId != null) counts.set(l.serviceId, (counts.get(l.serviceId) || 0) + 1);
+  const active = activeServices();
+  return [...active].sort((a, b) => (counts.get(b.id) || 0) - (counts.get(a.id) || 0) || active.indexOf(a) - active.indexOf(b)).slice(0, n);
 }
+
+const chosenServices = () => new Set(draftLines.map((l) => l.serviceId).filter((x) => x != null));
+
+function renderServicePicker(): void {
+  const top = document.getElementById('prb-top');
+  const el = document.getElementById('prb-service-picker');
+  if (!top || !el) return;
+  const chosen = chosenServices();
+  const chip = (sv: { id: number; name: string }) => `<button type="button" class="prb-chip" onclick="prbAddService(${sv.id})">${icon('plus', 11)}${escHtml(sv.name)}</button>`;
+  const quick = topServices().filter((sv) => !chosen.has(sv.id));
+  top.innerHTML = `${quick.map(chip).join('')}<button type="button" class="btn-ghost btn-sm prb-browse" aria-expanded="${browseAll}" onclick="prbBrowseServices()">${browseAll ? 'Hide the list' : 'Browse all services'}</button>`;
+  el.hidden = !browseAll;
+  if (browseAll) {
+    const groups = new Map<string, typeof S.services>();
+    for (const sv of activeServices()) {
+      if (chosen.has(sv.id)) continue;
+      const cat = sv.category || 'Other';
+      if (!groups.has(cat)) groups.set(cat, []);
+      groups.get(cat)!.push(sv);
+    }
+    el.innerHTML = [...groups.entries()].map(([cat, services]) => `<div class="prb-cat"><div class="prb-cat-name">${escHtml(cat)}</div><div class="prb-chips">${services.map(chip).join('')}</div></div>`).join('');
+  }
+  renderIcons(top); renderIcons(el);
+}
+
+export function prbBrowseServices(): void {
+  browseAll = !browseAll;
+  renderServicePicker();
+}
+expose('prbBrowseServices', prbBrowseServices);
+
+function serviceMatches(): typeof S.services {
+  const q = val('prb-service-q').toLowerCase();
+  if (!q) return [];
+  const chosen = chosenServices();
+  const all = activeServices().filter((sv) => !chosen.has(sv.id));
+  const starts = all.filter((sv) => sv.name.toLowerCase().startsWith(q));
+  const within = all.filter((sv) => !starts.includes(sv) && (sv.name.toLowerCase().includes(q) || (sv.category || '').toLowerCase().includes(q)));
+  return [...starts, ...within].slice(0, 8);
+}
+
+export function prbServiceSearch(): void {
+  serviceMenuIndex = 0;
+  renderServiceMenu();
+}
+expose('prbServiceSearch', prbServiceSearch);
+
+function renderServiceMenu(): void {
+  const menu = document.getElementById('prb-service-menu');
+  const input = document.getElementById('prb-service-q');
+  if (!menu) return;
+  const items = serviceMatches();
+  menu.hidden = !items.length;
+  input?.setAttribute('aria-expanded', String(!!items.length));
+  menu.innerHTML = items.map((sv, i) => `<div class="company-selector-row${i === serviceMenuIndex ? ' active' : ''}" role="option" aria-selected="${i === serviceMenuIndex}" onmousedown="event.preventDefault();prbAddService(${sv.id})">
+    <span class="company-selector-name">${escHtml(sv.name)}</span>${sv.category ? `<span class="company-selector-sub">${escHtml(sv.category)}</span>` : ''}</div>`).join('');
+}
+
+export function prbServiceKey(e: KeyboardEvent): void {
+  const items = serviceMatches();
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    if (!items.length) return;
+    e.preventDefault();
+    serviceMenuIndex = (serviceMenuIndex + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
+    renderServiceMenu();
+  } else if (e.key === 'Enter') {
+    e.preventDefault(); // never submits the form
+    if (items[serviceMenuIndex]) prbAddService(items[serviceMenuIndex].id);
+  } else if (e.key === 'Escape') {
+    setVal('prb-service-q', '');
+    prbServiceMenuClose();
+  }
+}
+expose('prbServiceKey', prbServiceKey);
+
+export function prbServiceMenuClose(): void {
+  const menu = document.getElementById('prb-service-menu'); if (menu) menu.hidden = true;
+  document.getElementById('prb-service-q')?.setAttribute('aria-expanded', 'false');
+}
+expose('prbServiceMenuClose', prbServiceMenuClose);
+
+export function prbAddService(id: number): void {
+  if (!draftLines.some((l) => l.serviceId === id)) draftLines.push(lineForService(S.services.find((sv) => sv.id === id) || null, draftLines.length));
+  setVal('prb-service-q', '');
+  prbServiceMenuClose();
+  renderServicePicker();
+  prbRefreshLines();
+}
+expose('prbAddService', prbAddService);
 
 export function prbToggleService(id: number): void {
   const i = draftLines.findIndex((l) => l.serviceId === id);
   if (i >= 0) draftLines.splice(i, 1);
-  else draftLines.push(lineForService(S.services.find((s) => s.id === id) || null, draftLines.length));
+  else draftLines.push(lineForService(S.services.find((sv) => sv.id === id) || null, draftLines.length));
   renderServicePicker();
   prbRefreshLines();
 }
 expose('prbToggleService', prbToggleService);
 
+// Terms and workflow: the usual choices as one line each; "Change" opens the fields.
+let showEntityFields = false;
+let showWorkflowFields = false;
+
+function renderDefaultsLines(): void {
+  const entityLine = document.getElementById('prb-entity-line');
+  const entityFields = document.getElementById('prb-entity-fields');
+  const entity = entityById(Number(val('prb-entity')));
+  if (entityLine && entityFields) {
+    entityFields.hidden = !showEntityFields;
+    entityLine.hidden = showEntityFields;
+    entityLine.innerHTML = `<span>${escHtml([entity?.name, val('prb-currency')].filter(Boolean).join(' · ') || 'No business entity')}</span><button type="button" class="rlink" onclick="prbShowDefaults('entity')">Change</button>`;
+  }
+  const wfLine = document.getElementById('prb-workflow-line');
+  const wfFields = document.getElementById('prb-workflow-fields');
+  if (wfLine && wfFields) {
+    wfFields.hidden = !showWorkflowFields;
+    wfLine.hidden = showWorkflowFields;
+    const received = val('prb-received');
+    const owner = teamMember(Number(val('prb-owner')));
+    const reviewer = teamMember(Number(val('prb-reviewer')));
+    const status = (document.getElementById('prb-status') as HTMLSelectElement | null)?.selectedOptions[0]?.textContent || '';
+    wfLine.innerHTML = `<span>${escHtml([
+      val('prb-status') === PS.REQUEST ? `Request received ${received === today() ? 'today' : fmtDate(received)}` : status,
+      owner ? `Owner ${owner.name}` : '', reviewer ? `Reviewer ${reviewer.name}` : '',
+    ].filter(Boolean).join(' · '))}</span><button type="button" class="rlink" onclick="prbShowDefaults('workflow')">Change</button>`;
+  }
+}
+
+export function prbShowDefaults(which: 'entity' | 'workflow'): void {
+  if (which === 'entity') showEntityFields = true; else showWorkflowFields = true;
+  renderDefaultsLines();
+  document.getElementById(which === 'entity' ? 'prb-entity' : 'prb-status')?.focus();
+}
+expose('prbShowDefaults', prbShowDefaults);
+
 export function prbRefreshLines(): void {
+  // No table until the first service is added.
+  if (!draftLines.length) {
+    const el = document.getElementById('prb-lines'); if (el) el.innerHTML = '';
+    renderBuilderSummary();
+    renderBuilderFolder();
+    return;
+  }
   renderLinesEditor('builder', 'prb-lines', {
     lines: () => draftLines,
     setLines: (lines) => { draftLines = lines; },
     currency: () => val('prb-currency') || 'SAR',
     contractMonths: () => (val('prb-months') ? Number(val('prb-months')) : null),
     editable: true,
-    onChange: () => { renderServicePicker(); renderBuilderSummary(); renderBuilderFolder(); },
+    onChange: () => { renderServicePicker(); if (!draftLines.length) prbRefreshLines(); renderBuilderSummary(); renderBuilderFolder(); },
   });
   renderBuilderSummary();
   renderBuilderFolder();
 }
 expose('prbRefreshLines', prbRefreshLines);
 
+/** The running summary: only once there's a client or a service, and only what's known. */
 function renderBuilderSummary(): void {
   const el = document.getElementById('prb-summary');
   if (!el) return;
+  const client = val('prb-client');
+  el.hidden = !client && !draftLines.length;
+  if (el.hidden) { el.innerHTML = ''; return; }
   const currency = val('prb-currency') || 'SAR';
   const months = val('prb-months') ? Number(val('prb-months')) : null;
   const t = lineTotals(draftLines, months);
-  const reviewer = teamMember(Number(val('prb-reviewer')));
-  const statusLabel = (document.getElementById('prb-status') as HTMLSelectElement | null)?.selectedOptions[0]?.textContent || '';
+  const row = (label: string, value: string | null, cls = '') => (value ? `<div${cls ? ` class="${cls}"` : ''}><dt>${label}</dt><dd>${value}</dd></div>` : '');
   el.innerHTML = `<div class="rec-section-hd"><h2>Summary</h2></div>
     <dl class="prb-sum">
-      <div><dt>Client</dt><dd>${escHtml(val('prb-client') || '—')}</dd></div>
-      <div><dt>Services</dt><dd>${t.serviceNames.length ? t.serviceNames.map(escHtml).join('<br>') : '<span class="rec-muted">None yet</span>'}</dd></div>
-      <div><dt>Monthly</dt><dd>${t.monthly != null ? fmtMoney(t.monthly, currency) : '—'}</dd></div>
-      <div><dt>One-time</dt><dd>${t.oneTime != null ? fmtMoney(t.oneTime, currency) : '—'}</dd></div>
-      <div class="prb-sum-main"><dt>Contract value${months ? ` · ${months} mo` : ''}</dt><dd>${t.contractValue != null ? fmtMoney(t.contractValue, currency) : '—'}</dd></div>
-      <div><dt>Status</dt><dd>${escHtml(statusLabel)}</dd></div>
-      <div><dt>Review</dt><dd>${reviewer ? escHtml(reviewer.name) : '<span class="rec-muted">No reviewer</span>'}</dd></div>
-    </dl>
-    <button class="btn-primary prb-submit" type="submit" form="prb-form">Create proposal</button>`;
+      ${row('Client', client ? escHtml(client) : null)}
+      ${row('Services', t.serviceNames.length ? t.serviceNames.map(escHtml).join('<br>') : null)}
+      ${row('Monthly', t.monthly ? fmtMoney(t.monthly, currency) : null)}
+      ${row('One-time', t.oneTime ? fmtMoney(t.oneTime, currency) : null)}
+      ${row(`Contract value${months ? ` · ${months} mo` : ''}`, t.contractValue ? fmtMoney(t.contractValue, currency) : null, 'prb-sum-main')}
+    </dl>`;
 }
 
+/** One line about the client's OneDrive folder, once there's a client. */
 function renderBuilderFolder(): void {
   const el = document.getElementById('prb-folder');
   if (!el) return;
   const client = val('prb-client');
-  let body = '';
-  if (!client) body = '<p class="rec-muted">Choose the client to find their folder in OneDrive.</p>';
-  else if (!builderFolder) body = '<p class="rec-muted">Looking for the client folder…</p>';
-  else if (!builderFolder.root) body = '<p class="rec-muted">No Proposals folder found in OneDrive. You can choose it in Settings.</p>';
-  else {
-    const label = lineTotals(draftLines, null).serviceNames.join(' & ') || 'Services';
-    const name = suggestedFileName(client, label, today(), builderFolder.files.map((f) => f.name));
-    body = builderFolder.exists
-      ? `<div class="pr-folder-line">${icon('check', 13)}<span>Folder found</span></div><code class="path-code">${escHtml(builderFolder.path || '')}</code>`
-      : `<label class="check-label"><input type="checkbox" id="prb-create-folder" checked> Create <strong>${escHtml(client)}</strong> in the Proposals folder</label><code class="path-code">${escHtml(builderFolder.path || '')}</code>`;
-    body += `<div class="pr-next-name"><span class="rec-muted">Save the deck as</span><code>${escHtml(name)}</code><button type="button" class="rec-icon-btn" onclick="copyText('${escHtml(name.replace(/'/g, "\\'"))}','File name copied')" title="Copy file name" aria-label="Copy file name">${icon('copy', 13)}</button></div>`;
-  }
-  el.innerHTML = `<div class="rec-section-hd"><h2>OneDrive folder</h2></div>${body}`;
+  el.hidden = !client || !builderFolder || !builderFolder.root;
+  if (el.hidden) { el.innerHTML = ''; return; }
+  const folderName = (builderFolder!.path || '').split('/').filter(Boolean).pop() || client;
+  el.innerHTML = builderFolder!.exists
+    ? `<div class="pr-folder-line" title="${escHtml(builderFolder!.path || '')}">${icon('folder', 13)}<span>Saves in <strong>${escHtml(folderName)}</strong></span></div>`
+    : `<label class="check-label" title="${escHtml(builderFolder!.path || '')}"><input type="checkbox" id="prb-create-folder" checked> Create a folder for <strong>${escHtml(client)}</strong></label>`;
   renderIcons(el);
 }
 

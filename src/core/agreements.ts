@@ -1,8 +1,11 @@
 import { S } from '../lib/state';
+import { foldMoreDetails } from '../lib/moreDetails';
 import { statusBadge } from '../lib/statusTone';
 import { companyLink } from '../lib/links';
 import { AGR_STATUSES, AGR_TYPES, AGR_ST, SERVICE_STATUSES } from '../lib/constants';
-import { today, fmtDate, daysUntil, escHtml, nextAgrId, expose, kpiCard, showConfirm } from '../lib/utils';
+import { today, fmtDate, daysUntil, escHtml, nextAgrId, expose, kpiCard, showConfirm, statusDot } from '../lib/utils';
+import { icon } from '../lib/icons';
+import { showContextMenu, showMenuAt } from '../lib/contextMenu';
 import { emptyState } from '../lib/ui';
 import { activeMrr, renewalsDue, isAgreementActive, fmtMoneyByCurrency, fmtMoney, currencyOf, agreementMonthly, teamMember, activeTeam, entityById, defaultEntity, contractEndDate } from '../lib/commercial';
 import { matchesPeriod } from '../lib/period';
@@ -129,7 +132,9 @@ export function renderAgreements(): void {
     { lbl: 'Ending within 60 days', val: ending, signal: ending ? ('warning' as const) : undefined },
   ];
   const summaryEl = document.getElementById('agr-summary');
-  if (summaryEl) summaryEl.innerHTML = summaryDefs.map((x) => kpiCard(x.lbl, x.val, null, { signal: x.signal })).join('');
+  // The tiles didn't filter anything, so they're gone (Focus); the list and its filters say it.
+  if (summaryEl) { summaryEl.innerHTML = ''; summaryEl.hidden = true; }
+  void summaryDefs; void kpiCard;
 
   const tbody = document.getElementById('agr-tbody');
   if (!tbody) return;
@@ -137,16 +142,14 @@ export function renderAgreements(): void {
   const todayIso = today();
   tbody.innerHTML = data.map((a) => {
     const sc = AGR_ST[a.status || ''] || { c: 'var(--muted)' };
-    const stOpts = AGR_STATUSES.map((st) => `<option value="${escHtml(st)}" ${a.status === st ? 'selected' : ''}>${escHtml(st)}</option>`).join('')
-      + (a.status && !AGR_STATUSES.includes(a.status) ? `<option selected>${escHtml(a.status)}</option>` : '') + (!a.status ? '<option value="" selected>Not set</option>' : '');
     const services = a.lines?.length ? [...new Set(a.lines.map((l) => l.serviceName))] : (a.type ? [a.type] : []);
     const monthly = agreementMonthly(a);
     const endSoon = a.endDate && a.serviceStatus === 'Active' && a.endDate >= todayIso && (daysUntil(a.endDate) ?? 999) <= 60;
-    return `<tr class="rec-tr" data-agreement-id="${a.id}" onclick="if(!event.target.closest('a,button,select,input'))openRecord('agreement', ${a.id})">
+    return `<tr class="rec-tr" data-agreement-id="${a.id}" onclick="if(!event.target.closest('a,button,select,input'))openRecord('agreement', ${a.id})" oncontextmenu="agreementRowMenu(event, ${a.id})">
       <td class="agr-ref">${escHtml(a.agrRef || '—')}${a.proposalId ? `<div class="agr-prop-ref">SL# ${a.proposalId}</div>` : ''}</td>
       <td class="td-c strong" title="${escHtml(a.client)}">${companyLink(a.companyId, a.client)}</td>
       <td class="db-services">${services.map((sv) => `<span class="chip">${escHtml(sv)}</span>`).join(' ') || '—'}</td>
-      <td><select class="ssel status-select" style="color:${sc.ch || sc.c}" onchange="updateAgrStatus(${a.id},this.value)" aria-label="Status">${stOpts}</select></td>
+      <td class="td-status">${statusDot(sc, a.status || 'Not set')}<button class="rec-icon-btn row-more" onclick="agreementRowMenu(event, ${a.id})" title="Change status…" aria-label="Change status of ${escHtml(a.agrRef || 'this agreement')}">${icon('more', 14)}</button></td>
       <td>${a.serviceStatus ? statusBadge('service', a.serviceStatus) : '<span class="t-muted">—</span>'}</td>
       <td class="t-sub">${escHtml(preparedByName(a) || '—')}</td>
       <td class="td-d">${fmtDate(a.startDate)}</td>
@@ -157,6 +160,20 @@ export function renderAgreements(): void {
 }
 registerTabRenderer('agreements', () => { populateAgrFilters(); renderAgreements(); });
 expose('renderAgreements', renderAgreements);
+
+/** A row's status reads as text; it changes from here (right-click or "…") or on the agreement page. */
+export function agreementRowMenu(e: MouseEvent, id: number): void {
+  const a = S.agreements.find((x) => x.id === id);
+  if (!a) return;
+  const items = [
+    { label: 'Open', iconName: 'document', run: () => (window as any).openRecord('agreement', id) },
+    { label: '', run: () => {}, separator: true },
+    ...AGR_STATUSES.filter((st) => st !== a.status).map((st) => ({ label: `Status: ${st}`, iconName: 'check', run: () => { updateAgrStatus(id, st); renderAgreements(); } })),
+  ];
+  if (e.type === 'contextmenu') showContextMenu(e, items);
+  else { e.stopPropagation(); showMenuAt(e.currentTarget as HTMLElement, items); }
+}
+expose('agreementRowMenu', agreementRowMenu);
 
 export function updateAgrStatus(id: number, newStatus: string): void {
   const a = S.agreements.find((x) => x.id === id);
@@ -191,6 +208,8 @@ export function openAgrModal(id: number | null, prefill: { client?: string } = {
   const entitySel = document.getElementById('agr-entity-sel'); if (entitySel) entitySel.innerHTML = S.businessEntities.filter((e) => e.active).map((e) => `<option value="${e.id}"${e.id === entity?.id ? ' selected' : ''}>${escHtml(e.name)} (${escHtml(e.currency)})</option>`).join('');
   document.getElementById('modal-agr')?.classList.add('open');
   window.setTimeout(() => clientInput?.focus(), 50);
+  // Optional fields wait behind "More details" unless the context filled one (after any deferred prefill).
+  window.setTimeout(() => foldMoreDetails('agr-form'), 60);
 }
 expose('openAgrModal', openAgrModal);
 

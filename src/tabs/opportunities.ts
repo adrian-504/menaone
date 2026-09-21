@@ -6,6 +6,7 @@
 // Notes/Contacts are linked through the existing entity_links Work Graph,
 // not new relationship fields — Meetings/Documents use a direct FK, same
 // convention Project already uses for those two.
+import { foldMoreDetails } from '../lib/moreDetails';
 import { statusBadge } from '../lib/statusTone';
 import { addMoney, fmtMoneyByCurrency, currentUser, matchesOwnerFilter, ownerFilterOptions, type MoneyByCurrency } from '../lib/commercial';
 import { opportunityHealth } from '../lib/pipeline';
@@ -22,6 +23,7 @@ import { onChange, touches } from '../lib/changes';
 import { registerDragSource, registerDropTarget } from '../lib/dnd';
 import { renderRecordTimeline, renderThreadStrip } from './recordThread';
 import { sinkEmptySections } from '../lib/sectionLayout';
+import { mountPropsList, propsEditButton, propsListHtml, resetPropsLists, type PropField } from '../lib/propsList';
 import { createListNav } from '../lib/listNav';
 import { getPipelineFacts, getOpportunities, getOpportunityActivity, getLinksFor, setLinksFrom, proposalFolderLookup, filesOpen } from '../lib/db';
 import { getAllCompanies } from './companies';
@@ -328,6 +330,8 @@ export function openOpportunityModal(id: number | null, ctx: WorkContext | null 
     (f.elements.namedItem('oppOwner') as HTMLInputElement).value = currentUser()?.name || '';
   }
   document.getElementById('modal-opportunity')?.classList.add('open');
+  // Optional fields wait behind "More details" unless the context filled one (after any deferred prefill).
+  window.setTimeout(() => foldMoreDetails('opportunity-form'), 60);
 }
 expose('openOpportunityModal', openOpportunityModal);
 
@@ -394,6 +398,7 @@ export async function openOpportunityDetail(id: number): Promise<void> {
   // A deleted opportunity (an old link or history entry) must not leave the
   // page showing the previous one under a missing id: go to the list instead.
   if (!o) { if (S.currentOpportunityId != null) closeOpportunityDetail(); return; }
+  if (S.currentOpportunityId !== id) { resetPropsLists('od-'); waitNoteEditing = false; descEditing = false; }
   S.currentOpportunityId = id;
   document.getElementById('opp-list-view')?.classList.add('hidden');
   document.getElementById('opp-detail')?.classList.add('open');
@@ -427,16 +432,8 @@ async function renderOpportunityDetail(): Promise<void> {
     o.winLossReason && (o.stage === 'Won' || o.stage === 'Lost') ? `<span class="rec-meta">${escHtml(o.winLossReason)}</span>` : '',
   ].filter(Boolean).join('');
 
-  const odCompanyInput = document.getElementById('od-company-inp') as HTMLInputElement;
-  odCompanyInput.value = o.companyName || '';
-  attachCompanySelector(odCompanyInput);
-  const stageSel = document.getElementById('od-stage-sel') as HTMLSelectElement;
-  stageSel.innerHTML = OPPORTUNITY_STAGES.map((s) => `<option value="${s}" ${o.stage === s ? 'selected' : ''}>${s}</option>`).join('');
-  (document.getElementById('od-owner-inp') as HTMLInputElement).value = o.owner || '';
-  (document.getElementById('od-value-inp') as HTMLInputElement).value = o.estimatedValue != null ? String(o.estimatedValue) : '';
-  (document.getElementById('od-probability-inp') as HTMLInputElement).value = o.probability != null ? String(o.probability) : '';
-  (document.getElementById('od-close-date-inp') as HTMLInputElement).value = o.expectedCloseDate || '';
-  (document.getElementById('od-description') as HTMLTextAreaElement).value = o.description || '';
+  renderOpportunityProps(o);
+  renderOpportunityDescription(o);
   (document.getElementById('od-next-action') as HTMLTextAreaElement).value = o.nextAction || '';
 
   renderThreadStrip('od-thread', { kind: 'opportunity', id: o.id });
@@ -461,6 +458,38 @@ function layoutOpportunitySections(): void {
   sinkEmptySections(host, ['od-tasks', 'od-meetings', 'od-commitments', 'od-contacts', 'od-notes', 'od-files'].map(el));
 }
 
+// Description reads as text (or one quiet line when there's none); a click opens the box.
+let descEditing = false;
+
+function renderOpportunityDescription(o: Opportunity): void {
+  const view = document.getElementById('od-desc-view');
+  const box = document.getElementById('od-description') as HTMLTextAreaElement | null;
+  const sec = document.getElementById('od-desc-sec');
+  if (!view || !box || !sec) return;
+  if (!descEditing) box.value = o.description || '';
+  box.hidden = !descEditing;
+  sec.classList.toggle('is-quiet', !descEditing && !o.description);
+  view.innerHTML = descEditing ? ''
+    : o.description
+      ? `<div class="pl-val pl-multiline od-desc-text" tabindex="0" role="button" aria-label="Edit the description" onclick="editOpportunityDescription()" onkeydown="if(event.key==='Enter'){event.preventDefault();editOpportunityDescription()}">${escHtml(o.description)}</div>`
+      : `<button type="button" class="pl-add od-desc-add" onclick="editOpportunityDescription()">Add a description</button>`;
+}
+
+export function editOpportunityDescription(): void {
+  descEditing = true;
+  const o = currentOpportunity(); if (!o) return;
+  renderOpportunityDescription(o);
+  const box = document.getElementById('od-description') as HTMLTextAreaElement | null;
+  box?.focus();
+}
+expose('editOpportunityDescription', editOpportunityDescription);
+
+export function endOpportunityDescription(): void {
+  descEditing = false;
+  const o = currentOpportunity(); if (o) renderOpportunityDescription(o);
+}
+expose('endOpportunityDescription', endOpportunityDescription);
+
 /** The next open task, as a link; the free-text box only when there is none. */
 function renderOpportunityNextAction(o: Opportunity): void {
   const box = document.getElementById('od-next-task');
@@ -480,6 +509,29 @@ function renderOpportunityNextAction(o: Opportunity): void {
     : '';
 }
 
+// ── Details: read first, edit on demand (lib/propsList.ts) ─────────────────
+
+function renderOpportunityProps(o: Opportunity): void {
+  const el = document.getElementById('od-props');
+  if (!el) return;
+  const input = (id: string, attrs: string, value: string, onchange: string) => () =>
+    `<input id="${id}" class="td-input" ${attrs} value="${escHtml(value)}" onchange="${onchange}" onkeydown="if(event.key==='Enter')this.blur()">`;
+  const fields: PropField[] = [
+    { key: 'company', label: 'Company', display: o.companyName ? companyLink(o.companyId, o.companyName) : '', always: true,
+      control: input('od-company-inp', 'placeholder="No company"', o.companyName || '', "autoSaveOpportunityField('companyName',this.value)"),
+      mount: (dd) => { const c = dd.querySelector<HTMLInputElement>('input'); if (c) attachCompanySelector(c); } },
+    { key: 'stage', label: 'Stage', display: escHtml(o.stage), always: true,
+      control: () => `<select id="od-stage-sel" class="td-select" onchange="changeCurrentOpportunityStage(this.value)">${OPPORTUNITY_STAGES.map((st) => `<option value="${st}" ${o.stage === st ? 'selected' : ''}>${st}</option>`).join('')}</select>` },
+    { key: 'owner', label: 'Owner', display: o.owner ? escHtml(o.owner) : '', always: true, control: input('od-owner-inp', 'placeholder="Add owner" list="team-names"', o.owner || '', "autoSaveOpportunityField('owner',this.value)") },
+    { key: 'value', label: 'Value', display: o.estimatedValue != null ? escHtml(fmtMoneyByCurrency({ [o.currency || 'SAR']: o.estimatedValue })) : '', control: input('od-value-inp', 'type="number" placeholder="0"', o.estimatedValue != null ? String(o.estimatedValue) : '', "autoSaveOpportunityNumber('estimatedValue',this.value)") },
+    { key: 'probability', label: 'Probability', display: o.probability != null ? `${o.probability}%` : '', control: input('od-probability-inp', 'type="number" min="0" max="100" placeholder="%"', o.probability != null ? String(o.probability) : '', "autoSaveOpportunityNumber('probability',this.value)") },
+    { key: 'close', label: 'Expected close', display: o.expectedCloseDate ? escHtml(fmtDate(o.expectedCloseDate)) : '', control: input('od-close-date-inp', 'type="date"', o.expectedCloseDate || '', "autoSaveOpportunityField('expectedCloseDate',this.value)") },
+  ];
+  el.innerHTML = propsListHtml('od-props', fields, () => { const cur = currentOpportunity(); if (cur) renderOpportunityProps(cur); });
+  const act = document.getElementById('od-props-act'); if (act) act.innerHTML = propsEditButton('od-props');
+  mountPropsList('od-props');
+}
+
 // ── Waiting on ──────────────────────────────────────────────────────────────
 
 /** Us / Them / —, since when, and what for. When the client has an open
@@ -494,12 +546,26 @@ function renderOpportunityWaiting(o: Opportunity): void {
   const promised = suggestion ? S.commitments.find((c) => c.id === suggestion.commitmentId) : undefined;
   el.innerHTML = `<div class="segmented od-wait-seg" role="group" aria-label="Waiting on">${seg}</div>
     ${cur && o.waitingSince ? `<div class="od-wait-since">since ${escHtml(fmtDate(o.waitingSince))}</div>` : ''}
-    ${cur ? `<textarea class="td-input od-wait-note" rows="1" placeholder="What for?" title="${escHtml(o.waitingNote || '')}" oninput="autoGrow(this)" onchange="setOpportunityWaitingNote(this.value)">${escHtml(o.waitingNote || '')}</textarea>` : ''}
+    ${cur ? (waitNoteEditing || !o.waitingNote
+      ? `<textarea class="td-input od-wait-note" rows="1" placeholder="What for?" title="${escHtml(o.waitingNote || '')}" oninput="autoGrow(this)" onchange="setOpportunityWaitingNote(this.value)" onblur="endWaitingNoteEdit()" onkeydown="if(event.key==='Escape'){this.value=${escHtml(JSON.stringify(o.waitingNote || ''))};this.blur()}">${escHtml(o.waitingNote || '')}</textarea>`
+      : `<div class="pl-val od-wait-text" tabindex="0" role="button" aria-label="Edit what it's waiting for" onclick="editWaitingNote()" onkeydown="if(event.key==='Enter'){event.preventDefault();editWaitingNote()}">${escHtml(o.waitingNote)}</div>`) : ''}
     ${suggestion && promised ? `<div class="od-wait-suggest">The client promised “${escHtml(promised.text)}” on ${escHtml(fmtDate(suggestion.since))}.
       <button class="btn-ghost btn-sm" onclick="acceptWaitingSuggestion()">Waiting on them since then</button></div>` : ''}`;
   const note = el.querySelector<HTMLTextAreaElement>('.od-wait-note');
-  if (note) (window as any).autoGrow?.(note);
+  if (note) { (window as any).autoGrow?.(note); if (waitNoteEditing) note.focus(); }
 }
+
+// The note reads as text; a click (or Enter) opens it.
+let waitNoteEditing = false;
+export function editWaitingNote(): void {
+  waitNoteEditing = true;
+  const o = currentOpportunity(); if (o) renderOpportunityWaiting(o);
+}
+expose('editWaitingNote', editWaitingNote);
+export function endWaitingNoteEdit(): void {
+  window.setTimeout(() => { if (!waitNoteEditing) return; waitNoteEditing = false; const o = currentOpportunity(); if (o) renderOpportunityWaiting(o); }, 0);
+}
+expose('endWaitingNoteEdit', endWaitingNoteEdit);
 
 export function setOpportunityWaiting(value: string): void {
   const o = currentOpportunity();

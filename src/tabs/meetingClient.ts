@@ -459,7 +459,7 @@ export async function updatePeopleBanner(): Promise<void> {
   if (!el) return;
   const n = await peopleFromMeetingsCount();
   el.hidden = n === 0;
-  el.innerHTML = n ? `<span class="rec-row-icon">${icon('meeting', 15)}</span><div class="rec-row-main"><div class="rec-row-title">${n} ${n === 1 ? 'person' : 'people'} from your meetings ${n === 1 ? "isn't a contact" : "aren't contacts"} yet</div><div class="rec-row-sub">Names, emails and companies taken from Outlook meeting invites.</div></div><button class="btn-primary btn-sm" onclick="openPeopleFromMeetings()">Review</button>` : '';
+  el.innerHTML = n ? `<span class="rec-row-icon">${icon('meeting', 15)}</span><div class="rec-row-main"><div class="rec-row-title">${n} ${n === 1 ? 'person' : 'people'} from your meetings ${n === 1 ? "isn't a contact" : "aren't contacts"} yet</div><div class="rec-row-sub">Names, emails and companies taken from Outlook meeting invites.</div></div><button class="btn-secondary btn-sm" onclick="openPeopleFromMeetings()">Review</button>` : '';
   renderIcons(el);
 }
 expose('updatePeopleBanner', updatePeopleBanner);

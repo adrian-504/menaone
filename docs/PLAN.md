@@ -16,7 +16,7 @@
 
 ## What's built and working
 
-Client 360 and contact pages · proposals with lines, versions and an internal review step · agreements with service lines, dates and MRR · opportunities and the pipeline board · projects with milestones · meetings with Outlook sync, client linking and meeting briefs · Notes · Tasks with natural-language quick add · Watch (regulatory and market news, rules only, no AI) · Files · clean-up queues · My Day with office clocks, weather and holidays · reminders · the service catalogue, rate cards and KSA/Europe entities · identity, owners and activity · commitments (`>>` we owe, `<<` they owe) and what each opportunity is waiting on.
+Client 360 and contact pages · proposals with lines, versions and an internal review step · agreements with service lines, dates and MRR · opportunities and the pipeline board · projects with milestones · meetings with Outlook sync, client linking and meeting briefs · Notes · Tasks with natural-language quick add · Watch (regulatory and market news, rules only, no AI) · Files · clean-up queues · My Day with office clocks, weather and holidays · reminders · the service catalogue, rate cards and KSA/Europe entities · identity, owners and activity · commitments (`>>` we owe, `<<` they owe) and what each opportunity is waiting on · the engagement thread and one timeline per record · Company 360 as a briefing, with a printable Brief · the Focus pass: pages read first and edit on demand, one blue button per screen, filters folded, `npm run focus-check`.
 
 ## Waiting on someone else — do not start
 
@@ -40,7 +40,7 @@ Client 360 and contact pages · proposals with lines, versions and an internal r
 
 ## How we work now
 
-- **Product slices, since 21 September 2026.** A product review with the owner agreed seven slices, each reviewed before the next: 1 visual consolidation (done), 2 commitments and waiting-on (done), 3 engagement thread (done), 4 Company 360 as a briefing (built on branch `slice-4`, awaiting review), 5 the meetings loop and My Day regrouping, 6 proposals (diff, rhythm, handover), 7 search and sidebar consolidation. Between slices, what irritates in daily use still gets fixed first.
+- **Product slices, since 21 September 2026.** A product review with the owner agreed seven slices, each reviewed before the next: 1 visual consolidation (done), 2 commitments and waiting-on (done), 3 engagement thread (done), 4 Company 360 as a briefing (done), then a Focus pass — every page says where to look, mostly by removing (done) — 5 the meetings loop and My Day regrouping, 6 proposals (diff, rhythm, handover), 7 search and sidebar consolidation. Between slices, what irritates in daily use still gets fixed first.
 - **No sprint or phase numbers.** Work is named for what it does.
 - **Every install:** back up the live database first, rehearse migrations on a copy, run the tests, then install and check against real data.
 - **Rules, not AI**, everywhere — proposals and Watch included. The owner's standing decision.

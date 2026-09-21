@@ -1554,6 +1554,13 @@ export function renderCoAgreements(d: CompanyData): void {
  * actually links against, so this resolves that id from S.companies first —
  * a company with no real `companies` row yet (never referenced by an
  * Opportunity or the setup wizard) simply has no folders to show, correctly. */
+/** No folder linked: the section is one line with its "Match a folder…" (no sentence explaining it). */
+function markCoFilesEmpty(inner: HTMLElement, empty: boolean): void {
+  if (empty) inner.innerHTML = '';
+  const sec = document.getElementById('co-sec-files');
+  if (sec?.parentElement) collapseEmptySections(sec.parentElement, [{ el: sec, empty }], sec.nextElementSibling as HTMLElement | null);
+}
+
 async function renderCoFiles(d: CompanyData): Promise<void> {
   const inner = document.getElementById('cosub-files-inner');
   const cntEl = document.getElementById('co-files-tab-count');
@@ -1561,16 +1568,17 @@ async function renderCoFiles(d: CompanyData): Promise<void> {
   const company = S.companies.find((c) => c.name === d.name);
   if (!company) {
     if (cntEl) cntEl.textContent = '0';
-    inner.innerHTML = emptyState({ icon: 'folder', title: 'No folders linked', body: 'Use “Match a folder” above to link this company’s OneDrive folder.', compact: true });
+    markCoFilesEmpty(inner, true);
     return;
   }
   const links = await getLinksFor('company', company.id);
   const msfileIds = links.filter((l) => l.toType === 'company' && l.toId === company.id && l.fromType === 'msfile').map((l) => l.fromId);
   if (cntEl) cntEl.textContent = String(msfileIds.length);
   if (msfileIds.length === 0) {
-    inner.innerHTML = emptyState({ icon: 'folder', title: 'No folders linked', body: 'Use “Match a folder” above to link this company’s OneDrive folder.', compact: true });
+    markCoFilesEmpty(inner, true);
     return;
   }
+  markCoFilesEmpty(inner, false);
   const folders = await filesGetByIds(msfileIds);
   inner.innerHTML = `<div class="rec-list">${folders.map((f) => `
     <div class="rec-row${f.exists ? '' : ' is-unavailable'}" onclick="switchTab('files');msFilesNavigateToPath('${escHtml(f.path).replace(/'/g, "\\'")}')">

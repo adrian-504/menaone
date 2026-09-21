@@ -17,6 +17,7 @@ import { renderRecordTimeline, renderThreadStrip } from './recordThread';
 import { renderIcons } from '../core/chrome';
 import { AGR_STATUSES, AGR_TYPES, SERVICE_STATUSES } from '../lib/constants';
 import { renderLinesEditor } from '../lib/linesEditor';
+import { endPropsEdit, mountPropsList, propsEditButton, propsListHtml, resetPropsLists, type PropField } from '../lib/propsList';
 import { agrBadge, updateAgrStatus } from '../core/agreements';
 import { syncAgreementTotals, fmtMoney, currencyOf, agreementMonthly, teamMember, activeTeam, entityById, contractEndDate, lineTotals, isAgreementActive } from '../lib/commercial';
 import { proposalProject } from '../lib/workGraph';
@@ -28,6 +29,7 @@ const current = (): Agreement | undefined => S.agreements.find((a) => a.id === S
 export function openAgreementPage(id: number): void {
   if (!S.agreements.some((a) => a.id === id)) { toast('That agreement no longer exists', { tone: 'error' }); return; }
   const changed = S.currentAgreementId !== id;
+  if (changed) { resetPropsLists('agd-'); linesEditing = false; }
   S.currentAgreementId = id;
   document.getElementById('agr-list-view')?.classList.add('hidden');
   document.getElementById('agr-detail')?.classList.add('open');
@@ -98,58 +100,86 @@ const onChange = (key: string) => `agreementFieldChanged('${key}', this.value)`;
 const input = (key: string, type: string, value: string, placeholder = '') => `<input class="td-input" id="agd-f-${key}" type="${type}" value="${escHtml(value)}" placeholder="${escHtml(placeholder)}" onchange="${onChange(key)}" onkeydown="if(event.key==='Enter')this.blur()">`;
 const select = (key: string, options: [string, string][], value: string) => `<select class="td-select" id="agd-f-${key}" onchange="${onChange(key)}">${options.map(([v, l]) => opt(v, l, value)).join('')}</select>`;
 
-function renderProps(a: Agreement): void {
-  const el = document.getElementById('agd-props');
+const text = (v: string | null | undefined) => (v ? escHtml(v) : '');
+const dateText = (v: string | null | undefined) => (v ? escHtml(fmtDate(v)) : '');
+
+/** Renders a read-first list into `elId`, with its Edit/Done in `actId`. */
+function readList(elId: string, actId: string, fields: PropField[], rerender: () => void): void {
+  const el = document.getElementById(elId);
   if (!el) return;
+  el.innerHTML = propsListHtml(elId, fields, rerender);
+  const act = document.getElementById(actId);
+  if (act) act.innerHTML = fields.some((f) => f.control) ? propsEditButton(elId) : '';
+  mountPropsList(elId);
+}
+const again = (fn: (a: Agreement) => void) => () => { const a = current(); if (a) fn(a); };
+
+function renderProps(a: Agreement): void {
   const proposal = a.proposalId != null ? S.proposals.find((p) => p.id === a.proposalId) : undefined;
   // Agreement → proposal → opportunity → project, by id.
   const opportunity = proposal ? S.opportunities.find((o) => o.proposalId === proposal.id) : undefined;
   const project = proposal ? proposalProject(S, proposal.id) : undefined;
   const people: [string, string][] = [['', 'Not set'], ...activeTeam().map((t) => [String(t.id), t.name] as [string, string])];
   if (!a.preparedById && a.preparedBy?.trim()) people.push([`legacy:${a.preparedBy}`, `${a.preparedBy} (not in team)`]);
-  el.innerHTML = [
-    ['Reference', input('agrRef', 'text', a.agrRef || '')],
-    ['Client', input('client', 'text', a.client || '')],
-    ['Type', select('type', [['', 'Not set'], ...AGR_TYPES.map((t) => [t, t] as [string, string])], a.type || '')],
-    ['Status', select('status', [...AGR_STATUSES.map((t) => [t, t] as [string, string]), ...(a.status && !AGR_STATUSES.includes(a.status) ? [[a.status, a.status] as [string, string]] : [])], a.status || '')],
-    ['Prepared by', select('preparedById', people, a.preparedById ? String(a.preparedById) : a.preparedBy ? `legacy:${a.preparedBy}` : '')],
-    ['Entity', select('businessEntityId', [['', 'Not set'], ...S.businessEntities.map((e) => [String(e.id), e.name] as [string, string])], a.businessEntityId ? String(a.businessEntityId) : '')],
-    ['Currency', select('currency', [...new Set(['SAR', 'EUR', 'USD', ...S.businessEntities.map((e) => e.currency)])].map((c) => [c, c] as [string, string]), currencyOf(a))],
-    ['Proposal', proposal ? recordLink('proposal', proposal.id, `SL# ${proposal.id} · ${proposal.type || 'Proposal'}`) : '<span class="rec-muted">Not linked</span>'],
-    ...(opportunity ? [['Opportunity', recordLink('opportunity', opportunity.id, opportunity.name)]] : []),
-    ...(project ? [['Project', recordLink('project', project.id, project.name)]] : []),
-    ['In HubSpot', select('hubspot', [['', 'Not set'], ['Yes', 'Yes'], ['No', 'No'], ['Maybe', 'Maybe']], a.hubspot || '')],
-    ['Document', input('docLink', 'url', a.docLink || '', 'OneDrive or SharePoint link')],
-    ['Remarks', `<textarea class="td-input pr-remarks" rows="2" onchange="${onChange('remarks')}">${escHtml(a.remarks || '')}</textarea>`],
-  ].map(([label, control]) => `<dt>${label}</dt><dd>${control}</dd>`).join('');
-  const client = document.getElementById('agd-f-client') as HTMLInputElement | null;
-  if (client) attachCompanySelector(client, { onSelect: (name) => agreementFieldChanged('client', name) });
+  const entity = entityById(a.businessEntityId);
+  const fields: PropField[] = [
+    { key: 'agrRef', label: 'Reference', display: text(a.agrRef), always: true, control: () => input('agrRef', 'text', a.agrRef || '') },
+    { key: 'client', label: 'Client', display: a.client ? companyLink(a.companyId, a.client) : '', always: true, control: () => input('client', 'text', a.client || ''),
+      mount: (dd) => { const el = dd.querySelector<HTMLInputElement>('input'); if (el) attachCompanySelector(el, { onSelect: (name) => { endPropsEdit(); void agreementFieldChanged('client', name); } }); } },
+    { key: 'type', label: 'Type', display: text(a.type), control: () => select('type', [['', 'Not set'], ...AGR_TYPES.map((t) => [t, t] as [string, string])], a.type || '') },
+    { key: 'status', label: 'Status', display: text(a.status), always: true, control: () => select('status', [...AGR_STATUSES.map((t) => [t, t] as [string, string]), ...(a.status && !AGR_STATUSES.includes(a.status) ? [[a.status, a.status] as [string, string]] : [])], a.status || '') },
+    { key: 'preparedById', label: 'Prepared by', display: text(teamMember(a.preparedById)?.name || a.preparedBy), control: () => select('preparedById', people, a.preparedById ? String(a.preparedById) : a.preparedBy ? `legacy:${a.preparedBy}` : '') },
+    { key: 'businessEntityId', label: 'Entity', display: text(entity?.name), control: () => select('businessEntityId', [['', 'Not set'], ...S.businessEntities.map((e) => [String(e.id), e.name] as [string, string])], a.businessEntityId ? String(a.businessEntityId) : '') },
+    // The entity's own currency goes without saying.
+    { key: 'currency', label: 'Currency', display: entity && entity.currency === currencyOf(a) ? '' : text(currencyOf(a)), control: () => select('currency', [...new Set(['SAR', 'EUR', 'USD', ...S.businessEntities.map((e) => e.currency)])].map((c) => [c, c] as [string, string]), currencyOf(a)) },
+    { key: 'proposal', label: 'Proposal', display: proposal ? recordLink('proposal', proposal.id, `SL# ${proposal.id} · ${proposal.type || 'Proposal'}`) : '' },
+    { key: 'opportunity', label: 'Opportunity', display: opportunity ? recordLink('opportunity', opportunity.id, opportunity.name) : '' },
+    { key: 'project', label: 'Project', display: project ? recordLink('project', project.id, project.name) : '' },
+    { key: 'hubspot', label: 'In HubSpot', display: text(a.hubspot), control: () => select('hubspot', [['', 'Not set'], ['Yes', 'Yes'], ['No', 'No'], ['Maybe', 'Maybe']], a.hubspot || '') },
+    { key: 'docLink', label: 'Document', display: a.docLink ? `<a href="#" class="rlink" onclick="event.preventDefault();openExternalUrl('${escHtml(a.docLink)}')">Open document</a>` : '', control: () => input('docLink', 'url', a.docLink || '', 'OneDrive or SharePoint link') },
+    { key: 'remarks', label: 'Remarks', display: a.remarks ? `<span class="pl-multiline">${escHtml(a.remarks)}</span>` : '', control: () => `<textarea class="td-input pr-remarks" rows="2" onchange="${onChange('remarks')}">${escHtml(a.remarks || '')}</textarea>` },
+  ];
+  readList('agd-props', 'agd-props-act', fields, again(renderProps));
 }
 
 function renderTerm(a: Agreement): void {
-  const el = document.getElementById('agd-term');
-  if (!el) return;
   const months = [3, 6, 12, 24, 36];
   const active = isAgreementActive(a);
-  el.innerHTML = [
-    ['Service', select('serviceStatus', [['', 'Not set'], ...SERVICE_STATUSES.map((s) => [s, s] as [string, string])], a.serviceStatus || '')],
-    ['Start', input('startDate', 'date', a.startDate || '')],
-    ['Term', select('contractMonths', [['', 'Not set'], ...months.map((m) => [String(m), `${m} months`] as [string, string]), ...(a.contractMonths && !months.includes(a.contractMonths) ? [[String(a.contractMonths), `${a.contractMonths} months`] as [string, string]] : [])], a.contractMonths ? String(a.contractMonths) : '')],
-    ['End', `${input('endDate', 'date', a.endDate || '')}${a.startDate && a.contractMonths && !a.endDate ? `<button class="rec-add-link" onclick="agreementFieldChanged('endDate','${contractEndDate(a.startDate, a.contractMonths)}')">Use ${fmtDate(contractEndDate(a.startDate, a.contractMonths))}</button>` : ''}`],
-    ['Auto-renews', select('autoRenew', [['no', 'No'], ['yes', 'Yes']], a.autoRenew ? 'yes' : 'no')],
-    ['Notice', `${input('noticeDays', 'number', a.noticeDays != null ? String(a.noticeDays) : '', 'Days')}`],
-  ].map(([label, control]) => `<dt>${label}</dt><dd>${control}</dd>`).join('')
-    + `<dt>Counts as</dt><dd class="rec-prop-text">${active ? '<span class="t-positive">Active client · in MRR</span>' : '<span class="rec-muted">Not active — set the service to Active once it has started</span>'}</dd>`;
+  const suggestedEnd = a.startDate && a.contractMonths && !a.endDate ? contractEndDate(a.startDate, a.contractMonths) : null;
+  const fields: PropField[] = [
+    { key: 'serviceStatus', label: 'Service', display: text(a.serviceStatus), always: true, control: () => select('serviceStatus', [['', 'Not set'], ...SERVICE_STATUSES.map((st) => [st, st] as [string, string])], a.serviceStatus || '') },
+    { key: 'startDate', label: 'Start', display: dateText(a.startDate), control: () => input('startDate', 'date', a.startDate || '') },
+    { key: 'contractMonths', label: 'Term', display: a.contractMonths ? `${a.contractMonths} months` : '', control: () => select('contractMonths', [['', 'Not set'], ...months.map((m) => [String(m), `${m} months`] as [string, string]), ...(a.contractMonths && !months.includes(a.contractMonths) ? [[String(a.contractMonths), `${a.contractMonths} months`] as [string, string]] : [])], a.contractMonths ? String(a.contractMonths) : '') },
+    { key: 'endDate', label: 'End', always: !!suggestedEnd,
+      display: a.endDate ? dateText(a.endDate) : suggestedEnd ? `<button class="rec-add-link" onclick="agreementFieldChanged('endDate','${suggestedEnd}')">Use ${escHtml(fmtDate(suggestedEnd))}</button>` : '',
+      control: () => input('endDate', 'date', a.endDate || '') },
+    { key: 'autoRenew', label: 'Auto-renews', display: a.autoRenew ? 'Yes' : '', control: () => select('autoRenew', [['no', 'No'], ['yes', 'Yes']], a.autoRenew ? 'yes' : 'no') },
+    { key: 'noticeDays', label: 'Notice', display: a.noticeDays != null ? `${a.noticeDays} days` : '', control: () => input('noticeDays', 'number', a.noticeDays != null ? String(a.noticeDays) : '', 'Days') },
+    { key: 'countsAs', label: 'Counts as', display: active ? '<span class="t-positive">Active client · in MRR</span>' : '<span class="rec-muted">Not active — set the service to Active once it has started</span>' },
+  ];
+  readList('agd-term', 'agd-term-act', fields, again(renderTerm));
 }
+
+// The services table reads; Edit opens the line editor.
+let linesEditing = false;
+
+export function toggleAgreementLines(): void {
+  linesEditing = !linesEditing;
+  const a = current(); if (a) renderLines(a);
+}
+expose('toggleAgreementLines', toggleAgreementLines);
 
 function renderLines(a: Agreement): void {
   const count = document.getElementById('agd-lines-count'); if (count) count.textContent = (a.lines || []).length ? String(a.lines!.length) : '';
+  const act = document.getElementById('agd-lines-act');
+  const editing = linesEditing || !(a.lines || []).length;
+  if (act) act.innerHTML = (a.lines || []).length ? `<button class="btn-ghost btn-sm" onclick="toggleAgreementLines()" aria-pressed="${linesEditing}">${linesEditing ? 'Done' : 'Edit'}</button>` : '';
   renderLinesEditor(`agreement:${a.id}`, 'agd-lines', {
     lines: () => a.lines || [],
     setLines: (lines) => { a.lines = lines; },
     currency: () => currencyOf(a),
     contractMonths: () => a.contractMonths,
-    editable: true,
+    editable: editing,
     onChange: () => {
       commit(a, false);
       const badges = document.getElementById('agd-badges');
@@ -159,12 +189,11 @@ function renderLines(a: Agreement): void {
 }
 
 function renderDates(a: Agreement): void {
-  const el = document.getElementById('agd-dates');
-  if (!el) return;
-  el.innerHTML = [
+  const fields: PropField[] = ([
     ['Prepared', 'datePrepared'], ['Sent to client', 'dateSentToClient'], ['Client signed', 'dateClientSigned'],
     ['MENA BIG signed', 'dateMenaSigned'], ['Filed', 'dateFiled'], ['Next action', 'actionDate'],
-  ].map(([label, key]) => `<dt>${label}</dt><dd>${input(key, 'date', ((a as any)[key] as string) || '')}</dd>`).join('');
+  ] as const).map(([label, key]) => ({ key, label, display: dateText((a as any)[key]), control: () => input(key, 'date', ((a as any)[key] as string) || '') }));
+  readList('agd-dates', 'agd-dates-act', fields, again(renderDates));
 }
 
 async function renderActivity(a: Agreement): Promise<void> {

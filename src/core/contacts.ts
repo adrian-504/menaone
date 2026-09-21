@@ -1,4 +1,5 @@
 import { S } from '../lib/state';
+import { foldMoreDetails } from '../lib/moreDetails';
 import { companyLink, recordLink } from '../lib/links';
 import { registerDragSource, registerDropTarget } from '../lib/dnd';
 import { toast } from '../lib/ui';
@@ -33,6 +34,8 @@ export function openContactModal(clientName?: string | null, companyId?: number 
   if (clientName) (document.getElementById('ct-modal-client') as HTMLInputElement).value = clientName;
   document.getElementById('modal-contact')?.classList.add('open');
   refreshClientDatalistAndSelector();
+  // Optional fields wait behind "More details" unless the context filled one (after any deferred prefill).
+  window.setTimeout(() => foldMoreDetails('contact-form'), 60);
 }
 expose('openContactModal', openContactModal);
 

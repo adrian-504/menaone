@@ -13,6 +13,7 @@ if ('__TAURI_INTERNALS__' in window && /Mac/i.test(navigator.platform)) {
   strip.setAttribute('aria-hidden', 'true');
   document.body.prepend(strip);
 }
+import { foldFilterBar } from './lib/filterBar';
 import { S } from './lib/state';
 import { STATUSES } from './lib/constants';
 import { escHtml, getClients, expose } from './lib/utils';
@@ -245,6 +246,11 @@ async function init(): Promise<void> {
   rememberFilters({ ids: ['wq-filter-status', 'wq-filter-owner', 'wq-sort'], clear: 'wqClear' });
   rememberFilters({ ids: ['opp-stage-filter', 'opp-owner-filter'] });
   rememberFilters({ ids: ['proj-status-filter', 'proj-owner-filter', 'proj-sort'] });
+  // Focus: search and the two filters used most stay; the rest go behind "Filters".
+  foldFilterBar(document.querySelector('#tab-database .fbar'), ['db-status', 'db-owner']);
+  foldFilterBar(document.querySelector('#co-list-view .co-search-bar'), ['co-filter-status', 'co-filter-owner']);
+  foldFilterBar(document.querySelector('#agr-list-view .fbar'), ['agr-status', 'agr-service']);
+  foldFilterBar(document.querySelector('#tab-contacts .fbar'), ['ct-client', 'ct-list-filter']);
   startReminders();
   // Who is using this device. Needs the Microsoft connection, so it runs in the
   // background and never holds up the start.
