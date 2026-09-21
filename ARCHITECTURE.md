@@ -413,6 +413,17 @@ Details: `docs/proposal-documents.md`.
 - Errors (no client, template fields MENA One can't fill) block generation; blank optional fields are warnings.
 - The proposal page has a "Proposal documents" version history (Latest, Generated / Added from folder / File missing, Open, Show in Finder) above "Supporting documents"; the dialog shows the version it will save.
 
+## Visual system consolidation
+
+One surface, hairlines, fewer of everything; tokens and components only, no layout or schema change.
+
+- Surfaces: `--bg` equals `--surface`, the sidebar carries the tint. Page sections use `.sec` (top `--hairline`, no box); every page-body `.card` was converted. `.card` remains for floating things.
+- Colour: `statusTone.ts` is the only source of status colour (`toneVar()` gives the CSS variable; `ST`/`AGR_ST` are derived from it; charts resolve it with `themeColor()`). `--orange` folded into amber; `--accent-2` is for charts. `styles.css` writes colours only in `:root` and `[data-theme]` blocks, with one `:root`; `src/lib/styleTokens.test.ts` enforces it and the `--muted` contrast in every theme.
+- Buttons: `btn-primary`, `btn-secondary`, `btn-ghost`, `btn-danger` and the `.btn-sm` size; older one-off button classes were folded in.
+- Themes: Light, Dark, Auto (prefers-color-scheme) and Graphite, in Settings and the View menu (`src/core/theme.ts`, `lib.rs`).
+- Badges: a status in a list is a dot and plain text; only the record header's primary status is a pill.
+- Hover tints use `--hover`; ⌘1–⌘9 follow the sidebar order; the morning-summary toast is skipped when My Day is open.
+
 ## Tests
 
 - `npm test`: Vitest (`src/**/*.test.ts`), covering the company picker (scrolling, keyboard), day counts, change tracking, company matching, agreement references, the task quick-add parser, drag-and-drop reordering, and commercial rules (line totals, MRR, currencies, file names).
