@@ -648,6 +648,7 @@ main{padding:22px 26px;max-width:1440px;margin:0 auto}
 .cm-md-code-inline{font-family:ui-monospace,Menlo,monospace;font-size:var(--type-body);background:var(--surface-2);border-radius:4px;padding:1px 4px}
 .cm-md-code-block{font-family:ui-monospace,Menlo,monospace;font-size:var(--type-body);background:var(--surface-2)}
 .cm-md-quote{border-left:3px solid var(--accent-border);padding-left:10px;color:var(--sub)}
+.cm-md-commitment{color:var(--text)}
 .cm-md-list-marker{color:var(--accent);font-weight:600}
 .cm-md-link{color:var(--accent);text-decoration:underline;text-decoration-color:var(--accent-border);cursor:pointer}
 .cm-md-wikilink{color:var(--accent);background:var(--accent-bg);border-radius:4px;padding:0 3px;cursor:pointer}
@@ -1260,6 +1261,7 @@ body.dnd-active .board-column.drop-target{background:var(--accent-bg)!important}
 .cm-closed{margin-top:8px;font-size:var(--type-secondary)}
 .cm-closed summary{cursor:pointer;color:var(--sub);font-weight:600}
 /* Opportunity: Waiting on (Us / Them / —). */
+.rec-props dt:has(+ #od-waiting){align-self:start;padding-top:5px}
 .od-wait-seg button{padding:0 10px}
 .od-wait-since{font-size:var(--type-meta);color:var(--muted);margin-top:4px}
 .od-wait-note{margin-top:4px;width:100%}

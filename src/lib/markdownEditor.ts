@@ -134,6 +134,12 @@ function buildDecorations(view: EditorView, resolveWikilink: (t: string) => numb
             addMark(node.from, node.to, 'cm-md-code-block');
             break;
           case 'Blockquote':
+            // A line starting ">>" is a commitment (src/lib/commitments.ts),
+            // not a nested quote: it stays as typed, marker visible.
+            if (view.state.sliceDoc(node.from, node.from + 2) === '>>' || view.state.sliceDoc(Math.max(0, node.from - 1), node.from) === '>') {
+              addMark(node.from, node.to, 'cm-md-commitment');
+              break;
+            }
             addMark(node.from, node.to, 'cm-md-quote');
             node.node.getChildren('QuoteMark').forEach((m) => addMarker(m.from, m.to + 1));
             break;
@@ -296,6 +302,7 @@ export function createNoteEditor(container: HTMLElement, opts: NoteEditorOptions
       clickHandler(opts.onWikilinkClick),
       pasteDropHandler(opts.onImageFile),
       Prec.highest(keydownHandler(opts.onKeyDown)),
+      Prec.highest(keymap.of([{ key: 'Enter', run: plainNewlineAfterCommitment }])),
       keymap.of([
         { key: 'Mod-b', run: wrapSelectionCommand('**') },
         { key: 'Mod-i', run: wrapSelectionCommand('*') },
@@ -309,6 +316,18 @@ export function createNoteEditor(container: HTMLElement, opts: NoteEditorOptions
   });
 
   return new EditorView({ state, parent: container });
+}
+
+/** Enter at the end of a ">>" / "<<" line starts a plain line: Markdown would
+ * otherwise continue ">>" as a nested quote, and the next line could be
+ * something the client owes (<<), a note, anything. */
+function plainNewlineAfterCommitment(view: EditorView): boolean {
+  const sel = view.state.selection.main;
+  if (!sel.empty) return false;
+  const line = view.state.doc.lineAt(sel.head);
+  if (!/^\s*(?:[-*+]\s+(?:\[[ xX]\]\s+)?)?(>>|<<)/.test(line.text)) return false;
+  view.dispatch({ changes: { from: sel.head, insert: '\n' }, selection: { anchor: sel.head + 1 }, scrollIntoView: true, userEvent: 'input' });
+  return true;
 }
 
 /** Inserts `prefix` at the start of the current line (for `# `, `- `, `> `,

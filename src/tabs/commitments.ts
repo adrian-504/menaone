@@ -69,7 +69,7 @@ function sourceLink(c: Commitment): string {
 
 function whoLabel(c: Commitment): string {
   const who = c.contactId != null ? S.contacts.find((x) => x.id === c.contactId)?.name : null;
-  return who ? `${c.direction === 'theirs' ? 'from' : 'to'} ${escHtml(who)}` : '';
+  return who ? `${c.direction === 'theirs' ? 'by' : 'to'} ${escHtml(who)}` : '';
 }
 
 /** One commitment: who owes it, what, who, when, where it came from. */

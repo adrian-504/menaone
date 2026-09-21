@@ -44,8 +44,13 @@ How MENA One's records connect, how new work inherits context, and what was chec
 | Task → note (came from) | `entity_links` task → note |
 | Note → project / opportunity | `entity_links` note → project / opportunity |
 | Contact → opportunity | `entity_links` contact → opportunity |
+| Commitment → company / opportunity / project | `commitments.company_id` / `opportunity_id` / `project_id` |
+| Commitment → where it came from | `commitments.source_type` + `source_id` (meeting, note; capture and manual have none) |
+| Commitment → its task (ours only) | `commitments.todo_id` |
+| Commitment → person | `commitments.contact_id` (who promised it, or who we promised it to) |
+| Opportunity → who it waits on | `opportunities.waiting_on` (`us` / `them`), `waiting_since`, `waiting_note` |
 
-Derived, not stored: a project's proposal and agreement (through its opportunity), a proposal's project, an opportunity's tasks (direct or from its meetings), a note's tasks (linked, or from its meeting). All in `src/lib/workGraph.ts`.
+Derived, not stored: a proposal's waiting state (`proposalWaitingOn(status)`: sent → them; request, drafting, review, signed by the client → us; finished → nobody), a suggested "waiting on them" from the client's oldest open promise (`waitingFromCommitments`), a project's proposal and agreement (through its opportunity), a proposal's project, an opportunity's tasks (direct or from its meetings), a note's tasks (linked, or from its meeting). All in `src/lib/workGraph.ts`.
 
 ## 3. Context rules (`src/lib/workGraph.ts`)
 
@@ -63,18 +68,21 @@ Context is a default, never a lock: dialogs are prefilled and every field can be
 - `inheritCompany`: a new record with no company takes its project's, then its opportunity's. A set company is never replaced; a company the dialog offered and the person removed stays removed; editing an existing meeting never re-fills it.
 - Changing a task's project or opportunity fills its company only when it has none.
 - Filing meeting notes adds links to the meeting's project and opportunity and fills the note's company only when empty. It asks before replacing note text it didn't write.
-- Action items: unchecked `- [ ]` lines; an item that already has a task with the same title (linked to the note or from its meeting) is skipped, so converting twice creates nothing.
+- Action items: unchecked `- [ ]` lines; an item that already has a task with the same title (linked to the note or from its meeting) is skipped, so converting twice creates nothing. A `- [ ] >> …` line is a commitment, not an action item: one commitment, one task.
+- Commitments (`src/lib/commitments.ts`, `src-tauri/src/commitments.rs`): a line starting `>>` (we owe it) or `<<` (the client owes it), after optional list or checkbox markers, inherits the context of where it was written — a meeting: company, opportunity, project, meeting; a note: as for tasks from the note; quick capture: the "@Company" or company named in the text. Lines are read when the text box loses focus, never mid-typing. The same line read again creates nothing (source + normalised text); an edited line is a new commitment and the old one stays open; removing a line never deletes one. An `ours` commitment gets one task with the same context; done ⇄ kept, reopened ⇄ open and the due date move together (triggers in the database, the same in memory). Deleting the task leaves the commitment open; deleting its opportunity, project, meeting, note, contact or company unlinks it.
 
 ## 4. Entry points
 
 - Page sections: project Meetings "+ New"; opportunity Meetings and Tasks "+ New"; notes "Create tasks from action items"; note Connections show Opportunity and Tasks.
-- `src/core/contextActions.ts`: one list per open record (company, opportunity, project, meeting, note) feeding the sidebar "+ New" menu and the command palette.
+- `src/core/contextActions.ts`: one list per open record (company, opportunity, project, meeting, note) feeding the sidebar "+ New" menu and the command palette. It includes "New Commitment" for a company, opportunity, project and meeting; the sidebar "+ New" and ⌘K also offer it without context.
+- Commitments: `>>` / `<<` lines in meeting notes and notes, and at the start of My Day's quick add or the Inbox composer; Commitments sections (opportunity, project, meeting, company) with "+ New"; the opportunity's Waiting on control.
 - Functions: `createMeetingForProject`, `createMeetingForOpportunity`, `createTodoForOpportunity`, `createTodoForMeeting`, `createTodoForNote`, `openMeetingNote`, `createTasksFromNoteActionItems`, `openTodoModal(null, ctx)`, `openMeetingModal(null, ctx)`, `openOpportunityModal(null, ctx)`, `openContactModal(name, companyId)`.
 
 ## 5. Verification
 
 - `src-tauri/tests/work_graph.rs`: the acceptance scenario saved the way the app saves it, with a second company whose name differs only by capitals (anything resolved by name would be ambiguous). Every record keeps the company id; nothing goes to the look-alike or the review queue; the chain survives reopening; Company 360 queries find every record by id; activity has one meeting, note, task-created and task-completed event. Second test: task ↔ opportunity, explicit reassignment moves the task and reports the opportunity mismatch, a stale save never undoes it, rename keeps links, deleting the opportunity unlinks its tasks.
 - `src/lib/workGraph.test.ts`: inheritance, explicit reassignment, link preservation, action items, derived relationships.
+- `src-tauri/tests/commitments.rs`: a meeting's `>>` and `<<` lines saved the way the app saves them give one commitment each way and one task; re-saving creates nothing; task and commitment move together and the log records it; company merges keep them, deletes unlink them; the JSON backup round-trips them; waiting-on is saved; nothing reaches the look-alike company. `src/lib/commitments.test.ts`, `pipeline.test.ts`, `myday.test.ts`, `persist.test.ts`: parsing, the rules and the in-memory link.
 - `src/core/router.test.ts`: Project → Meeting → Note → Task → Company and back.
 - Browser preview: the full scenario through the real dialogs and pages (company, contact, opportunity, proposal, won, project, kickoff meeting, meeting note, action item → task, complete, Company 360), plus back navigation and the note-replacement prompt.
 

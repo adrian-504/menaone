@@ -77,8 +77,13 @@ export function parseCommitmentLines(text: string | null | undefined, ctx: Commi
   for (const line of (text || '').split('\n')) {
     const m = LINE.exec(line);
     if (!m || !m[3]) continue;
-    const direction: CommitmentDirection = m[2] === '>>' ? 'ours' : 'theirs';
-    const { text: body, dueDate } = takeDate(m[3], ctx.today);
+    // A doubled marker (">> << …", left by an editor continuing the line above): the last one counts.
+    let marker = m[2];
+    let rest = m[3];
+    for (let again = /^(>>|<<)\s*/.exec(rest); again; again = /^(>>|<<)\s*/.exec(rest)) { marker = again[1]; rest = rest.slice(again[0].length); }
+    if (!rest) continue;
+    const direction: CommitmentDirection = marker === '>>' ? 'ours' : 'theirs';
+    const { text: body, dueDate } = takeDate(rest, ctx.today);
     if (!body) continue;
     const sourceKey = commitmentKey(body);
     if (out.some((c) => c.sourceKey === sourceKey && c.direction === direction)) continue;

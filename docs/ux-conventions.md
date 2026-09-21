@@ -54,6 +54,13 @@ How MENA One's screens are meant to behave, as implemented. Use these when addin
 
 - Light, Dark, Auto and Graphite. Auto follows the Mac's appearance and switches with it (`src/core/theme.ts` sets `data-theme` to light or dark). Sepia, Ocean and Forest were retired; anyone on one moved to Light. The View → Theme menu lists the same four.
 
+## Commitments
+
+- In any notes text, a line starting `>>` is something we promised the client (it gets a task), `<<` something the client promised us (tracked, no task). List markers and checkboxes in front are fine; `- [x] >> …` is already kept. Dates are read like task quick-add ("by Thu", "30 Sep", "tomorrow", "end of month"). The hint is in the Decisions and Follow-up placeholders, the New commitment dialog and the `?` sheet.
+- `>>` lines stay as typed in the editor (not a quote), and Enter after one starts a plain line.
+- A commitment row: → we owe / ← they owe (with the words for screen readers), the text, who, the due date (red once late), where it came from, a checkbox for kept, "…" for Edit, Drop (asks why), Reopen, Open source, Delete. Open ones first; kept and dropped fold under one line. A section with none is hidden.
+- Opportunity: Waiting on Us / Them / —, since when (kept while the side stays the same), one line for what. A client's open promise is offered as a suggestion, never set by itself. Lists and the board show "Waiting on client · Nd" or "With us · Nd" instead of "Stalled".
+
 ## Creating records
 
 - One list of create actions per open record (`src/core/contextActions.ts`) feeds three places: the record header's **New** menu, the sidebar **+ New** menu, and the command palette.

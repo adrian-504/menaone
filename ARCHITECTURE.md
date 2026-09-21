@@ -424,6 +424,13 @@ One surface, hairlines, fewer of everything; tokens and components only, no layo
 - Badges: a status in a list is a dot and plain text; only the record header's primary status is a pill.
 - Hover tints use `--hover`; ⌘1–⌘9 follow the sidebar order; the morning-summary toast is skipped when My Day is open.
 
+## Commitments and waiting-on (Slice 2)
+
+- Schema 36: `commitments` (direction, text, contact, due date, status open/kept/dropped with closed date and drop reason, company/opportunity/project, source type/id/normalised key, task) with sync columns; `opportunities.waiting_on / waiting_since / waiting_note`.
+- `src-tauri/src/commitments.rs`: `add_commitments` inserts idempotently (unique source key for meeting/note/capture) and creates the task for each open `ours` one. Triggers carry the rules for every write path: task ⇄ commitment status and due date, unlink on delete of what they point at, activity (created/kept/dropped). Company merges, search (`commitment` entity), the integrity report and the JSON backup include them.
+- `src/lib/commitments.ts` parses `>>` / `<<` lines (pure, tested); `src/tabs/commitments.ts` holds the row, sections, dialog and reading from sources; `persist.ts` keeps a task and its commitment equal in memory so neither save undoes the other.
+- Rules: an open task (direct or via a meeting) or open `ours` commitment satisfies "next action"; waiting on the client measures the wait instead of calling it stalled; with us is never stalled and appears in My Day. My Day ranks overdue promises we made just under a countersignature and folds the client's overdue ones into "Owed to you (N)".
+
 ## Tests
 
 - `npm test`: Vitest (`src/**/*.test.ts`), covering the company picker (scrolling, keyboard), day counts, change tracking, company matching, agreement references, the task quick-add parser, drag-and-drop reordering, and commercial rules (line totals, MRR, currencies, file names).

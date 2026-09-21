@@ -24,6 +24,10 @@ describe('parseCommitmentLines', () => {
     ]);
   });
 
+  it('a doubled marker counts as the last one', () => {
+    expect(parseCommitmentLines('>> << Jane to send the data', ctx).map((c) => [c.direction, c.text, c.contactId])).toEqual([['theirs', 'Jane to send the data', 4]]);
+  });
+
   it('needs the marker at the start of the line', () => {
     expect(parseCommitmentLines('We said >> maybe\n>>\n<<   ', ctx)).toEqual([]);
   });
