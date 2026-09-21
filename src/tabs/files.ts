@@ -392,7 +392,7 @@ function banner(): string {
   if (!showSetupBanner) return '';
   return `<div class="fx-banner">${icon('building', 16)}
     <div><strong>Match your OneDrive folders to companies</strong><span>Pick a folder like "Proposals" and MENA One suggests the company for each client subfolder.</span></div>
-    <button class="btn-sm" onclick="msFilesDismissSetupBanner()">Not now</button><button class="btn-primary btn-compact" onclick="msFilesOpenSetupWizard()">Set up</button>
+    <button class="btn-secondary btn-sm" onclick="msFilesDismissSetupBanner()">Not now</button><button class="btn-primary btn-sm" onclick="msFilesOpenSetupWizard()">Set up</button>
   </div>`;
 }
 
@@ -457,8 +457,8 @@ function renderInfo(): void {
     <div class="fx-info-name">${escHtml(item.name)}</div>
     <div class="fx-info-kind">${escHtml(k.label)}${item.isFolder ? '' : ` · ${formatBytes(item.size)}`}</div>
     <div class="fx-info-actions">
-      <button class="btn-primary btn-compact" onclick="msFilesOpenItem('${attr}')">${item.isFolder ? 'Open folder' : 'Open'}</button>
-      <button class="btn-secondary btn-compact" onclick="filesRevealInFinderClick('${attr}')">Show in Finder</button>
+      <button class="btn-primary btn-sm" onclick="msFilesOpenItem('${attr}')">${item.isFolder ? 'Open folder' : 'Open'}</button>
+      <button class="btn-secondary btn-sm" onclick="filesRevealInFinderClick('${attr}')">Show in Finder</button>
     </div>
     <dl class="fx-info-props">
       ${item.modifiedAt ? `<dt>Modified</dt><dd>${escHtml(fmtDateFromIso(item.modifiedAt))}</dd>` : ''}

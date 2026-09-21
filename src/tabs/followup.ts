@@ -54,7 +54,7 @@ export function renderFollowup(): void {
           <span class="pq-age is-snoozed" title="Snoozed">${icon('clock', 13)}</span>
           <div class="pq-main"><div class="pq-title">${companyLink(p.companyId, p.client)}<span class="pq-services">${escHtml(p.type || '')}</span></div>
           <div class="pq-meta">Sent ${fmtDate(p.dateSentToClient || p.sentDate)}<span class="pq-sep">·</span>back ${du === 0 ? 'tomorrow' : `in ${du} day${du === 1 ? '' : 's'}`} (${fmtDate(p.snoozedUntil)})</div></div>
-          <div class="pq-actions"><button class="btn-sm" onclick="unsnoozeProposal(${p.id})">Wake up</button></div>
+          <div class="pq-actions"><button class="btn-secondary btn-sm" onclick="unsnoozeProposal(${p.id})">Wake up</button></div>
         </div>`;
       }).join('')}</div>
     </section>`;
@@ -92,10 +92,10 @@ export function fuCard(p: Proposal, isArchived: boolean): string {
     </div>
     ${p.monthlyFee ? `<span class="pq-fee">${fmtMoney(p.monthlyFee, currencyOf(p))}<small>/mo</small></span>` : '<span class="pq-fee"></span>'}
     <div class="pq-actions">
-      ${isArchived ? `<button class="btn-sm" onclick="unarchiveProposal(${p.id});renderFollowup()">Unarchive</button>` : `
-      <button class="btn-secondary btn-compact" onclick="openNotesModal(${p.id})" title="Log what the client said">Log follow-up</button>
-      <button class="btn-secondary btn-compact pq-won" onclick="openWlModal(${p.id},'won')" title="Signed by both parties">Won</button>
-      <button class="btn-secondary btn-compact pq-lost" onclick="openWlModal(${p.id},'lost')">Lost</button>`}
+      ${isArchived ? `<button class="btn-secondary btn-sm" onclick="unarchiveProposal(${p.id});renderFollowup()">Unarchive</button>` : `
+      <button class="btn-secondary btn-sm" onclick="openNotesModal(${p.id})" title="Log what the client said">Log follow-up</button>
+      <button class="btn-secondary btn-sm pq-won" onclick="openWlModal(${p.id},'won')" title="Signed by both parties">Won</button>
+      <button class="btn-secondary btn-sm pq-lost" onclick="openWlModal(${p.id},'lost')">Lost</button>`}
       <button class="rec-icon-btn" onclick="pqMenu(event, ${p.id})" title="More" aria-label="More">${icon('more', 14)}</button>
     </div>
   </div>`;

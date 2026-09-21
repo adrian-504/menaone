@@ -173,7 +173,7 @@ function eventRow(m: Meeting): string {
       <div class="cal-event-title">${escHtml(m.title)}${m.isCancelled ? ' (Cancelled)' : ''}</div>
       ${meta ? `<div class="cal-event-meta">${escHtml(meta)}</div>` : ''}
     </div>
-    ${m.isOnlineMeeting && m.onlineMeetingUrl && !m.isCancelled ? `<a href="${escHtml(m.onlineMeetingUrl)}" target="_blank" rel="noopener" class="btn-sm" onclick="event.stopPropagation()">${icon('link', 12)} Join Teams</a>` : ''}
+    ${m.isOnlineMeeting && m.onlineMeetingUrl && !m.isCancelled ? `<a href="${escHtml(m.onlineMeetingUrl)}" target="_blank" rel="noopener" class="btn-secondary btn-sm" onclick="event.stopPropagation()">${icon('link', 12)} Join Teams</a>` : ''}
   </div>`;
 }
 

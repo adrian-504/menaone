@@ -276,7 +276,7 @@
         <div id="myday-pipeline"></div>
       </section>
       <section class="sec mdy-sec" id="myday-watch-card" hidden>
-        <div class="rec-section-hd"><h2>Watch</h2><div class="rec-section-actions"><button class="btn-sm mdy-mini" onclick="navToModule('intelligence')">All</button></div></div>
+        <div class="rec-section-hd"><h2>Watch</h2><div class="rec-section-actions"><button class="btn-secondary btn-sm" onclick="navToModule('intelligence')">All</button></div></div>
         <div id="myday-watch"></div>
       </section>
       <section class="sec mdy-sec">
@@ -340,7 +340,7 @@
       <button class="seg-btn cal-vbtn" data-view="month" onclick="setCalendarView('month')">Month</button>
     </div>
     <button class="loc-nav" onclick="calendarNav(-1)" title="Previous" aria-label="Previous"><span data-icon="chevronLeft" data-icon-size="15"></span></button>
-    <button class="btn-sm" onclick="calendarNav(0)">Today</button>
+    <button class="btn-secondary btn-sm" onclick="calendarNav(0)">Today</button>
     <button class="loc-nav" onclick="calendarNav(1)" title="Next" aria-label="Next"><span data-icon="chevronRight" data-icon-size="15"></span></button>
     <span class="toolbar-title" id="cal-range-label"></span>
     <span class="rcnt push-right" id="cal-sync-sub"></span>
@@ -423,7 +423,7 @@
       <option value="important">Important</option>
       <option value="monitor">Monitor</option>
     </select>
-    <button class="btn-sm" id="intel-archived-btn" onclick="toggleIntelArchived()">Show archived</button>
+    <button class="btn-secondary btn-sm" id="intel-archived-btn" onclick="toggleIntelArchived()">Show archived</button>
     <span class="rcnt push-right" id="intel-sync-status"></span>
     <span class="rcnt" id="intel-cnt"></span>
   </div>
@@ -492,7 +492,7 @@
         </div>
       </div>
       <div class="fact">
-        <button type="button" class="btn-secondary btn-danger-ghost push-left" onclick="deleteCurrentIntelItem()" id="intel-delete-btn">Delete</button>
+        <button type="button" class="btn-danger push-left" onclick="deleteCurrentIntelItem()" id="intel-delete-btn">Delete</button>
         <button type="button" class="btn-secondary" onclick="closeIntelModal()">Cancel</button>
         <button type="submit" class="btn-primary">Save</button>
       </div>
@@ -536,7 +536,7 @@
         <a id="md-join-btn" href="#" target="_blank" rel="noopener" class="btn-primary" style="display:none">Join Teams</a>
         <button class="btn-secondary in-menu" id="md-edit-schedule-btn" style="display:none" onclick="editCurrentMeetingSchedule()">Edit schedule</button>
         <button class="btn-secondary" onclick="recordNewMenu(event)" aria-haspopup="menu"><span data-icon="plus" data-icon-size="13"></span> New</button>
-        <button class="btn-secondary btn-danger-ghost in-menu" id="md-delete-btn" onclick="deleteCurrentMeeting()">Delete</button>
+        <button class="btn-danger in-menu" id="md-delete-btn" onclick="deleteCurrentMeeting()">Delete</button>
         <button class="loc-nav rec-more" onclick="meetingMoreMenu(event)" title="More" aria-label="More"><span data-icon="more" data-icon-size="16"></span></button>
       </div>
     </header>
@@ -653,7 +653,7 @@
         <button class="loc-nav" id="msf-back-btn" onclick="msFilesGoBack()" title="Up one folder (⌘↑)" aria-label="Up one folder"><span data-icon="chevronLeft" data-icon-size="15"></span></button>
         <div class="fx-folder-title" id="msf-folder-title"></div>
         <input type="text" class="f-search fx-search" id="msf-search" placeholder="Search" oninput="msFilesSearchChanged()" aria-label="Search this folder">
-        <button class="btn-sm fx-sort" onclick="msFilesSortMenu(event)" title="Sort by">Sort: <span id="msf-sort-label">Name</span></button>
+        <button class="btn-secondary btn-sm fx-sort" onclick="msFilesSortMenu(event)" title="Sort by">Sort: <span id="msf-sort-label">Name</span></button>
         <div class="seg-btns" id="msf-layout-btns">
           <button class="seg-btn" data-layout="list" onclick="msFilesLayout('list')" title="List" aria-label="List"><span data-icon="list" data-icon-size="13"></span></button>
           <button class="seg-btn" data-layout="icons" onclick="msFilesLayout('icons')" title="Icons" aria-label="Icons"><span data-icon="board" data-icon-size="13"></span></button>
@@ -746,7 +746,7 @@
       </div>
       <button class="btn-primary" id="ms365-connect-btn" onclick="ms365ConnectClick()" style="display:none">Connect</button>
       <button class="btn-secondary" id="ms365-reconnect-btn" onclick="ms365ConnectClick()" style="display:none">Reconnect</button>
-      <button class="btn-secondary btn-danger-ghost" id="ms365-disconnect-btn" onclick="ms365DisconnectClick()" style="display:none">Disconnect</button>
+      <button class="btn-danger" id="ms365-disconnect-btn" onclick="ms365DisconnectClick()" style="display:none">Disconnect</button>
     </div>
 
     <div class="fgrp settings-field">
@@ -884,11 +884,11 @@
         <form class="milestone-add-row" onsubmit="addMilestone(event)">
           <input class="td-input" name="msName" placeholder="New milestone…" required>
           <input class="td-input" type="date" name="msDate">
-          <button type="submit" class="btn-sm">Add</button>
+          <button type="submit" class="btn-secondary btn-sm">Add</button>
         </form>
       </section>
       <section class="sec rec-section">
-        <div class="rec-section-hd"><h2>Tasks</h2><span class="rec-count" id="pd-task-cnt"></span><div class="rec-section-actions"><button class="btn-sm" onclick="createTodoForCurrentProject()">+ New</button></div></div>
+        <div class="rec-section-hd"><h2>Tasks</h2><span class="rec-count" id="pd-task-cnt"></span><div class="rec-section-actions"><button class="btn-secondary btn-sm" onclick="createTodoForCurrentProject()">+ New</button></div></div>
         <div id="pd-tasks"></div>
       </section>
     </div>
@@ -1253,7 +1253,7 @@
             <button class="loc-nav" onclick="taskCalNav(-1)" title="Previous month" aria-label="Previous month"><span data-icon="chevronLeft" data-icon-size="15"></span></button>
             <span id="task-cal-label" class="task-cal-label"></span>
             <button class="loc-nav" onclick="taskCalNav(1)" title="Next month" aria-label="Next month"><span data-icon="chevronRight" data-icon-size="15"></span></button>
-            <button class="btn-sm" onclick="taskCalNav(0)">Today</button>
+            <button class="btn-secondary btn-sm" onclick="taskCalNav(0)">Today</button>
           </div>
           <div class="segmented" id="task-view-btns" role="tablist" aria-label="View">
             <button class="task-vbtn active" data-view="list" onclick="setTaskView('list')" title="List"><span data-icon="list" data-icon-size="14"></span></button>
@@ -1322,8 +1322,8 @@
       <option value="age-desc">Sort: Newest First</option>
       <option value="client">Sort: Client A–Z</option>
     </select>
-    <button class="btn-sm" onclick="wqClear()">Clear</button>
-    <button class="btn-sm" id="wq-toggle-archived" onclick="toggleWqArchived()">Show archived</button>
+    <button class="btn-secondary btn-sm" onclick="wqClear()">Clear</button>
+    <button class="btn-secondary btn-sm" id="wq-toggle-archived" onclick="toggleWqArchived()">Show archived</button>
     <span class="rcnt" id="wq-cnt">0 pending</span>
   </div>
   <div id="wq-content"></div>
@@ -1359,7 +1359,7 @@
       <option value="2023-Q3"> 2023 Q3 — Jul–Sep</option>
       <option value="2023-Q4"> 2023 Q4 — Oct–Dec</option>
     </select>
-      <button class="btn-sm" id="fu-toggle-archived" onclick="toggleFuArchived()">Show archived</button>
+      <button class="btn-secondary btn-sm" id="fu-toggle-archived" onclick="toggleFuArchived()">Show archived</button>
     </div>
   </div>
   <nav class="pr-views" data-pr-views aria-label="Proposal views"></nav>
@@ -1375,7 +1375,7 @@
       <div class="page-subtitle">Everyone you work with, across every company.</div>
     </div>
     <div class="page-header-actions">
-      <button class="btn-sm" onclick="openCtListsModal()">Manage lists</button>
+      <button class="btn-secondary btn-sm" onclick="openCtListsModal()">Manage lists</button>
       <button class="btn-secondary" onclick="exportAcContacts()" title="Export the selected (or filtered) contacts as an ActiveCampaign import file">Export to ActiveCampaign</button>
       <button class="btn-primary" onclick="openContactModal()"><span data-icon="plus" data-icon-size="14"></span> New contact</button>
     </div>
@@ -1386,7 +1386,7 @@
     <select class="fsel" id="ct-client" onchange="renderContacts()"><option value="">All Clients</option></select>
     <select class="fsel" id="ct-list-filter" onchange="renderContacts()"><option value="">All lists</option></select>
     <select class="fsel" id="ct-type-filter" onchange="renderContacts()" title="Contacts at companies that were offered or are on retainer for this service"><option value="">All services</option></select>
-    <button class="btn-sm" onclick="openContactColumns(event)" title="Choose columns">Columns</button>
+    <button class="btn-secondary btn-sm" onclick="openContactColumns(event)" title="Choose columns">Columns</button>
     <span class="rcnt" id="ct-cnt">0 contacts</span>
   </div>
   <div class="list-bar" id="ct-lists-bar" aria-label="Lists"></div>
@@ -1463,7 +1463,7 @@
         <option value="none">No contacts yet</option>
         <option value="some">Has contacts</option>
       </select>
-      <button class="btn-sm" onclick="clearCompanyFilters()">Clear</button>
+      <button class="btn-secondary btn-sm" onclick="clearCompanyFilters()">Clear</button>
       <select class="fsel" id="co-sort" onchange="sortCompaniesFromSelect(this.value)" aria-label="Sort">
         <option value="relationship">Sort: Relationship</option>
         <option value="company">Sort: A–Z</option>
@@ -1478,7 +1478,7 @@
         <button class="seg-btn co-vbtn active" data-view="grid" onclick="setCoListView('grid')"><span data-icon="board" data-icon-size="13"></span> Grid</button>
         <button class="seg-btn co-vbtn" data-view="list" onclick="setCoListView('list')"><span data-icon="list" data-icon-size="13"></span> List</button>
       </div>
-      <button class="btn-sm" id="co-columns-btn" onclick="openCompanyColumns(event)" title="Choose columns" hidden>Columns</button>
+      <button class="btn-secondary btn-sm" id="co-columns-btn" onclick="openCompanyColumns(event)" title="Choose columns" hidden>Columns</button>
       <span class="rcnt" id="co-cnt">0 companies</span>
     </div>
     <div class="list-bar" id="co-lists-bar" aria-label="Company lists"></div>
@@ -1505,7 +1505,7 @@
     <section class="rec-section rec-overview" id="co-sec-overview" data-section="overview">
       <div class="rec-stats" id="co-detail-kpis"></div>
       <div class="rec-overview-grid">
-        <div class="sec rec-facts" id="co-facts-card"><div class="rec-section-hd"><h2>Key facts</h2><div class="rec-section-actions"><button class="btn-sm" id="co-facts-edit-btn" onclick="openEditCompanyModal()">Edit</button></div></div><dl class="rec-props" id="co-facts"></dl><div class="co-facts-edit" id="co-facts-edit" hidden>
+        <div class="sec rec-facts" id="co-facts-card"><div class="rec-section-hd"><h2>Key facts</h2><div class="rec-section-actions"><button class="btn-secondary btn-sm" id="co-facts-edit-btn" onclick="openEditCompanyModal()">Edit</button></div></div><dl class="rec-props" id="co-facts"></dl><div class="co-facts-edit" id="co-facts-edit" hidden>
     <div class="fgrp">
       <label class="flbl">Company Name</label>
       <input class="finp" id="edit-co-name" placeholder="Company name">
@@ -1557,7 +1557,7 @@
           <div class="rec-section-hd"><h2>Company notes</h2><span class="rec-count" id="co-notes-entry-count"></span></div>
           <div class="conote-composer">
             <textarea class="rec-notes conote-input" id="co-notes-text" rows="2" placeholder="What's new with this client? Enter to save, Shift+Enter for a new line." oninput="companyNoteComposerInput(this)" onkeydown="companyNoteComposerKey(event)"></textarea>
-            <div class="conote-composer-actions"><button class="btn-sm btn-primary" onclick="addCompanyNoteEntry()">Add note</button></div>
+            <div class="conote-composer-actions"><button class="btn-secondary btn-sm" onclick="addCompanyNoteEntry()">Add note</button></div>
           </div>
           <div class="conote-log" id="co-notes-log"></div>
         </div>
@@ -1565,43 +1565,43 @@
       <div class="sec" id="co-emails" style="display:none"></div>
     </section>
     <section class="rec-section sec" id="co-sec-contacts" data-section="contacts">
-      <div class="rec-section-hd"><h2>Contacts</h2><span class="rec-count" id="co-contacts-count"></span><div class="rec-section-actions"><button class="btn-sm" onclick="openContactForCompany()">+ Add</button></div></div>
+      <div class="rec-section-hd"><h2>Contacts</h2><span class="rec-count" id="co-contacts-count"></span><div class="rec-section-actions"><button class="btn-secondary btn-sm" onclick="openContactForCompany()">+ Add</button></div></div>
       <div class="rec-list" id="co-contacts-list"></div>
     </section>
     <section class="rec-section sec" id="co-sec-opportunities" data-section="opportunities">
-      <div class="rec-section-hd"><h2>Opportunities</h2><span class="rec-count" id="co-opps-count"></span><div class="rec-section-actions"><button class="btn-sm" onclick="createOpportunityForCurrentCompany()">+ New</button></div></div>
+      <div class="rec-section-hd"><h2>Opportunities</h2><span class="rec-count" id="co-opps-count"></span><div class="rec-section-actions"><button class="btn-secondary btn-sm" onclick="createOpportunityForCurrentCompany()">+ New</button></div></div>
       <div class="rec-list" id="co-opps-list"></div>
     </section>
     <section class="rec-section sec" id="co-sec-proposals" data-section="proposals">
-      <div class="rec-section-hd"><h2>Proposals</h2><span class="rec-count" id="co-proposals-count"></span><div class="rec-section-actions"><button class="btn-sm" onclick="createProposalForCurrentCompany()">+ New</button></div></div>
+      <div class="rec-section-hd"><h2>Proposals</h2><span class="rec-count" id="co-proposals-count"></span><div class="rec-section-actions"><button class="btn-secondary btn-sm" onclick="createProposalForCurrentCompany()">+ New</button></div></div>
       <div class="tbl-wrap rec-table"><table><thead><tr><th>SL#</th><th>Service</th><th>Status</th><th>Sent</th><th>Signed</th><th>MRR</th><th>Log</th><th></th></tr></thead><tbody id="co-proposals-tbody"></tbody></table></div>
     </section>
     <section class="rec-section sec" id="co-sec-projects" data-section="projects">
-      <div class="rec-section-hd"><h2>Projects</h2><span class="rec-count" id="co-projects-tab-count"></span><div class="rec-section-actions"><button class="btn-sm" onclick="createProjectForCurrentCompany()">+ New</button></div></div>
+      <div class="rec-section-hd"><h2>Projects</h2><span class="rec-count" id="co-projects-tab-count"></span><div class="rec-section-actions"><button class="btn-secondary btn-sm" onclick="createProjectForCurrentCompany()">+ New</button></div></div>
       <div id="cosub-projects-inner"></div>
     </section>
     <section class="rec-section sec" id="co-sec-agreements" data-section="agreements">
-      <div class="rec-section-hd"><h2>Agreements</h2><span class="rec-count" id="co-agreements-count"></span><div class="rec-section-actions"><button class="btn-sm" onclick="openAgrForCompany()">+ New</button></div></div>
+      <div class="rec-section-hd"><h2>Agreements</h2><span class="rec-count" id="co-agreements-count"></span><div class="rec-section-actions"><button class="btn-secondary btn-sm" onclick="openAgrForCompany()">+ New</button></div></div>
       <div class="tbl-wrap rec-table"><table><thead><tr><th>Ref</th><th>Type</th><th>Status</th><th>Sent</th><th>Client signed</th><th>MENA signed</th><th>MRR</th><th></th></tr></thead><tbody id="co-agreements-tbody"></tbody></table></div>
     </section>
     <section class="rec-section sec" id="co-sec-meetings" data-section="meetings">
-      <div class="rec-section-hd"><h2>Meetings</h2><span class="rec-count" id="co-meetings-tab-count"></span><div class="rec-section-actions"><button class="btn-sm" onclick="createMeetingForCurrentCompany()">+ New</button></div></div>
+      <div class="rec-section-hd"><h2>Meetings</h2><span class="rec-count" id="co-meetings-tab-count"></span><div class="rec-section-actions"><button class="btn-secondary btn-sm" onclick="createMeetingForCurrentCompany()">+ New</button></div></div>
       <div id="cosub-meetings-inner"></div>
     </section>
     <section class="rec-section sec" id="co-sec-notes" data-section="notes">
-      <div class="rec-section-hd"><h2>Notes</h2><span class="rec-count" id="co-notes-tab-count"></span><div class="rec-section-actions"><button class="btn-sm" onclick="createNoteForCurrentCompany()">+ New</button></div></div>
+      <div class="rec-section-hd"><h2>Notes</h2><span class="rec-count" id="co-notes-tab-count"></span><div class="rec-section-actions"><button class="btn-secondary btn-sm" onclick="createNoteForCurrentCompany()">+ New</button></div></div>
       <div id="cosub-notes-inner"></div>
     </section>
     <section class="rec-section sec" id="co-sec-tasks" data-section="tasks">
-      <div class="rec-section-hd"><h2>Tasks</h2><span class="rec-count" id="co-todos-tab-count"></span><div class="rec-section-actions"><button class="btn-sm" onclick="createTodoForCurrentCompany()">+ New</button></div></div>
+      <div class="rec-section-hd"><h2>Tasks</h2><span class="rec-count" id="co-todos-tab-count"></span><div class="rec-section-actions"><button class="btn-secondary btn-sm" onclick="createTodoForCurrentCompany()">+ New</button></div></div>
       <div id="cosub-todos-inner"></div>
     </section>
     <section class="rec-section sec" id="co-sec-files" data-section="files">
-      <div class="rec-section-hd"><h2>Files</h2><span class="rec-count" id="co-files-tab-count"></span><div class="rec-section-actions"><button class="btn-sm" onclick="switchTab('files');msFilesOpenSetupWizard()">Match a folder…</button></div></div>
+      <div class="rec-section-hd"><h2>Files</h2><span class="rec-count" id="co-files-tab-count"></span><div class="rec-section-actions"><button class="btn-secondary btn-sm" onclick="switchTab('files');msFilesOpenSetupWizard()">Match a folder…</button></div></div>
       <div id="cosub-files-inner"></div>
     </section>
     <section class="rec-section sec" id="co-sec-activity" data-section="activity">
-      <div class="rec-section-hd"><h2>Activity</h2><span class="rec-count" id="co-activity-count"></span><div class="rec-section-actions"><button class="btn-sm" onclick="openActivityNote()">+ Log note</button></div></div>
+      <div class="rec-section-hd"><h2>Activity</h2><span class="rec-count" id="co-activity-count"></span><div class="rec-section-actions"><button class="btn-secondary btn-sm" onclick="openActivityNote()">+ Log note</button></div></div>
       <div class="feed" id="co-timeline"></div>
     </section>
   </div>
@@ -1628,7 +1628,7 @@
     <select class="fsel" id="agr-service" onchange="renderAgreements()"><option value="">Any service status</option></select>
     <select class="fsel" id="agr-type" onchange="renderAgreements()"><option value="">All types</option></select>
     <select class="fsel" id="agr-prep" onchange="renderAgreements()"><option value="">Prepared by anyone</option></select>
-    <button class="btn-sm" onclick="agrClear()">Clear</button>
+    <button class="btn-secondary btn-sm" onclick="agrClear()">Clear</button>
     <span class="rcnt" id="agr-cnt">0 agreements</span>
   </div>
   <div class="tbl-wrap data-table">
@@ -1734,7 +1734,7 @@
       <span>to</span>
       <input type="date" id="db-dt" onchange="dbFilter()" aria-label="Sent to">
     </div>
-    <button class="btn-sm" onclick="dbClear()">Clear</button>
+    <button class="btn-secondary btn-sm" onclick="dbClear()">Clear</button>
     <label class="check-label"><input type="checkbox" id="db-show-archived" onchange="dbFilter()"> Show archived</label>
     <span class="rcnt" id="db-cnt">0 results</span>
   </div>
@@ -1788,7 +1788,7 @@
         <div id="prd-lines"></div>
       </section>
       <section class="rec-section sec" id="prd-decks-sec">
-        <div class="rec-section-hd"><h2>Proposal documents</h2><span class="rec-count" id="prd-decks-count"></span><div class="rec-section-actions"><button class="btn-sm" onclick="generateCurrentProposal()"><span data-icon="bolt" data-icon-size="12"></span> Generate proposal</button></div></div>
+        <div class="rec-section-hd"><h2>Proposal documents</h2><span class="rec-count" id="prd-decks-count"></span><div class="rec-section-actions"><button class="btn-secondary btn-sm" onclick="generateCurrentProposal()"><span data-icon="bolt" data-icon-size="12"></span> Generate proposal</button></div></div>
         <div class="rec-list" id="prd-decks"></div>
       </section>
       <section class="rec-section sec" id="prd-documents-sec">
@@ -1926,7 +1926,7 @@
     <select class="fsel" id="r-status" onchange="renderReports()"><option value="">All</option></select>
     <select class="fsel" id="r-type" onchange="renderReports()"><option value="">All</option></select>
     <span class="fbar-range">Sent <input type="date" id="r-df" onchange="renderReports()" aria-label="Sent from"> to <input type="date" id="r-dt" onchange="renderReports()" aria-label="Sent to"></span>
-    <button class="btn-sm" onclick="rptClear()">Clear</button>
+    <button class="btn-secondary btn-sm" onclick="rptClear()">Clear</button>
   </div>
   <div class="rpt-sum" id="rpt-sum"></div>
   <div class="breakdown" id="rpt-breakdown"></div>
@@ -2427,7 +2427,7 @@
     <div id="msfw-step-pick">
       <p class="msfw-intro">Pick the OneDrive folder that has one subfolder per client — for example "Proposals". MENA One will suggest a Company match for each subfolder.</p>
       <div class="toolbar">
-        <button class="btn-sm" onclick="msfwGoBack()" id="msfw-back-btn">&larr; Back</button>
+        <button class="btn-secondary btn-sm" onclick="msfwGoBack()" id="msfw-back-btn">&larr; Back</button>
         <div class="msf-breadcrumb" id="msfw-breadcrumb"></div>
       </div>
       <div id="msfw-picker-body" class="msfw-picker-list"></div>
@@ -2480,7 +2480,7 @@
     </div>
     <div class="card-hd">Linked to</div>
     <div id="msfi-linked" class="modal-block"></div>
-    <div class="rec-section-hd"><h2>Notes</h2><div class="rec-section-actions"><button class="btn-sm" onclick="msFilesInspectorAddNote()">+ New</button></div></div>
+    <div class="rec-section-hd"><h2>Notes</h2><div class="rec-section-actions"><button class="btn-secondary btn-sm" onclick="msFilesInspectorAddNote()">+ New</button></div></div>
     <div id="msfi-notes"></div>
   </div>
 </div>

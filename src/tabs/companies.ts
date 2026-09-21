@@ -366,10 +366,10 @@ function renderReviewQueue(): void {
         <div class="co-review-row">
           <div class="co-review-name">"${escHtml(q.rawName)}"</div>
           <div class="co-review-actions">
-            ${q.suggestedCompanyName ? `<button class="btn-sm" onclick="resolveReviewEntry(${q.id},'confirm')">Confirm: ${escHtml(q.suggestedCompanyName)}</button>` : ''}
+            ${q.suggestedCompanyName ? `<button class="btn-secondary btn-sm" onclick="resolveReviewEntry(${q.id},'confirm')">Confirm: ${escHtml(q.suggestedCompanyName)}</button>` : ''}
             <input type="text" class="finp co-review-pick" list="co-review-companies-list" placeholder="Pick another company…" data-qid="${q.id}">
-            <button class="btn-sm" onclick="resolveReviewEntry(${q.id},'create')">+ Create new</button>
-            <button class="btn-sm" onclick="resolveReviewEntry(${q.id},'ignore')">Leave unresolved</button>
+            <button class="btn-secondary btn-sm" onclick="resolveReviewEntry(${q.id},'create')">+ Create new</button>
+            <button class="btn-secondary btn-sm" onclick="resolveReviewEntry(${q.id},'ignore')">Leave unresolved</button>
           </div>
         </div>
       `).join('')}
@@ -1212,7 +1212,7 @@ function renderCompanyNoteLog(): void {
       return `<div class="conote-entry editing">
         <textarea class="rec-notes conote-input" id="conote-edit-${n.id}">${escHtml(n.body)}</textarea>
         <div class="conote-entry-actions">
-          <button class="btn-sm" onclick="cancelCompanyNoteEdit()">Cancel</button>
+          <button class="btn-secondary btn-sm" onclick="cancelCompanyNoteEdit()">Cancel</button>
           <button class="btn-sm btn-primary" onclick="saveCompanyNoteEdit(${n.id})">Save</button>
         </div>
       </div>`;
@@ -1433,7 +1433,7 @@ export function renderCoProposals(d: CompanyData): void {
       <td class="td-d">${fmtDate(p.sentDate)}</td>
       <td class="td-d">${fmtDate(p.dblSignedDate)}</td>
       <td class="td-fee">${p.monthlyFee ? money(Number(p.monthlyFee), currencyOf(p)) : '—'}</td>
-      <td><button class="btn-notes" onclick="event.stopPropagation();openNotesModal(${p.id})" title="Activity log">${nc > 0 ? `${nc} note${nc === 1 ? '' : 's'}` : 'Log'}</button></td>
+      <td><button class="btn-secondary btn-sm" onclick="event.stopPropagation();openNotesModal(${p.id})" title="Activity log">${nc > 0 ? `${nc} note${nc === 1 ? '' : 's'}` : 'Log'}</button></td>
       <td>${p.docLink ? `<a href="#" onclick="event.stopPropagation();event.preventDefault();openExternalUrl('${escHtml(p.docLink)}')" class="doc-link-btn">Open</a>` : ''}</td>
     </tr>`;
   }).join('');

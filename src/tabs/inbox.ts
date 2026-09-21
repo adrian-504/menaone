@@ -47,8 +47,8 @@ function inboxRow(i: InboxItem): string {
     <div class="inbox-item-type" title="${TYPE_LABEL[i.itemType] || i.itemType}">${icon(TYPE_ICON[i.itemType] || 'inbox', 15)}</div>
     <div class="inbox-item-content">${escHtml(i.content)}</div>
     <div class="inbox-item-actions">
-      <button class="btn-sm" onclick="convertInboxToTask(${i.id})" title="Turn into a task — dates, times, !priority and company names are picked up">&rarr; Task</button>
-      <button class="btn-sm" onclick="convertInboxToNote(${i.id})" title="Turn into a note">&rarr; Note</button>
+      <button class="btn-secondary btn-sm" onclick="convertInboxToTask(${i.id})" title="Turn into a task — dates, times, !priority and company names are picked up">&rarr; Task</button>
+      <button class="btn-secondary btn-sm" onclick="convertInboxToNote(${i.id})" title="Turn into a note">&rarr; Note</button>
       <button class="rec-icon-btn" onclick="inboxItemMenu(event, ${i.id})" title="More" aria-label="More">${icon('more', 14)}</button>
     </div>
   </div>`;

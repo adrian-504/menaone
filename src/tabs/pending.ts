@@ -108,7 +108,7 @@ export function renderPending(): void {
         <div class="pq-list">${archPending.map((p) => `<div class="pq-row">
           <div class="pq-main"><div class="pq-title">${companyLink(p.companyId, p.client)}<span class="pq-services">${escHtml(p.type || '')}</span></div>
           <div class="pq-meta">${escHtml((WQ_CFG[p.status] || { label: p.status }).label)} · archived ${fmtDate(p.archivedAt || '')}</div></div>
-          <div class="pq-actions"><button class="btn-sm" onclick="unarchiveProposal(${p.id});renderPending()">Unarchive</button></div>
+          <div class="pq-actions"><button class="btn-secondary btn-sm" onclick="unarchiveProposal(${p.id});renderPending()">Unarchive</button></div>
         </div>`).join('')}</div>
       </section>`;
     } else {
@@ -128,10 +128,10 @@ export function wqCard(p: Proposal): string {
   const step = cfg.step;
   const nc = (p.notes || []).length;
   const reviewer = teamMember(p.reviewerId)?.name || defaultReviewer()?.name || 'the reviewer';
-  const primary = step <= 1 ? `<button class="btn-secondary btn-compact" onclick="wqAdvance(${p.id},'${PS.DRAFTING}')">Start drafting</button>`
-    : step === 2 ? `<button class="btn-secondary btn-compact" onclick="wqAdvance(${p.id},'${PS.REVIEW}')" title="Send to ${escHtml(reviewer)} for review">Send for review</button>`
-    : p.reviewStatus === 'approved' ? `<button class="btn-primary btn-compact" onclick="wqAdvance(${p.id},'${PS.SENT}')">Mark sent</button>`
-    : `<button class="btn-secondary btn-compact" onclick="openRecord('proposal', ${p.id})" title="Record ${escHtml(reviewer)}'s review">Record review</button>`;
+  const primary = step <= 1 ? `<button class="btn-secondary btn-sm" onclick="wqAdvance(${p.id},'${PS.DRAFTING}')">Start drafting</button>`
+    : step === 2 ? `<button class="btn-secondary btn-sm" onclick="wqAdvance(${p.id},'${PS.REVIEW}')" title="Send to ${escHtml(reviewer)} for review">Send for review</button>`
+    : p.reviewStatus === 'approved' ? `<button class="btn-primary btn-sm" onclick="wqAdvance(${p.id},'${PS.SENT}')">Mark sent</button>`
+    : `<button class="btn-secondary btn-sm" onclick="openRecord('proposal', ${p.id})" title="Record ${escHtml(reviewer)}'s review">Record review</button>`;
   const meta = [
     step === 3 ? `<span class="${p.reviewStatus === 'approved' ? 't-positive' : ''}">${p.reviewStatus === 'approved' ? 'Approved by' : 'With'} ${escHtml(reviewer)}</span>` : '',
     ownerName(p) ? escHtml(ownerName(p)) : '',

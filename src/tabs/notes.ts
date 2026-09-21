@@ -818,7 +818,7 @@ async function renderRelationsPanel(n: Note): Promise<void> {
     group('Linked from', backlinks.map((b) => recordLink('note', b.id, b.title || 'Untitled', { chip: true }))),
   ].join('');
   const convert = pending.length
-    ? `<div class="relations-group"><div class="relations-group-label">Action items</div><div class="relations-chips"><button class="btn-sm" onclick="createTasksFromNoteActionItems()" title="${escHtml(pending.join('\n'))}">Create ${pending.length === 1 ? 'a task' : `${pending.length} tasks`} from action items</button></div></div>`
+    ? `<div class="relations-group"><div class="relations-group-label">Action items</div><div class="relations-chips"><button class="btn-secondary btn-sm" onclick="createTasksFromNoteActionItems()" title="${escHtml(pending.join('\n'))}">Create ${pending.length === 1 ? 'a task' : `${pending.length} tasks`} from action items</button></div></div>`
     : '';
   el.innerHTML = html || convert ? `<div class="relations-title">Connections</div>${html}${convert}` : '';
 }

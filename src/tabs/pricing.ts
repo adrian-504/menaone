@@ -85,7 +85,7 @@ function renderRateCard(svc: PricingService): string {
   return `<div class="price-card">
     <div class="price-card-hd">
       <div class="price-card-name">${escHtml(svc.name)}</div>
-      <button class="btn-sm price-card-edit" onclick="event.stopPropagation();openRateCardEditorByName('${escHtml(svc.name).replace(/'/g, "\\'")}')">Edit</button>
+      <button class="btn-secondary btn-sm price-card-edit" onclick="event.stopPropagation();openRateCardEditorByName('${escHtml(svc.name).replace(/'/g, "\\'")}')">Edit</button>
     </div>
     <div class="price-card-how">${escHtml(how)}</div>
     <div class="price-card-body">${body}${plans}</div>
@@ -154,8 +154,8 @@ function renderCatalog(search: string, cat: string): string {
         <div class="svc-row-price">${catalogPrice(s)}</div>
         <div class="svc-row-use">${used || '<span class="t-muted">0</span>'}</div>
         <div class="svc-row-actions">
-          <button class="btn-sm" onclick="event.stopPropagation();openServiceEditor(${s.id})">Edit</button>
-          <button class="btn-sm" onclick="event.stopPropagation();openServiceMerge(${s.id})" title="Merge this service into another">Merge…</button>
+          <button class="btn-secondary btn-sm" onclick="event.stopPropagation();openServiceEditor(${s.id})">Edit</button>
+          <button class="btn-secondary btn-sm" onclick="event.stopPropagation();openServiceMerge(${s.id})" title="Merge this service into another">Merge…</button>
         </div>
       </div>`;
     }).join('')}</div>
@@ -374,7 +374,7 @@ function rcTable(title: string, key: 'tranches' | 'packages' | 'rows' | 'bundles
     ${items.map((it, i) => `<tr>${cols.map(([, f, t]) => `<td><input class="td-input" type="${t}"${t === 'number' ? ' step="any" min="0"' : ''} value="${escHtml(String(it[f] ?? ''))}" onchange="rcSet('${key}.${i}.${f}', this.value, '${t}')"></td>`).join('')}
       <td><button type="button" class="rec-icon-btn" onclick="rcRemove('${key}', ${i})" aria-label="Remove">×</button></td></tr>`).join('')}
     </tbody></table></div>
-    <button type="button" class="btn-secondary btn-compact" onclick="rcAdd('${key}')">+ Add</button></section>`;
+    <button type="button" class="btn-secondary btn-sm" onclick="rcAdd('${key}')">+ Add</button></section>`;
 }
 
 function renderRateCardEditor(): void {

@@ -509,7 +509,7 @@ async function renderOpportunityNotes(oppId: number): Promise<void> {
   if (S.currentOpportunityId !== oppId) return;
   const noteIds = links.filter((l) => l.fromType === 'note' && l.toType === 'opportunity').map((l) => l.fromId);
   const notes = S.notes.filter((n) => noteIds.includes(n.id));
-  el.innerHTML = `<div class="rec-section-hd"><h2>Notes</h2><span class="rec-count">${notes.length || ''}</span><div class="rec-section-actions"><button class="btn-sm" onclick="createNoteForOpportunity()">+ New</button></div></div>` +
+  el.innerHTML = `<div class="rec-section-hd"><h2>Notes</h2><span class="rec-count">${notes.length || ''}</span><div class="rec-section-actions"><button class="btn-secondary btn-sm" onclick="createNoteForOpportunity()">+ New</button></div></div>` +
     (notes.length === 0
       ? `<div class="feed-empty">No notes yet.</div>`
       : `<div class="rec-list">${notes.map((n) => `<div class="rec-row" onclick="openRecord('note', ${n.id})">
@@ -541,7 +541,7 @@ function renderOpportunityMeetings(oppId: number): void {
   const el = document.getElementById('od-meetings');
   if (!el) return;
   const meetings = S.meetings.filter((m) => m.opportunityId === oppId);
-  el.innerHTML = `<div class="rec-section-hd"><h2>Meetings</h2><span class="rec-count">${meetings.length || ''}</span><div class="rec-section-actions"><button class="btn-sm" onclick="createMeetingForOpportunity()">+ New</button></div></div>` +
+  el.innerHTML = `<div class="rec-section-hd"><h2>Meetings</h2><span class="rec-count">${meetings.length || ''}</span><div class="rec-section-actions"><button class="btn-secondary btn-sm" onclick="createMeetingForOpportunity()">+ New</button></div></div>` +
     (meetings.length === 0
       ? `<div class="feed-empty">No meetings yet.</div>`
       : `<div class="rec-list">${meetings.map((m) => `<div class="rec-row" onclick="openRecord('meeting', ${m.id})">
@@ -567,7 +567,7 @@ function renderOpportunityTasks(oppId: number): void {
   const tasks = opportunityTasks(S, oppId).filter((t) => t.parentId == null)
     .sort((a, b) => Number(a.status === 'Done') - Number(b.status === 'Done') || (a.dueDate || '9999').localeCompare(b.dueDate || '9999'));
   const open = tasks.filter((t) => t.status !== 'Done').length;
-  el.innerHTML = `<div class="rec-section-hd"><h2>Tasks</h2><span class="rec-count">${open || ''}</span><div class="rec-section-actions"><button class="btn-sm" onclick="createTodoForOpportunity()">+ New</button></div></div>` +
+  el.innerHTML = `<div class="rec-section-hd"><h2>Tasks</h2><span class="rec-count">${open || ''}</span><div class="rec-section-actions"><button class="btn-secondary btn-sm" onclick="createTodoForOpportunity()">+ New</button></div></div>` +
     (tasks.length === 0 ? `<div class="feed-empty">No tasks yet.</div>` : `<div class="task-group">${tasks.map((t) => taskRowHtml(t, { compact: true })).join('')}</div>`);
 }
 
@@ -726,7 +726,7 @@ async function renderOpportunityFiles(o: Opportunity): Promise<void> {
   const docPaths = new Set(docs.map((d) => d.path));
   const folderRows = files.filter((f) => !docPaths.has(f.path)).map((f) => row(f.name, f.path, f.modifiedAt ? `Modified ${fmtDate(f.modifiedAt.slice(0, 10))}` : 'In the client folder'));
   el.innerHTML = `<div class="rec-section-hd"><h2>Files</h2><span class="rec-count">${docRows.length + folderRows.length || ''}</span>
-      <div class="rec-section-actions">${folder?.exists && folder.path ? `<button class="btn-sm" onclick="msFilesNavigateToPath('${attr(folder.path)}');navToModule('files')">Open client folder</button>` : ''}</div></div>
+      <div class="rec-section-actions">${folder?.exists && folder.path ? `<button class="btn-secondary btn-sm" onclick="msFilesNavigateToPath('${attr(folder.path)}');navToModule('files')">Open client folder</button>` : ''}</div></div>
     ${docRows.length + folderRows.length
       ? `<div class="rec-list">${[...docRows, ...folderRows].join('')}</div>`
       : `<div class="feed-empty">${client ? (folder?.exists ? 'The client folder is empty.' : `No folder for ${escHtml(client)} under Proposals yet.`) : 'Set the company to see its proposal folder.'}</div>`}`;

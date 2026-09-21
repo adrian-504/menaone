@@ -109,12 +109,12 @@ export function renderCtListsPanel(): void {
   panel.innerHTML = [
     group('Contact lists', 'People you add by hand', S.contactLists.map((l) => {
       const cnt = S.contacts.filter((c) => (c.lists || []).includes(l)).length;
-      return row(l, `${cnt} contact${cnt !== 1 ? 's' : ''}`, `<button class="btn-sm" onclick="renameContactList('${q(l)}').then(renderCtListsPanel)">Rename</button><button class="btn-sm t-danger-outline" onclick="deleteContactListByName('${q(l)}')">Remove</button>`);
+      return row(l, `${cnt} contact${cnt !== 1 ? 's' : ''}`, `<button class="btn-secondary btn-sm" onclick="renameContactList('${q(l)}').then(renderCtListsPanel)">Rename</button><button class="btn-secondary btn-sm t-danger-outline" onclick="deleteContactListByName('${q(l)}')">Remove</button>`);
     })),
     group('Smart lists', 'Saved Contacts filters', smartContactLists().map((l) =>
-      row(l.name, `${contactsInSmartList(l).length} contacts now`, `<button class="btn-sm" onclick="renameSavedList(${l.id}).then(renderCtListsPanel)">Rename</button><button class="btn-sm t-danger-outline" onclick="removeSavedList(${l.id}).then(renderCtListsPanel)">Remove</button>`))),
+      row(l.name, `${contactsInSmartList(l).length} contacts now`, `<button class="btn-secondary btn-sm" onclick="renameSavedList(${l.id}).then(renderCtListsPanel)">Rename</button><button class="btn-secondary btn-sm t-danger-outline" onclick="removeSavedList(${l.id}).then(renderCtListsPanel)">Remove</button>`))),
     group('Company lists', 'Contacts at the companies in a list — managed in Companies', companyLists().map((l) =>
-      row(l.name, `${companyNamesInList(l).length} companies · ${contactsInCompanyList(l).length} contacts${l.filters ? ' · smart' : ''}`, `<button class="btn-sm" onclick="renameSavedList(${l.id}).then(renderCtListsPanel)">Rename</button>`))),
+      row(l.name, `${companyNamesInList(l).length} companies · ${contactsInCompanyList(l).length} contacts${l.filters ? ' · smart' : ''}`, `<button class="btn-secondary btn-sm" onclick="renameSavedList(${l.id}).then(renderCtListsPanel)">Rename</button>`))),
   ].join('');
 }
 expose('renderCtListsPanel', renderCtListsPanel);

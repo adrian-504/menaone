@@ -110,7 +110,7 @@ export async function renderReminderSettings(): Promise<void> {
     <div class="settings-card-hd"><span data-icon="clock"></span><div class="card-hd">Reminders</div></div>
     <p class="settings-card-desc">Mac notifications while MENA One is open, even with its window hidden.</p>
     ${permission === 'denied' ? `<div class="settings-callout tone-amber">Notifications are turned off for MENA One. Allow them in System Settings → Notifications → MENA One.</div>`
-      : permission === 'unknown' ? `<div class="settings-callout tone-accent">MENA One needs your permission to show notifications. <button class="btn-sm" onclick="sendTestReminder()">Allow notifications</button></div>` : ''}
+      : permission === 'unknown' ? `<div class="settings-callout tone-accent">MENA One needs your permission to show notifications. <button class="btn-secondary btn-sm" onclick="sendTestReminder()">Allow notifications</button></div>` : ''}
     <div class="rem-rows">
       <label class="rem-row">${toggle('rem-meetings', settings.meetings)}<span class="rem-label"><strong>Meetings</strong><span>Before each meeting in your calendar</span></span>${sel('rem-meeting-min', settings.meetingMinutes, MINUTES.map((n) => [n, minuteLabel(n)]))}</label>
       <label class="rem-row">${toggle('rem-tasks', settings.tasks)}<span class="rem-label"><strong>Tasks with a time</strong><span>e.g. "Call Globex tomorrow 3pm"</span></span>${sel('rem-task-min', settings.taskMinutes, MINUTES.map((n) => [n, n === 0 ? 'At the due time' : minuteLabel(n)]))}</label>

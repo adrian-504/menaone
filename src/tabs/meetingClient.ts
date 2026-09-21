@@ -105,16 +105,16 @@ export function renderMeetingClientSection(m: Meeting): void {
       ? `<p class="md-client-lead">This meeting looks like it's with:</p><div class="rec-list">${suggestions.map((s) => `<div class="rec-row md-suggest">
           <span class="rec-row-icon">${icon('building', 15)}</span>
           <div class="rec-row-main"><div class="rec-row-title">${escHtml(s.company.name)} ${s.confidence === 'high' ? '<span class="rec-badge tone-green">Likely</span>' : '<span class="rec-badge">Possible</span>'}</div><div class="rec-row-sub">${reasonsHtml(s)}${s.opportunity ? ` · open opportunity: ${escHtml(s.opportunity.name)}` : ''}</div></div>
-          <div class="rec-row-end"><button class="btn-secondary btn-compact" onclick="confirmMeetingLink(${m.id}, ${s.company.id}, true)">Link</button></div>
+          <div class="rec-row-end"><button class="btn-secondary btn-sm" onclick="confirmMeetingLink(${m.id}, ${s.company.id}, true)">Link</button></div>
         </div>`).join('')}</div>
-        <div class="btn-row md-client-actions"><button class="btn-sm" onclick="dismissMeetingLink(${m.id})">None of these</button></div>`
+        <div class="btn-row md-client-actions"><button class="btn-secondary btn-sm" onclick="dismissMeetingLink(${m.id})">None of these</button></div>`
       : emptyState({ icon: 'building', title: meetingEmails(m).length ? 'No client matched the attendees' : 'No attendee emails', body: meetingPeople(m).some((p) => p.status === 'new' && p.guess) ? 'Add the people below as contacts — the meeting links to their company, and future meetings link by themselves.' : 'Pick the client above, or add attendees\' email addresses to their contacts so future meetings link by themselves.', compact: true }));
     renderIcons(el);
     renderMeetingPeople(m);
     return;
   }
   el.innerHTML = `<div class="rec-section-hd"><h2>Client brief</h2><span class="rec-count">${companyLink(company.id, company.name)}</span>
-    <div class="rec-section-actions"><button class="btn-secondary btn-compact" onclick="addSuggestedAgenda(${m.id})">${icon('plus', 12)} Add suggested agenda</button></div></div>
+    <div class="rec-section-actions"><button class="btn-secondary btn-sm" onclick="addSuggestedAgenda(${m.id})">${icon('plus', 12)} Add suggested agenda</button></div></div>
     ${briefHtml(m, company)}`;
   renderIcons(el);
   renderMeetingPeople(m);
@@ -213,8 +213,8 @@ export function meetingSuggestionsBanner(): string {
       <span class="rec-row-icon">${icon('meeting', 15)}</span>
       <div class="rec-row-main"><div class="rec-row-title">${escHtml(m.title)} → ${escHtml(s!.company.name)}</div><div class="rec-row-sub">${m.meetingDate ? `${fmtDate(m.meetingDate)} · ` : ''}${reasonsHtml(s!)}</div></div>
       <div class="rec-row-end">
-        <button class="btn-secondary btn-compact" onclick="event.stopPropagation();confirmMeetingLink(${m.id}, ${s!.company.id}, true)">Link</button>
-        <button class="btn-sm btn-compact" onclick="event.stopPropagation();dismissMeetingLink(${m.id})">Dismiss</button>
+        <button class="btn-secondary btn-sm" onclick="event.stopPropagation();confirmMeetingLink(${m.id}, ${s!.company.id}, true)">Link</button>
+        <button class="btn-secondary btn-sm" onclick="event.stopPropagation();dismissMeetingLink(${m.id})">Dismiss</button>
       </div>
     </div>`).join('')}</div>
   </section>`;
@@ -311,7 +311,7 @@ function personRow(m: Meeting, p: MeetingPerson): string {
         <label><span>Role</span><input class="finp" data-f="role" placeholder="Optional"></label>
       </div>
       <div class="md-person-email">${escHtml(p.email)}</div>
-      <div class="btn-row"><button class="btn-sm" onclick="cancelMeetingPerson(${m.id}, '${attr(p.email)}')">Cancel</button><button class="btn-primary btn-compact" onclick="saveMeetingPerson(${m.id}, '${attr(p.email)}')">Add contact</button></div>
+      <div class="btn-row"><button class="btn-secondary btn-sm" onclick="cancelMeetingPerson(${m.id}, '${attr(p.email)}')">Cancel</button><button class="btn-primary btn-sm" onclick="saveMeetingPerson(${m.id}, '${attr(p.email)}')">Add contact</button></div>
     </div>`;
   }
   const sub = p.status === 'contact' && p.contact
@@ -323,7 +323,7 @@ function personRow(m: Meeting, p: MeetingPerson): string {
     <span class="md-person-avatar">${escHtml(initials)}</span>
     <div class="md-person-main"><div class="md-person-name">${escHtml(p.name)}</div><div class="md-person-sub">${escHtml(p.email)} · ${sub}</div></div>
     ${p.status === 'new' ? `<div class="md-person-actions">
-      <button class="btn-secondary btn-compact" onclick="editMeetingPerson(${m.id}, '${attr(p.email)}')">${icon('plus', 12)} Add to contacts</button>
+      <button class="btn-secondary btn-sm" onclick="editMeetingPerson(${m.id}, '${attr(p.email)}')">${icon('plus', 12)} Add to contacts</button>
       <button class="rec-icon-btn" onclick="dismissMeetingPerson(${m.id}, '${attr(p.email)}')" title="Not a contact" aria-label="Not a contact">${icon('close', 12)}</button>
     </div>` : ''}
   </div>`;
@@ -340,7 +340,7 @@ export function renderMeetingPeople(m: Meeting): void {
   const addable = fresh.filter((p) => p.guess);
   const groups: [string, MeetingPerson[]][] = [['Not in contacts yet', fresh], ['Contacts', people.filter((p) => p.status === 'contact')], ['MENA BIG', people.filter((p) => p.status === 'internal')]];
   el.innerHTML = `<div class="rec-section-hd"><h2>People</h2><span class="rec-count">${people.length}</span>
-      ${addable.length > 1 ? `<div class="rec-section-actions"><button class="btn-secondary btn-compact" onclick="addAllMeetingPeople(${m.id})">${icon('plus', 12)} Add all ${addable.length} to contacts</button></div>` : ''}</div>
+      ${addable.length > 1 ? `<div class="rec-section-actions"><button class="btn-secondary btn-sm" onclick="addAllMeetingPeople(${m.id})">${icon('plus', 12)} Add all ${addable.length} to contacts</button></div>` : ''}</div>
     <datalist id="md-people-companies">${S.companies.filter((c) => !c.archived).map((c) => `<option value="${attr(c.name)}">`).join('')}</datalist>
     ${groups.filter(([, list]) => list.length).map(([label, list]) => `<div class="md-people-group"><div class="md-people-label">${escHtml(label)}</div>${list.map((p) => personRow(m, p)).join('')}</div>`).join('')}`;
   renderIcons(el);
@@ -497,7 +497,7 @@ export async function updatePeopleBanner(): Promise<void> {
   if (!el) return;
   const n = await peopleFromMeetingsCount();
   el.hidden = n === 0;
-  el.innerHTML = n ? `<span class="rec-row-icon">${icon('meeting', 15)}</span><div class="rec-row-main"><div class="rec-row-title">${n} ${n === 1 ? 'person' : 'people'} from your meetings ${n === 1 ? "isn't a contact" : "aren't contacts"} yet</div><div class="rec-row-sub">Names, emails and companies taken from Outlook meeting invites.</div></div><button class="btn-primary btn-compact" onclick="openPeopleFromMeetings()">Review</button>` : '';
+  el.innerHTML = n ? `<span class="rec-row-icon">${icon('meeting', 15)}</span><div class="rec-row-main"><div class="rec-row-title">${n} ${n === 1 ? 'person' : 'people'} from your meetings ${n === 1 ? "isn't a contact" : "aren't contacts"} yet</div><div class="rec-row-sub">Names, emails and companies taken from Outlook meeting invites.</div></div><button class="btn-primary btn-sm" onclick="openPeopleFromMeetings()">Review</button>` : '';
   renderIcons(el);
 }
 expose('updatePeopleBanner', updatePeopleBanner);

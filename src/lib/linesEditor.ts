@@ -208,7 +208,7 @@ export function renderLinesEditor(key: string, containerId: string, ctx: LinesEd
       <tbody>${rows || `<tr><td colspan="${ctx.editable ? 6 : 5}" class="le-empty">No services yet${ctx.editable ? ' — add the first one below.' : '.'}</td></tr>`}</tbody>
     </table></div>
     <div class="le-footer">
-      ${ctx.editable ? `<button type="button" class="btn-secondary btn-compact" onclick="linesEdit('${k}', 0, 'add', '')">${icon('plus', 13)} Add service</button>` : '<span></span>'}
+      ${ctx.editable ? `<button type="button" class="btn-secondary btn-sm" onclick="linesEdit('${k}', 0, 'add', '')">${icon('plus', 13)} Add service</button>` : '<span></span>'}
       <dl class="le-totals">
         <div><dt>Monthly</dt><dd>${totals.monthly != null ? fmtMoney(totals.monthly, currency) : '—'}</dd></div>
         <div><dt>One-time</dt><dd>${totals.oneTime != null ? fmtMoney(totals.oneTime, currency) : '—'}</dd></div>

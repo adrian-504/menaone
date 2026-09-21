@@ -110,13 +110,13 @@ function chooserHtml(q: CleanupQueue, item: CleanupItem): string {
     case 'snooze_followup':
       return `<div class="cu-chooser"><span>Check again in</span>${[7, 14, 30, 60].map((d) => `<button class="prb-chip" onclick="cleanupApply('snooze_followup', '${d}')">${d} days</button>`).join('')}</div>`;
     case 'set_industry':
-      return `<div class="cu-chooser"><span>Industry</span><select class="fsel" id="cu-industry"><option value="">Choose…</option>${INDUSTRY_TAXONOMY.map((x) => `<option>${escHtml(x)}</option>`).join('')}</select><button class="btn-primary btn-compact" onclick="cleanupApply('set_industry', document.getElementById('cu-industry').value)">Save</button></div>`;
+      return `<div class="cu-chooser"><span>Industry</span><select class="fsel" id="cu-industry"><option value="">Choose…</option>${INDUSTRY_TAXONOMY.map((x) => `<option>${escHtml(x)}</option>`).join('')}</select><button class="btn-primary btn-sm" onclick="cleanupApply('set_industry', document.getElementById('cu-industry').value)">Save</button></div>`;
     case 'set_owner':
       return `<div class="cu-chooser"><span>Owner</span><input type="text" id="cu-owner" list="cu-owner-list" placeholder="Name" value="${escHtml(defaultOwner())}"><datalist id="cu-owner-list">${activeTeam().map((t) => `<option value="${escHtml(t.name)}">`).join('')}</datalist>
-        <button class="btn-primary btn-compact" onclick="cleanupApply('set_owner', document.getElementById('cu-owner').value)">Save</button>
-        ${q.items.length > 1 ? `<button class="btn-sm" onclick="cleanupOwnerForAll()">Use for all ${q.items.length}</button>` : ''}</div>`;
+        <button class="btn-primary btn-sm" onclick="cleanupApply('set_owner', document.getElementById('cu-owner').value)">Save</button>
+        ${q.items.length > 1 ? `<button class="btn-secondary btn-sm" onclick="cleanupOwnerForAll()">Use for all ${q.items.length}</button>` : ''}</div>`;
     case 'task_date':
-      return `<div class="cu-chooser"><span>Due on</span><input type="date" id="cu-date" value="${today()}"><button class="btn-primary btn-compact" onclick="cleanupApply('task_date', document.getElementById('cu-date').value)">Save</button></div>`;
+      return `<div class="cu-chooser"><span>Due on</span><input type="date" id="cu-date" value="${today()}"><button class="btn-primary btn-sm" onclick="cleanupApply('task_date', document.getElementById('cu-date').value)">Save</button></div>`;
     case 'opportunity_details': {
       const o = S.opportunities.find((x) => x.id === id);
       if (!o) return '';
@@ -125,7 +125,7 @@ function chooserHtml(q: CleanupQueue, item: CleanupItem): string {
         <label><span>Currency</span><select class="fsel" id="cu-opp-currency">${['SAR', 'EUR', 'USD', 'AED'].map((c) => `<option${(o.currency || 'SAR') === c ? ' selected' : ''}>${c}</option>`).join('')}</select></label>
         <label class="cu-grow"><span>Next step</span><input type="text" id="cu-opp-next" value="${escHtml(o.nextAction || '')}" placeholder="e.g. Send the proposal"></label>
         <label><span>Expected close</span><input type="date" id="cu-opp-close" value="${o.expectedCloseDate || ''}"></label>
-        <button class="btn-primary btn-compact" onclick="cleanupApply('opportunity_details')">Save</button>
+        <button class="btn-primary btn-sm" onclick="cleanupApply('opportunity_details')">Save</button>
       </div>`;
     }
     default: return '';
@@ -161,8 +161,8 @@ function stepHtml(q: CleanupQueue): string {
     <div class="cu-actions">
       ${q.actions.map((a, i) => `<button class="${chooser === a ? 'btn-primary' : ACTION_TONE[a] === 'danger' ? 'btn-secondary cu-danger' : 'btn-secondary'}" onclick="cleanupAction('${a}')" title="Shortcut: ${i + 1}"><kbd>${i + 1}</kbd>${escHtml(ACTION_LABEL[a])}</button>`).join('')}
       <span class="cu-spacer"></span>
-      <button class="btn-sm" onclick="cleanupOpen()">Open</button>
-      <button class="btn-sm" onclick="cleanupSkip()" title="Shortcut: →">Skip <kbd>→</kbd></button>
+      <button class="btn-secondary btn-sm" onclick="cleanupOpen()">Open</button>
+      <button class="btn-secondary btn-sm" onclick="cleanupSkip()" title="Shortcut: →">Skip <kbd>→</kbd></button>
     </div>
     ${chooser && q.actions.includes(chooser) ? chooserHtml(q, item) : ''}
   </article>`;
@@ -175,7 +175,7 @@ function listHtml(q: CleanupQueue): string {
   return `<div class="sec cu-list">
     <div class="cu-bulk${n ? ' has-selection' : ''}">
       <label class="check-label"><input type="checkbox" ${n && n === q.items.length ? 'checked' : ''} onchange="cleanupSelectAll(this.checked)"> ${n ? `${n} selected` : 'Select all'}</label>
-      ${n ? q.bulk.map((a) => `<button class="btn-secondary btn-compact${ACTION_TONE[a] === 'danger' ? ' cu-danger' : ''}" onclick="cleanupBulk('${a}')">${escHtml(ACTION_LABEL[a])}</button>`).join('') : `<span class="t-muted">Select records to fix several at once</span>`}
+      ${n ? q.bulk.map((a) => `<button class="btn-secondary btn-sm${ACTION_TONE[a] === 'danger' ? ' cu-danger' : ''}" onclick="cleanupBulk('${a}')">${escHtml(ACTION_LABEL[a])}</button>`).join('') : `<span class="t-muted">Select records to fix several at once</span>`}
     </div>
     <div class="cu-bulk-chooser" id="cu-bulk-chooser"></div>
     <div class="rec-list">${q.items.map((x) => `<div class="rec-row cu-row" onclick="if(!event.target.closest('input,a,button'))openRecord('${x.record.kind}', ${x.record.id})">
@@ -460,8 +460,8 @@ export function cleanupBulk(action: CleanupAction): void {
   }
   if ((action === 'set_industry' || action === 'set_owner') && el) {
     el.innerHTML = action === 'set_industry'
-      ? `<div class="cu-chooser"><span>Industry for ${items.length}</span><select class="fsel" id="cu-bulk-value"><option value="">Choose…</option>${INDUSTRY_TAXONOMY.map((x) => `<option>${escHtml(x)}</option>`).join('')}</select><button class="btn-primary btn-compact" id="cu-bulk-go">Apply</button></div>`
-      : `<div class="cu-chooser"><span>Owner for ${items.length}</span><input type="text" id="cu-bulk-value" list="cu-owner-list-bulk" value="${escHtml(defaultOwner())}"><datalist id="cu-owner-list-bulk">${activeTeam().map((t) => `<option value="${escHtml(t.name)}">`).join('')}</datalist><button class="btn-primary btn-compact" id="cu-bulk-go">Apply</button></div>`;
+      ? `<div class="cu-chooser"><span>Industry for ${items.length}</span><select class="fsel" id="cu-bulk-value"><option value="">Choose…</option>${INDUSTRY_TAXONOMY.map((x) => `<option>${escHtml(x)}</option>`).join('')}</select><button class="btn-primary btn-sm" id="cu-bulk-go">Apply</button></div>`
+      : `<div class="cu-chooser"><span>Owner for ${items.length}</span><input type="text" id="cu-bulk-value" list="cu-owner-list-bulk" value="${escHtml(defaultOwner())}"><datalist id="cu-owner-list-bulk">${activeTeam().map((t) => `<option value="${escHtml(t.name)}">`).join('')}</datalist><button class="btn-primary btn-sm" id="cu-bulk-go">Apply</button></div>`;
     document.getElementById('cu-bulk-go')?.addEventListener('click', () => {
       const v = (document.getElementById('cu-bulk-value') as HTMLInputElement | HTMLSelectElement | null)?.value || '';
       if (!v.trim()) { toast('Choose a value first', { tone: 'error' }); return; }

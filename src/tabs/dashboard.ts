@@ -51,7 +51,7 @@ async function renderIntelSummary(): Promise<void> {
     .slice(0, 4);
   if (items.length === 0) { card.style.display = 'none'; return; }
   card.style.display = '';
-  card.innerHTML = `<div class="rec-section-hd"><h2>Regulatory &amp; business watch</h2><div class="rec-section-actions"><button class="btn-sm" onclick="navToModule('intelligence')">View all</button></div></div>
+  card.innerHTML = `<div class="rec-section-hd"><h2>Regulatory &amp; business watch</h2><div class="rec-section-actions"><button class="btn-secondary btn-sm" onclick="navToModule('intelligence')">View all</button></div></div>
     <div class="rec-list">${items.map((it) => `<div class="rec-row" onclick="navToModule('intelligence')">
       ${statusDot({ c: IMPORTANCE_COLOR[it.importance] || 'var(--muted)' }, '')}
       <div class="rec-row-main"><div class="rec-row-title">${escHtml(it.headline)}</div></div>

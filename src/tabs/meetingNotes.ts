@@ -182,7 +182,7 @@ function actionAddRow(m: Meeting): string {
     <input id="md-task-input" class="md-task-title" placeholder="Add an action item — e.g. Send the revised quote fri" ${enter}>
     <input id="md-task-owner" class="md-task-owner" list="md-owner-list" placeholder="Owner" ${enter}>
     <input id="md-task-due" class="md-task-due" type="date" aria-label="Due date" ${enter}>
-    <button class="btn-secondary btn-compact" onclick="addMeetingAction()">Add</button>
+    <button class="btn-secondary btn-sm" onclick="addMeetingAction()">Add</button>
     <datalist id="md-owner-list">${ownerOptions(m).map((n) => `<option value="${escHtml(n)}">`).join('')}</datalist>
   </div>`;
 }

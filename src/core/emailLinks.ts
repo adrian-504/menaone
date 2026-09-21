@@ -22,7 +22,7 @@ function emailRowCompact(e: EmailRecord): string {
       <div class="rec-row-title">${escHtml(e.subject || '(No subject)')}</div>
       <div class="rec-row-sub">${escHtml(e.senderName || e.senderEmail || 'Unknown sender')}${e.receivedAt ? ` &bull; ${escHtml(fmtDate(e.receivedAt))}` : ''}${flagNote(e.flagStatus)}</div>
     </div>
-    ${e.webLink ? `<a href="${escHtml(e.webLink)}" target="_blank" rel="noopener" class="btn-sm">Open</a>` : ''}
+    ${e.webLink ? `<a href="${escHtml(e.webLink)}" target="_blank" rel="noopener" class="btn-secondary btn-sm">Open</a>` : ''}
   </div>`;
 }
 

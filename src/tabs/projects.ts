@@ -225,7 +225,7 @@ async function renderLinkedNotes(projectId: number): Promise<void> {
   if (S.currentProjectId !== projectId) return;
   const noteIds = links.filter((l) => l.fromType === 'note' && l.toType === 'project').map((l) => l.fromId);
   const notes = S.notes.filter((n) => noteIds.includes(n.id));
-  el.innerHTML = `<div class="rec-section-hd"><h2>Notes</h2><span class="rec-count">${notes.length || ''}</span><div class="rec-section-actions"><button class="btn-sm" onclick="createNoteForProject()">+ New</button></div></div>` +
+  el.innerHTML = `<div class="rec-section-hd"><h2>Notes</h2><span class="rec-count">${notes.length || ''}</span><div class="rec-section-actions"><button class="btn-secondary btn-sm" onclick="createNoteForProject()">+ New</button></div></div>` +
     (notes.length === 0
       ? `<div class="feed-empty">No notes yet.</div>`
       : `<div class="rec-list">${notes.map((n) => `<div class="rec-row" onclick="openRecord('note', ${n.id})">
@@ -259,7 +259,7 @@ function renderProjectMeetings(projectId: number): void {
   const el = document.getElementById('pd-meetings');
   if (!el) return;
   const meetings = S.meetings.filter((m) => m.projectId === projectId);
-  el.innerHTML = `<div class="rec-section-hd"><h2>Meetings</h2><span class="rec-count">${meetings.length || ''}</span><div class="rec-section-actions"><button class="btn-sm" onclick="createMeetingForProject()">+ New</button></div></div>` +
+  el.innerHTML = `<div class="rec-section-hd"><h2>Meetings</h2><span class="rec-count">${meetings.length || ''}</span><div class="rec-section-actions"><button class="btn-secondary btn-sm" onclick="createMeetingForProject()">+ New</button></div></div>` +
     (meetings.length === 0
       ? `<div class="feed-empty">No meetings yet.</div>`
       : `<div class="rec-list">${meetings.map((m) => `<div class="rec-row" onclick="openRecord('meeting', ${m.id})">
@@ -327,7 +327,7 @@ function renderMilestones(): void {
     <div class="milestone-dot ${m.status === 'Done' ? 'done' : m.status === 'In Progress' ? 'in-progress' : ''}" onclick="cycleMilestoneStatus(${m.id})" title="Click to change status">${m.status === 'Done' ? '&#10003;' : ''}</div>
     <div class="milestone-name">${escHtml(m.name)}</div>
     ${m.targetDate ? `<div class="milestone-date">${fmtDate(m.targetDate)}</div>` : ''}
-    <button class="btn-rmline" onclick="deleteMilestone(${m.id})" title="Remove">&times;</button>
+    <button class="btn-ghost btn-sm" onclick="deleteMilestone(${m.id})" title="Remove">&times;</button>
   </div>`).join('');
 }
 

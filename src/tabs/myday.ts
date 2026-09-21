@@ -146,8 +146,8 @@ function taskRow(t: Todo, opts: { overdue?: boolean } = {}): string {
       ${meta ? `<div class="mdy-meta">${meta}</div>` : ''}
     </div>
     ${done ? '' : `<div class="mdy-row-actions">
-      ${opts.overdue ? `<button class="btn-sm mdy-mini" onclick="mydayMoveTask(${t.id}, 0)">Today</button>` : ''}
-      <button class="btn-sm mdy-mini" onclick="mydayMoveTask(${t.id}, 1)">Tomorrow</button>
+      ${opts.overdue ? `<button class="btn-secondary btn-sm" onclick="mydayMoveTask(${t.id}, 0)">Today</button>` : ''}
+      <button class="btn-secondary btn-sm" onclick="mydayMoveTask(${t.id}, 1)">Tomorrow</button>
       <button class="rec-icon-btn" onclick="mydayTaskDate(event, ${t.id})" title="Pick a date" aria-label="Pick a date">${icon('calendar', 13)}</button>
     </div>`}
   </div>`;
@@ -163,9 +163,9 @@ function meetingRow(m: Meeting, past: boolean, current: boolean, own: Set<string
       ${where ? `<div class="mdy-meta">${where}</div>` : ''}
     </div>
     <div class="mdy-row-actions">
-      ${m.onlineMeetingUrl && !past ? `<button class="btn-sm mdy-mini${current ? ' mdy-join' : ''}" onclick="mydayJoin(${m.id})">${icon('meeting', 12)} Join</button>` : ''}
-      ${!past && client ? `<button class="btn-sm mdy-mini" onclick="openRecord('meeting', ${m.id})">${m.agenda ? 'Brief' : 'Prepare'}</button>` : ''}
-      ${needsNotes ? `<button class="btn-sm mdy-mini" onclick="openRecord('meeting', ${m.id})">${icon('note', 12)} Add notes</button>` : ''}
+      ${m.onlineMeetingUrl && !past ? `<button class="${current ? 'btn-primary' : 'btn-secondary'} btn-sm" onclick="mydayJoin(${m.id})">${icon('meeting', 12)} Join</button>` : ''}
+      ${!past && client ? `<button class="btn-secondary btn-sm" onclick="openRecord('meeting', ${m.id})">${m.agenda ? 'Brief' : 'Prepare'}</button>` : ''}
+      ${needsNotes ? `<button class="btn-secondary btn-sm" onclick="openRecord('meeting', ${m.id})">${icon('note', 12)} Add notes</button>` : ''}
     </div>`;
 }
 
@@ -173,7 +173,7 @@ function todayHtml(t: Timeline, data: MyDayInput): string {
   const parts: string[] = [];
   if (t.overdue.length) {
     parts.push(`<div class="mdy-group-hd"><span class="t-red">${icon('warning', 12)} Overdue</span><span class="rcnt">${t.overdue.length}</span>
-      <button class="btn-sm mdy-mini mdy-hd-action" onclick="mydayMoveOverdue()">Move all to today</button></div>
+      <button class="btn-secondary btn-sm mdy-hd-action" onclick="mydayMoveOverdue()">Move all to today</button></div>
       <div class="mdy-tasks">${t.overdue.slice(0, 8).map((x) => taskRow(x, { overdue: true })).join('')}</div>
       ${t.overdue.length > 8 ? `<button class="mdy-more" onclick="navToModule('todo')">${t.overdue.length - 8} more in Tasks</button>` : ''}`);
   }
@@ -228,7 +228,7 @@ function attentionRow(a: AttentionItem, child = false): string {
     </div>
     ${a.when ? `<span class="mdy-when">${escHtml(a.when)}</span>` : ''}
     <div class="mdy-att-actions">
-      <button class="btn-sm mdy-mini${a.tone === 'red' && !child ? ' mdy-primary' : ''}" onclick="mydayAct('${escHtml(a.key)}')">${escHtml(a.action.label)}</button>
+      <button class="btn-secondary btn-sm" onclick="mydayAct('${escHtml(a.key)}')">${escHtml(a.action.label)}</button>
       <button class="rec-icon-btn" onclick="mydayItemMenu(event, '${escHtml(a.key)}')" title="More" aria-label="More">${icon('more', 14)}</button>
     </div>
   </div>

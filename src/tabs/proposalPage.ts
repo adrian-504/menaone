@@ -509,11 +509,11 @@ async function renderDocuments(p: Proposal): Promise<void> {
   }
   const serviceLabel = lineTotals(p.lines, p.contractMonths).serviceNames.join(' & ') || p.type || 'Services';
   const suggested = nextDeckFileName(p, serviceLabel, today(), info.files.map((f) => f.name));
-  if (actions) actions.innerHTML = info.exists ? `<button class="btn-sm" onclick="proposalRevealFile('${escHtml((info.path || '').replace(/'/g, "\\'"))}')">Show in Finder</button>` : '';
+  if (actions) actions.innerHTML = info.exists ? `<button class="btn-secondary btn-sm" onclick="proposalRevealFile('${escHtml((info.path || '').replace(/'/g, "\\'"))}')">Show in Finder</button>` : '';
   if (!info.root) {
     folderEl.innerHTML = `<div class="pr-folder-line rec-muted">${icon('folder', 14)} No Proposals folder found in OneDrive. Choose it in Settings → Proposals.</div>`;
   } else if (!info.exists) {
-    folderEl.innerHTML = `<div class="pr-folder-line">${icon('folder', 14)}<span>No folder for ${escHtml(p.client)} yet in <code class="path-code">${escHtml(info.root)}</code></span><button class="btn-secondary btn-compact" onclick="proposalCreateFolder()">Create folder</button></div>`;
+    folderEl.innerHTML = `<div class="pr-folder-line">${icon('folder', 14)}<span>No folder for ${escHtml(p.client)} yet in <code class="path-code">${escHtml(info.root)}</code></span><button class="btn-secondary btn-sm" onclick="proposalCreateFolder()">Create folder</button></div>`;
   } else {
     folderEl.innerHTML = `<div class="pr-folder-line">${icon('folder', 14)}<button class="rlink pr-folder-path" onclick="proposalOpenFolder()">${escHtml(info.path || '')}</button></div>
       <div class="pr-next-name"><span class="rec-muted">Next file name</span><code>${escHtml(suggested)}</code><button class="rec-icon-btn" onclick="copyText('${escHtml(suggested.replace(/'/g, "\\'"))}','File name copied')" title="Copy file name" aria-label="Copy file name">${icon('copy', 13)}</button></div>`;
@@ -582,7 +582,7 @@ function folderFileRow(f: LocalFileItem): string {
   return `<div class="rec-row pr-folder-file" onclick="proposalOpenFile('${path}')">
     <span class="rec-row-icon">${icon('document', 15)}</span>
     <div class="rec-row-main"><div class="rec-row-title">${escHtml(f.name)}</div><div class="rec-row-sub">In the client folder${f.modifiedAt ? ` · modified ${fmtDate(f.modifiedAt.slice(0, 10))}` : ''}</div></div>
-    <div class="rec-row-actions"><button class="btn-sm btn-compact" onclick="event.stopPropagation();proposalAttachFile('${path}')">Add to proposal</button></div>
+    <div class="rec-row-actions"><button class="btn-secondary btn-sm" onclick="event.stopPropagation();proposalAttachFile('${path}')">Add to proposal</button></div>
   </div>`;
 }
 

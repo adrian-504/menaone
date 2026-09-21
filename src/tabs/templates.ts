@@ -160,7 +160,7 @@ function renderEditor(container: HTMLElement): void {
     </section>
     <section class="sec tpl-slides">
       <div class="rec-section-hd"><h2>Slides</h2><span class="rec-count">${inspection.slideCount}</span>
-        <div class="rec-section-actions"><button class="btn-sm" onclick="setAllSlideRules('always')">All always</button></div></div>
+        <div class="rec-section-actions"><button class="btn-secondary btn-sm" onclick="setAllSlideRules('always')">All always</button></div></div>
       <datalist id="tpl-service-options">${opts.map((o) => `<option value="${escHtml(o)}">`).join('')}</datalist>
       <div class="tpl-slide-list">${inspection.slides.map((s, i) => {
         const r = rules[i];
@@ -200,7 +200,7 @@ function renderReplacements(): void {
       <span class="t-muted">→</span>
       <select class="finp" onchange="setReplacement(${i}, 'token', this.value)">${tokenOpts(r.token)}</select>
       <button class="rec-icon-btn" onclick="setReplacement(${i}, 'remove', '')" aria-label="Remove replacement">${icon('close', 13)}</button>
-    </div>`).join('') + `<button class="btn-sm" onclick="setReplacement(-1, 'add', '')">${icon('plus', 12)} Add replacement</button>`;
+    </div>`).join('') + `<button class="btn-secondary btn-sm" onclick="setReplacement(-1, 'add', '')">${icon('plus', 12)} Add replacement</button>`;
   renderIcons(el);
 }
 
