@@ -110,7 +110,7 @@ export async function renderRecordTimeline(m: TimelineMount): Promise<void> {
         <button class="${scope === 'record' ? 'active' : ''}" onclick="setTimelineScope('record')">This ${m.record.kind}</button>
         <button class="${scope === 'engagement' ? 'active' : ''}" onclick="setTimelineScope('engagement')">Whole engagement</button></div>`
     : '';
-  el.innerHTML = `<div class="rec-section-hd"><h2>Timeline</h2>${toggle}<div class="rec-section-actions">${m.header || ''}</div></div>
+  el.innerHTML = `<div class="rec-section-hd tl-hd"><h2>Timeline</h2>${toggle}<div class="rec-section-actions">${m.header || ''}</div></div>
     <div class="tl">${recordTimelineHtml(tl, {
       today: today(), nowLabel: `Now · ${now.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`,
       pastLimit: showAll.has(m.elId) ? null : PAST_LIMIT, showEarlier: `showEarlierTimeline('${m.elId}')`,

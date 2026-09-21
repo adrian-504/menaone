@@ -241,7 +241,9 @@ export interface EngagementThread {
 function daysFrom(a: string | null | undefined, b: string | null | undefined): number | null {
   if (!a || !b) return null;
   const d = (Date.parse(`${b.slice(0, 10)}T00:00:00Z`) - Date.parse(`${a.slice(0, 10)}T00:00:00Z`)) / 86_400_000;
-  return Number.isFinite(d) ? Math.round(d) : null;
+  // Legacy records can be dated out of order (an agreement before the
+  // proposal was sent): a negative gap has no number, just the line.
+  return Number.isFinite(d) && d >= 0 ? Math.round(d) : null;
 }
 
 /** The label for a proposal's next step — the same wording as the proposal page's main button. */

@@ -452,13 +452,13 @@ async function renderOpportunityDetail(): Promise<void> {
   if (S.currentOpportunityId === o.id) layoutOpportunitySections();
 }
 
-/** Sections with nothing in them collapse and sink below the ones that have
- * content; Description and Next action stay first, the timeline last. */
+/** Description, Next action and the timeline stay first; below them the
+ * sections with content, Files last, then the empty ones, collapsed. */
 function layoutOpportunitySections(): void {
   const host = document.getElementById('od-main');
   if (!host) return;
   const el = (id: string) => document.getElementById(id);
-  sinkEmptySections(host, ['od-tasks', 'od-meetings', 'od-commitments', 'od-contacts', 'od-notes', 'od-files'].map(el), el('od-activity'));
+  sinkEmptySections(host, ['od-tasks', 'od-meetings', 'od-commitments', 'od-contacts', 'od-notes', 'od-files'].map(el));
 }
 
 /** The next open task, as a link; the free-text box only when there is none. */

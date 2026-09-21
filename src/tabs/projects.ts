@@ -196,19 +196,19 @@ async function renderProjectDetail(): Promise<void> {
   if (S.currentProjectId === p.id) layoutProjectSections();
 }
 
-/** Sections with nothing in them collapse and sink below the ones that have
- * content, above the timeline. */
+/** The timeline stays first; below it the sections with content, Files
+ * last, then the empty ones, collapsed. */
 function layoutProjectSections(): void {
   const host = document.getElementById('pd-main');
   if (!host) return;
   const el = (id: string) => document.getElementById(id);
   const inner = (id: string) => !!el(id)?.querySelector(':scope > .feed-empty');
-  const sections = ['pd-milestones-sec', 'pd-tasks-sec', 'pd-meetings', 'pd-commitments', 'pd-origin', 'pd-notes', 'pd-files-sec']
+  const sections = ['pd-milestones-sec', 'pd-tasks-sec', 'pd-meetings', 'pd-commitments', 'pd-origin', 'pd-notes', 'pd-emails', 'pd-files-sec']
     .map((id) => el(id)).filter((x): x is HTMLElement => !!x && !x.hidden);
   collapseEmptySections(host, sections.map((x) => ({
     el: x,
     empty: x.id === 'pd-milestones-sec' ? inner('pd-milestones') : x.id === 'pd-tasks-sec' ? inner('pd-tasks') : x.id === 'pd-files-sec' ? inner('pd-files') : !!x.querySelector(':scope > .feed-empty'),
-  })), el('pd-activity'));
+  })));
 }
 
 async function renderLinkedFiles(projectId: number): Promise<void> {

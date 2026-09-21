@@ -57,6 +57,14 @@ describe('engagementThread', () => {
     expect(t.nodes[1]).toMatchObject({ label: 'Payroll (SL# 10)', tone: 'green', dateLabel: 'Sent' });
   });
 
+  it('steps dated out of order (legacy records) show no number between them', () => {
+    const t = engagementThread({ kind: 'proposal', id: 10 }, data({
+      proposals: [prop({ status: 'Signed by Both Parties', dateSentToClient: '2026-09-10' })],
+      agreements: [agr({ status: 'Signed', dateMenaSigned: '2026-09-05' })],
+    }), today);
+    expect(t.gaps).toEqual([{ days: null }]);
+  });
+
   it('an opportunity with nothing yet offers to create the proposal', () => {
     const t = engagementThread({ kind: 'opportunity', id: 1 }, data({ opportunities: [opp({ waitingOn: 'them', waitingSince: '2026-09-01' })] }), today);
     expect(t.nodes.map((n) => n.kind)).toEqual(['opportunity']);
