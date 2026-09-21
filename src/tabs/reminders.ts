@@ -106,7 +106,7 @@ export async function renderReminderSettings(): Promise<void> {
   const sel = (id: string, value: string | number, options: [string | number, string][]) =>
     `<select class="fsel" id="${id}" onchange="reminderSettingChanged()">${options.map(([v, l]) => `<option value="${v}"${String(v) === String(value) ? ' selected' : ''}>${escHtml(l)}</option>`).join('')}</select>`;
   const toggle = (id: string, on: boolean) => `<input type="checkbox" class="switch" id="${id}" ${on ? 'checked' : ''} onchange="reminderSettingChanged()">`;
-  el.innerHTML = `<div class="card settings-card">
+  el.innerHTML = `<div class="sec settings-card">
     <div class="settings-card-hd"><span data-icon="clock"></span><div class="card-hd">Reminders</div></div>
     <p class="settings-card-desc">Mac notifications while MENA One is open, even with its window hidden.</p>
     ${permission === 'denied' ? `<div class="settings-callout tone-amber">Notifications are turned off for MENA One. Allow them in System Settings → Notifications → MENA One.</div>`

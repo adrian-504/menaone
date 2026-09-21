@@ -83,7 +83,7 @@ export function renderPending(): void {
   const container = document.getElementById('wq-content');
   if (!container) return;
   if (data.length === 0) {
-    container.innerHTML = `<div class="card">${emptyState({ icon: 'check', title: 'Nothing pending', body: 'Every proposal has been drafted and sent.' })}</div>`;
+    container.innerHTML = `<div class="sec">${emptyState({ icon: 'check', title: 'Nothing pending', body: 'Every proposal has been drafted and sent.' })}</div>`;
     return;
   }
 
@@ -93,7 +93,7 @@ export function renderPending(): void {
     const group = data.filter((p) => p.status === status);
     if (group.length === 0) return;
     const cfg = WQ_CFG[status];
-    html += `<section class="card pq-group">
+    html += `<section class="sec pq-group">
       <div class="rec-section-hd"><h2>${statusDot(cfg, cfg.label)}</h2><span class="rec-count">${group.length}</span></div>
       <div class="pq-list">${group.map((p) => wqCard(p)).join('')}</div>
     </section>`;
@@ -104,7 +104,7 @@ export function renderPending(): void {
     const archPending = S.proposals.filter((p) => p.archived && WQ_STATUSES.includes(p.status));
     let archHtml = '';
     if (archPending.length > 0) {
-      archHtml = `<section class="card pq-group is-archived">
+      archHtml = `<section class="sec pq-group is-archived">
         <div class="rec-section-hd"><h2>Archived</h2><span class="rec-count">${archPending.length}</span></div>
         <div class="pq-list">${archPending.map((p) => `<div class="pq-row">
           <div class="pq-main"><div class="pq-title">${companyLink(p.companyId, p.client)}<span class="pq-services">${escHtml(p.type || '')}</span></div>

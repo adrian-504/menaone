@@ -98,7 +98,7 @@ export function renderProjects(): void {
   const grid = document.getElementById('proj-grid');
   if (!grid) return;
   if (data.length === 0) {
-    grid.innerHTML = `<div class="card grid-full">${emptyState({ icon: 'target', title: 'No projects here', body: 'Client engagements and internal initiatives both live here.', action: { label: 'New project', onclick: 'openProjectModal(null)' } })}</div>`;
+    grid.innerHTML = `<div class="sec grid-full">${emptyState({ icon: 'target', title: 'No projects here', body: 'Client engagements and internal initiatives both live here.', action: { label: 'New project', onclick: 'openProjectModal(null)' } })}</div>`;
     renderIcons(grid);
     return;
   }

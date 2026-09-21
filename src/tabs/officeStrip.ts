@@ -118,7 +118,7 @@ export async function renderOfficeStripSettings(): Promise<void> {
   if (!el) return;
   await loadSettings();
   const toggle = (id: string, on: boolean) => `<input type="checkbox" class="switch" id="${id}" ${on ? 'checked' : ''} onchange="officeStripSettingChanged()">`;
-  el.innerHTML = `<div class="card settings-card">
+  el.innerHTML = `<div class="sec settings-card">
     <div class="settings-card-hd"><span data-icon="clock"></span><div class="card-hd">My Day</div></div>
     <p class="settings-card-desc">Small extras under the greeting on My Day.</p>
     <div class="rem-rows">

@@ -133,10 +133,10 @@ function paintIntelligence(): void {
   const cnt = document.getElementById('intel-cnt');
   if (cnt) cnt.textContent = `${list.length} item${list.length !== 1 ? 's' : ''}`;
   if (list.length === 0) {
-    root.innerHTML = `<div class="card">${emptyState({ icon: 'target', title: 'Nothing tracked yet', body: 'Add a verified item with its source link, or wait for the next automatic feed sync.' })}</div>`;
+    root.innerHTML = `<div class="sec">${emptyState({ icon: 'target', title: 'Nothing tracked yet', body: 'Add a verified item with its source link, or wait for the next automatic feed sync.' })}</div>`;
     return;
   }
-  root.innerHTML = `<div class="card intel-list">${list.map(itemRow).join('')}</div>`;
+  root.innerHTML = `<div class="sec intel-list">${list.map(itemRow).join('')}</div>`;
   renderIcons(root);
 }
 

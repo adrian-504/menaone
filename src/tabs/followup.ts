@@ -39,14 +39,14 @@ export function renderFollowup(): void {
   let html = '';
 
   if (fu.length === 0) {
-    html = `<div class="card">${emptyState({ icon: 'check', title: 'All clear', body: 'Every sent proposal has been updated within the last 10 days.' })}</div>`;
+    html = `<div class="sec">${emptyState({ icon: 'check', title: 'All clear', body: 'Every sent proposal has been updated within the last 10 days.' })}</div>`;
   } else {
-    html = `<section class="card pq-group"><div class="pq-list">${fu.map((p) => fuCard(p, false)).join('')}</div></section>`;
+    html = `<section class="sec pq-group"><div class="pq-list">${fu.map((p) => fuCard(p, false)).join('')}</div></section>`;
   }
 
   const snoozed = getSnoozed();
   if (snoozed.length > 0) {
-    html += `<section class="card pq-group is-muted">
+    html += `<section class="sec pq-group is-muted">
       <div class="rec-section-hd"><h2>Snoozed</h2><span class="rec-count">${snoozed.length}</span><span class="rec-muted">They come back by themselves</span></div>
       <div class="pq-list">${snoozed.map((p) => {
         const du = daysUntil(p.snoozedUntil);
@@ -63,7 +63,7 @@ export function renderFollowup(): void {
   if (S.fuShowArchived) {
     const arch = S.proposals.filter((p) => p.archived && p.status === PS.SENT && p.sentDate && (daysSince(p.sentDate) || 0) > 10);
     if (arch.length > 0) {
-      html += `<section class="card pq-group is-muted">
+      html += `<section class="sec pq-group is-muted">
         <div class="rec-section-hd"><h2>Archived</h2><span class="rec-count">${arch.length}</span></div>
         <div class="pq-list">${arch.map((p) => fuCard(p, true)).join('')}</div>
       </section>`;

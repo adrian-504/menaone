@@ -34,10 +34,10 @@ export function renderInbox(): void {
   if (!list) return;
   const items = unprocessedInboxItems();
   if (items.length === 0) {
-    list.innerHTML = `<div class="card">${emptyState({ icon: 'inbox', title: 'Inbox zero', body: 'Capture anything above — sort it out later.' })}</div>`;
+    list.innerHTML = `<div class="sec">${emptyState({ icon: 'inbox', title: 'Inbox zero', body: 'Capture anything above — sort it out later.' })}</div>`;
     return;
   }
-  list.innerHTML = `<div class="card inbox-card">${items.map(inboxRow).join('')}</div>`;
+  list.innerHTML = `<div class="sec inbox-card">${items.map(inboxRow).join('')}</div>`;
 }
 registerTabRenderer('inbox', renderInbox);
 expose('renderInbox', renderInbox);

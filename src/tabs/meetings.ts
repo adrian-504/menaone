@@ -73,12 +73,12 @@ function renderMeetingList(): void {
   const count = document.getElementById('meeting-count');
   if (count) count.textContent = `${sorted.length} meeting${sorted.length === 1 ? '' : 's'}`;
   if (sorted.length === 0 && S.meetings.length > 0) {
-    el.innerHTML = `<div class="card">${emptyState({ icon: meetingWhen === 'writeup' && !q ? 'check' : 'search', title: meetingWhen === 'writeup' && !q ? 'Every meeting is written up' : 'No meetings match', body: q ? 'Try another name, company or attendee.' : meetingWhen === 'upcoming' ? 'Nothing scheduled from today on.' : meetingWhen === 'writeup' ? 'Past meetings all have notes, decisions or action items.' : 'No past meetings yet.', compact: true })}</div>`;
+    el.innerHTML = `<div class="sec">${emptyState({ icon: meetingWhen === 'writeup' && !q ? 'check' : 'search', title: meetingWhen === 'writeup' && !q ? 'Every meeting is written up' : 'No meetings match', body: q ? 'Try another name, company or attendee.' : meetingWhen === 'upcoming' ? 'Nothing scheduled from today on.' : meetingWhen === 'writeup' ? 'Past meetings all have notes, decisions or action items.' : 'No past meetings yet.', compact: true })}</div>`;
     renderIcons(el);
     return;
   }
   if (sorted.length === 0) {
-    el.innerHTML = `<div class="card">${emptyState({ icon: 'meeting', title: 'No meetings logged yet', body: 'Capture attendees, decisions and action items so nothing gets lost.', action: { label: 'New meeting', onclick: 'openMeetingModal(null)' } })}</div>`;
+    el.innerHTML = `<div class="sec">${emptyState({ icon: 'meeting', title: 'No meetings logged yet', body: 'Capture attendees, decisions and action items so nothing gets lost.', action: { label: 'New meeting', onclick: 'openMeetingModal(null)' } })}</div>`;
     renderIcons(el);
     return;
   }

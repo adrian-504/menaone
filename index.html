@@ -222,12 +222,12 @@
     <div class="kpi"><div class="kpi-lbl">Active clients</div><div class="kpi-val" id="kpi-service">—</div><div class="kpi-sub">With an active service</div></div>
   </div>
   <div class="charts-row cols-3-2">
-    <div class="card"><div class="card-hd">Pipeline by Status</div><div class="chart-box chart-lg"><canvas id="ch-status"></canvas></div></div>
-    <div class="card"><div class="card-hd">By Proposal Type</div><div class="chart-box chart-md"><canvas id="ch-type"></canvas></div><div id="type-legend" class="chart-legend"></div></div>
+    <div class="sec"><div class="card-hd">Pipeline by Status</div><div class="chart-box chart-lg"><canvas id="ch-status"></canvas></div></div>
+    <div class="sec"><div class="card-hd">By Proposal Type</div><div class="chart-box chart-md"><canvas id="ch-type"></canvas></div><div id="type-legend" class="chart-legend"></div></div>
   </div>
   <div class="charts-row cols-3-2">
-    <div class="card"><div class="card-hd">Monthly Proposal Volume <span class="card-hd-hint">by sent date</span></div><div class="chart-box chart-sm"><canvas id="ch-monthly"></canvas></div></div>
-    <div class="card"><div class="card-hd">Top Clients by Volume</div><div id="top-clients"></div></div>
+    <div class="sec"><div class="card-hd">Monthly Proposal Volume <span class="card-hd-hint">by sent date</span></div><div class="chart-box chart-sm"><canvas id="ch-monthly"></canvas></div></div>
+    <div class="sec"><div class="card-hd">Top Clients by Volume</div><div id="top-clients"></div></div>
   </div>
 
   <div class="tab-section-hd"><span data-icon="target"></span><span>Work Management</span></div>
@@ -240,7 +240,7 @@
   <div class="kpi-row" id="dash-knowledge-kpis"></div>
 
   <div class="tab-section-hd"><span data-icon="bolt"></span><span>Intelligence</span></div>
-  <div class="card" id="dash-intel-card" style="display:none"></div>
+  <div class="sec" id="dash-intel-card" style="display:none"></div>
 </div>
 
 <!-- MY DAY TAB -->
@@ -545,12 +545,12 @@
     <!-- The meeting's notes, in the order that suits the moment: prep and
          notes before and during the meeting, the outcome first afterwards
          (meetings.ts renderMeetingNotes). -->
-    <section class="card rec-section md-notes" id="md-notes"></section>
-    <section class="card rec-section md-client" id="md-client"></section>
-    <section class="card rec-section md-people" id="md-people" hidden></section>
+    <section class="sec rec-section md-notes" id="md-notes"></section>
+    <section class="sec rec-section md-client" id="md-client"></section>
+    <section class="sec rec-section md-people" id="md-people" hidden></section>
     </div>
     <aside class="rec-side">
-      <section class="card rec-side-card">
+      <section class="sec rec-side-card">
         <div class="rec-section-hd"><h2>Details</h2></div>
         <dl class="rec-props rec-props-edit">
           <dt>Company</dt><dd><input id="md-company-inp" class="td-input" placeholder="No company" onchange="autoSaveMeetingCompany(this.value)"><span class="md-rel-link" id="md-company-link"></span></dd>
@@ -560,8 +560,8 @@
         </dl>
         <div class="rec-side-extra" id="md-outlook-card" style="display:none"><div id="md-outlook-info"></div></div>
       </section>
-      <section class="card rec-side-card md-earlier" id="md-earlier" hidden></section>
-      <section class="card rec-side-card md-invite" id="md-invite" hidden></section>
+      <section class="sec rec-side-card md-earlier" id="md-earlier" hidden></section>
+      <section class="sec rec-side-card md-invite" id="md-invite" hidden></section>
     </aside>
     </div>
   </div>
@@ -690,7 +690,7 @@
       <h2 class="settings-pane-title">General</h2>
   <div id="reminder-settings-card"></div>
   <div id="office-strip-settings-card"></div>
-  <div class="card settings-card">
+  <div class="sec settings-card">
     <div class="settings-card-hd">
       <span data-icon="sun"></span>
       <div class="card-hd">Theme</div>
@@ -701,7 +701,7 @@
     </section>
     <section class="settings-pane" data-pane="team" hidden>
       <h2 class="settings-pane-title">Team</h2>
-  <div class="card settings-card">
+  <div class="sec settings-card">
     <div class="settings-card-hd">
       <span data-icon="people"></span>
       <div class="card-hd">Team</div>
@@ -712,7 +712,7 @@
     </section>
     <section class="settings-pane" data-pane="business" hidden>
       <h2 class="settings-pane-title">Business</h2>
-  <div class="card settings-card">
+  <div class="sec settings-card">
     <div class="settings-card-hd">
       <span data-icon="dollar"></span>
       <div class="card-hd">Business entities and currencies</div>
@@ -720,7 +720,7 @@
     <p class="settings-card-desc">Each proposal and agreement belongs to one MENA BIG entity, which sets its default currency. Totals are shown per currency; set a rate to also see everything converted to SAR.</p>
     <div id="entity-settings"></div>
   </div>
-  <div class="card settings-card">
+  <div class="sec settings-card">
     <div class="settings-card-hd">
       <span data-icon="database"></span>
       <div class="card-hd">Proposals</div>
@@ -731,7 +731,7 @@
     </section>
     <section class="settings-pane" data-pane="connections" hidden>
       <h2 class="settings-pane-title">Connections</h2>
-  <div class="card settings-card">
+  <div class="sec settings-card">
     <div class="settings-card-hd">
       <span data-icon="building"></span>
       <div class="card-hd">Microsoft 365</div>
@@ -774,7 +774,7 @@
       </ol>
     </details>
   </div>
-  <div class="card settings-card">
+  <div class="sec settings-card">
     <div class="settings-card-hd">
       <span data-icon="folder"></span>
       <div class="card-hd">Microsoft Files</div>
@@ -785,7 +785,7 @@
     </section>
     <section class="settings-pane" data-pane="data" hidden>
       <h2 class="settings-pane-title">Data</h2>
-  <div class="card settings-card">
+  <div class="sec settings-card">
     <div class="settings-card-hd">
       <span data-icon="building"></span>
       <div class="card-hd">Company Master Data</div>
@@ -796,7 +796,7 @@
       <span id="company-migration-status" class="settings-inline-status"></span>
     </div>
   </div>
-  <div class="card settings-card">
+  <div class="sec settings-card">
     <div class="settings-card-hd">
       <span data-icon="archive"></span>
       <div class="card-hd">Data Backup</div>
@@ -878,7 +878,7 @@
     <div class="rec-layout">
     <div class="rec-main">
     <div class="rec-grid-2">
-      <section class="card rec-section">
+      <section class="sec rec-section">
         <div class="rec-section-hd"><h2>Milestones</h2><span class="rec-count" id="pd-milestone-cnt"></span></div>
         <div id="pd-milestones"></div>
         <form class="milestone-add-row" onsubmit="addMilestone(event)">
@@ -887,25 +887,25 @@
           <button type="submit" class="btn-sm">Add</button>
         </form>
       </section>
-      <section class="card rec-section">
+      <section class="sec rec-section">
         <div class="rec-section-hd"><h2>Tasks</h2><span class="rec-count" id="pd-task-cnt"></span><div class="rec-section-actions"><button class="btn-sm" onclick="createTodoForCurrentProject()">+ New</button></div></div>
         <div id="pd-tasks"></div>
       </section>
     </div>
-    <div class="card rec-section" id="pd-origin" style="display:none"></div>
+    <div class="sec rec-section" id="pd-origin" style="display:none"></div>
     <div class="rec-grid-2">
-      <div class="card rec-section" id="pd-notes"></div>
-      <div class="card rec-section" id="pd-meetings"></div>
+      <div class="sec rec-section" id="pd-notes"></div>
+      <div class="sec rec-section" id="pd-meetings"></div>
     </div>
-    <div class="card rec-section" id="pd-emails" style="display:none"></div>
-    <section class="card rec-section">
+    <div class="sec rec-section" id="pd-emails" style="display:none"></div>
+    <section class="sec rec-section">
       <div class="rec-section-hd"><h2>Files</h2><span class="rec-count" id="pd-files-cnt"></span></div>
       <div id="pd-files"></div>
     </section>
-    <div class="card rec-section" id="pd-activity"></div>
+    <div class="sec rec-section" id="pd-activity"></div>
     </div>
     <aside class="rec-side">
-      <section class="card rec-side-card">
+      <section class="sec rec-side-card">
         <div class="rec-section-hd"><h2>Details</h2></div>
         <dl class="rec-props rec-props-edit">
           <dt>Status</dt><dd><select id="pd-status-sel" class="td-select" onchange="changeCurrentProjectStatus(this.value)">
@@ -1051,20 +1051,20 @@
     <div class="rec-layout">
     <div class="rec-main">
     <div class="rec-grid-2">
-      <section class="card rec-section"><div class="rec-section-hd"><h2>Description</h2></div><textarea id="od-description" class="rec-notes" placeholder="What is this opportunity about?" oninput="autoSaveOpportunityField('description',this.value)"></textarea></section>
-      <section class="card rec-section"><div class="rec-section-hd"><h2>Next action</h2></div><textarea id="od-next-action" class="rec-notes" placeholder="What happens next?" oninput="autoSaveOpportunityField('nextAction',this.value)"></textarea></section>
-      <div class="card rec-section" id="od-contacts"></div>
-      <div class="card rec-section" id="od-notes"></div>
-      <div class="card rec-section" id="od-meetings"></div>
-      <div class="card rec-section" id="od-tasks"></div>
-      <div class="card rec-section" id="od-proposal"></div>
-      <div class="card rec-section" id="od-project"></div>
+      <section class="sec rec-section"><div class="rec-section-hd"><h2>Description</h2></div><textarea id="od-description" class="rec-notes" placeholder="What is this opportunity about?" oninput="autoSaveOpportunityField('description',this.value)"></textarea></section>
+      <section class="sec rec-section"><div class="rec-section-hd"><h2>Next action</h2></div><textarea id="od-next-action" class="rec-notes" placeholder="What happens next?" oninput="autoSaveOpportunityField('nextAction',this.value)"></textarea></section>
+      <div class="sec rec-section" id="od-contacts"></div>
+      <div class="sec rec-section" id="od-notes"></div>
+      <div class="sec rec-section" id="od-meetings"></div>
+      <div class="sec rec-section" id="od-tasks"></div>
+      <div class="sec rec-section" id="od-proposal"></div>
+      <div class="sec rec-section" id="od-project"></div>
     </div>
-    <section class="card rec-section" id="od-files"></section>
-    <div class="card rec-section" id="od-activity"></div>
+    <section class="sec rec-section" id="od-files"></section>
+    <div class="sec rec-section" id="od-activity"></div>
     </div>
     <aside class="rec-side">
-      <section class="card rec-side-card">
+      <section class="sec rec-side-card">
         <div class="rec-section-hd"><h2>Details</h2></div>
         <dl class="rec-props rec-props-edit">
           <dt>Company</dt><dd><input id="od-company-inp" class="td-input" placeholder="No company" onchange="autoSaveOpportunityField('companyName',this.value)"></dd>
@@ -1405,18 +1405,18 @@
     <div class="rec-actions" id="ctd-actions"></div>
   </header>
   <div class="ctd-grid">
-    <aside class="card ctd-props-card">
+    <aside class="sec ctd-props-card">
       <div class="rec-section-hd"><h2>Details</h2><span class="rec-save-state" id="ctd-save-state"></span></div>
       <dl class="rec-props ctd-props" id="ctd-props"></dl>
       <div class="rec-section-hd rec-section-hd-spaced"><h2>Lists</h2></div>
       <div class="ctd-lists" id="ctd-lists"></div>
     </aside>
     <div class="ctd-main">
-      <section class="rec-section card"><div class="rec-section-hd"><h2>Opportunities</h2><span class="rec-count" id="ctd-opps-count"></span></div><div class="rec-list" id="ctd-opps"></div></section>
-      <section class="rec-section card"><div class="rec-section-hd"><h2>Meetings</h2><span class="rec-count" id="ctd-meetings-count"></span></div><div class="rec-list" id="ctd-meetings"></div></section>
-      <section class="rec-section card"><div class="rec-section-hd"><h2>Emails</h2><span class="rec-count" id="ctd-emails-count"></span></div><div class="rec-list" id="ctd-emails"></div></section>
-      <section class="rec-section card"><div class="rec-section-hd"><h2>Mentioned in</h2><span class="rec-count" id="ctd-mentions-count"></span></div><div class="rec-list" id="ctd-mentions"></div></section>
-      <section class="rec-section card"><div class="rec-section-hd"><h2>Activity</h2></div><div class="feed" id="ctd-activity"></div></section>
+      <section class="rec-section sec"><div class="rec-section-hd"><h2>Opportunities</h2><span class="rec-count" id="ctd-opps-count"></span></div><div class="rec-list" id="ctd-opps"></div></section>
+      <section class="rec-section sec"><div class="rec-section-hd"><h2>Meetings</h2><span class="rec-count" id="ctd-meetings-count"></span></div><div class="rec-list" id="ctd-meetings"></div></section>
+      <section class="rec-section sec"><div class="rec-section-hd"><h2>Emails</h2><span class="rec-count" id="ctd-emails-count"></span></div><div class="rec-list" id="ctd-emails"></div></section>
+      <section class="rec-section sec"><div class="rec-section-hd"><h2>Mentioned in</h2><span class="rec-count" id="ctd-mentions-count"></span></div><div class="rec-list" id="ctd-mentions"></div></section>
+      <section class="rec-section sec"><div class="rec-section-hd"><h2>Activity</h2></div><div class="feed" id="ctd-activity"></div></section>
     </div>
   </div>
 </div>
@@ -1660,24 +1660,24 @@
     <div class="rec-actions" id="agd-actions"></div>
   </header>
   <div class="ctd-grid">
-    <aside class="card ctd-props-card">
+    <aside class="sec ctd-props-card">
       <div class="rec-section-hd"><h2>Details</h2><span class="rec-save-state" id="agd-save-state"></span></div>
       <dl class="rec-props pr-props" id="agd-props"></dl>
     </aside>
     <div class="ctd-main">
-      <section class="rec-section card">
+      <section class="rec-section sec">
         <div class="rec-section-hd"><h2>Term and service</h2></div>
         <dl class="rec-props pr-props" id="agd-term"></dl>
       </section>
-      <section class="rec-section card">
+      <section class="rec-section sec">
         <div class="rec-section-hd"><h2>Services on this agreement</h2><span class="rec-count" id="agd-lines-count"></span></div>
         <div id="agd-lines"></div>
       </section>
-      <section class="rec-section card">
+      <section class="rec-section sec">
         <div class="rec-section-hd"><h2>Signature trail</h2></div>
         <dl class="rec-props pr-props" id="agd-dates"></dl>
       </section>
-      <section class="rec-section card">
+      <section class="rec-section sec">
         <div class="rec-section-hd"><h2>Activity</h2></div>
         <div class="feed" id="agd-activity"></div>
       </section>
@@ -1777,30 +1777,30 @@
   <ol class="pr-stages" id="prd-stages" aria-label="Progress"></ol>
   <div class="pr-toolbar" id="prd-toolbar"></div>
   <div class="ctd-grid pr-grid">
-    <aside class="card ctd-props-card">
+    <aside class="sec ctd-props-card">
       <div class="rec-section-hd"><h2>Details</h2><span class="rec-save-state" id="prd-save-state"></span></div>
       <dl class="rec-props pr-props" id="prd-props"></dl>
     </aside>
     <div class="ctd-main">
-      <section class="rec-section card pr-review" id="prd-review"></section>
-      <section class="rec-section card" id="prd-commercials-sec">
+      <section class="rec-section sec pr-review" id="prd-review"></section>
+      <section class="rec-section sec" id="prd-commercials-sec">
         <div class="rec-section-hd"><h2>Commercials</h2><span class="rec-count" id="prd-lines-count"></span></div>
         <div id="prd-lines"></div>
       </section>
-      <section class="rec-section card" id="prd-decks-sec">
+      <section class="rec-section sec" id="prd-decks-sec">
         <div class="rec-section-hd"><h2>Proposal documents</h2><span class="rec-count" id="prd-decks-count"></span><div class="rec-section-actions"><button class="btn-sm" onclick="generateCurrentProposal()"><span data-icon="bolt" data-icon-size="12"></span> Generate proposal</button></div></div>
         <div class="rec-list" id="prd-decks"></div>
       </section>
-      <section class="rec-section card" id="prd-documents-sec">
+      <section class="rec-section sec" id="prd-documents-sec">
         <div class="rec-section-hd"><h2>Supporting documents</h2><span class="rec-count" id="prd-docs-count"></span><div class="rec-section-actions" id="prd-docs-actions"></div></div>
         <div id="prd-folder"></div>
         <div class="rec-list" id="prd-docs"></div>
       </section>
-      <section class="rec-section card">
+      <section class="rec-section sec">
         <div class="rec-section-hd"><h2>Linked records</h2></div>
         <div class="rec-list" id="prd-related"></div>
       </section>
-      <section class="rec-section card">
+      <section class="rec-section sec">
         <div class="rec-section-hd"><h2>Notes</h2><span class="rec-count" id="prd-notes-count"></span></div>
         <div class="pr-note-add">
           <textarea class="finp" id="prd-note-input" rows="2" placeholder="Log a call, email or decision…" onkeydown="if((event.metaKey||event.ctrlKey)&&event.key==='Enter')addProposalPageNote()"></textarea>
@@ -1808,7 +1808,7 @@
         </div>
         <div class="feed" id="prd-notes"></div>
       </section>
-      <section class="rec-section card">
+      <section class="rec-section sec">
         <div class="rec-section-hd"><h2>Activity</h2></div>
         <div class="feed" id="prd-activity"></div>
       </section>
@@ -1831,7 +1831,7 @@
   </header>
   <form id="prb-form" class="prb-grid" onsubmit="submitProposalBuilder(event)" autocomplete="off">
     <div class="prb-main">
-      <section class="card prb-section">
+      <section class="sec prb-section">
         <div class="prb-section-hd"><span class="prb-step">1</span><h2>Client</h2></div>
         <div class="fg">
           <div class="fgrp fgrp-full"><label class="flbl" for="prb-client">Company *</label><input class="finp" id="prb-client" required placeholder="Search or type a new company" oninput="prbClientChanged()"></div>
@@ -1848,12 +1848,12 @@
           <div class="fgrp"><label class="flbl" for="prb-ct-phone">Phone</label><input class="finp" id="prb-ct-phone" placeholder="+966…"></div>
         </div>
       </section>
-      <section class="card prb-section">
+      <section class="sec prb-section">
         <div class="prb-section-hd"><span class="prb-step">2</span><h2>Services</h2><span class="prb-hint">Pick one or more — each becomes a line you can price.</span></div>
         <div class="prb-service-picker" id="prb-service-picker"></div>
         <div id="prb-lines"></div>
       </section>
-      <section class="card prb-section">
+      <section class="sec prb-section">
         <div class="prb-section-hd"><span class="prb-step">3</span><h2>Terms</h2></div>
         <div class="fg">
           <div class="fgrp"><label class="flbl" for="prb-entity">Business entity</label><select class="finp" id="prb-entity" onchange="prbEntityChanged()"></select></div>
@@ -1862,7 +1862,7 @@
           <div class="fgrp"><label class="flbl" for="prb-valid">Valid until</label><input class="finp" type="date" id="prb-valid"></div>
         </div>
       </section>
-      <section class="card prb-section">
+      <section class="sec prb-section">
         <div class="prb-section-hd"><span class="prb-step">4</span><h2>Workflow</h2></div>
         <div class="fg">
           <div class="fgrp"><label class="flbl" for="prb-status">Where it stands</label><select class="finp" id="prb-status" onchange="prbStatusChanged()">
@@ -1881,8 +1881,8 @@
       </section>
     </div>
     <aside class="prb-side">
-      <div class="card prb-summary" id="prb-summary"></div>
-      <div class="card prb-folder" id="prb-folder"></div>
+      <div class="sec prb-summary" id="prb-summary"></div>
+      <div class="sec prb-folder" id="prb-folder"></div>
     </aside>
   </form>
 </div>
@@ -1933,7 +1933,7 @@
   <div class="tbl-wrap"><table><thead><tr>
     <th>#</th><th>SL#</th><th>Client</th><th>Type</th><th>Status</th><th>Sent</th><th>Signed</th><th>MRR</th><th>Added</th><th>Owner</th><th>Remarks</th>
   </tr></thead><tbody id="rpt-tbody"></tbody></table></div>
-  <section class="card export-card">
+  <section class="sec export-card">
     <div class="export-card-hd">
       <div><div class="card-hd">HubSpot export</div><p class="settings-card-desc">HubSpot-ready CSV files: each proposal becomes a <strong>Deal</strong>, each client a <strong>Company</strong>.</p></div>
       <label class="check-label"><input type="checkbox" id="hs-new-only"> Only records not yet in HubSpot</label>
@@ -1988,7 +1988,7 @@
   <div id="an-pipeline"></div>
   <div id="an-winloss" hidden></div>
   <div id="an-monthly" hidden>
-    <div class="card">
+    <div class="sec">
       <div class="analytics-pickers">
         <div class="fgrp"><label class="flbl">Month</label><select class="finp" id="mp-month" onchange="renderMonthlyReport()"><option value="">Select month…</option></select></div>
         <div class="fgrp"><label class="flbl">Year</label><select class="finp" id="mp-year" onchange="renderMonthlyReport()"></select></div>

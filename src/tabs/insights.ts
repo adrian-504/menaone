@@ -53,7 +53,7 @@ export async function renderPipelineInsights(): Promise<void> {
   const td = today();
   const open = S.opportunities.filter(isOpenOpportunity);
   if (!S.opportunities.length) {
-    el.innerHTML = `<div class="card">${emptyState({ icon: 'target', title: 'No opportunities yet', body: 'Pipeline health appears once opportunities are tracked.', action: { label: 'Open Opportunities', onclick: "navToModule('opportunities')" } })}</div>`;
+    el.innerHTML = `<div class="sec">${emptyState({ icon: 'target', title: 'No opportunities yet', body: 'Pipeline health appears once opportunities are tracked.', action: { label: 'Open Opportunities', onclick: "navToModule('opportunities')" } })}</div>`;
     renderIcons(el);
     return;
   }
@@ -95,13 +95,13 @@ export async function renderPipelineInsights(): Promise<void> {
       ${kpi('Need attention', String(attention.length), attention.length ? 'Stalled, overdue or no next step' : 'Everything is moving', attention.length ? 'warn' : '')}
     </div>
 
-    <section class="card an-card">
+    <section class="sec an-card">
       <div class="rec-section-hd"><h2>Needs attention</h2><span class="rec-count">${attention.length || ''}</span></div>
       ${attention.length ? `<div class="rec-list">${attention.map((o) => attentionRow(o, health.get(o.id)!)).join('')}</div>`
         : emptyState({ icon: 'check', title: 'Nothing stalled', body: `Every open opportunity has had activity in the last 14 days, a next action and a close date that hasn't passed.`, compact: true })}
     </section>
 
-    <section class="card an-card">
+    <section class="sec an-card">
       <div class="rec-section-hd"><h2>By stage</h2></div>
       <div class="tbl-wrap data-table"><table>
         <thead><tr><th>Stage</th><th class="num">Open</th><th class="num">Value</th><th class="num">Weighted</th><th class="num">Avg. days in stage</th><th class="num">Won from here</th></tr></thead>
@@ -113,7 +113,7 @@ export async function renderPipelineInsights(): Promise<void> {
       <p class="table-footnote">"Won from here" counts closed opportunities that passed through the stage. Time in stage starts from the recorded stage change, or the date the opportunity was created.</p>
     </section>
 
-    <section class="card an-card">
+    <section class="sec an-card">
       <div class="rec-section-hd"><h2>By owner</h2></div>
       <div class="tbl-wrap data-table"><table>
         <thead><tr><th>Owner</th><th class="num">Open</th><th class="num">Value</th><th class="num">Weighted</th><th class="num">Won</th><th class="num">Lost</th></tr></thead>
@@ -145,7 +145,7 @@ function companyIndustries(p: Proposal): string[] {
 
 function wlTable(title: string, label: string, rows: WinLossRow[], note = ''): string {
   if (!rows.length) return '';
-  return `<section class="card an-card">
+  return `<section class="sec an-card">
     <div class="rec-section-hd"><h2>${escHtml(title)}</h2></div>
     <div class="tbl-wrap data-table"><table>
       <thead><tr><th>${escHtml(label)}</th><th class="num">Won</th><th class="num">Lost</th><th class="num">Open</th><th class="rate-col">Win rate</th><th class="num">Won monthly</th><th class="num">Avg. days to sign</th></tr></thead>
@@ -164,7 +164,7 @@ function wlTable(title: string, label: string, rows: WinLossRow[], note = ''): s
 function reasonsCard(title: string, reasons: (string | null | undefined)[], tone: 'red' | 'green'): string {
   if (!reasons.length) return '';
   const rows = reasonCounts(reasons);
-  return `<section class="card an-card">
+  return `<section class="sec an-card">
     <div class="rec-section-hd"><h2>${escHtml(title)}</h2><span class="rec-count">${reasons.length}</span></div>
     <div class="an-reasons">${rows.map((r) => `<div class="an-reason"><span class="an-reason-label">${escHtml(r.reason)}</span><div class="rate-bar tone-${tone}"><div class="rate-track"><div class="rate-fill" style="width:${Math.round(r.share * 100)}%"></div></div><span>${r.count}</span></div></div>`).join('')}</div>
   </section>`;
@@ -189,7 +189,7 @@ function trendCard(proposals: Proposal[]): string {
   }
   const max = Math.max(1, ...months.map((m) => Math.max(won.get(m) || 0, lost.get(m) || 0)));
   if (!months.some((m) => won.get(m) || lost.get(m))) return '';
-  return `<section class="card an-card">
+  return `<section class="sec an-card">
     <div class="rec-section-hd"><h2>Last 12 months</h2><span class="an-legend"><i class="tone-green"></i>Won <i class="tone-red"></i>Lost</span></div>
     <div class="an-trend">${months.map((m) => {
       const w = won.get(m) || 0;
@@ -215,7 +215,7 @@ export function renderWinLoss(): void {
   const period = S.globalPeriod === 'all' ? 'all time' : S.globalPeriod;
 
   if (!decided.length) {
-    el.innerHTML = `<div class="card">${emptyState({ icon: 'target', title: 'No decided proposals in this period', body: 'Win rate appears once proposals are signed by both parties or marked lost.' })}</div>`;
+    el.innerHTML = `<div class="sec">${emptyState({ icon: 'target', title: 'No decided proposals in this period', body: 'Win rate appears once proposals are signed by both parties or marked lost.' })}</div>`;
     renderIcons(el);
     return;
   }
@@ -240,10 +240,10 @@ export function renderWinLoss(): void {
     ${wlTable('By deal size', 'Monthly fee', winLossBy(proposals, (p) => [dealSizeBand(p)]))}
     ${wlTable('By lead source', 'Source', winLossBy(proposals, (p) => [p.leadSource || 'Not recorded']))}
     ${S.businessEntities.length > 1 ? wlTable('By entity', 'Entity', winLossBy(proposals, (p) => [entityById(p.businessEntityId)?.name || 'Not set'])) : ''}
-    ${oppDecided.length ? `<section class="card an-card">
+    ${oppDecided.length ? `<section class="sec an-card">
       <div class="rec-section-hd"><h2>Opportunities</h2><span class="rec-count">${oppDecided.length} closed</span></div>
       <p class="an-period">${oppDecided.filter((o) => o.stage === 'Won').length} won, ${oppDecided.filter((o) => o.stage === 'Lost').length} lost.</p>
-      ${reasonsCard('Opportunity loss reasons', oppDecided.filter((o) => o.stage === 'Lost').map((o) => o.winLossReason), 'red').replace('<section class="card an-card">', '<div>').replace(/<\/section>$/, '</div>')}
+      ${reasonsCard('Opportunity loss reasons', oppDecided.filter((o) => o.stage === 'Lost').map((o) => o.winLossReason), 'red').replace('<section class="sec an-card">', '<div>').replace(/<\/section>$/, '</div>')}
     </section>` : ''}
     <p class="table-footnote">Won = signed by both parties. Lost = marked lost. Withdrawn proposals are left out.</p>`;
   renderIcons(el);

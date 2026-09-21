@@ -36,12 +36,12 @@ export async function renderTemplatesView(container: HTMLElement): Promise<void>
   if (editing) { renderEditor(container); return; }
   await loadTemplates();
   container.innerHTML = `
-    <section class="card tpl-intro">
+    <section class="sec tpl-intro">
       <div class="rec-section-hd"><h2>Proposal templates</h2><div class="rec-section-actions"><button class="btn-primary" onclick="addProposalTemplate()">${icon('plus', 13)} Add template…</button></div></div>
       <p class="settings-card-desc">A template is a PowerPoint deck. For each proposal, MENA One keeps the slides it needs, fills in the client's details and the fee table, and saves the result in the client's OneDrive folder.</p>
       ${guideHtml()}
     </section>
-    ${templates.length ? `<section class="card"><div class="rec-list">${templates.map((t) => `<div class="rec-row${t.exists ? '' : ' is-unavailable'}" onclick="editProposalTemplate(${t.id})">
+    ${templates.length ? `<section class="sec"><div class="rec-list">${templates.map((t) => `<div class="rec-row${t.exists ? '' : ' is-unavailable'}" onclick="editProposalTemplate(${t.id})">
       <span class="rec-row-icon">${icon('document', 15)}</span>
       <div class="rec-row-main">
         <div class="rec-row-title">${escHtml(t.name)} ${t.isDefault ? '<span class="rec-badge tone-accent">Default</span>' : ''} ${t.exists ? '' : '<span class="rec-badge tone-red">File missing</span>'}</div>
@@ -49,7 +49,7 @@ export async function renderTemplatesView(container: HTMLElement): Promise<void>
       </div>
       <div class="rec-row-actions"><button class="rec-icon-btn" onclick="event.stopPropagation();removeProposalTemplate(${t.id})" title="Remove" aria-label="Remove template">${icon('trash', 13)}</button></div>
     </div>`).join('')}</div></section>`
-    : `<section class="card">${emptyState({ icon: 'document', title: 'No template yet', body: 'Add the master proposal deck when it is ready. You can also try one of the current single-service templates in the meantime.', compact: true })}</section>`}`;
+    : `<section class="sec">${emptyState({ icon: 'document', title: 'No template yet', body: 'Add the master proposal deck when it is ready. You can also try one of the current single-service templates in the meantime.', compact: true })}</section>`}`;
   renderIcons(container);
 }
 
@@ -141,7 +141,7 @@ function renderEditor(container: HTMLElement): void {
   });
   const opts = serviceOptions();
   container.innerHTML = `
-    <section class="card tpl-editor">
+    <section class="sec tpl-editor">
       <div class="rec-section-hd"><h2>${template.id ? 'Edit template' : 'New template'}</h2>
         <div class="rec-section-actions"><button class="btn-secondary" onclick="closeTemplateEditor()">Cancel</button><button class="btn-primary" onclick="saveProposalTemplate()">Save template</button></div></div>
       <div class="fg">
@@ -158,7 +158,7 @@ function renderEditor(container: HTMLElement): void {
         <div id="tpl-replacements"></div>
       </div>
     </section>
-    <section class="card tpl-slides">
+    <section class="sec tpl-slides">
       <div class="rec-section-hd"><h2>Slides</h2><span class="rec-count">${inspection.slideCount}</span>
         <div class="rec-section-actions"><button class="btn-sm" onclick="setAllSlideRules('always')">All always</button></div></div>
       <datalist id="tpl-service-options">${opts.map((o) => `<option value="${escHtml(o)}">`).join('')}</datalist>

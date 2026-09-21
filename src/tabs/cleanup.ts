@@ -84,7 +84,7 @@ export async function renderCleanup(): Promise<void> {
         <div><h2>${escHtml(q.title)}</h2><p>${escHtml(q.why)}</p></div>
         ${q.items.length ? `<div class="seg-btns"><button class="seg-btn${mode === 'step' ? ' active' : ''}" onclick="cleanupMode('step')">One at a time</button><button class="seg-btn${mode === 'list' ? ' active' : ''}" onclick="cleanupMode('list')">List</button></div>` : ''}
       </div>
-      ${!q.items.length ? `<div class="card">${emptyState({ icon: 'check', title: 'Nothing to clean up here', body: withItems.length ? `Next: ${withItems[0].title} (${withItems[0].items.length}).` : 'All records are up to date.', action: withItems.length ? { label: 'Go to next', onclick: `cleanupQueue('${withItems[0].id}')` } : undefined })}</div>`
+      ${!q.items.length ? `<div class="sec">${emptyState({ icon: 'check', title: 'Nothing to clean up here', body: withItems.length ? `Next: ${withItems[0].title} (${withItems[0].items.length}).` : 'All records are up to date.', action: withItems.length ? { label: 'Go to next', onclick: `cleanupQueue('${withItems[0].id}')` } : undefined })}</div>`
         : mode === 'step' ? stepHtml(q) : listHtml(q)}
     </section>`;
   renderIcons(root);
@@ -146,11 +146,11 @@ function stepHtml(q: CleanupQueue): string {
   const cur = currentItem(q);
   const skippedCount = skipped.get(q.id)?.size || 0;
   if (!cur) {
-    return `<div class="card">${emptyState({ icon: 'check', title: `You've been through all ${q.items.length}`, body: `${skippedCount} skipped for now.`, action: { label: 'Start over', onclick: `cleanupRestart('${q.id}')` } })}</div>`;
+    return `<div class="sec">${emptyState({ icon: 'check', title: `You've been through all ${q.items.length}`, body: `${skippedCount} skipped for now.`, action: { label: 'Start over', onclick: `cleanupRestart('${q.id}')` } })}</div>`;
   }
   const { item, index } = cur;
   const progress = Math.round((index / q.items.length) * 100);
-  return `<article class="card cu-card">
+  return `<article class="sec cu-card">
     <div class="cu-progress"><span style="width:${progress}%"></span></div>
     <div class="cu-card-hd">
       <div class="cu-card-count">${index + 1} of ${q.items.length}</div>
@@ -172,7 +172,7 @@ function listHtml(q: CleanupQueue): string {
   const keys = new Set(q.items.map((x) => x.key));
   for (const k of [...selected]) if (!keys.has(k)) selected.delete(k);
   const n = selected.size;
-  return `<div class="card cu-list">
+  return `<div class="sec cu-list">
     <div class="cu-bulk${n ? ' has-selection' : ''}">
       <label class="check-label"><input type="checkbox" ${n && n === q.items.length ? 'checked' : ''} onchange="cleanupSelectAll(this.checked)"> ${n ? `${n} selected` : 'Select all'}</label>
       ${n ? q.bulk.map((a) => `<button class="btn-secondary btn-compact${ACTION_TONE[a] === 'danger' ? ' cu-danger' : ''}" onclick="cleanupBulk('${a}')">${escHtml(ACTION_LABEL[a])}</button>`).join('') : `<span class="t-muted">Select records to fix several at once</span>`}

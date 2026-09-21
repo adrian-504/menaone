@@ -123,7 +123,7 @@ function paintActionRequired(): void {
   document.querySelectorAll('.ar-fbtn').forEach((b) => b.classList.toggle('active', (b as HTMLElement).dataset.filter === S.arFilter));
 
   if (!S.ms365Status || S.ms365Status.status !== 'connected') {
-    root.innerHTML = `<div class="card">${emptyState({ icon: 'mail', title: 'Not connected to Microsoft 365', body: 'Connect Outlook in Settings to see your flagged emails here.', action: { label: 'Open settings', onclick: "navToModule('settings')" } })}</div>`;
+    root.innerHTML = `<div class="sec">${emptyState({ icon: 'mail', title: 'Not connected to Microsoft 365', body: 'Connect Outlook in Settings to see your flagged emails here.', action: { label: 'Open settings', onclick: "navToModule('settings')" } })}</div>`;
     renderIcons(root);
     return;
   }
@@ -131,8 +131,8 @@ function paintActionRequired(): void {
   if (S.arFilter === 'completed') {
     const log = S.emailCompletedLog;
     root.innerHTML = log.length === 0
-      ? `<div class="card">${emptyState({ icon: 'check', title: 'No completed emails yet', compact: true })}</div>`
-      : `<div class="card ar-list">${log.map((e) => `<div class="ar-row done">
+      ? `<div class="sec">${emptyState({ icon: 'check', title: 'No completed emails yet', compact: true })}</div>`
+      : `<div class="sec ar-list">${log.map((e) => `<div class="ar-row done">
           <span class="task-check checked" aria-hidden="true"></span>
           <div class="ar-main">
             <div class="ar-subject">${escHtml(e.subject || '(No subject)')}</div>
@@ -148,11 +148,11 @@ function paintActionRequired(): void {
 
   const list = filteredEmails();
   if (list.length === 0) {
-    root.innerHTML = `<div class="card">${emptyState({ icon: 'check', title: 'All caught up', body: 'No flagged emails match this view.' })}</div>`;
+    root.innerHTML = `<div class="sec">${emptyState({ icon: 'check', title: 'All caught up', body: 'No flagged emails match this view.' })}</div>`;
     renderIcons(root);
     return;
   }
-  root.innerHTML = `<div class="card ar-list">${list.map(emailRow).join('')}</div>`;
+  root.innerHTML = `<div class="sec ar-list">${list.map(emailRow).join('')}</div>`;
 }
 
 function dueBadge(e: EmailRecord): { label: string; tone: string } {

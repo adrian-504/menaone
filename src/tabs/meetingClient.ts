@@ -207,7 +207,7 @@ export function meetingSuggestionsBanner(): string {
     .map((m) => ({ m, s: suggestMeetingCompanies(m, index)[0] }))
     .filter((x) => x.s);
   if (!pending.length) return '';
-  return `<section class="card md-review">
+  return `<section class="sec md-review">
     <div class="rec-section-hd"><h2>Link meetings to clients</h2><span class="rec-count">${pending.length}</span></div>
     <div class="rec-list">${pending.slice(0, 8).map(({ m, s }) => `<div class="rec-row">
       <span class="rec-row-icon">${icon('meeting', 15)}</span>

@@ -140,7 +140,7 @@ function renderCatalog(search: string, cat: string): string {
     if (!groups.has(c)) groups.set(c, []);
     groups.get(c)!.push(s);
   }
-  return review + [...groups.entries()].map(([category, list]) => `<section class="card svc-group">
+  return review + [...groups.entries()].map(([category, list]) => `<section class="sec svc-group">
     <div class="rec-section-hd"><h2>${escHtml(category)}</h2><span class="rec-count">${list.length}</span></div>
     <div class="svc-colhd"><span>Service</span><span>Price</span><span>On proposals</span><span></span></div>
     <div class="rec-list">${list.map((s) => {
@@ -170,7 +170,7 @@ function renderCatalog(search: string, cat: string): string {
 function renderCatalogueReview(): string {
   const pending = pendingDecisions(S.services);
   if (!pending.length) return '';
-  return `<section class="card svc-review">
+  return `<section class="sec svc-review">
     <div class="rec-section-hd"><h2>Catalogue clean-up</h2><span class="rec-count">${pending.length}</span></div>
     <p class="svc-review-lede">From the service session on 16 September. Each one is applied only when you say so; old names are kept so proposals already sent still read the same.</p>
     <div class="rec-list">${pending.map((d, i) => `<div class="svc-review-row">

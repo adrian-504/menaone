@@ -13,7 +13,7 @@ import { toast, undoToast, emptyState, skeleton } from '../lib/ui';
 import { taskRowHtml } from './todo';
 
 function section(title: string, body: string, note = ''): string {
-  return `<section class="card" style="margin-bottom:var(--space-4)">
+  return `<section class="sec" style="margin-bottom:var(--space-4)">
     <div class="card-hd">${title}</div>
     ${note ? `<div class="empty-state-body" style="text-align:left;margin:-6px 0 12px">${note}</div>` : ''}
     ${body}
@@ -48,7 +48,7 @@ function renderGallery(): void {
     section('Task rows', `<div class="task-group" style="max-width:640px">${S.todos.slice(0, 3).map((t) => taskRowHtml(t, { compact: true })).join('')}</div>`, 'The same row everywhere a task appears: Tasks, company and project pages. High priority is a red ring; hover shows the date and more buttons in the Tasks list.'),
     section('Note rows', `<div class="notes-list notes-list-embedded" style="max-width:320px">${S.notes.slice(0, 2).map((n) => `<div class="note-item"><div class="note-item-title">${escHtml(n.title || 'Untitled')}</div><div class="note-item-preview">${escHtml((n.content || '').replace(/[#*_>`-]/g, '').slice(0, 120))}</div><div class="note-item-meta"><span>${escHtml(n.updatedAt || '')}</span></div></div>`).join('')}</div>`),
     section('KPI cards', `<div class="kpi-row">${kpiCard('Active pipeline', '12', 'Excl. leads & closed')}${kpiCard('Signed', '4', 'This quarter')}</div>`),
-    section('Empty states', `<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px"><div class="card">${emptyState({ icon: 'check', title: 'No tasks for today', body: 'Anything due today or overdue shows up here.', action: { label: 'New task', onclick: 'openTodoModal(null)' } })}</div><div class="card">${emptyState({ icon: 'note', title: 'No notes yet', compact: true })}</div></div>`),
+    section('Empty states', `<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px"><div class="sec">${emptyState({ icon: 'check', title: 'No tasks for today', body: 'Anything due today or overdue shows up here.', action: { label: 'New task', onclick: 'openTodoModal(null)' } })}</div><div class="sec">${emptyState({ icon: 'note', title: 'No notes yet', compact: true })}</div></div>`),
     section('Loading skeletons', `${skeleton(3)}<div style="height:12px"></div>${skeleton(3, 'cards')}`),
     section('Feedback', row(`<button class="btn-secondary" onclick="galleryToast('neutral')">Toast</button><button class="btn-secondary" onclick="galleryToast('success')">Success toast</button><button class="btn-secondary" onclick="galleryToast('error')">Error toast</button><button class="btn-secondary" onclick="galleryToast('undo')">Undo toast</button><button class="btn-secondary" onclick="galleryConfirm()">Confirm dialog</button><button class="btn-secondary" oncontextmenu="galleryMenu(event)" onclick="galleryMenu(event)">Context menu</button>`), 'Toasts replace alert(); destructive actions that can be reversed use Undo instead of a confirm.'),
   ].join('');
