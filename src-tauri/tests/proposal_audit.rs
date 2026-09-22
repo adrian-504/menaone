@@ -225,8 +225,9 @@ fn generates_real_decks_on_a_database_copy() {
     let (Ok(db), Ok(lib), Ok(out)) = (std::env::var("MENA_DB_COPY"), std::env::var("MENA_TEMPLATE_DIR"), std::env::var("MENA_OUT")) else { return };
     let (mut conn, real) = scratch_generation(&db, &lib, &out);
     let mut written = Vec::new();
+    let mut highlighted: Vec<String> = Vec::new();
     let service = |name: &str| -> i64 { conn.query_row("SELECT id FROM services WHERE name = ?1", [name], |r| r.get(0)).unwrap() };
-    let cases = [(990001_i64, "Administration and PRO", 4000.0), (990002, "Labour Law Consultancy", 7000.0)];
+    let cases = [(990001_i64, "Administration and PRO", 4000.0), (990002, "Labour Law Consultancy", 7000.0), (990003, "Accountancy", 5000.0)];
     let rows: Vec<Proposal> = cases.iter().map(|(id, name, price)| Proposal {
         id: *id, client: "Acme Test Co".into(), status: "Drafting".into(), currency: Some("SAR".into()), contract_months: Some(6),
         lines: vec![CommercialLine { id: *id, service_id: Some(service(name)), service_name: (*name).into(), billing: "monthly".into(), quantity: 1.0, unit_price: Some(*price), ..Default::default() }],
@@ -243,8 +244,14 @@ fn generates_real_decks_on_a_database_copy() {
         assert!(r.errors.is_empty());
         let left = leftover_placeholders(&PathBuf::from(r.path.clone().unwrap()));
         assert!(left.is_empty(), "{name}: placeholders left {left:?}");
+        // Template highlighting (marking what to edit) never reaches a generated deck.
+        let deck = Package::read(&PathBuf::from(r.path.clone().unwrap())).unwrap();
+        let lit: Vec<usize> = menabig_tracker_lib::pptx::slide_parts_in_order(&deck).iter().enumerate().filter(|(_, p)| deck.text_of(p).contains("<a:highlight")).map(|(i, _)| i + 1).collect();
+        println!("  highlighted slides: {lit:?}");
+        highlighted.extend(lit.iter().map(|n| format!("{name} slide {n}")));
     }
     finish_scratch_generation(real, &out, &written);
+    assert!(highlighted.is_empty(), "highlighting left in generated decks: {highlighted:?}");
 }
 
 // A mixed proposal (Admin & PRO + Payroll + Labour Law) and an EOR proposal, generated on a
@@ -413,4 +420,30 @@ fn lists_placeholder_like_text() {
             for (k, v) in found { println!("  {k:<40} slides {v:?}"); }
         }
     }
+}
+
+// The templates carry no highlight marks (they reached generated decks), and the Accountancy
+// scope is the owner's: the blocks he removed by hand (22-Sep-2026) stay out.
+//   MENA_TEMPLATE_DIR=<Proposals New Logo> cargo test --test proposal_audit templates_are_clean -- --ignored --nocapture
+#[test]
+#[ignore]
+fn templates_are_clean() {
+    let Ok(dir) = std::env::var("MENA_TEMPLATE_DIR") else { return };
+    let removed = ["Bookkeeping and accounts management;", "Financial Reporting &amp; Statements;", "E-Invoicing Compliance (FATCA", "Corporate Income Tax and Zakat;", "Value Added Tax (VAT) + Withholding Tax (WHT)", "Help Desk Model"];
+    let mut problems = Vec::new();
+    for entry in std::fs::read_dir(&dir).unwrap().filter_map(|e| e.ok()) {
+        let path = entry.path();
+        let name = path.file_name().unwrap().to_string_lossy().to_string();
+        if !name.ends_with(".pptx") || name.starts_with("~$") { continue; }
+        let pkg = Package::read(&path).unwrap();
+        for (i, part) in menabig_tracker_lib::pptx::slide_parts_in_order(&pkg).iter().enumerate() {
+            let xml = pkg.text_of(part);
+            if xml.contains("<a:highlight") { problems.push(format!("{name} slide {}: highlight", i + 1)); }
+            if name.starts_with("Accountancy") {
+                for r in removed { if xml.contains(r) { problems.push(format!("{name} slide {}: {r}", i + 1)); } }
+            }
+        }
+    }
+    for p in &problems { println!("{p}"); }
+    assert!(problems.is_empty(), "{} problems", problems.len());
 }

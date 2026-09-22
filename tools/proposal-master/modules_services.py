@@ -40,38 +40,35 @@ def single_fee_slide(module, eyebrow_text, title, intro, label, notes_items, sid
 
 def accountancy():
     m = "accountancy"
-    slides = [divider(m, "Accountancy & VAT Services", "Bookkeeping, financial statements, VAT, withholding tax and Zakat — kept compliant with ZATCA every month.")]
+    slides = [divider(m, "Accountancy & VAT Services", "Monthly bookkeeping and financial statements, VAT and withholding tax declarations, and optional auditing management.")]
     s = Slide("Content", notes=tags(m, "approach"))
     y = heading(s, "Detailed approach · Accountancy services", "Accountancy & bookkeeping",
                 "During the term of this agreement {{client_name}} uses the accountancy, VAT & WHT and auditing management services stated below. Requests are made by purchase order specifying the full details of the required services.")
+    # The owner's tasks (22-Sep-2026): the current template's slide 6, without the blocks he removes by hand.
     numbered(s, [
         ("Monthly closing", "Monthly closing in accordance with local Saudi accounting standards; journal, general and subsidiary ledgers maintained, with analytical P&L detail."),
-        ("Bookkeeping & accounts management", "Daily accounting postings in line with Saudi accepted standards and IFRS where applicable; ledger management and reconciliation of statements."),
-        ("Financial reporting & statements", "Trial balance, monthly revenue and expenditure reports, and monthly, quarterly and annual financial statements (income statement, balance sheet, cash flow)."),
-        ("Compliance & audit coordination", "Compliance with the Saudi Companies Law and ZATCA record-keeping requirements; assistance with external audit coordination under Saudi Auditing Standards."),
+        ("Trial balance & monthly reports", "Preparation of the trial balance, and monthly revenue and expenditure reports distributed."),
+        ("Financial statements", "Monthly, quarterly and annual financial statements."),
         ("Bank & head office reporting", "Monthly bank and cash reconciliation, and liaison with head office for reports and financial information every month."),
-    ], MARGIN, y + 4, SPLIT_L, gap=14)
-    side_panel(s, y, 640, "E-invoicing compliance", [
-        "Implementation of ZATCA's mandatory e-invoicing solutions",
-        "Integration with ZATCA Phase 2 real-time reporting",
-        "Validation of e-invoices, compliance standards and QR codes",
-        "Cloud and desktop accounting software (e.g. QuickBooks, Zoho Books)",
-        "{{client_name}} provides all required information and documents in time; final review and approval of the books remain with {{client_name}}.",
+    ], MARGIN, y + 4, SPLIT_L, gap=18)
+    side_panel(s, y, 520, "What we need from {{client_name}}", [
+        "All required information and documents, provided in time",
+        "The final review and approval of the books, which remain with {{client_name}}; MENA BIG is not responsible for them",
     ])
     slides.append(s)
 
     s = Slide("Content", notes=tags(m, "approach"))
-    y = heading(s, "Detailed approach · Accountancy services", "VAT, withholding tax & auditing")
+    y = heading(s, "Detailed approach · Accountancy services", "VAT return declaration & withholding tax")
     numbered(s, [
-        ("VAT return declaration", "VAT report prepared from the books, VAT return submitted and followed up with ZATCA; invoice compliance checks and audit support under the KSA VAT Law."),
-        ("Withholding tax", "Monthly withholding tax declared on request: {{client_name}} provides the documents, MENA BIG processes and obtains the declaration, and {{client_name}} pays through SADAD. WHT calculations and documentation (forms 184/185)."),
-        ("Corporate income tax & Zakat", "Preparation and review of the annual tax and Zakat returns, with dispute resolution support with ZATCA."),
+        ("VAT return declaration", "VAT report prepared according to the bookkeeping; VAT return submitted and followed up with ZATCA."),
+        ("Withholding tax", "Monthly withholding tax declared in ZATCA on request: {{client_name}} requests it and provides the documents, MENA BIG processes and obtains the declaration and delivers it for payment, and {{client_name}} pays the amount through SADAD."),
     ], MARGIN, y + 4, SPLIT_L, gap=18)
     side_panel(s, y, 640, "Optional · Auditing management consultancy", [
         "Manage and follow up all actions of the auditors",
         "Observe the accounts, financial statements and related records",
         "Advise on actions needed in the auditors' workflow",
         "Keep the financial statements in line with the trial balance",
+        "Make sure the financial statements are obtained and completed on time",
         "Follow up the final audited statement upload, payment timing and Zakat certificate",
     ])
     slides.append(s)
