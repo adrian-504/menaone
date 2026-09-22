@@ -4,7 +4,7 @@
 //   cargo test --test proposal_audit -- --ignored --nocapture
 use menabig_tracker_lib::master::{choose, MasterLine};
 use menabig_tracker_lib::pptx::{inspect, Package};
-use menabig_tracker_lib::proposal_library::{covered, load_library, modules_for_service, module_name, plan, Role};
+use menabig_tracker_lib::proposal_library::{classify, covered, load_library, modules_for_service, module_name, modules_in, plan, Role};
 use std::path::PathBuf;
 
 #[test]
@@ -100,4 +100,58 @@ fn keeps_terms_for_every_service() {
         if kept + imported == 0 { failures.push(module_name(m)); }
     }
     assert!(failures.is_empty(), "no terms slide for: {failures:?}");
+}
+
+// Terms written for one service don't sit in another service's deck (clauses copied
+// between decks by mistake: Business Setup penalties in GM Representative, etc.).
+//   MENA_TEMPLATE_DIR=<copy of the templates> cargo test --test proposal_audit terms_stay -- --ignored --nocapture
+#[test]
+#[ignore]
+fn terms_stay_in_their_own_deck() {
+    let Ok(dir) = std::env::var("MENA_TEMPLATE_DIR") else { return };
+    // Phrase → the decks (file name fragments) allowed to carry it in their terms.
+    let only_in: &[(&str, &[&str])] = &[
+        ("saudization", &["Labor Law", "Workforce", "All Services"]),
+        ("constitution of the ksa entity", &["Company Constitution", "Business_Setup_Package"]),
+        ("15,000 sar", &["Company Constitution", "Business_Setup_Package"]),
+        ("40,000 sar", &["Company Constitution", "Business_Setup_Package"]),
+        ("probation", &["Recruitment", "Workforce", "Labor Law"]),
+        ("replace the candidate", &["Recruitment", "Workforce"]),
+    ];
+    let never_candidate = ["Company Maintenance", "Accountancy", "GM Representative", "Liquidation", "Mobilization"];
+    let mut problems = Vec::new();
+    for entry in std::fs::read_dir(&dir).unwrap().filter_map(|e| e.ok()) {
+        let path = entry.path();
+        let name = path.file_name().unwrap().to_string_lossy().to_string();
+        if !name.ends_with(".pptx") || name.starts_with("~$") { continue; }
+        let pkg = Package::read(&path).unwrap();
+        let info = inspect(&pkg);
+        let parts = menabig_tracker_lib::pptx::slide_parts_in_order(&pkg);
+        let slides = classify(&info);
+        let own = covered(&slides);
+        let tag = regex::Regex::new(r"<a:t>([^<]*)</a:t>|</a:p>").unwrap();
+        for s in slides.iter().filter(|s| s.role == Role::Terms) {
+            // The whole slide, not the inspection's first 400 characters.
+            let xml = pkg.text_of(&parts[s.index - 1]);
+            let text: String = tag.captures_iter(&xml).map(|c| c.get(1).map(|m| m.as_str().to_string()).unwrap_or_else(|| "\n".into())).collect::<String>()
+                .replace("&amp;", "&").to_lowercase();
+            for (phrase, allowed) in only_in {
+                if text.contains(phrase) && !allowed.iter().any(|a| name.contains(a)) {
+                    problems.push(format!("{name} slide {}: \"{phrase}\" belongs to {allowed:?}", s.index));
+                }
+            }
+            if text.contains("candidate") && never_candidate.iter().any(|d| name.contains(d)) {
+                problems.push(format!("{name} slide {}: mentions a candidate", s.index));
+            }
+            // The subtitle names the service the terms are for: it must be one this deck carries.
+            let subtitle = text.lines().find(|l| l.trim_start().starts_with("assumptions and limitations")).unwrap_or("");
+            for m in modules_in(subtitle) {
+                // A package deck's setup terms say "Business Setup Services": the package includes the setup.
+                let in_package = m == "constitution" && own.contains("business_setup");
+                if !own.contains(m) && !in_package { problems.push(format!("{name} slide {}: terms for {} in a deck without it", s.index, module_name(m))); }
+            }
+        }
+    }
+    for p in &problems { println!("{p}"); }
+    assert!(problems.is_empty(), "{} terms problems", problems.len());
 }
