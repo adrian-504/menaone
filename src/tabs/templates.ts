@@ -12,6 +12,7 @@ import { templatesList, templateInspect, templateDetail, templateSave, templateD
 import { persistProposals, proposalsAndAgreementsSaved } from '../lib/persist';
 import { renderIcons } from '../core/chrome';
 import { lineTotals, nextDeckFileName, entityById, applyGeneratedDocument, proposalDecks } from '../lib/commercial';
+import { designOptions } from '../lib/generateChoice';
 import type { ProposalTemplate, SlideRule, TemplateDetail, TemplateInspection, TokenInfo, GenerateResult } from '../lib/types';
 
 const w = window as any;
@@ -284,13 +285,12 @@ export async function openGenerateProposal(proposalId: number): Promise<void> {
     toast('No proposal templates found', { detail: 'MENA One looks for "Proposals Templates/Proposals New Logo" next to your Proposals folder, or add a template in Services → Templates', action: { label: 'Open', run: () => { w.navToModule('pricing'); w.setServicesView('templates'); } } });
     return;
   }
-  // The team's own templates, combined per service, come first.
-  const preferred = hasLibrary || hasMaster ? null : usable.find((t) => t.isDefault && t.businessEntityId === p.businessEntityId) || usable.find((t) => t.businessEntityId === p.businessEntityId) || usable.find((t) => t.isDefault) || usable[0];
+  // The current design (the team's service templates, combined) is the default; the 2026 master is second.
+  const preferred = usable.find((t) => t.isDefault && t.businessEntityId === p.businessEntityId) || usable.find((t) => t.businessEntityId === p.businessEntityId) || usable.find((t) => t.isDefault) || usable[0];
   const sel = document.getElementById('gen-template') as HTMLSelectElement | null;
   if (sel) {
-    sel.innerHTML = (hasMaster ? `<option value="master" selected>2026 design — MENA BIG Proposal Master</option>` : '')
-      + (hasLibrary ? `<option value="library"${hasMaster ? '' : ' selected'}>Current design — built from your service templates (${library!.templates.length} in Proposals New Logo)</option>` : '')
-      + usable.map((t) => `<option value="${t.id}"${t.id === preferred?.id ? ' selected' : ''}>${escHtml(t.name)}</option>`).join('');
+    sel.innerHTML = designOptions(hasLibrary ? { count: library!.templates.length } : null, hasMaster, usable, preferred?.id ?? null)
+      .map((o) => `<option value="${escHtml(o.value)}"${o.selected ? ' selected' : ''}>${escHtml(o.label)}</option>`).join('');
   }
   const folder = await proposalFolderLookup(p.client, p.folderPath ?? null).catch(() => null);
   const services = lineTotals(p.lines, p.contractMonths).serviceNames.join(' & ') || p.type || 'Services';
