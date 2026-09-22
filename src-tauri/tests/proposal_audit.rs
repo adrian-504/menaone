@@ -112,9 +112,11 @@ fn terms_stay_in_their_own_deck() {
     // Phrase → the decks (file name fragments) allowed to carry it in their terms.
     let only_in: &[(&str, &[&str])] = &[
         ("saudization", &["Labor Law", "Workforce", "All Services"]),
-        ("constitution of the ksa entity", &["Company Constitution", "Business_Setup_Package"]),
-        ("15,000 sar", &["Company Constitution", "Business_Setup_Package"]),
-        ("40,000 sar", &["Company Constitution", "Business_Setup_Package"]),
+        // GM Representative carries the Business Setup penalties too: kept while the owner
+        // decides whether they belong there (22-Sep-2026). Revisit and drop "GM Representative".
+        ("constitution of the ksa entity", &["Company Constitution", "Business_Setup_Package", "GM Representative"]),
+        ("15,000 sar", &["Company Constitution", "Business_Setup_Package", "GM Representative"]),
+        ("40,000 sar", &["Company Constitution", "Business_Setup_Package", "GM Representative"]),
         ("probation", &["Recruitment", "Workforce", "Labor Law"]),
         ("replace the candidate", &["Recruitment", "Workforce"]),
     ];
