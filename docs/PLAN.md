@@ -37,6 +37,7 @@ Client 360 and contact pages · proposals with lines, versions and an internal r
 2. **Five questions in `docs/data-classification.md`** — what is personal, what is shared. Shapes the database before the cloud, cheap now and expensive later.
 3. **Code signing** — Apple Developer ID, about $99/year. Removes the Keychain compromise (SECURITY_AUDIT S1) and lets colleagues install without warnings.
 4. **Watch depth** — 476 items, but news-search stories arrive headline-only. Worth improving only if the owner finds them thin in daily use.
+- Move the proposal document-versioning tests (`tests/proposal_documents.rs`) onto the template library, then delete the deprecated single-template branch in `generator.rs` and its commands.
 
 ## How we work now
 

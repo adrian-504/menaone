@@ -29,7 +29,7 @@ The 2026 design follows the same rules with tags instead of templates: slides ar
 - **Contract length** is written "Unless previously terminated, this Agreement will initially to complete duration of 1 year minimum." so the term rewrite finds it.
 - **Fixed template figures** — the Employer of Record visa-recovery amount, the Business Setup early-termination penalties, and the figures on the Constitution / Maintenance fee slides — are owner-confirmed standards (22-Sep-2026), not placeholders. The fee on the Company Liquidation template is a sample: it is replaced by the proposal's line price, and flagged when no price is set.
 - **Recruitment** is proposed separately; Employer of Record decks carry no recruitment slides.
-- **Business Setup package** is free setup with a 12-month term; a shorter term charges the setup (the owner's rule of 14-Sep-2026) and drops the "free setup" slide.
+- **Business Setup package** is free setup with a 12-month term. A package under 12 months warns, charges the setup and drops the free-setup slide (the owner's rule of 14-Sep-2026).
 
 ## What the tests guarantee
 
