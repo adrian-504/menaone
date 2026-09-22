@@ -136,6 +136,18 @@ fn main() {
     let active_after = company_after.values().filter(|v| v.1 > 0.0).count();
     let _ = writeln!(md, "| Companies with contracted MRR | {active_clients_before} | {} | {active_after} |\n", company_after.values().filter(|v| v.0 > 0.0).count());
     let _ = writeln!(md, "Today the app prefers the sum of an agreement's price lines over its stored fee, and many lines are per-action or per-person, so the middle column undercounts. §5.6 (the stored, invoiced fee wins) is a code change for the real build. Reports is not affected: its MRR column shows proposal fees, not agreements.\n");
+    // Where the §5.6 figure comes from, so it reconciles with the review's billed-and-covered total.
+    let part = |w: &str| -> (f64, i64) { conn.query_row(&format!(
+        "SELECT COALESCE(SUM(CASE WHEN COALESCE(a.fee_basis, '') = 'invoiced' THEN COALESCE(a.monthly_fee, 0)
+                  ELSE (CASE WHEN (SELECT COUNT(*) FROM agreement_lines l WHERE l.agreement_id = a.id) > 0
+                        THEN (SELECT COALESCE(SUM(COALESCE(l.quantity, 1) * l.unit_price), 0) FROM agreement_lines l WHERE l.agreement_id = a.id AND l.billing = 'monthly' AND l.unit_price IS NOT NULL)
+                        ELSE COALESCE(a.monthly_fee, 0) END) END), 0), COUNT(*)
+         FROM agreements a WHERE COALESCE(a.status, '') != 'Canceled' AND a.service_status = 'Active' AND COALESCE(a.currency, 'SAR') = 'SAR' AND ({w})"), [], |r| Ok((r.get(0)?, r.get(1)?))).unwrap() };
+    let live = part("a.fee_basis = 'invoiced' AND (a.end_date IS NULL OR a.end_date >= date('now'))");
+    let past = part("a.fee_basis = 'invoiced' AND a.end_date < date('now')");
+    let other = part("COALESCE(a.fee_basis, '') != 'invoiced' AND (a.end_date IS NULL OR a.end_date >= date('now'))");
+    let _ = writeln!(md, "The §5.6 figure is made of: invoiced and covered by a live agreement {} ({} agreements) · invoiced after the term ended {} ({}) · **not from invoicing** {} ({}) — rows already in the app marked service Active whose fee comes from their price lines or stored fee, not from billing (listed under *Already in the app, and contradictory* and in the agreements table). Billed-and-papered alone: **{}**.\n",
+        sar(live.0), live.1, sar(past.0), past.1, sar(other.0), other.1, sar(live.0 + past.0));
 
     let _ = writeln!(md, "### Billed vs covered, per client billing now\n\n| Client | Billed / month | Covered | Agreement ended | No agreement |\n|---|---|---|---|---|");
     let mut rows: Vec<_> = per_client.iter().filter(|(_, v)| v.0 > 0.0).collect();
@@ -213,6 +225,7 @@ fn main() {
     let _ = writeln!(md, "- **Billing** is keyed on Finance's own row (company, department, service, sales type, month, source), as §4 now says.");
     let _ = writeln!(md, "- **Coverage counted once.** Each billed service has one primary agreement, which takes the fee; the other agreements naming it are in force at SAR 0. A billed service whose agreement ended puts its fee on the chain's current link. One-time work isn't a monthly fee.");
     let _ = writeln!(md, "- **Additive addenda** are keyed on the review's `addsToParent` flag and stay in force beside their parent.");
+    if report.drafts_filed_as_documents > 0 { let _ = writeln!(md, "- **Unsigned drafts** ({}) are filed as documents on their chain's current agreement, not as agreements.", report.drafts_filed_as_documents); }
     let _ = writeln!(md, "- **Reports** isn't affected by §5.6: its MRR column shows proposal fees, not agreements.\n");
     let _ = writeln!(md, "## Left for review\n");
     let _ = writeln!(md, "**App drafts the review couldn't match to a live agreement ({}):**\n", report.review.len());

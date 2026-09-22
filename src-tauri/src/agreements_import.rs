@@ -132,6 +132,8 @@ pub struct ImportReport {
     /// The document's own type outside the app's list, and the list type the review mapped it to.
     pub types_mapped: BTreeMap<String, usize>,
     pub types_inferred: usize,
+    /// Unsigned drafts in the review, filed as documents of their chain instead of agreements.
+    pub drafts_filed_as_documents: usize,
     pub notes: Vec<String>,
 }
 
@@ -406,7 +408,10 @@ fn apply(tx: &Connection, bundle: &Bundle, opts: &ImportOptions) -> Res<ImportRe
 
     let mut id_of: HashMap<String, i64> = HashMap::new(); // sourceId → agreement id
     let mut ref_to_id: HashMap<String, i64> = HashMap::new(); // normalised agrRef/refStem → id
+    let mut unsigned_drafts: Vec<&Value> = Vec::new();
     for a in &bundle.agreements {
+        // An unsigned draft isn't an agreement: it is filed as a document of its chain (below).
+        if s(a, "documentRole") == Some("unsigned_draft") { unsigned_drafts.push(a); continue; }
         let source_id = s(a, "sourceId").unwrap_or_default().to_string();
         let import_key = s(a, "importKey").unwrap_or(&source_id).to_string();
         // No reference on the document: keep the review's stem so the agreement can be found.
@@ -576,6 +581,24 @@ fn apply(tx: &Connection, bundle: &Bundle, opts: &ImportOptions) -> Res<ImportRe
         }
     }
 
+    // Unsigned drafts: a document on the chain's current link.
+    for a in unsigned_drafts {
+        let chain = s(a, "chainId");
+        let current = bundle.agreements.iter()
+            .find(|x| s(x, "chainId") == chain && b(x, "carriesCurrentTerms") && s(x, "documentRole") != Some("unsigned_draft"))
+            .and_then(|x| s(x, "sourceId")).and_then(|k| id_of.get(k)).copied();
+        let Some(rel) = s(a, "documentPath") else { report.notes.push(format!("Unsigned draft {} has no file", s(a, "agrRef").unwrap_or("?"))); continue };
+        let Some(agreement_id) = current else { report.notes.push(format!("Unsigned draft {}: its chain has no current agreement — not filed", s(a, "agrRef").unwrap_or("?"))); continue };
+        if tx.query_row("SELECT 1 FROM documents WHERE link = ?1", params![rel], |_| Ok(())).optional().map_err(err)?.is_some() { continue; }
+        let company_id: Option<i64> = tx.query_row("SELECT company_id FROM agreements WHERE id = ?1", params![agreement_id], |r| r.get(0)).map_err(err)?;
+        let title = Path::new(rel).file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| rel.to_string());
+        tx.execute(
+            "INSERT INTO documents (title, link, doc_type, agreement_id, company_id, created_at) VALUES (?1, ?2, 'Unsigned draft', ?3, ?4, ?5)",
+            params![title, rel, agreement_id, company_id, now()],
+        ).map_err(err)?;
+        report.drafts_filed_as_documents += 1;
+    }
+
     // Collisions: absorb, remove, review.
     for c in &bundle.collisions {
         let Some(app_id) = i(c, "appId") else { continue };
@@ -589,7 +612,7 @@ fn apply(tx: &Connection, bundle: &Bundle, opts: &ImportOptions) -> Res<ImportRe
                     report.notes.push(format!("ABSORB #{app_id}: target {} not found", s(c, "targetAgreement").unwrap_or("?")));
                 }
             }
-            Some("REMOVE") => {
+            Some(action @ ("REMOVE" | "KEEP" | "ON HOLD")) => {
                 let row: Option<(Option<String>, String, Option<i64>, Option<i64>)> = tx.query_row(
                     "SELECT agr_ref, COALESCE(client, ''), proposal_id, company_id FROM agreements WHERE id = ?1", params![app_id],
                     |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?))).optional().map_err(err)?;
@@ -605,7 +628,12 @@ fn apply(tx: &Connection, bundle: &Bundle, opts: &ImportOptions) -> Res<ImportRe
                         params![cid, app_id], |r| r.get(0)).map_err(err)?,
                     None => 0,
                 };
-                let decision = opts.removals.get(&app_id).cloned().unwrap_or(Removal::Remove { proposal_status: None });
+                // The owner's decision is either in the bundle (KEEP / ON HOLD) or given as an option.
+                let decision = opts.removals.get(&app_id).cloned().unwrap_or(match action {
+                    "KEEP" => Removal::Keep,
+                    "ON HOLD" => Removal::OnHold,
+                    _ => Removal::Remove { proposal_status: None },
+                });
                 let outcome = match &decision {
                     Removal::Keep => "kept as it is".to_string(),
                     Removal::OnHold => {

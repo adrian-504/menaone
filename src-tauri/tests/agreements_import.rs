@@ -42,6 +42,9 @@ fn bundle() -> Bundle {
               "companyKey": "globex-me", "client": "Globex ME", "agreementType": "Workforce", "signatureStatus": "SIGNED-BOTH", "documentHeld": true, "currentTermEndDate": "2025-09-19", "services": ["Employer of Record"] },
             { "sourceId": "G2", "importKey": "G2", "agrRef": "GLX/2022/001 AM_01", "refStem": "GLX", "chainId": "G1", "parentSourceId": "G1", "carriesCurrentTerms": true, "evidenceState": "expired",
               "companyKey": "globex-me", "client": "Globex ME", "agreementType": "Workforce", "signatureStatus": "SIGNED-BOTH", "documentHeld": true, "currentTermEndDate": "2025-09-19", "services": ["Employer of Record"] },
+            // An unsigned draft of Contoso's amendment: a document, not an agreement.
+            { "sourceId": "C3", "importKey": "C3", "agrRef": "CON_001_0125 / Amendment 1 (draft)", "refStem": "CON_001", "chainId": "C1", "carriesCurrentTerms": false, "documentRole": "unsigned_draft",
+              "companyKey": "contoso", "client": "Contoso", "documentPath": "Library/Contoso/amendment-draft.doc", "services": ["Payroll"] },
             // Globex International: in term, not invoiced.
             { "sourceId": "G3", "importKey": "G3", "agrRef": null, "refStem": "GLXI_WF_0824", "chainId": "G3", "carriesCurrentTerms": true, "evidenceState": "documented",
               "companyKey": "globex-intl", "client": "Globex International", "agreementType": "Recruitment", "appType": "Workforce", "signatureStatus": "SIGNED-BOTH", "documentHeld": true, "currentTermEndDate": "2027-12-31", "services": ["Workforce"] }
@@ -69,7 +72,7 @@ fn bundle() -> Bundle {
             { "appId": 10, "action": "MERGE", "targetAgreement": "CON_001_0125 / Amendment 1" },
             { "appId": 11, "action": "ABSORB", "targetAgreement": "CON_001_0125 / Amendment 1" },
             { "appId": 12, "action": "REMOVE" },
-            { "appId": 15, "action": "REMOVE" },
+            { "appId": 15, "action": "ON HOLD" },
             { "appId": 13, "action": "REVIEW", "appRef": "CON_OTH_001", "actionNote": "services don't match" }
         ])),
     }
@@ -95,7 +98,7 @@ fn imports_the_bundle_by_the_rules_and_a_second_run_changes_nothing() {
     seed(&c);
     let opts = ImportOptions {
         onedrive_root: None, library_dir: None, today: "2026-09-22".into(), remove_company_records: false,
-        removals: [(12, Removal::Remove { proposal_status: Some("Lost".into()) }), (15, Removal::OnHold)].into_iter().collect(),
+        removals: [(12, Removal::Remove { proposal_status: Some("Lost".into()) })].into_iter().collect(),
         add_skipped_with_billing: true, default_business_entity: true,
     };
     let r = run(&mut c, &bundle(), &opts).unwrap();
@@ -149,7 +152,8 @@ fn imports_the_bundle_by_the_rules_and_a_second_run_changes_nothing() {
     // Billing: one row per Finance row (two rows for one service in one month), the added client's too.
     assert_eq!(one::<i64>(&c, "SELECT COUNT(*) FROM billing"), 4);
     assert_eq!(one::<f64>(&c, "SELECT SUM(amount) FROM billing WHERE company_id = 1"), 5300.0);
-    assert_eq!(one::<i64>(&c, "SELECT COUNT(*) FROM documents WHERE agreement_id = 10"), 1);
+    assert_eq!(one::<i64>(&c, "SELECT COUNT(*) FROM documents WHERE agreement_id = 10"), 2, "the signed amendment and its unsigned draft");
+    assert_eq!(one::<i64>(&c, "SELECT COUNT(*) FROM agreements WHERE import_key = 'C3'"), 0);
 
     // Exposure carries what is still invoiced for it.
     assert_eq!(one::<f64>(&c, "SELECT monthly_fee FROM agreements WHERE id = 14"), 40000.0);
