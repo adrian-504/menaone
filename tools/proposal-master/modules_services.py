@@ -435,10 +435,7 @@ def mobilization():
     bullets(s, ["All governmental expenses and/or taxes for the process"], MARGIN, _ly, col, gap=10, color=INK)
     section_label(s, "Fees exclude", MARGIN, y + 150, col)
     bullets(s, ["Medical test unfit", "Degree attestations", "Couriers", "Employee expenses", "Demand letters", "VAT or WHT, added according to country law"], MARGIN, y + 194, col, gap=10, color=INK)
-    x2 = MARGIN + col + 60
-    panel(s, x2, y, col, 420)
-    section_label(s, "Termination", x2 + 40, y + 30, col - 80)
-    s.text(x2 + 40, y + 76, col - 80, 300, [Para([R("In case of termination, unless otherwise agreed by the parties, MENA BIG may finalize all services agreed under the last purchase orders. {{client_name}} pays for all services provided up to the completion of the purchase orders outstanding at the date of termination.", size=18)], line=1.15)])
+    # Termination is in the general terms (said once per proposal).
     slides.append(s)
     return slides
 
