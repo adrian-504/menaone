@@ -157,9 +157,45 @@ fn terms_stay_in_their_own_deck() {
     assert!(problems.is_empty(), "{} terms problems", problems.len());
 }
 
+/// Opens a database COPY for end-to-end generation with every path the app derives from
+/// app_meta pointed at scratch: the proposals root (created first — a missing folder makes the
+/// app fall back to the real OneDrive Proposals folder) and the template library. Returns the
+/// connection and a snapshot of the real Proposals folder, to prove afterwards it was not touched.
+fn scratch_generation(db: &str, lib: &str, out: &str) -> (rusqlite::Connection, Option<(PathBuf, Vec<String>)>) {
+    assert!(!db.contains("Application Support"), "use a copy, never the live database");
+    let out_dir = PathBuf::from(out);
+    let cloud = PathBuf::from(std::env::var("HOME").unwrap_or_default()).join("Library/CloudStorage");
+    assert!(!out_dir.starts_with(&cloud), "MENA_OUT must be a scratch folder, not inside OneDrive");
+    std::fs::create_dir_all(&out_dir).unwrap();
+    let conn = menabig_tracker_lib::db::init_connection(&PathBuf::from(db)).unwrap();
+    conn.execute("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('proposals_root', ?1)", [out]).unwrap();
+    conn.execute("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('proposal_library_dir', ?1)", [lib]).unwrap();
+    let real = menabig_tracker_lib::commercial::detect_proposals_root().map(|r| {
+        let mut names: Vec<String> = std::fs::read_dir(&r).map(|d| d.filter_map(|e| e.ok()).map(|e| e.file_name().to_string_lossy().to_string()).collect()).unwrap_or_default();
+        names.sort();
+        (r, names)
+    });
+    (conn, real)
+}
+
+/// The real Proposals folder is as it was, and the test's own decks are removed.
+fn finish_scratch_generation(real: Option<(PathBuf, Vec<String>)>, out: &str, written: &[PathBuf]) {
+    for w in written {
+        assert!(w.starts_with(out), "a deck was written outside MENA_OUT: {}", w.display());
+    }
+    if let Some((root, before)) = real {
+        let mut after: Vec<String> = std::fs::read_dir(&root).map(|d| d.filter_map(|e| e.ok()).map(|e| e.file_name().to_string_lossy().to_string()).collect()).unwrap_or_default();
+        after.sort();
+        assert_eq!(before, after, "the real Proposals folder changed");
+    }
+    for w in written {
+        if let Some(dir) = w.parent() { let _ = std::fs::remove_dir_all(dir); }
+    }
+}
+
 // End to end on a COPY of a real database and the real template folder: generates an
 // Admin & PRO and a Labour Law proposal (fictional client, 6-month term) into a scratch folder.
-//   MENA_DB_COPY=<copy.sqlite3> MENA_TEMPLATE_DIR=<Proposals New Logo> MENA_OUT=<scratch dir> \
+//   MENA_DB_COPY=<copy.sqlite3> MENA_TEMPLATE_DIR=<Proposals New Logo> MENA_OUT=<scratch dir, created if missing> \
 //   cargo test --test proposal_audit generates_real -- --ignored --nocapture
 #[test]
 #[ignore]
@@ -168,10 +204,8 @@ fn generates_real_decks_on_a_database_copy() {
     use menabig_tracker_lib::generator::{generate_proposal, GenerateRequest, OutputPolicy};
     use menabig_tracker_lib::models::{CommercialLine, Proposal};
     let (Ok(db), Ok(lib), Ok(out)) = (std::env::var("MENA_DB_COPY"), std::env::var("MENA_TEMPLATE_DIR"), std::env::var("MENA_OUT")) else { return };
-    assert!(!db.contains("Application Support"), "use a copy, never the live database");
-    let mut conn = menabig_tracker_lib::db::init_connection(&PathBuf::from(&db)).unwrap();
-    conn.execute("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('proposals_root', ?1)", [&out]).unwrap();
-    conn.execute("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('proposal_library_dir', ?1)", [&lib]).unwrap();
+    let (mut conn, real) = scratch_generation(&db, &lib, &out);
+    let mut written = Vec::new();
     let service = |name: &str| -> i64 { conn.query_row("SELECT id FROM services WHERE name = ?1", [name], |r| r.get(0)).unwrap() };
     let cases = [(990001_i64, "Administration and PRO", 4000.0), (990002, "Labour Law Consultancy", 7000.0)];
     let rows: Vec<Proposal> = cases.iter().map(|(id, name, price)| Proposal {
@@ -186,8 +220,10 @@ fn generates_real_decks_on_a_database_copy() {
         let req = GenerateRequest { proposal_id: id, template_id: 0, date: "2026-09-22".into(), file_name: format!("Acme Test Co_{name}_check.pptx"), keep: None, logo_path: None, dry_run: false, from_library: true, from_master: false };
         let r = generate_proposal(&db, &req, OutputPolicy::AnyFolder).unwrap();
         println!("\n{name}: {:?}\n  errors {:?}\n  warnings {:?}", r.path, r.errors, r.warnings);
+        written.extend(r.path.clone().map(PathBuf::from));
         assert!(r.errors.is_empty());
     }
+    finish_scratch_generation(real, &out, &written);
 }
 
 // A mixed proposal (Admin & PRO + Payroll + Labour Law) and an EOR proposal, generated on a
@@ -202,11 +238,9 @@ fn mixed_proposal_is_consistent() {
     use menabig_tracker_lib::generator::{generate_proposal, GenerateRequest, OutputPolicy};
     use menabig_tracker_lib::models::{CommercialLine, Proposal};
     let (Ok(db), Ok(lib), Ok(out)) = (std::env::var("MENA_DB_COPY"), std::env::var("MENA_TEMPLATE_DIR"), std::env::var("MENA_OUT")) else { return };
-    assert!(!db.contains("Application Support"), "use a copy, never the live database");
     let master_mode = std::env::var("MENA_MASTER_MODE").is_ok();
-    let mut conn = menabig_tracker_lib::db::init_connection(&PathBuf::from(&db)).unwrap();
-    conn.execute("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('proposals_root', ?1)", [&out]).unwrap();
-    conn.execute("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('proposal_library_dir', ?1)", [&lib]).unwrap();
+    let (mut conn, real) = scratch_generation(&db, &lib, &out);
+    let mut written: Vec<PathBuf> = Vec::new();
     let service = |name: &str| -> i64 { conn.query_row("SELECT id FROM services WHERE name = ?1", [name], |r| r.get(0)).unwrap() };
     let line = |id: i64, name: &str, price: f64| CommercialLine { id, service_id: Some(service(name)), service_name: name.into(), billing: "monthly".into(), quantity: 1.0, unit_price: Some(price), ..Default::default() };
     let cases: Vec<(i64, &str, Vec<CommercialLine>)> = vec![
@@ -224,6 +258,7 @@ fn mixed_proposal_is_consistent() {
         let r = generate_proposal(&db, &req, OutputPolicy::AnyFolder).unwrap();
         assert!(r.errors.is_empty(), "{tag}: {:?}", r.errors);
         let path = PathBuf::from(r.path.clone().unwrap());
+        written.push(path.clone());
         let pkg = Package::read(&path).unwrap();
         let parts = menabig_tracker_lib::pptx::slide_parts_in_order(&pkg);
         let para = regex::Regex::new(r"(?s)<a:p>.*?</a:p>").unwrap();
@@ -272,5 +307,6 @@ fn mixed_proposal_is_consistent() {
         if status != "Drafting" { problems.push(format!("{tag}: status {status}")); }
     }
     for p in &problems { println!("PROBLEM {p}"); }
+    finish_scratch_generation(real, &out, &written);
     assert!(problems.is_empty(), "{} problems", problems.len());
 }
