@@ -157,3 +157,36 @@ fn terms_stay_in_their_own_deck() {
     for p in &problems { println!("{p}"); }
     assert!(problems.is_empty(), "{} terms problems", problems.len());
 }
+
+// End to end on a COPY of a real database and the real template folder: generates an
+// Admin & PRO and a Labour Law proposal (fictional client, 6-month term) into a scratch folder.
+//   MENA_DB_COPY=<copy.sqlite3> MENA_TEMPLATE_DIR=<Proposals New Logo> MENA_OUT=<scratch dir> \
+//   cargo test --test proposal_audit generates_real -- --ignored --nocapture
+#[test]
+#[ignore]
+fn generates_real_decks_on_a_database_copy() {
+    use menabig_tracker_lib::commands::upsert_proposal_rows;
+    use menabig_tracker_lib::generator::{generate_proposal, GenerateRequest, OutputPolicy};
+    use menabig_tracker_lib::models::{CommercialLine, Proposal};
+    let (Ok(db), Ok(lib), Ok(out)) = (std::env::var("MENA_DB_COPY"), std::env::var("MENA_TEMPLATE_DIR"), std::env::var("MENA_OUT")) else { return };
+    assert!(!db.contains("Application Support"), "use a copy, never the live database");
+    let mut conn = menabig_tracker_lib::db::init_connection(&PathBuf::from(&db)).unwrap();
+    conn.execute("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('proposals_root', ?1)", [&out]).unwrap();
+    conn.execute("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('proposal_library_dir', ?1)", [&lib]).unwrap();
+    let service = |name: &str| -> i64 { conn.query_row("SELECT id FROM services WHERE name = ?1", [name], |r| r.get(0)).unwrap() };
+    let cases = [(990001_i64, "Administration and PRO", 4000.0), (990002, "Labour Law Consultancy", 7000.0)];
+    let rows: Vec<Proposal> = cases.iter().map(|(id, name, price)| Proposal {
+        id: *id, client: "Acme Test Co".into(), status: "Drafting".into(), currency: Some("SAR".into()), contract_months: Some(6),
+        lines: vec![CommercialLine { id: *id, service_id: Some(service(name)), service_name: (*name).into(), billing: "monthly".into(), quantity: 1.0, unit_price: Some(*price), ..Default::default() }],
+        ..Default::default()
+    }).collect();
+    upsert_proposal_rows(&mut conn, &rows).unwrap();
+    for p in &rows { menabig_tracker_lib::commercial::save_lines(&conn, "proposal_lines", "proposal_id", p.id, &p.lines).unwrap(); }
+    let db = std::sync::Mutex::new(conn);
+    for (id, name, _) in cases {
+        let req = GenerateRequest { proposal_id: id, template_id: 0, date: "2026-09-22".into(), file_name: format!("Acme Test Co_{name}_check.pptx"), keep: None, logo_path: None, dry_run: false, from_library: true, from_master: false };
+        let r = generate_proposal(&db, &req, OutputPolicy::AnyFolder).unwrap();
+        println!("\n{name}: {:?}\n  errors {:?}\n  warnings {:?}", r.path, r.errors, r.warnings);
+        assert!(r.errors.is_empty());
+    }
+}
