@@ -1,4 +1,5 @@
 pub mod activity;
+pub mod agreements_import;
 pub mod attachments;
 pub mod backups;
 pub mod commands;

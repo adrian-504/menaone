@@ -714,6 +714,8 @@ const CODE_MIGRATIONS: &[(i64, fn(&Connection) -> rusqlite::Result<()>)] = &[
     (36, crate::commitments::migrate_commitments),
     // Company 360 as a briefing: pinned company notes, decision makers.
     (37, migrate_company_brief),
+    // Agreements import: chains, evidence, renewal rules, groups, billing.
+    (38, migrate_agreements_import),
 ];
 
 fn column_exists(conn: &Connection, table: &str, col: &str) -> rusqlite::Result<bool> {
@@ -723,6 +725,60 @@ fn column_exists(conn: &Connection, table: &str, col: &str) -> rusqlite::Result<
         .collect::<rusqlite::Result<Vec<_>>>()?
         .iter()
         .any(|c| c == col))
+}
+
+/// Agreements import (the agreements review's IMPORT_SPEC v1.1, §4): additive
+/// columns on agreements and companies, and the monthly `billing` table.
+fn migrate_agreements_import(conn: &Connection) -> rusqlite::Result<()> {
+    let add = |table: &str, col: &str, def: &str| -> rusqlite::Result<()> {
+        if !column_exists(conn, table, col)? {
+            conn.execute_batch(&format!("ALTER TABLE {table} ADD COLUMN {col} {def};"))?;
+        }
+        Ok(())
+    };
+    add("agreements", "parent_agreement_id", "INTEGER REFERENCES agreements(id) ON DELETE SET NULL")?;
+    add("agreements", "chain_root_id", "INTEGER REFERENCES agreements(id) ON DELETE SET NULL")?;
+    add("agreements", "carries_current_terms", "INTEGER NOT NULL DEFAULT 1")?;
+    add("agreements", "adds_to_parent", "INTEGER NOT NULL DEFAULT 0")?;
+    add("agreements", "terms_evidence", "TEXT")?;
+    add("agreements", "fee_basis", "TEXT")?;
+    add("agreements", "signature_status", "TEXT")?;
+    add("agreements", "renewal_rule", "TEXT")?;
+    add("agreements", "absorbed_into_id", "INTEGER REFERENCES agreements(id) ON DELETE SET NULL")?;
+    // The review's key for each agreement, so a re-run updates instead of duplicating.
+    add("agreements", "import_key", "TEXT")?;
+    add("companies", "parent_company_id", "INTEGER REFERENCES companies(id) ON DELETE SET NULL")?;
+    conn.execute_batch(
+        r#"-- One current link per chain.
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_agreements_chain_current ON agreements(chain_root_id)
+          WHERE carries_current_terms = 1 AND chain_root_id IS NOT NULL;
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_agreements_import_key ON agreements(import_key) WHERE import_key IS NOT NULL;
+        CREATE INDEX IF NOT EXISTS idx_companies_parent ON companies(parent_company_id);
+        -- auto_renew is derived from renewal_rule from now on.
+        UPDATE agreements SET renewal_rule = 'auto' WHERE renewal_rule IS NULL AND auto_renew = 1;
+        CREATE TABLE IF NOT EXISTS billing (
+          id                 INTEGER PRIMARY KEY,
+          company_id         INTEGER NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+          service_id         INTEGER REFERENCES services(id) ON DELETE SET NULL,
+          finance_department TEXT,
+          finance_service    TEXT,
+          sales_type         TEXT,
+          month              TEXT NOT NULL,
+          amount             REAL NOT NULL,
+          currency           TEXT NOT NULL DEFAULT 'SAR',
+          invoice_lines      INTEGER,
+          source             TEXT NOT NULL,
+          loaded_at          TEXT NOT NULL
+        );
+        -- Finance's own row is the identity: several of its (department, service,
+        -- sales type) rows map to one catalogue service in the same month.
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_billing_row ON billing(company_id, month, source,
+          COALESCE(finance_department, ''), COALESCE(finance_service, ''), COALESCE(sales_type, ''));
+        CREATE INDEX IF NOT EXISTS idx_billing_company_month ON billing(company_id, month);"#,
+    )?;
+    // A restored backup may already carry the table with its sync columns.
+    if column_exists(conn, "billing", "uuid")? { return Ok(()); }
+    add_sync_columns_to(conn, &["billing"])
 }
 
 fn migrate_company_brief(conn: &Connection) -> rusqlite::Result<()> {
