@@ -24,8 +24,9 @@ pub const MODULES: &[(&str, &str)] = &[
     ("hr_consultancy", "HR Consultancy"),
     ("manpower", "Manpower & Recruitment Consultancy"),
     ("recruitment", "Recruitment Advisory"),
-    ("workforce", "Workforce"),
-    ("constitution", "Company Constitution"),
+    // Names as the services are called since the 16-Sep-2026 renames.
+    ("workforce", "Employer of Record"),
+    ("constitution", "Business Setup"),
     ("maintenance", "Company Maintenance"),
     ("constitution_maintenance", "Company Constitution & Maintenance"),
     ("business_setup", "Business Setup & Maintenance"),
@@ -298,6 +299,19 @@ pub fn plan(library: &[LibraryTemplate], wanted: &[&'static str]) -> Result<Plan
         .collect();
     let mut imports = Vec::new();
     let mut missing = Vec::new();
+    // The Business Setup and Maintenance Package also shows Company Maintenance's detailed
+    // approach (its main tasks) beside its own scope; the package's pricing stays its own.
+    if wanted.contains(&"business_setup") && !wanted.contains(&"maintenance") && !base_cov.contains("maintenance") {
+        let source = (0..library.len())
+            .filter(|&i| i != base && covered(&library[i].slides) == BTreeSet::from(["maintenance"]))
+            .min_by_key(|&i| (library[i].client_on_cover.is_some(), library[i].slides.len()));
+        if let Some(src) = source {
+            let approach: Vec<usize> = library[src].slides.iter().filter(|s| s.role == Role::Approach && s.modules == ["maintenance"]).map(|s| s.index).collect();
+            if !approach.is_empty() {
+                imports.push(Import { template: src, positions: approach, terms: false, module: "business_setup" });
+            }
+        }
+    }
     for &key in wanted {
         if base_cov.contains(key) || imports.iter().any(|x: &Import| x.module == key) {
             continue;
@@ -530,7 +544,15 @@ pub fn compose(library: &[LibraryTemplate], wanted: &[&'static str]) -> Result<C
         if positions.is_empty() {
             continue;
         }
-        let at = if import.terms { terms_insert_at(&slides) } else { modules_insert_at(&slides) };
+        let approach_only = !import.terms && positions.iter().all(|p| src_template.slides.iter().any(|s| s.index == *p && s.role == Role::Approach));
+        let at = if import.terms {
+            terms_insert_at(&slides)
+        } else if approach_only {
+            // Beside the module's own approach slides, before its fees.
+            slides.iter().rposition(|s| s.role == Role::Approach && s.modules.contains(&import.module)).map(|i| i + 1).unwrap_or_else(|| modules_insert_at(&slides))
+        } else {
+            modules_insert_at(&slides)
+        };
         let added = crate::pptx_import::import_slides(&mut pkg, src, &positions, at)?;
         if import.terms {
             for part in pptx::slide_parts_in_order(&pkg)[at..at + added].to_vec() {
@@ -578,7 +600,8 @@ pub fn compose(library: &[LibraryTemplate], wanted: &[&'static str]) -> Result<C
     let wanted_present: Vec<&'static str> = wanted.iter().copied().filter(|m| !plan.missing.contains(m)).collect();
     let old_title = cover_services(&base_inspection);
     let title = match &old_title {
-        Some(old) if base_cov.iter().copied().collect::<BTreeSet<_>>() == wanted_present.iter().copied().collect::<BTreeSet<_>>() => old.clone(),
+        // One service on its own template keeps the template's wording; more than one are all named.
+        Some(old) if wanted_present.len() == 1 && base_cov.iter().copied().collect::<BTreeSet<_>>() == wanted_present.iter().copied().collect::<BTreeSet<_>>() => old.clone(),
         _ => services_title(&wanted_present),
     };
     if let Some(old) = old_title.filter(|o| *o != title && !wanted_present.is_empty()) {
@@ -1001,7 +1024,7 @@ mod tests {
         assert_eq!(mixed.imports.len(), 2);
         assert_eq!(mixed.imports[0].positions, vec![5, 6, 7, 8, 9], "workforce module (recruitment is a separate proposal)");
         assert_eq!((mixed.imports[1].terms, mixed.imports[1].positions.clone()), (true, vec![11]));
-        assert_eq!(services_title(&["accountancy", "workforce"]), "Accountancy & VAT and Workforce Services");
+        assert_eq!(services_title(&["accountancy", "workforce"]), "Accountancy & VAT and Employer of Record Services");
 
         let unknown = plan(&library, &["liquidation"]).unwrap();
         assert_eq!(unknown.missing, vec!["liquidation"]);

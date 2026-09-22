@@ -660,7 +660,8 @@ pub fn generate_proposal(db: &Mutex<Connection>, request: &GenerateRequest, poli
         let standard_of = |service: &str| {
             data.services.iter().find(|s| s.name.eq_ignore_ascii_case(service)).and_then(|s| s.rate_card_id).and_then(|id| rate_cards.iter().find(|r| r.id == id)).and_then(|r| crate::pricing::Card::from_json(&r.pricing)).and_then(|c| c.standard_price())
         };
-        let standards = crate::feefill::Standards { constitution: standard_of("Company Constitution"), maintenance: standard_of("Company Maintenance") };
+        // "Business Setup" is the one-time setup since the 16-Sep renames (it was "Company Constitution").
+        let standards = crate::feefill::Standards { constitution: standard_of("Business Setup").or_else(|| standard_of("Company Constitution")), maintenance: standard_of("Company Maintenance") };
         let root = crate::commercial::proposals_root(&conn).map_err(err)?;
         (template, proposal, deck, categories, root, library, line_cards, standards, master)
     };

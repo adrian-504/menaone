@@ -270,6 +270,9 @@ fn mixed_proposal_is_consistent() {
         (990031, "mixed2", vec![line(990031, "Administration and PRO", 4000.0), line(990032, "Accountancy", 5000.0), line(990033, "Recruitment", 10.0)]),
         (990041, "reversed", vec![line(990041, "Recruitment", 10.0), line(990042, "Administration and PRO", 4000.0)]),
         (990051, "eor_mixed", vec![line(990051, "Employer of Record", 3550.0), line(990052, "Company Maintenance", 3000.0), line(990053, "Labour Law Consultancy", 7000.0)]),
+        (990061, "admin_payroll", vec![line(990061, "Administration and PRO", 4000.0), line(990062, "Payroll", 1500.0)]),
+        (990071, "setup_maint", vec![line(990071, "Business Setup", 55000.0), line(990072, "Company Maintenance", 3000.0)]),
+        (990081, "package", vec![line(990081, "Business Setup and Maintenance Package", 8000.0)]),
     ];
     let rows: Vec<Proposal> = cases.iter().map(|(id, _, lines)| Proposal { id: *id, client: "Acme Test Co".into(), status: "Proposal Request Received".into(), currency: Some("SAR".into()), lines: lines.clone(), ..Default::default() }).collect();
     upsert_proposal_rows(&mut conn, &rows).unwrap();
@@ -325,13 +328,13 @@ fn mixed_proposal_is_consistent() {
             }
         }
         // Service sections follow the proposal's lines (first line first).
-        let expected: &[&str] = match *tag { "mixed" => &["admin", "labor"], "mixed2" => &["admin", "accountancy", "recruitment"], "reversed" => &["recruitment", "admin"], _ => &[] };
+        let expected: &[&str] = match *tag { "mixed" => &["admin", "labor"], "mixed2" => &["admin", "accountancy", "recruitment"], "reversed" => &["recruitment", "admin"], "setup_maint" => &["business setup|constitution", "maintenance"], _ => &[] };
         let dividers: Vec<String> = slides.iter().filter_map(|s| {
             if s.first().map(|f| f == "Service").unwrap_or(false) { s.get(1).map(|x| x.to_lowercase()) }
             else if s.len() <= 7 && s.iter().any(|p| p == "PART") { s.first().map(|x| x.to_lowercase()) }
             else { None }
         }).collect();
-        let firsts: Vec<Option<usize>> = expected.iter().map(|k| dividers.iter().position(|d| d.contains(k))).collect();
+        let firsts: Vec<Option<usize>> = expected.iter().map(|k| dividers.iter().position(|d| k.split('|').any(|x| d.contains(x)))).collect();
         println!("  section order {dividers:?}");
         if firsts.iter().any(|f| f.is_none()) || firsts.windows(2).any(|w| w[0] >= w[1]) { problems.push(format!("{tag}: sections {dividers:?} not in line order {expected:?}")); }
         // The general terms are the first line's: one notice period outside the labelled service terms.
@@ -341,6 +344,33 @@ fn mixed_proposal_is_consistent() {
         println!("  general notice {:?}", notices.iter().map(|p| p.chars().take(60).collect::<String>()).collect::<Vec<_>>());
         if notices.len() > 1 { problems.push(format!("{tag}: {} notice periods in the general terms", notices.len())); }
         if let (Some(want), Some(got)) = (lead_notice, notices.first()) { if !got.contains(want) { problems.push(format!("{tag}: general notice period isn't the first line's ({want})")); } }
+        // The cover and the letter's subject name every line's service.
+        let names: Vec<&str> = match *tag {
+            "mixed" => vec!["Administration & PRO", "Payroll", "Labor Law"],
+            "mixed2" => vec!["Administration & PRO", "Accountancy", "Recruitment"],
+            "reversed" => vec!["Recruitment", "Administration & PRO"],
+            "eor_mixed" => vec!["Company Maintenance", "Labor Law"],
+            "admin_payroll" => vec!["Administration & PRO", "Payroll"],
+            "setup_maint" => vec!["Business Setup", "Company Maintenance"],
+            "eor" | "package" => vec![],
+            _ => vec![],
+        };
+        let cover = slides.first().map(|s| s.join(" | ")).unwrap_or_default();
+        let subject = slides.get(1).and_then(|s| s.iter().find(|p| p.to_lowercase().contains("proposal for providing")).cloned()).unwrap_or_default();
+        println!("  cover: {}\n  subject: {}", cover.chars().take(140).collect::<String>(), subject.chars().take(140).collect::<String>());
+        for n in &names {
+            if !cover.contains(n) { problems.push(format!("{tag}: cover doesn't name {n}")); }
+            if !subject.contains(n) { problems.push(format!("{tag}: letter subject doesn't name {n}")); }
+        }
+        // Business Setup + Company Maintenance: the maintenance scope and its fees are there.
+        if *tag == "setup_maint" || (*tag == "package" && !master_mode) {
+            let scope = slides.iter().any(|s| (s.iter().any(|p| p.contains("Company Maintenance Services")) && s.iter().any(|p| p.eq_ignore_ascii_case("Main Tasks"))) || s.iter().any(|p| p == "What company maintenance covers"));
+            let fees = slides.iter().any(|s| s.iter().any(|p| p.starts_with("Value Based") || p.starts_with("Package Deal") || p.contains("Fee structure")) && s.iter().any(|p| p.to_lowercase().contains("maintenance")));
+            if !scope { problems.push(format!("{tag}: no Company Maintenance approach slide")); }
+            if !fees { problems.push(format!("{tag}: no Company Maintenance fee slide")); }
+            // The package keeps its own price: no separate Company Maintenance fee breakdown.
+            if *tag == "package" && slides.iter().any(|s| s.first().map(|f| f == "COMPANY MAINTENANCE").unwrap_or(false)) { problems.push("package: a separate Company Maintenance divider/fees came in".into()); }
+        }
         for left in leftover_placeholders(&path) { problems.push(format!("{tag}: placeholder left — {left}")); }
         if *tag == "eor" && slides.iter().flatten().any(|p| p.to_lowercase().contains("only if recruitment required")) { problems.push("eor: recruitment-only slide present".into()); }
         let status: String = db.lock().unwrap().query_row("SELECT status FROM proposals WHERE id = ?1", [id], |r| r.get(0)).unwrap();
