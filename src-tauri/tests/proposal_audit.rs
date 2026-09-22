@@ -4,7 +4,7 @@
 //   cargo test --test proposal_audit -- --ignored --nocapture
 use menabig_tracker_lib::master::{choose, MasterLine};
 use menabig_tracker_lib::pptx::{inspect, Package};
-use menabig_tracker_lib::proposal_library::{load_library, modules_for_service, module_name, plan};
+use menabig_tracker_lib::proposal_library::{covered, load_library, modules_for_service, module_name, plan, Role};
 use std::path::PathBuf;
 
 #[test]
@@ -79,4 +79,25 @@ fn fills_workforce_prices_under_the_new_category_names() {
     pkg.write(&out).unwrap();
     println!("written: {}", out.display());
     assert!(report.filled.iter().any(|f| f.contains("3 categories")), "categories not filled: {:?}", report.filled);
+}
+
+// Every service a template covers keeps at least one terms slide when proposed on its own
+// (a service-specific terms slide naming the wrong service drops the deck's only terms).
+//   MENA_TEMPLATE_DIR=<copy of the templates> cargo test --test proposal_audit keeps_terms -- --ignored --nocapture
+#[test]
+#[ignore]
+fn keeps_terms_for_every_service() {
+    let Ok(dir) = std::env::var("MENA_TEMPLATE_DIR") else { return };
+    let library = load_library(&PathBuf::from(&dir)).unwrap();
+    let mut failures = Vec::new();
+    let modules: std::collections::BTreeSet<&'static str> = library.iter().flat_map(|t| covered(&t.slides)).collect();
+    for m in modules {
+        let p = plan(&library, &[m]).unwrap();
+        let base = &library[p.base];
+        let kept = base.slides.iter().filter(|s| p.keep.contains(&s.index) && s.role == Role::Terms).count();
+        let imported: usize = p.imports.iter().filter(|i| i.terms).map(|i| i.positions.len()).sum();
+        println!("{:<38} base {:<60} terms kept {kept} + imported {imported}", module_name(m), base.name);
+        if kept + imported == 0 { failures.push(module_name(m)); }
+    }
+    assert!(failures.is_empty(), "no terms slide for: {failures:?}");
 }
