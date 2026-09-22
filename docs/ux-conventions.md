@@ -60,7 +60,7 @@ Every page tells you where to look. The owner's test: opening any page should ne
 
 Page = paper, white = object, panel = reference (owner, 22-Sep-2026).
 
-- **Page:** `--bg` is a warm paper tone, not white; the sidebar (`--sidebar-bg`) is one shade deeper.
+- **Page:** `--bg` is a neutral cool off-white (no warm or beige cast), not pure white; the sidebar (`--sidebar-bg`) is one shade deeper.
 - **Object:** white (`--surface`) marks something you act on or read closely: inputs, tables, the stage track, lists you edit, popovers, dialogs. Inputs are always `--surface`, never `--bg`.
 - **Panel:** `--surface-flat` is a quiet panel for reference blocks (My Day's right rail, the Details side panel of a record, the meeting Client brief, the proposal builder summary): no border, no shadow, radius 12, padding 16. Sections inside a panel keep their hairlines, except the first.
 - **Rhythm:** a section is `.sec`: a hairline above only, about 40px (`--space-7`) from one section to the next, and an uppercase caption heading (`--type-caption`, `--muted`). No box, shadow or radius. Sections side by side sit in columns with a wide gutter.

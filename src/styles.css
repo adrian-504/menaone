@@ -10,16 +10,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Robot
    --muted keeps at least 4.5:1 contrast on bg, surface, surface-2 and the
    sidebar (styleTokens.test.ts checks it). */
 :root{
-  --bg:#F7F6F3; /* the page is paper; white (--surface) is an object you act on or read */
+  --bg:#F5F5F7; /* the page is a neutral off-white; white (--surface) is an object you act on or read */
   --surface:#FFFFFF;
   --surface-2:#F7F6FC;
-  --sidebar-bg:#F1EFEB; /* one shade deeper than the page */
+  --sidebar-bg:#EEEEF1; /* one shade deeper than the page */
   --border:#ECEAF4;
   /* Sections are separated by a hairline, not boxed. --surface-flat is the
      quiet fill for things inside a section (inputs, wells); --hover is the
      one hover tint for rows and flat buttons. */
-  --hairline:#DEDBD4;
-  --surface-flat:#EFEDE8; /* quiet panels for reference blocks */
+  --hairline:#D9D9DE;
+  --surface-flat:#ECECF0; /* quiet panels for reference blocks */
   --hover:rgba(30,27,60,.045);
   /* Chart series and name avatars: one categorical palette, readable in every theme. */
   --chart-1:#3D64C9;--chart-2:#7C6FCB;--chart-3:#3D9E8F;--chart-4:#C68A3D;--chart-5:#C15B4C;
