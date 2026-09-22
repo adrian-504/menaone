@@ -10,16 +10,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Robot
    --muted keeps at least 4.5:1 contrast on bg, surface, surface-2 and the
    sidebar (styleTokens.test.ts checks it). */
 :root{
-  --bg:#FFFFFF; /* the page is the surface; the tint is the sidebar's */
+  --bg:#FFFFFF; /* the page is white; the tint is the sidebar's */
   --surface:#FFFFFF;
   --surface-2:#F7F6FC;
-  --sidebar-bg:#F5F4FB;
+  --sidebar-bg:#F5F4FB; /* one shade deeper than the page */
   --border:#ECEAF4;
   /* Sections are separated by a hairline, not boxed. --surface-flat is the
      quiet fill for things inside a section (inputs, wells); --hover is the
      one hover tint for rows and flat buttons. */
   --hairline:#ECEAF4;
-  --surface-flat:#F7F6FC;
+  --surface-flat:#F7F6FC; /* quiet panels for reference blocks */
   --hover:rgba(30,27,60,.045);
   /* Chart series and name avatars: one categorical palette, readable in every theme. */
   --chart-1:#3D64C9;--chart-2:#7C6FCB;--chart-3:#3D9E8F;--chart-4:#C68A3D;--chart-5:#C15B4C;
@@ -45,7 +45,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Robot
   --accent-2-border:#DACCFB;
   --text:#1B1B1D;
   --sub:#57575D;
-  --muted:#6E6E75; /* ≥4.5:1 on bg, surface and surface-2 */
+  --muted:#6E6E75; /* ≥4.5:1 on bg, surface, surface-2, sidebar and panels */
   --green:#1A7F4E;--green-bg:#EDF9F2;--green-border:#BEE8CF;
   --red:#C4361F;--red-bg:#FDEEEB;--red-border:#F5C6BB;
   --amber:#B4740E;--amber-bg:#FCF3E3;--amber-border:#F0D6A0;
@@ -78,6 +78,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Robot
   --space-4:16px;
   --space-5:24px;
   --space-6:32px;
+  --space-7:40px;
 
   /* Type scale — named by role, not by pixel value, so every screen draws
      from the same hierarchy instead of ad hoc font-sizes. Sizes reflect what
@@ -181,12 +182,12 @@ td{padding:8.5px 12px;vertical-align:middle;color:var(--text)}
 .ssel:hover{border-color:var(--accent)}
 .ssel:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-bg)}
 .fbar{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:var(--space-2) var(--space-3);margin-bottom:var(--space-3);display:flex;flex-wrap:wrap;gap:var(--space-2);align-items:center;box-shadow:var(--shadow)}
-input[type=text],input[type=date],input[type=number],select.fsel,textarea.fsel{font:inherit;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:7px 10px;font-size:var(--type-secondary);color:var(--text);outline:none;transition:border-color var(--dur-base) var(--ease-out),box-shadow var(--dur-base) var(--ease-out)}
+input[type=text],input[type=date],input[type=number],select.fsel,textarea.fsel{font:inherit;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:7px 10px;font-size:var(--type-secondary);color:var(--text);outline:none;transition:border-color var(--dur-base) var(--ease-out),box-shadow var(--dur-base) var(--ease-out)}
 input[type=text]:hover,input[type=date]:hover,input[type=number]:hover,select.fsel:hover,textarea.fsel:hover{border-color:var(--border2)}
 input[type=text]:focus,input[type=date]:focus,input[type=number]:focus,select.fsel:focus,textarea.fsel:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-bg)}
 .f-search{flex:1 1 170px;min-width:140px;border-radius:999px!important;padding-left:14px!important;background:var(--surface)!important}
 .f-search:focus{background:var(--bg)!important}
-.rcnt{font-size:var(--type-meta);color:var(--sub);background:var(--bg);padding:4px 10px;border-radius:20px;white-space:nowrap;border:1px solid var(--border)}
+.rcnt{font-size:var(--type-meta);color:var(--sub);background:var(--surface);padding:4px 10px;border-radius:20px;white-space:nowrap;border:1px solid var(--border)}
 .pgn{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:11px}
 .pgn-btn{font:inherit;background:var(--surface);border:1px solid var(--border);color:var(--sub);border-radius:var(--radius-sm);padding:5px 11px;font-size:var(--type-secondary);cursor:pointer}
 .pgn-btn:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}
@@ -208,7 +209,7 @@ input[type=text]:focus,input[type=date]:focus,input[type=number]:focus,select.fs
 .fg{display:grid;grid-template-columns:1fr 1fr;gap:11px}
 .fgrp{display:flex;flex-direction:column;gap:var(--space-1)}
 .flbl{font-size:var(--type-label);font-weight:600;color:var(--sub)}
-.finp{font:inherit;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 10px;font-size:var(--type-body);color:var(--text);outline:none;width:100%;transition:border-color var(--dur-base) var(--ease-out),box-shadow var(--dur-base) var(--ease-out)}
+.finp{font:inherit;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 10px;font-size:var(--type-body);color:var(--text);outline:none;width:100%;transition:border-color var(--dur-base) var(--ease-out),box-shadow var(--dur-base) var(--ease-out)}
 .finp:hover{border-color:var(--border2)}
 .finp:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-bg)}
 .fact{display:flex;gap:9px;justify-content:flex-end;margin-top:15px;padding-top:13px;border-top:1px solid var(--border)}
@@ -869,7 +870,7 @@ main.workspace .tab.active{animation:none}
 .task-date-opt svg{color:var(--sub)}
 .task-date-hint{margin-left:auto;color:var(--muted);font-size:var(--type-meta)}
 .task-date-custom{display:grid;grid-template-columns:1fr auto;gap:6px;padding:8px 6px 6px;margin-top:4px;border-top:1px solid var(--border)}
-.task-date-custom input{font:inherit;font-size:var(--type-secondary);padding:5px 6px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text)}
+.task-date-custom input{font:inherit;font-size:var(--type-secondary);padding:5px 6px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text)}
 .task-date-custom input[type=date]{grid-column:1/-1}
 .task-date-custom .btn-primary{padding:5px 12px;font-size:var(--type-secondary)}
 
@@ -998,7 +999,7 @@ main.workspace .tab.active{animation:none}
 .md-float-sep{width:1px;height:16px;background:rgba(255,255,255,.2);margin:0 2px}
 .note-client-pop{position:fixed;z-index:2500;width:260px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-md);padding:8px;opacity:0;pointer-events:none;transition:opacity var(--dur-base) var(--ease-out)}
 .note-client-pop.open{opacity:1;pointer-events:auto}
-.note-client-pop input{font:inherit;width:100%;font-size:var(--type-body);padding:7px 9px;border:1px solid var(--border);border-radius:7px;background:var(--bg);color:var(--text);outline:none;margin-bottom:4px}
+.note-client-pop input{font:inherit;width:100%;font-size:var(--type-body);padding:7px 9px;border:1px solid var(--border);border-radius:7px;background:var(--surface);color:var(--text);outline:none;margin-bottom:4px}
 .menu-sep{height:1px;background:var(--border);margin:4px 0}
 .menu-label{font-size:var(--type-caption);font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);padding:5px 11px 3px}
 .menu-inline-btn{background:none;border:none;color:inherit;opacity:.6;cursor:pointer;padding:2px;display:flex}
@@ -2491,9 +2492,9 @@ a.ts-name:focus-visible,.ts-more:focus-visible{outline:2px solid var(--accent);o
 .co-records:not(.is-open) .co-records-body{display:none}
 
 /* ── The Brief (tabs/companyBriefView.ts) ─────────────────────────────────── */
-.brief-view{position:fixed;inset:0;z-index:5000;overflow:auto;background:var(--bg);padding:0 16px 48px}
+.brief-view{position:fixed;inset:0;z-index:5000;overflow:auto;background:var(--surface);padding:0 16px 48px}
 .brief-view[hidden]{display:none}
-.bv-bar{position:sticky;top:0;display:flex;justify-content:flex-end;gap:8px;max-width:760px;margin:0 auto;padding:12px 0;background:var(--bg)}
+.bv-bar{position:sticky;top:0;display:flex;justify-content:flex-end;gap:8px;max-width:760px;margin:0 auto;padding:12px 0;background:var(--surface)}
 .bv-page{max-width:760px;margin:0 auto;padding:28px 36px;background:var(--surface);border:1px solid var(--hairline);border-radius:var(--radius);color:var(--text);font-size:var(--type-body);line-height:1.55}
 .bv-head{border-bottom:1px solid var(--hairline);padding-bottom:12px;margin-bottom:14px}
 .bv-head h1{margin:0;font-size:22px}
@@ -2614,3 +2615,22 @@ tr:hover .td-status .row-more,tr:focus-within .td-status .row-more{opacity:1}
 .od-desc.is-quiet h2{font-weight:500;color:var(--sub)}
 .od-desc-add{font:inherit;background:none;border:none;padding:0;cursor:pointer;color:var(--muted)}
 .od-desc-add:hover{color:var(--accent)}
+
+/* ═══ Surfaces & rhythm (owner, 22-Sep-2026) ═══
+   The page is paper, white is an object (inputs, tables, dialogs), a quiet panel holds
+   reference. Sections are grouped by space: 24px above the hairline, 16px under the
+   heading, a small uppercase heading of the same shape everywhere. No cards, no shadows. */
+.sec,.rec-section.sec,.rec-overview-grid .sec{padding:24px 0 16px}
+.rec-section-hd{margin-bottom:12px}
+.rec-section-hd h2{font-size:var(--type-caption);font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.rec-section-hd .rec-count{font-size:var(--type-caption);font-weight:600;letter-spacing:.06em;color:var(--muted)}
+.status-dot{width:9px;height:9px}
+.co-thread-dot{width:9px;height:9px}
+/* Reference blocks sit on a quiet panel; the main column stays on the page. */
+.mdy-rail,.rec-side,.ctd-props-card,#md-client,.prb-summary{background:var(--surface-flat);border:none;border-radius:12px;padding:16px;box-shadow:none}
+.rec-side{border-left:none}
+#md-client{margin-top:24px}
+.mdy-rail > .sec,.rec-side > .sec{padding:16px 0 12px}
+.mdy-rail > .sec:first-child,.rec-side > .sec:first-child,.mdy-rail > .sec[hidden]:first-child + .sec,.rec-side > .sec[hidden]:first-child + .sec{border-top:none;padding-top:0}
+.mdy-rail > .sec:last-child,.rec-side > .sec:last-child{padding-bottom:0}
+
