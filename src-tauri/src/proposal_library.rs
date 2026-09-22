@@ -276,7 +276,10 @@ pub fn plan(library: &[LibraryTemplate], wanted: &[&'static str]) -> Result<Plan
         let client_penalty = if library[i].client_on_cover.is_some() { 1 } else { 0 };
         (hits * 100 - extra * 10 - client_penalty * 1000, std::cmp::Reverse(library[i].slides.len()))
     };
-    let base = *bases.iter().max_by_key(|&&i| score(i)).expect("non-empty");
+    // The deck of the proposal's first line leads: its general terms are the proposal's
+    // general terms. The score only chooses among the decks that carry that first service.
+    let leads: Vec<usize> = bases.iter().copied().filter(|&i| wanted.first().map(|m| covered(&library[i].slides).contains(m)).unwrap_or(false)).collect();
+    let base = *if leads.is_empty() { &bases } else { &leads }.iter().max_by_key(|&&i| score(i)).expect("non-empty");
     let base_cov = covered(&library[base].slides);
     let base_slides = &library[base].slides;
     let wanted_slide = |s: &ClassifiedSlide| !s.is_module() || s.modules.is_empty() && s.role != Role::Terms || s.modules.iter().any(|m| wanted_set.contains(m));

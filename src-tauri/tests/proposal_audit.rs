@@ -315,6 +315,13 @@ fn mixed_proposal_is_consistent() {
         let firsts: Vec<Option<usize>> = expected.iter().map(|k| dividers.iter().position(|d| d.contains(k))).collect();
         println!("  section order {dividers:?}");
         if firsts.iter().any(|f| f.is_none()) || firsts.windows(2).any(|w| w[0] >= w[1]) { problems.push(format!("{tag}: sections {dividers:?} not in line order {expected:?}")); }
+        // The general terms are the first line's: one notice period outside the labelled service terms.
+        let service_terms = |s: &Vec<String>| s.iter().any(|p| p.contains(" · "));
+        let notices: Vec<&String> = slides.iter().filter(|s| is_terms(s) && !service_terms(s)).flatten().filter(|p| p.to_lowercase().contains("notice period")).collect();
+        let lead_notice = match *tag { "mixed" | "mixed2" => Some("(3) Three months"), "reversed" => Some("(1) one months"), _ => None };
+        println!("  general notice {:?}", notices.iter().map(|p| p.chars().take(60).collect::<String>()).collect::<Vec<_>>());
+        if notices.len() > 1 { problems.push(format!("{tag}: {} notice periods in the general terms", notices.len())); }
+        if let (Some(want), Some(got)) = (lead_notice, notices.first()) { if !got.contains(want) { problems.push(format!("{tag}: general notice period isn't the first line's ({want})")); } }
         if *tag == "eor" && slides.iter().flatten().any(|p| p.to_lowercase().contains("only if recruitment required")) { problems.push("eor: recruitment-only slide present".into()); }
         let status: String = db.lock().unwrap().query_row("SELECT status FROM proposals WHERE id = ?1", [id], |r| r.get(0)).unwrap();
         println!("  status {status}");
