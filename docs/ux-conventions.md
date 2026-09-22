@@ -58,10 +58,16 @@ Every page tells you where to look. The owner's test: opening any page should ne
 
 ## Surfaces
 
-- One page surface: `--bg` equals `--surface`, and the tint belongs to the sidebar (`--sidebar-bg`).
-- A section of a page is `.sec`: a top hairline (`--hairline`) and a heading, with no box, shadow or radius. Sections side by side (`.rec-grid-2`, the overview, Analytics) sit in columns with a wide gutter; the right-hand column of a record page and My Day's rail are separated by a hairline.
+Page = paper, white = object, panel = reference (owner, 22-Sep-2026).
+
+- **Page:** `--bg` is a warm paper tone, not white; the sidebar (`--sidebar-bg`) is one shade deeper.
+- **Object:** white (`--surface`) marks something you act on or read closely: inputs, tables, the stage track, lists you edit, popovers, dialogs. Inputs are always `--surface`, never `--bg`.
+- **Panel:** `--surface-flat` is a quiet panel for reference blocks (My Day's right rail, the Details side panel of a record, the meeting Client brief, the proposal builder summary): no border, no shadow, radius 12, padding 16. Sections inside a panel keep their hairlines, except the first.
+- **Rhythm:** a section is `.sec`: a hairline above only, about 40px (`--space-7`) from one section to the next, and an uppercase caption heading (`--type-caption`, `--muted`). No box, shadow or radius. Sections side by side sit in columns with a wide gutter.
 - `.card` is only for things that float above the page: popovers, menus, dialogs. The record rail keeps its own floating panel.
-- No card inside a card: figures (record stats, My Day's Business) sit on the page without tiles and highlight with `--hover`.
+- No card inside a card: figures (record stats, My Day's Business) sit on the page or panel without tiles and highlight with `--hover`.
+- Status dots are 9px.
+- In Dark and Graphite the same roles hold: the panel is one quiet step off the page.
 
 ## Buttons
 
