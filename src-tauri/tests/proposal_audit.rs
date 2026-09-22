@@ -157,6 +157,22 @@ fn terms_stay_in_their_own_deck() {
     assert!(problems.is_empty(), "{} terms problems", problems.len());
 }
 
+/// Placeholder text a generated deck must not keep: 'Client Name', NEW CLIENT, 'Client'… in any case.
+fn leftover_placeholders(path: &std::path::Path) -> Vec<String> {
+    let pkg = Package::read(path).unwrap();
+    let bad = regex::Regex::new(r#"(?i)client name|new client|['‘“"]client['’”"]"#).unwrap();
+    let t = regex::Regex::new(r"(?s)<a:p>.*?</a:p>").unwrap();
+    let r = regex::Regex::new(r"<a:t>([^<]*)</a:t>").unwrap();
+    let mut out = Vec::new();
+    for (i, part) in menabig_tracker_lib::pptx::slide_parts_in_order(&pkg).iter().enumerate() {
+        for p in t.find_iter(&pkg.text_of(part)) {
+            let text: String = r.captures_iter(p.as_str()).map(|c| c[1].to_string()).collect::<String>().replace("&amp;", "&");
+            if bad.is_match(&text) { out.push(format!("slide {}: {}", i + 1, text.chars().take(80).collect::<String>())); }
+        }
+    }
+    out
+}
+
 /// Opens a database COPY for end-to-end generation with every path the app derives from
 /// app_meta pointed at scratch: the proposals root (created first — a missing folder makes the
 /// app fall back to the real OneDrive Proposals folder) and the template library. Returns the
@@ -225,6 +241,8 @@ fn generates_real_decks_on_a_database_copy() {
         println!("\n{name}: {:?}\n  errors {:?}\n  warnings {:?}", r.path, r.errors, r.warnings);
         written.extend(r.path.clone().map(PathBuf::from));
         assert!(r.errors.is_empty());
+        let left = leftover_placeholders(&PathBuf::from(r.path.clone().unwrap()));
+        assert!(left.is_empty(), "{name}: placeholders left {left:?}");
     }
     finish_scratch_generation(real, &out, &written);
 }
@@ -251,6 +269,7 @@ fn mixed_proposal_is_consistent() {
         (990021, "eor", vec![line(990021, "Employer of Record", 3550.0)]),
         (990031, "mixed2", vec![line(990031, "Administration and PRO", 4000.0), line(990032, "Accountancy", 5000.0), line(990033, "Recruitment", 10.0)]),
         (990041, "reversed", vec![line(990041, "Recruitment", 10.0), line(990042, "Administration and PRO", 4000.0)]),
+        (990051, "eor_mixed", vec![line(990051, "Employer of Record", 3550.0), line(990052, "Company Maintenance", 3000.0), line(990053, "Labour Law Consultancy", 7000.0)]),
     ];
     let rows: Vec<Proposal> = cases.iter().map(|(id, _, lines)| Proposal { id: *id, client: "Acme Test Co".into(), status: "Proposal Request Received".into(), currency: Some("SAR".into()), lines: lines.clone(), ..Default::default() }).collect();
     upsert_proposal_rows(&mut conn, &rows).unwrap();
@@ -322,6 +341,7 @@ fn mixed_proposal_is_consistent() {
         println!("  general notice {:?}", notices.iter().map(|p| p.chars().take(60).collect::<String>()).collect::<Vec<_>>());
         if notices.len() > 1 { problems.push(format!("{tag}: {} notice periods in the general terms", notices.len())); }
         if let (Some(want), Some(got)) = (lead_notice, notices.first()) { if !got.contains(want) { problems.push(format!("{tag}: general notice period isn't the first line's ({want})")); } }
+        for left in leftover_placeholders(&path) { problems.push(format!("{tag}: placeholder left — {left}")); }
         if *tag == "eor" && slides.iter().flatten().any(|p| p.to_lowercase().contains("only if recruitment required")) { problems.push("eor: recruitment-only slide present".into()); }
         let status: String = db.lock().unwrap().query_row("SELECT status FROM proposals WHERE id = ?1", [id], |r| r.get(0)).unwrap();
         println!("  status {status}");
@@ -330,4 +350,37 @@ fn mixed_proposal_is_consistent() {
     for p in &problems { println!("PROBLEM {p}"); }
     finish_scratch_generation(real, &out, &written);
     assert!(problems.is_empty(), "{} problems", problems.len());
+}
+
+// Placeholder-like text in the templates that the fill doesn't know (quoted words in capitals,
+// [Client], {Client}, an unquoted Client Name): listed, not failed, to see the long tail.
+//   MENA_TEMPLATE_DIR=<Proposals New Logo> cargo test --test proposal_audit lists_placeholder -- --ignored --nocapture
+#[test]
+#[ignore]
+fn lists_placeholder_like_text() {
+    let Ok(dir) = std::env::var("MENA_TEMPLATE_DIR") else { return };
+    let known = menabig_tracker_lib::smartfill::client_placeholder_regex();
+    let suspects = regex::Regex::new(r#"['‘“"][A-Z][A-Z .&-]{2,}['’”"]|\[[^\]]{2,40}\]|\{[^{}]{2,40}\}|(?i)\bclient name\b|\bnew client\b"#).unwrap();
+    let para = regex::Regex::new(r"(?s)<a:p>.*?</a:p>").unwrap();
+    let run = regex::Regex::new(r"<a:t>([^<]*)</a:t>").unwrap();
+    let mut entries: Vec<_> = std::fs::read_dir(&dir).unwrap().filter_map(|e| e.ok()).map(|e| e.path()).filter(|p| p.extension().map(|x| x == "pptx").unwrap_or(false)).collect();
+    entries.sort();
+    for path in entries {
+        let pkg = Package::read(&path).unwrap();
+        let mut found: std::collections::BTreeMap<String, Vec<usize>> = std::collections::BTreeMap::new();
+        for (i, part) in menabig_tracker_lib::pptx::slide_parts_in_order(&pkg).iter().enumerate() {
+            for p in para.find_iter(&pkg.text_of(part)) {
+                let text: String = run.captures_iter(p.as_str()).map(|c| c[1].to_string()).collect::<String>().replace("&amp;", "&");
+                let cleaned = known.replace_all(&text, "");
+                for m in suspects.find_iter(&cleaned) {
+                    if m.as_str().starts_with("{{") { continue; }
+                    found.entry(m.as_str().to_string()).or_default().push(i + 1);
+                }
+            }
+        }
+        if !found.is_empty() {
+            println!("\n{}", path.file_name().unwrap().to_string_lossy());
+            for (k, v) in found { println!("  {k:<40} slides {v:?}"); }
+        }
+    }
 }

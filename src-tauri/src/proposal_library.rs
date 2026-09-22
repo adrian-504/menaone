@@ -436,7 +436,21 @@ fn terms_insert_at(slides: &[ComposedSlide]) -> usize {
 
 /// A sent proposal used as a template: its client's name goes back to the placeholder.
 fn neutralise_client(pkg: &mut Package, parts: &[String], client: &str) {
-    let pairs = vec![(client.to_string(), "'Client Name'".to_string())];
+    // The client's name in any case: "MAC GROUP" goes back to 'CLIENT NAME', "Mac Group" to 'Client Name'.
+    let caps = |s: &str| s.chars().any(|c| c.is_alphabetic()) && s.chars().filter(|c| c.is_alphabetic()).all(|c| c.is_uppercase());
+    let named = regex::Regex::new(&format!("(?i){}", regex::escape(client))).ok();
+    let mut pairs: Vec<(String, String)> = Vec::new();
+    for part in parts {
+        for p in pptx::paragraphs(&pkg.text_of(part)) {
+            for m in named.iter().flat_map(|r| r.find_iter(&p)) {
+                let written = m.as_str().to_string();
+                if !pairs.iter().any(|(w, _)| *w == written) {
+                    let placeholder = if caps(&written) && !caps(client) { "'CLIENT NAME'" } else { "'Client Name'" };
+                    pairs.push((written, placeholder.to_string()));
+                }
+            }
+        }
+    }
     for part in parts {
         let (xml, n) = pptx::fill_placeholders(&pkg.text_of(part), &pairs);
         if n > 0 {
@@ -765,10 +779,7 @@ fn renumber_part_xml(xml: &str, n: usize) -> (String, bool) {
 /// A clause's sentences as compared across decks: lower case, single spaces, the client
 /// placeholder as "client". Titles, subtitles and short headings are not clauses.
 fn clause_sentences(text: &str) -> Vec<String> {
-    let mut t = text.to_lowercase();
-    for p in crate::smartfill::CLIENT_PLACEHOLDERS {
-        t = t.replace(&p.to_lowercase(), "client");
-    }
+    let t = crate::smartfill::client_placeholder_regex().replace_all(text, "client").to_lowercase();
     let t = t.split_whitespace().collect::<Vec<_>>().join(" ");
     let heading = ["terms & conditions", "assumptions and limitations"];
     if t.chars().count() < 30 || heading.iter().any(|h| t.starts_with(h)) {

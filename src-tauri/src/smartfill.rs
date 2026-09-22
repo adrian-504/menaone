@@ -21,6 +21,37 @@ const WEEKDAYS: [&str; 7] = ["Monday", "Tuesday", "Wednesday", "Thursday", "Frid
 
 pub const CLIENT_PLACEHOLDERS: &[&str] = &["'Client Name'", "‘Client Name’", "“Client Name”", "\"Client Name\"", "[Client Name]", "'New Client'", "‘New Client’"];
 
+/// The client placeholder in any case and quote style: 'Client Name', ‘NEW CLIENT’, [client name]…
+pub fn client_placeholder_regex() -> &'static Regex {
+    static R: OnceLock<Regex> = OnceLock::new();
+    R.get_or_init(|| Regex::new(r#"(?i)['‘“"](client name|new client)['’”"]|\[(client name)\]"#).expect("regex"))
+}
+
+/// The client's name for a placeholder, in its case style: an all-caps placeholder
+/// ('CLIENT NAME') gets the name in capitals, any other the name as typed.
+fn client_for(placeholder: &str, name: &str) -> String {
+    let letters: Vec<char> = placeholder.chars().filter(|c| c.is_alphabetic()).collect();
+    if !letters.is_empty() && letters.iter().all(|c| c.is_uppercase()) { name.to_uppercase() } else { name.to_string() }
+}
+
+/// Replaces every client placeholder in a piece of text; returns the text and how many.
+pub fn replace_client(text: &str, name: &str) -> (String, usize) {
+    let mut n = 0;
+    let out = client_placeholder_regex().replace_all(text, |c: &regex::Captures| { n += 1; client_for(&c[0], name) }).to_string();
+    (out, n)
+}
+
+/// (placeholder as written, replacement) for each distinct placeholder in these texts.
+pub fn client_pairs(texts: &[String], name: &str) -> Vec<(String, String)> {
+    let mut out: Vec<(String, String)> = Vec::new();
+    for t in texts {
+        for m in client_placeholder_regex().find_iter(t) {
+            if !out.iter().any(|(p, _)| p == m.as_str()) { out.push((m.as_str().to_string(), client_for(m.as_str(), name))); }
+        }
+    }
+    out
+}
+
 pub(crate) fn re(pattern: &'static str, cell: &'static OnceLock<Regex>) -> &'static Regex {
     cell.get_or_init(|| Regex::new(pattern).expect("valid regex"))
 }
@@ -371,20 +402,20 @@ pub fn apply(pkg: &mut Package, input: SmartInput) -> SmartReport {
     let mut logo_boxes = 0;
     let mut term_slides = 0;
 
-    let client_pairs: Vec<(String, String)> = CLIENT_PLACEHOLDERS.iter().map(|p| (p.to_string(), input.client_name.to_string())).collect();
-
     for s in &slides {
         let mut xml = pkg.text_of(&s.part);
 
         // Client name (short lines shrink to fit when the name is long).
         let (x, _) = rewrite_shapes(&xml, |t| {
             if t.chars().count() > 60 { return None; }
-            let hits: usize = CLIENT_PLACEHOLDERS.iter().map(|p| t.matches(p).count()).sum();
+            let (filled, hits) = replace_client(t, input.client_name);
             if hits == 0 { return None; }
             client_count += hits;
-            Some(CLIENT_PLACEHOLDERS.iter().fold(t.to_string(), |acc, p| acc.replace(p, input.client_name)))
+            Some(filled)
         });
         xml = x;
+        // Longer text: the placeholders as this slide writes them, run by run.
+        let client_pairs = client_pairs(&paragraph_texts(&xml), input.client_name);
         let (x, n) = fill_placeholders(&xml, &client_pairs);
         xml = x;
         client_count += n;
@@ -629,7 +660,7 @@ fn recount_agenda(pkg: &mut Package, slides: &[SlidePart]) -> Option<String> {
 pub fn detect_slide(xml: &str) -> Vec<String> {
     let texts = paragraph_texts(xml);
     let mut out = Vec::new();
-    let clients: usize = texts.iter().map(|t| CLIENT_PLACEHOLDERS.iter().map(|p| t.matches(p).count()).sum::<usize>()).sum();
+    let clients: usize = texts.iter().map(|t| client_placeholder_regex().find_iter(t).count()).sum();
     if clients > 0 { out.push(format!("Client name ×{clients}")); }
     if texts.iter().any(|t| t.chars().count() <= 60 && date_regex().is_match(t)) { out.push("Date".into()); }
     if texts.iter().any(|t| t.trim() == "Logo") { out.push("Logo box".into()); }
@@ -643,6 +674,19 @@ pub fn detect_slide(xml: &str) -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn fills_client_placeholders_in_any_case() {
+        assert_eq!(replace_client("ACCEPTED BY 'CLIENT NAME'", "Logitech"), ("ACCEPTED BY LOGITECH".to_string(), 1));
+        assert_eq!(replace_client("Accepted by 'Client Name'", "Logitech"), ("Accepted by Logitech".to_string(), 1));
+        assert_eq!(replace_client("Attn: ‘NEW CLIENT’ and [client name]", "Acme Test Co"), ("Attn: ACME TEST CO and Acme Test Co".to_string(), 2));
+        assert_eq!(replace_client("No placeholder here", "Acme").1, 0);
+        // Long text keeps its runs: the caps placeholder is found and filled run by run.
+        let para = r#"<a:p><a:r><a:rPr b="1"/><a:t>ACCEPTED BY 'CLIENT </a:t></a:r><a:r><a:rPr b="1"/><a:t>NAME'</a:t></a:r></a:p>"#;
+        let pairs = client_pairs(&paragraph_texts(para), "Logitech");
+        let (out, n) = crate::pptx::fill_placeholders(para, &pairs);
+        assert_eq!((crate::pptx::paragraphs(&out).join(""), n), ("ACCEPTED BY LOGITECH".to_string(), 1));
+    }
 
     #[test]
     fn restyles_dates_like_the_template() {
