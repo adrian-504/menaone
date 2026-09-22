@@ -36,6 +36,8 @@ pub const INDUSTRY_TAXONOMY: &[&str] = &[
     "Hospitality",
     "Government/Public Sector",
     "Professional Services",
+    // Chambers of commerce and business associations (owner, 22-Sep-2026).
+    "Associations & Chambers",
     "Other",
     "Unknown",
 ];

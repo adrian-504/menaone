@@ -372,7 +372,7 @@ export const INDUSTRY_TAXONOMY = [
   'Construction & Infrastructure', 'Engineering & Consulting', 'Transportation & Logistics',
   'Industrial & Manufacturing', 'Technology', 'Energy & Utilities', 'Real Estate',
   'Financial Services', 'Healthcare', 'Education', 'Retail & Consumer', 'Hospitality',
-  'Government/Public Sector', 'Professional Services', 'Other', 'Unknown',
+  'Government/Public Sector', 'Professional Services', 'Associations & Chambers', 'Other', 'Unknown',
 ] as const;
 export type Industry = typeof INDUSTRY_TAXONOMY[number];
 
