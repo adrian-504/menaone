@@ -180,14 +180,14 @@ fn builds_proposals_from_the_2026_master() {
     let (Ok(master), Ok(out)) = (std::env::var("MENA_MASTER"), std::env::var("MENA_MASTER_OUT")) else { return };
     let band = |from: i64, to: i64, price: f64| LineRate { from: Some(from), to: Some(to), price: Some(price), ..Default::default() };
     let named = |label: &str, price: f64| LineRate { label: label.into(), price: Some(price), ..Default::default() };
-    let line = |service: &str, modules: Vec<&'static str>, kind: Option<RowKind>, rates: Vec<LineRate>, price: Option<f64>| MasterLine { service: service.into(), modules, kind, rates, unit_price: price, with_recruitment: false };
+    let line = |service: &str, modules: Vec<&'static str>, kind: Option<RowKind>, rates: Vec<LineRate>, price: Option<f64>| MasterLine { service: service.into(), modules, kind, rates, unit_price: price };
     let cases: Vec<(&str, Option<i64>, Vec<MasterLine>)> = vec![
         ("master-admin-gosi-6m", Some(6), vec![
             line("Admin PRO", vec!["admin_pro"], Some(RowKind::Tranche), vec![band(1, 5, 2000.0), band(6, 15, 3750.0), band(16, 25, 5000.0)], Some(2000.0)),
             line("Payroll and GOSI", vec!["gosi_payroll"], Some(RowKind::Tranche), vec![band(1, 5, 1250.0), band(6, 15, 3000.0)], Some(1250.0)),
         ]),
         ("master-workforce-recruitment-accountancy", None, vec![
-            MasterLine { with_recruitment: true, ..line("Workforce", vec!["workforce"], Some(RowKind::Category), vec![named("Professional Nationalized Employee (Engineers & Managers)", 3400.0), named("Professional Non-Nationalized Employee (Unskilled)", 1500.0)], None) },
+            MasterLine { ..line("Workforce", vec!["workforce"], Some(RowKind::Category), vec![named("Professional Nationalized Employee (Engineers & Managers)", 3400.0), named("Professional Non-Nationalized Employee (Unskilled)", 1500.0)], None) },
             line("Accountancy and VAT", vec!["accountancy"], Some(RowKind::Row), vec![named("Accountancy (No Projects)", 2500.0), named("Accountancy (Projects)", 5250.0), named("VAT Return – Monthly Preparation & Declaration", 1000.0)], Some(2500.0)),
             line("Recruitment", vec!["recruitment"], Some(RowKind::Percent), vec![LineRate { label: "Professional Staff".into(), percent: Some(10.0), ..Default::default() }, LineRate { label: "Blue Collar Staff".into(), percent: Some(12.0), ..Default::default() }], None),
         ]),

@@ -62,7 +62,6 @@ pub struct MasterLine {
     pub kind: Option<RowKind>,
     pub rates: Vec<LineRate>,
     pub unit_price: Option<f64>,
-    pub with_recruitment: bool,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -110,11 +109,11 @@ pub fn choose(inspection: &TemplateInspection, lines: &[MasterLine], months: Opt
             let (included, reason) = match (&t.module, t.always) {
                 (_, true) => (true, "Standard slide".to_string()),
                 (Some(m), _) if wanted.contains(m.as_str()) => match t.when.as_deref() {
-                    // Recruitment is proposed separately (owner, 22-Sep-2026); a Recruitment line brings its own slides.
-                    Some("recruitment") => (false, "Recruitment is a separate proposal".into()),
                     Some("term12") if term < 12 => (false, "Only with a 12-month term".into()),
                     Some("term_short") if term >= 12 => (false, "Only for terms under 12 months".into()),
-                    _ => (true, format!("For {}", crate::proposal_library::module_name(m))),
+                    Some("term12") | Some("term_short") | None => (true, format!("For {}", crate::proposal_library::module_name(m))),
+                    // A condition the generator doesn't know leaves the slide out.
+                    Some(other) => (false, format!("Only when \"{other}\"")),
                 },
                 (Some(m), _) => (false, format!("Only for {}", crate::proposal_library::module_name(m))),
                 (None, false) => (false, "Not tagged".into()),

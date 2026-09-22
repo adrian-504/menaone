@@ -7,7 +7,7 @@ import { renderLinesEditor, linesEdit } from './linesEditor';
 import type { CommercialLine } from './types';
 
 const line = (id: number, serviceName: string): CommercialLine =>
-  ({ id, serviceId: null, serviceName, description: null, billing: 'monthly', quantity: 1, unitPrice: 1000, commission: false, sortOrder: id, rates: [], employeeCount: null, withRecruitment: false }) as CommercialLine;
+  ({ id, serviceId: null, serviceName, description: null, billing: 'monthly', quantity: 1, unitPrice: 1000, commission: false, sortOrder: id, rates: [], employeeCount: null }) as CommercialLine;
 
 describe('service options on a proposal line', () => {
   let lines: CommercialLine[];

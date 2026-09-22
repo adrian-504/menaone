@@ -288,7 +288,6 @@ export function linesEdit(key: string, lineId: number, field: string, value: str
       break;
     }
     case 'employeeCount': l.employeeCount = value.trim() === '' ? null : Math.max(0, Math.round(Number(value) || 0)) || null; syncValue(l); break;
-    case 'withRecruitment': l.withRecruitment = value === '1'; break;
     // Switching the option renames the line, because that is what the client
     // reads on the proposal ("Payroll and GOSI" or plain "Payroll").
     case 'serviceOption': {

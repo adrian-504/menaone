@@ -50,25 +50,7 @@ def workforce():
         bullets(s, items, x + 34, yy + 140, w - 68, gap=12, color=WHITE if dark else INK)
     slides.append(s)
 
-    for title, items, extra in [
-        ("Recruitment process", [
-            "Receive the recruitment requirements from {{client_name}} per position",
-            "Search for potential candidates in our data bank",
-            "Source candidates: home country, recruitment platforms, head hunting, internet job postings, job fairs if needed, referrals",
-            "Conduct the first approach: English, background experience and updated CV",
-            "Initial interview by MENA BIG recruiters — pre-screening, interview protocol and document evaluation (passports, certificates)",
-            "Second interview (HR) by MENA BIG senior recruiters and managers",
-            "Shortlist candidates for {{client_name}}'s technical final interview, with invitations arranged",
-            "Job offers for accepted candidates, follow-up on acceptance, onboarding and joining",
-        ], True),
-    ]:
-        s = Slide("Content", notes=tags(m, "approach", "[when: recruitment]"))
-        y = heading(s, "Detailed approach · Only if recruitment is required", title,
-                    "Back-office recruiters manage all first interviews, filtering and sourcing. MENA BIG shares candidate profiles within 1–2 weeks of receiving the job description and all required information; any delay is raised with {{client_name}} immediately.")
-        col = (1712 - 60) / 2
-        numbered(s, items[:4], MARGIN, y + 4, col, gap=14)
-        numbered(s, items[4:], MARGIN + col + 60, y + 4, col, gap=14, start=5)
-        slides.append(s)
+    # Recruitment is proposed separately (owner, 22-Sep-2026): no recruitment process here.
 
     s = Slide("Content", notes=tags(m, "fees"))
     y = heading(s, "Project fees · Fee structure", "Value-based fee structure", width=1300)

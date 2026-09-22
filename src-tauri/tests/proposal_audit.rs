@@ -30,7 +30,7 @@ fn prints_the_slides_each_service_generates() {
         }
         if !p.missing.is_empty() { println!("    MISSING: {:?}", p.missing); }
         if let Some(m) = &master {
-            let lines = vec![MasterLine { service: name.into(), modules: modules.clone(), with_recruitment: true, ..Default::default() }];
+            let lines = vec![MasterLine { service: name.into(), modules: modules.clone(), ..Default::default() }];
             let chosen: Vec<String> = choose(m, &lines, Some(12)).into_iter().filter(|c| c.included && c.module.is_some())
                 .map(|c| format!("{} {}", c.index, m.slides[c.index - 1].title.chars().take(40).collect::<String>())).collect();
             println!("  2026 design — {} service slides: {:?}", chosen.len(), chosen);
@@ -436,6 +436,11 @@ fn templates_are_clean() {
         let name = path.file_name().unwrap().to_string_lossy().to_string();
         if !name.ends_with(".pptx") || name.starts_with("~$") { continue; }
         let pkg = Package::read(&path).unwrap();
+        // Every slide file in the package is a slide of the deck (none orphaned).
+        let listed: std::collections::BTreeSet<String> = menabig_tracker_lib::pptx::slide_parts_in_order(&pkg).into_iter().collect();
+        let zip = zip::ZipArchive::new(std::fs::File::open(&path).unwrap()).unwrap();
+        let files: Vec<String> = zip.file_names().filter(|n| n.starts_with("ppt/slides/slide") && n.ends_with(".xml")).map(str::to_string).collect();
+        for f in files.iter().filter(|f| !listed.contains(*f)) { problems.push(format!("{name}: {f} is not a slide of the deck")); }
         for (i, part) in menabig_tracker_lib::pptx::slide_parts_in_order(&pkg).iter().enumerate() {
             let xml = pkg.text_of(part);
             if xml.contains("<a:highlight") { problems.push(format!("{name} slide {}: highlight", i + 1)); }
@@ -446,4 +451,140 @@ fn templates_are_clean() {
     }
     for p in &problems { println!("{p}"); }
     assert!(problems.is_empty(), "{} problems", problems.len());
+}
+
+// The regression matrix: every active service alone and the common combinations, at 6 and 12
+// months, generated on a DATABASE COPY with the real templates (scratch output only).
+//   MENA_DB_COPY=<copy> MENA_TEMPLATE_DIR=<Proposals New Logo> MENA_OUT=<scratch> [MENA_MASTER_MODE=1] \
+//   cargo test --test proposal_audit matrix_is_consistent -- --ignored --nocapture
+#[test]
+#[ignore]
+fn matrix_is_consistent() {
+    use menabig_tracker_lib::commands::upsert_proposal_rows;
+    use menabig_tracker_lib::generator::{generate_proposal, GenerateRequest, OutputPolicy};
+    use menabig_tracker_lib::models::{CommercialLine, Proposal};
+    let (Ok(db), Ok(lib), Ok(out)) = (std::env::var("MENA_DB_COPY"), std::env::var("MENA_TEMPLATE_DIR"), std::env::var("MENA_OUT")) else { return };
+    let master_mode = std::env::var("MENA_MASTER_MODE").is_ok();
+    let (mut conn, real) = scratch_generation(&db, &lib, &out);
+    let services: Vec<(i64, String, String)> = conn.prepare("SELECT id, name, COALESCE(category, '') FROM services WHERE active = 1 ORDER BY id").unwrap()
+        .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?))).unwrap().map(Result::unwrap).collect();
+    // Priced rows as the proposal editor starts them from the service's rate card (distinct test prices).
+    use menabig_tracker_lib::models::LineRate;
+    use menabig_tracker_lib::pricing::{parse_range, row_kind, Card, RowKind};
+    let rates_for = |conn: &rusqlite::Connection, service_id: i64| -> Vec<LineRate> {
+        let pricing: Option<String> = conn.query_row("SELECT r.pricing_json FROM services s JOIN rate_cards r ON r.id = s.rate_card_id WHERE s.id = ?1", [service_id], |r| r.get(0)).ok();
+        let Some(card) = pricing.and_then(|p| serde_json::from_str::<serde_json::Value>(&p).ok()).and_then(|v| Card::from_json(&v)) else { return vec![] };
+        let price = |i: usize| Some(1111.0 * (i as f64 + 2.0));
+        match row_kind(&card) {
+            Some(RowKind::Tranche) => card.tranches.iter().take(3).enumerate().map(|(i, tr)| { let r = parse_range(&tr.label); LineRate { label: tr.label.clone(), from: r.map(|x| x.0), to: r.map(|x| x.1), price: price(i), ..Default::default() } }).collect(),
+            Some(RowKind::Category) => card.tranches.iter().enumerate().map(|(i, tr)| LineRate { label: tr.label.clone(), price: price(i), ..Default::default() }).collect(),
+            Some(RowKind::Row) => card.rows.iter().enumerate().map(|(i, r)| LineRate { label: r.label.clone(), price: price(i), ..Default::default() }).collect(),
+            Some(RowKind::Country) => vec![LineRate { label: "Egypt".into(), price: Some(1500.0), ..Default::default() }],
+            _ => vec![],
+        }
+    };
+    let price = |name: &str| -> f64 { match name { "Recruitment" | "Dedicated Recruiter" => 10.0, "Business Setup" => 55000.0, "Company Liquidation" => 30000.0, "Mobilization" => 1500.0, _ => 4321.0 } };
+    let mut sets: Vec<Vec<String>> = services.iter().filter(|(_, n, c)| !modules_for_service(n, Some(c.as_str()).filter(|c| !c.is_empty())).is_empty()).map(|(_, n, _)| vec![n.clone()]).collect();
+    for combo in [&["Administration and PRO", "Payroll"][..], &["Business Setup", "Company Maintenance"], &["Employer of Record", "Mobilization"], &["Labour Law Consultancy", "Recruitment"], &["Administration and PRO", "Accountancy", "Recruitment"]] {
+        sets.push(combo.iter().map(|s| s.to_string()).collect());
+    }
+    let mut id = 995000;
+    let mut rows = Vec::new();
+    let mut plan: Vec<(i64, String, i64, Vec<String>)> = Vec::new();
+    for months in [6_i64, 12] {
+        for set in &sets {
+            id += 1;
+            let lines: Vec<CommercialLine> = set.iter().enumerate().map(|(k, n)| {
+                let s = services.iter().find(|s| s.1 == *n).expect("service");
+                CommercialLine { id: id * 10 + k as i64, service_id: Some(s.0), service_name: n.clone(), billing: if n == "Business Setup" || n == "Company Liquidation" || n == "Mobilization" { "one_time".into() } else { "monthly".into() }, quantity: 1.0, unit_price: Some(price(n)), rates: rates_for(&conn, s.0), ..Default::default() }
+            }).collect();
+            rows.push(Proposal { id, client: "Acme Test Co".into(), status: "Proposal Request Received".into(), currency: Some("SAR".into()), contract_months: Some(months), lines, ..Default::default() });
+            plan.push((id, set.join(" + "), months, set.clone()));
+        }
+    }
+    upsert_proposal_rows(&mut conn, &rows).unwrap();
+    for p in &rows { menabig_tracker_lib::commercial::save_lines(&conn, "proposal_lines", "proposal_id", p.id, &p.lines).unwrap(); }
+    let categories: std::collections::HashMap<String, String> = services.iter().map(|s| (s.1.clone(), s.2.clone())).collect();
+    let db = std::sync::Mutex::new(conn);
+    let mut written = Vec::new();
+    let mut table = Vec::new();
+    let mut failures = Vec::new();
+    for (pid, label, months, set) in &plan {
+        let req = GenerateRequest { proposal_id: *pid, template_id: 0, date: "2026-09-22".into(), file_name: format!("Acme Test Co_matrix_{pid}.pptx"), keep: None, logo_path: None, dry_run: false, from_library: !master_mode, from_master: master_mode };
+        let mut problems: Vec<String> = Vec::new();
+        match generate_proposal(&db, &req, OutputPolicy::AnyFolder) {
+            Err(e) => problems.push(format!("refused: {e}")),
+            Ok(r) if !r.errors.is_empty() => problems.push(format!("errors: {:?}", r.errors)),
+            Ok(r) => {
+                let path = PathBuf::from(r.path.clone().unwrap());
+                written.push(path.clone());
+                let pkg = Package::read(&path).unwrap();
+                let para = regex::Regex::new(r"(?s)<a:p>.*?</a:p>").unwrap();
+                let run = regex::Regex::new(r"<a:t>([^<]*)</a:t>").unwrap();
+                let parts = menabig_tracker_lib::pptx::slide_parts_in_order(&pkg);
+                let slides: Vec<Vec<String>> = parts.iter().map(|p| para.find_iter(&pkg.text_of(p)).map(|m| run.captures_iter(m.as_str()).map(|c| c[1].to_string()).collect::<String>().replace("&amp;", "&").trim().to_string()).filter(|t| !t.is_empty()).collect()).collect();
+                // Cover and letter name every line's service.
+                let cover = slides.first().map(|s| s.join(" | ")).unwrap_or_default();
+                let subject = slides.get(1).and_then(|s| s.iter().find(|p| p.to_lowercase().contains("proposal for providing")).cloned()).unwrap_or_default();
+                if set.len() > 1 {
+                    for n in set {
+                        for m in modules_for_service(n, categories.get(n).map(|c| c.as_str()).filter(|c| !c.is_empty())) {
+                            let name = module_name(m);
+                            if !cover.contains(name) { problems.push(format!("cover lacks {name}")); }
+                            if !subject.contains(name) { problems.push(format!("subject lacks {name}")); }
+                        }
+                    }
+                }
+                // Terms: no repeated clause; at most one notice period outside labelled service terms.
+                let is_terms = |s: &Vec<String>| s.iter().any(|p| p.starts_with("Assumptions and Limitations") || p.starts_with("The stated scope of work") || p.starts_with("Terms & conditions ·"));
+                let mut seen = std::collections::HashMap::new();
+                for (i, s) in slides.iter().enumerate().filter(|(_, s)| is_terms(s)) {
+                    for p in s.iter().filter(|p| p.len() > 60 && !p.starts_with("Assumptions and Limitations") && !p.starts_with("Terms & Conditions")) {
+                        if let Some(first) = seen.insert(p.to_lowercase(), i + 1) { problems.push(format!("slide {} repeats slide {first}", i + 1)); }
+                    }
+                }
+                let notices = slides.iter().filter(|s| is_terms(s) && !s.iter().any(|p| p.contains(" · "))).flatten().filter(|p| p.to_lowercase().contains("notice period")).count();
+                if notices > 1 { problems.push(format!("{notices} notice periods in the general terms")); }
+                // PART n in order.
+                let parts_n: Vec<String> = slides.iter().filter(|s| s.len() <= 7 && s.iter().any(|p| p == "PART")).filter_map(|s| s.iter().rev().find(|p| p.chars().all(|c| c.is_ascii_digit())).cloned()).collect();
+                if parts_n != (1..=parts_n.len()).map(|n| n.to_string()).collect::<Vec<_>>() { problems.push(format!("PART {parts_n:?}")); }
+                // Agenda = section starts.
+                if let Some(agenda) = slides.iter().find(|s| s.iter().any(|p| p.eq_ignore_ascii_case("agenda"))) {
+                    let page = |p: &str| -> Option<usize> { p.trim().strip_prefix("p.").and_then(|x| x.trim().parse().ok()) };
+                    let pairs: Vec<(String, usize)> = if agenda.iter().any(|p| page(p).is_some()) {
+                        agenda.windows(2).filter_map(|w| page(&w[1]).map(|n| (w[0].clone(), n))).collect()
+                    } else {
+                        let labels: Vec<&String> = agenda.iter().filter(|p| !p.eq_ignore_ascii_case("agenda") && !p.chars().all(|c| c.is_ascii_digit())).collect();
+                        let numbers: Vec<usize> = agenda.iter().filter(|p| !p.is_empty() && p.chars().all(|c| c.is_ascii_digit())).map(|p| p.parse().unwrap()).collect();
+                        labels.into_iter().cloned().zip(numbers).collect()
+                    };
+                    for (label, n) in pairs {
+                        let start = slides.iter().position(|s| s.len() <= 3 && s.iter().any(|f| f.eq_ignore_ascii_case(&label))).map(|i| i + 1);
+                        if start != Some(n) { problems.push(format!("agenda '{label}' {n} vs {start:?}")); }
+                    }
+                }
+                // No placeholder, no highlight, no leftover one-year wording on a short term.
+                problems.extend(leftover_placeholders(&path).into_iter().map(|l| format!("placeholder {l}")));
+                if parts.iter().any(|p| pkg.text_of(p).contains("<a:highlight")) { problems.push("highlight".into()); }
+                let checks = r.report.as_ref().and_then(|b| b.smart.as_ref()).map(|s| s.checks.clone()).unwrap_or_default();
+                if *months < 12 { problems.extend(checks.iter().filter(|c| c.contains("still mentions a year")).map(|c| format!("term: {}", c.chars().take(110).collect::<String>()))); }
+                // Every priced line's amounts are on the deck (its rows' prices, else its unit price).
+                let text = slides.iter().flatten().cloned().collect::<Vec<_>>().join(" ");
+                let shown = |p: f64| { let int = p as i64; [format!("{}", int), format!("{},{:03}", int / 1000, int % 1000), format!("{}.{:03}", int / 1000, int % 1000), format!("{int}%")].iter().any(|f| text.contains(f.as_str())) };
+                let proposal = rows.iter().find(|x| x.id == *pid).expect("proposal");
+                for l in &proposal.lines {
+                    let prices: Vec<f64> = if l.rates.is_empty() { vec![l.unit_price.unwrap_or(0.0)] } else { l.rates.iter().filter_map(|r| r.price).collect() };
+                    for p in prices { if !shown(p) { problems.push(format!("{}: price {p} not on the deck", l.service_name)); } }
+                }
+                let status: String = db.lock().unwrap().query_row("SELECT status FROM proposals WHERE id = ?1", [pid], |r| r.get(0)).unwrap();
+                if status != "Drafting" { problems.push(format!("status {status}")); }
+            }
+        }
+        table.push(format!("{:<58} {:>2}m  {}", label, months, if problems.is_empty() { "ok".to_string() } else { format!("{} problem(s)", problems.len()) }));
+        for p in &problems { failures.push(format!("{label} @{months}m: {p}")); }
+    }
+    println!("\n{}\n", table.join("\n"));
+    for f in &failures { println!("  {f}"); }
+    finish_scratch_generation(real, &out, &written);
+    assert!(failures.is_empty(), "{} problems", failures.len());
 }

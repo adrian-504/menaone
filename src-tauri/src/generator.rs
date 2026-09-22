@@ -576,21 +576,13 @@ pub fn smart_line(l: &CommercialLine, card: Option<&crate::pricing::Card>, categ
         rates: l.rates.clone(),
         preset_labels: card.map(|c| c.preset_labels()).unwrap_or_default(),
         months: None,
-        with_recruitment: l.with_recruitment,
     }
 }
 
-/// Slides a proposal leaves out on its own: Workforce's recruitment process
-/// slides when recruitment isn't included, and the free Business Setup
-/// reasoning when the term is under the 12 months that make setup free.
+/// Slides a proposal leaves out on its own: the free Business Setup reasoning
+/// when the term is under the 12 months that make setup free.
 fn automatic_exclusion(text: &str, lines: &[CommercialLine], categories: &[Option<String>], months: Option<i64>) -> Option<&'static str> {
     let modules = |i: usize| crate::proposal_library::modules_for_service(&lines[i].service_name, categories.get(i).and_then(|c| c.as_deref()));
-    if text.contains("Only if recruitment required") {
-        let workforce: Vec<usize> = (0..lines.len()).filter(|&i| modules(i).contains(&"workforce")).collect();
-        if !workforce.is_empty() && !workforce.iter().any(|&i| lines[i].with_recruitment) {
-            return Some("Workforce without recruitment");
-        }
-    }
     let lower = text.to_lowercase();
     if months.map(|m| m > 0 && m < 12).unwrap_or(false) && lower.contains("free business setup offer") && (0..lines.len()).any(|i| modules(i).contains(&"business_setup")) {
         return Some("Setup is only free with a 12-month term");
@@ -679,8 +671,7 @@ pub fn generate_proposal(db: &Mutex<Connection>, request: &GenerateRequest, poli
             kind: card.as_ref().and_then(crate::pricing::row_kind).filter(|_| !l.rates.is_empty()),
             rates: l.rates.clone(),
             unit_price: l.unit_price,
-            with_recruitment: l.with_recruitment,
-        })
+            })
         .collect();
     let (mut pkg, inspection, mut slides) = match (&template, &library) {
         _ if master.is_some() => {

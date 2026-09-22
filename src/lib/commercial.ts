@@ -119,7 +119,6 @@ export function newLine(service: Service | null, sortOrder: number, unitPrice: n
     sortOrder,
     rates: [],
     employeeCount: null,
-    withRecruitment: false,
   };
 }
 

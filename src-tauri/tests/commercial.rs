@@ -70,7 +70,6 @@ fn won_proposal_gets_an_agreement_with_its_lines() {
             line(10, Some(recruitment), "Recruitment", "monthly", Some(4000.0)),
             CommercialLine {
                 employee_count: Some(9),
-                with_recruitment: true,
                 rates: vec![
                     LineRate { label: "1–5 employees".into(), from: Some(1), to: Some(5), price: Some(750.0), ..Default::default() },
                     LineRate { label: "6–15 employees".into(), from: Some(6), to: Some(15), price: Some(1500.0), ..Default::default() },
@@ -93,7 +92,7 @@ fn won_proposal_gets_an_agreement_with_its_lines() {
     assert_eq!(a.lines.len(), 2);
     assert_eq!(a.lines.iter().map(|l| l.unit_price.unwrap_or(0.0)).sum::<f64>(), 5000.0);
     let pro_line = a.lines.iter().find(|l| l.service_name == "PRO").unwrap();
-    assert_eq!((pro_line.rates.len(), pro_line.employee_count, pro_line.with_recruitment), (2, Some(9), true), "priced rows carry onto the agreement");
+    assert_eq!((pro_line.rates.len(), pro_line.employee_count), (2, Some(9)), "priced rows carry onto the agreement");
     let reread = read_all_data(&conn).unwrap().proposals.into_iter().find(|p| p.id == 7).unwrap();
     assert_eq!(reread.lines[1].rates[1].price, Some(1500.0));
 

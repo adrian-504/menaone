@@ -73,7 +73,6 @@ export interface CommercialLine {
   /** Employees the client has, when known (tranche services). */
   employeeCount?: number | null;
   /** Workforce proposals that include the recruitment process slides. */
-  withRecruitment?: boolean;
 }
 
 export interface LineRate {

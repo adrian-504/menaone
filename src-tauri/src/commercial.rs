@@ -662,7 +662,8 @@ pub fn derive_totals(lines: &[CommercialLine]) -> (Option<String>, Option<f64>, 
     (type_name, sum("monthly"), sum("one_time"))
 }
 
-const LINE_COLS: &str = "id, service_id, service_name, description, billing, quantity, unit_price, commission, sort_order, rates_json, employee_count, with_recruitment";
+// with_recruitment is deprecated (recruitment is proposed separately since 22-Sep-2026): the column stays, unread.
+const LINE_COLS: &str = "id, service_id, service_name, description, billing, quantity, unit_price, commission, sort_order, rates_json, employee_count";
 
 fn line_from_row(r: &rusqlite::Row, offset: usize) -> rusqlite::Result<CommercialLine> {
     Ok(CommercialLine {
@@ -677,7 +678,6 @@ fn line_from_row(r: &rusqlite::Row, offset: usize) -> rusqlite::Result<Commercia
         sort_order: r.get(offset + 8)?,
         rates: r.get::<_, Option<String>>(offset + 9)?.and_then(|j| serde_json::from_str(&j).ok()).unwrap_or_default(),
         employee_count: r.get(offset + 10)?,
-        with_recruitment: r.get::<_, Option<i64>>(offset + 11)?.unwrap_or(0) != 0,
     })
 }
 
@@ -702,18 +702,18 @@ pub fn save_lines(conn: &Connection, table: &str, parent_col: &str, parent_id: i
         params![parent_id, serde_json::to_string(&ids).unwrap_or_else(|_| "[]".into())],
     )?;
     let sql = format!(
-        "INSERT INTO {table} (id, {parent_col}, service_id, service_name, description, billing, quantity, unit_price, commission, sort_order, rates_json, employee_count, with_recruitment)
-         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13)
+        "INSERT INTO {table} (id, {parent_col}, service_id, service_name, description, billing, quantity, unit_price, commission, sort_order, rates_json, employee_count)
+         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12)
          ON CONFLICT(id) DO UPDATE SET {parent_col} = excluded.{parent_col}, service_id = excluded.service_id,
            service_name = excluded.service_name, description = excluded.description, billing = excluded.billing,
            quantity = excluded.quantity, unit_price = excluded.unit_price, commission = excluded.commission, sort_order = excluded.sort_order,
-           rates_json = excluded.rates_json, employee_count = excluded.employee_count, with_recruitment = excluded.with_recruitment
+           rates_json = excluded.rates_json, employee_count = excluded.employee_count
          WHERE {table}.{parent_col} IS NOT excluded.{parent_col} OR {table}.service_id IS NOT excluded.service_id
            OR {table}.service_name IS NOT excluded.service_name OR {table}.description IS NOT excluded.description
            OR {table}.billing IS NOT excluded.billing OR {table}.quantity IS NOT excluded.quantity
            OR {table}.unit_price IS NOT excluded.unit_price OR {table}.commission IS NOT excluded.commission
            OR {table}.sort_order IS NOT excluded.sort_order OR {table}.rates_json IS NOT excluded.rates_json
-           OR {table}.employee_count IS NOT excluded.employee_count OR {table}.with_recruitment IS NOT excluded.with_recruitment"
+           OR {table}.employee_count IS NOT excluded.employee_count"
     );
     let mut stmt = conn.prepare_cached(&sql)?;
     for (i, l) in lines.iter().enumerate() {
@@ -723,7 +723,7 @@ pub fn save_lines(conn: &Connection, table: &str, parent_col: &str, parent_id: i
             l.id, parent_id, l.service_id, l.service_name.trim(), l.description, billing, quantity, l.unit_price,
             l.commission as i64, i as i64,
             if l.rates.is_empty() { None } else { serde_json::to_string(&l.rates).ok() },
-            l.employee_count, l.with_recruitment as i64,
+            l.employee_count,
         ])?;
     }
     Ok(())
@@ -900,8 +900,8 @@ pub fn create_agreements_for(conn: &Connection, only: Option<i64>) -> rusqlite::
         )?;
         let id = conn.last_insert_rowid();
         conn.execute(
-            "INSERT INTO agreement_lines (agreement_id, service_id, service_name, description, billing, quantity, unit_price, commission, sort_order, rates_json, employee_count, with_recruitment)
-             SELECT ?1, service_id, service_name, description, billing, quantity, unit_price, commission, sort_order, rates_json, employee_count, with_recruitment
+            "INSERT INTO agreement_lines (agreement_id, service_id, service_name, description, billing, quantity, unit_price, commission, sort_order, rates_json, employee_count)
+             SELECT ?1, service_id, service_name, description, billing, quantity, unit_price, commission, sort_order, rates_json, employee_count
              FROM proposal_lines WHERE proposal_id = ?2 ORDER BY sort_order, id",
             params![id, pid],
         )?;

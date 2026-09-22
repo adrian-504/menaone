@@ -125,9 +125,6 @@ pub struct CommercialLine {
     /// Employees the client has, when known (tranche services).
     #[serde(default)]
     pub employee_count: Option<i64>,
-    /// Workforce proposals that include the recruitment process slides.
-    #[serde(default)]
-    pub with_recruitment: bool,
 }
 
 /// One priced row of a proposal line.

@@ -303,7 +303,6 @@ pub struct SmartLine {
     pub preset_labels: Vec<String>,
     /// Contract months for a monthly line, to recompute totals.
     pub months: Option<f64>,
-    pub with_recruitment: bool,
 }
 
 /// Whether a fee-table row is for this line: its scope or service name is in
