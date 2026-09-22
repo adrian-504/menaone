@@ -67,11 +67,6 @@ function optionOn(line: CommercialLine, opt: { withName: string }): boolean {
   return (line.serviceName || '').trim().toLowerCase() === opt.withName.toLowerCase();
 }
 
-function isWorkforce(line: CommercialLine): boolean {
-  const service = serviceById(line.serviceId) || serviceByName(line.serviceName);
-  return /workforce/i.test(`${line.serviceName} ${service?.category || ''}`) && !/mobili/i.test(line.serviceName);
-}
-
 function hasCommissionPrices(card: PricingService | null): boolean {
   return !!card && (card.commMin != null || !!card.tranches?.some((t) => t.commMin != null));
 }
@@ -123,7 +118,6 @@ function ratesBlock(key: string, line: CommercialLine, card: PricingService, kin
     <div class="le-pricing-row">
       ${kind === 'tranche' ? `<label class="le-comm">Employees <input class="td-input le-rate-num" type="number" min="0" value="${line.employeeCount ?? ''}" placeholder="?" onchange="linesEdit('${key}', ${line.id}, 'employeeCount', this.value)"></label>` : ''}
       ${hasCommissionPrices(card) || line.commission ? `<label class="le-comm"><input type="checkbox"${line.commission ? ' checked' : ''} onchange="linesEdit('${key}', ${line.id}, 'commission', this.checked ? '1' : '')"> With commission</label>` : ''}
-      ${kind === 'category' && isWorkforce(line) ? `<label class="le-comm"><input type="checkbox"${line.withRecruitment ? ' checked' : ''} onchange="linesEdit('${key}', ${line.id}, 'withRecruitment', this.checked ? '1' : '')"> Includes recruitment</label>` : ''}
       ${summary ? `<span class="le-hint">${escHtml(summary)}</span>` : ''}
     </div>
     ${rates.map(row).join('')}

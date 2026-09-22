@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { S } from './state';
 import { nextDeckFileName, proposalDecks,
   lineTotals, syncProposalTotals, isAgreementActive, activeMrr, toReporting, fmtMoneyByCurrency, missingRates,
-  suggestedFileName, latestVersion, contractEndDate, isClosed, isInPreparation, PS,
+  suggestedFileName, latestVersion, contractEndDate, isClosed, isInPreparation, PS, applyGeneratedDocument,
 } from './commercial';
 import type { Agreement, CommercialLine, Proposal } from './types';
 
@@ -124,5 +124,22 @@ describe('owner filters ("Mine")', () => {
     expect(html).toContain(`<option value="${MINE}" selected>Mine</option>`);
     expect(html.match(/Omar Sample<\/option>/g)).toHaveLength(1);
     expect(html.indexOf('Jane Tester')).toBeLessThan(html.indexOf('Omar Sample'));
+  });
+});
+
+describe('applyGeneratedDocument', () => {
+  const doc = { id: 7, kind: 'proposal', version: 1, fileName: 'Acme_Admin Proposal.pptx', path: '/x.pptx', url: null, notes: null, createdAt: '2026-09-22' } as any;
+  it('moves a requested proposal to Drafting when its first deck is generated', () => {
+    const p = { id: 1, client: 'Acme', status: PS.REQUEST, documents: [] } as any;
+    applyGeneratedDocument(p, doc, '/Acme');
+    expect(p.status).toBe(PS.DRAFTING);
+    expect(p.documents).toHaveLength(1);
+  });
+  it('never moves a proposal back', () => {
+    for (const status of [PS.DRAFTING, PS.REVIEW, PS.SENT, PS.WON, PS.LOST]) {
+      const p = { id: 1, client: 'Acme', status, documents: [] } as any;
+      applyGeneratedDocument(p, doc, null);
+      expect(p.status).toBe(status);
+    }
   });
 });

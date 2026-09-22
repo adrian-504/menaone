@@ -330,6 +330,8 @@ export function proposalDecks(p: Pick<Proposal, 'documents'>): NonNullable<Propo
 export function applyGeneratedDocument(p: Proposal, doc: NonNullable<Proposal['documents']>[number], folder: string | null): void {
   p.documents = [...(p.documents || []).filter((d) => d.id !== doc.id), doc];
   if (folder && !p.folderPath) p.folderPath = folder;
+  // As the generator records it: a first deck means drafting has started (never moves back).
+  if (p.status === PS.REQUEST) p.status = PS.DRAFTING;
 }
 
 /** The file name for the proposal's next deck: past the files in the client

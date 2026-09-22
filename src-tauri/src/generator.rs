@@ -1005,6 +1005,8 @@ pub fn record_generated_document(conn: &mut Connection, proposal_id: i64, file_n
         params![id, proposal_id, version, file_name, path, notes, created_at],
     )?;
     tx.execute("UPDATE proposals SET folder_path = ?2 WHERE id = ?1 AND (folder_path IS NULL OR folder_path = '')", params![proposal_id, folder])?;
+    // A first deck means the proposal is being drafted; it never moves a proposal back.
+    tx.execute("UPDATE proposals SET status = ?2 WHERE id = ?1 AND status = ?3", params![proposal_id, crate::commercial::STATUS_DRAFTING, crate::commercial::STATUS_REQUEST])?;
     tx.commit()?;
     Ok(ProposalDocument { id, kind: "proposal".into(), version: Some(version), file_name: file_name.to_string(), path: Some(path.to_string()), url: None, notes: Some(notes.to_string()), created_at: Some(created_at) })
 }

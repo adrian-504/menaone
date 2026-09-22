@@ -189,3 +189,88 @@ fn generates_real_decks_on_a_database_copy() {
         assert!(r.errors.is_empty());
     }
 }
+
+// A mixed proposal (Admin & PRO + Payroll + Labour Law) and an EOR proposal, generated on a
+// DATABASE COPY with the real templates: terms once, one acceptance, dividers and agenda in
+// deck order, no recruitment-only slides for EOR, and the proposal moves to Drafting.
+//   MENA_DB_COPY=<copy.sqlite3> MENA_TEMPLATE_DIR=<Proposals New Logo> MENA_OUT=<scratch dir> [MENA_MASTER_MODE=1] \
+//   cargo test --test proposal_audit mixed_proposal -- --ignored --nocapture
+#[test]
+#[ignore]
+fn mixed_proposal_is_consistent() {
+    use menabig_tracker_lib::commands::upsert_proposal_rows;
+    use menabig_tracker_lib::generator::{generate_proposal, GenerateRequest, OutputPolicy};
+    use menabig_tracker_lib::models::{CommercialLine, Proposal};
+    let (Ok(db), Ok(lib), Ok(out)) = (std::env::var("MENA_DB_COPY"), std::env::var("MENA_TEMPLATE_DIR"), std::env::var("MENA_OUT")) else { return };
+    assert!(!db.contains("Application Support"), "use a copy, never the live database");
+    let master_mode = std::env::var("MENA_MASTER_MODE").is_ok();
+    let mut conn = menabig_tracker_lib::db::init_connection(&PathBuf::from(&db)).unwrap();
+    conn.execute("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('proposals_root', ?1)", [&out]).unwrap();
+    conn.execute("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('proposal_library_dir', ?1)", [&lib]).unwrap();
+    let service = |name: &str| -> i64 { conn.query_row("SELECT id FROM services WHERE name = ?1", [name], |r| r.get(0)).unwrap() };
+    let line = |id: i64, name: &str, price: f64| CommercialLine { id, service_id: Some(service(name)), service_name: name.into(), billing: "monthly".into(), quantity: 1.0, unit_price: Some(price), ..Default::default() };
+    let cases: Vec<(i64, &str, Vec<CommercialLine>)> = vec![
+        (990011, "mixed", vec![line(990011, "Administration and PRO", 4000.0), line(990012, "Payroll", 1500.0), line(990013, "Labour Law Consultancy", 7000.0)]),
+        (990021, "eor", vec![line(990021, "Employer of Record", 3550.0)]),
+        (990031, "mixed2", vec![line(990031, "Administration and PRO", 4000.0), line(990032, "Accountancy", 5000.0), line(990033, "Recruitment", 10.0)]),
+    ];
+    let rows: Vec<Proposal> = cases.iter().map(|(id, _, lines)| Proposal { id: *id, client: "Acme Test Co".into(), status: "Proposal Request Received".into(), currency: Some("SAR".into()), lines: lines.clone(), ..Default::default() }).collect();
+    upsert_proposal_rows(&mut conn, &rows).unwrap();
+    for p in &rows { menabig_tracker_lib::commercial::save_lines(&conn, "proposal_lines", "proposal_id", p.id, &p.lines).unwrap(); }
+    let db = std::sync::Mutex::new(conn);
+    let mut problems = Vec::new();
+    for (id, tag, _) in &cases {
+        let req = GenerateRequest { proposal_id: *id, template_id: 0, date: "2026-09-22".into(), file_name: format!("Acme Test Co_{tag}_check.pptx"), keep: None, logo_path: None, dry_run: false, from_library: !master_mode, from_master: master_mode };
+        let r = generate_proposal(&db, &req, OutputPolicy::AnyFolder).unwrap();
+        assert!(r.errors.is_empty(), "{tag}: {:?}", r.errors);
+        let path = PathBuf::from(r.path.clone().unwrap());
+        let pkg = Package::read(&path).unwrap();
+        let parts = menabig_tracker_lib::pptx::slide_parts_in_order(&pkg);
+        let para = regex::Regex::new(r"(?s)<a:p>.*?</a:p>").unwrap();
+        let run = regex::Regex::new(r"<a:t>([^<]*)</a:t>").unwrap();
+        let slides: Vec<Vec<String>> = parts.iter().map(|p| {
+            let xml = pkg.text_of(p);
+            para.find_iter(&xml).map(|m| run.captures_iter(m.as_str()).map(|c| c[1].to_string()).collect::<String>().replace("&amp;", "&").trim().to_string()).filter(|t| !t.is_empty()).collect()
+        }).collect();
+        println!("\n### {tag} ({} slides)", slides.len());
+        for (i, s) in slides.iter().enumerate() { println!("  {:>2} {}", i + 1, s.iter().take(4).cloned().collect::<Vec<_>>().join(" | ").chars().take(110).collect::<String>()); }
+        let is_terms = |s: &Vec<String>| s.iter().any(|p| p.starts_with("Assumptions and Limitations") || p.starts_with("The stated scope of work"));
+        // One general block: no clause paragraph repeated across terms slides.
+        let mut seen = std::collections::HashMap::new();
+        for (i, s) in slides.iter().enumerate().filter(|(_, s)| is_terms(s)) {
+            // The slide heading and service subtitle repeat on each terms slide by design.
+            for p in s.iter().filter(|p| p.len() > 60 && !p.starts_with("Assumptions and Limitations") && !p.starts_with("Terms & Conditions")) {
+                if let Some(first) = seen.insert(p.to_lowercase(), i + 1) { problems.push(format!("{tag}: slide {} repeats slide {first}: {}", i + 1, p.chars().take(70).collect::<String>())); }
+            }
+        }
+        let acceptance = slides.iter().filter(|s| s.iter().any(|p| p.starts_with("We believe that this proposal"))).count();
+        if acceptance != 1 { problems.push(format!("{tag}: {acceptance} acceptance slides")); }
+        // Service dividers ("… PART n") numbered 1..n in deck order.
+        let parts_n: Vec<String> = slides.iter().filter(|s| s.len() <= 7 && s.iter().any(|p| p == "PART")).filter_map(|s| s.iter().rev().find(|p| p.chars().all(|c| c.is_ascii_digit())).cloned()).collect();
+        let expected: Vec<String> = (1..=parts_n.len()).map(|n| n.to_string()).collect();
+        println!("  PART numbers {parts_n:?}");
+        if parts_n != expected { problems.push(format!("{tag}: PART numbers {parts_n:?}")); }
+        // Agenda numbers equal the slide each section starts on ("04" or "p. 04" beside each title).
+        if let Some(agenda) = slides.iter().find(|s| s.iter().any(|p| p.eq_ignore_ascii_case("agenda"))) {
+            let page = |p: &str| -> Option<usize> { p.trim().trim_start_matches("p.").trim().parse().ok().filter(|_| p.trim().starts_with("p.")) };
+            let pairs: Vec<(String, usize)> = if agenda.iter().any(|p| page(p).is_some()) {
+                agenda.windows(2).filter_map(|w| page(&w[1]).map(|n| (w[0].clone(), n))).collect()
+            } else {
+                let labels: Vec<&String> = agenda.iter().filter(|p| !p.eq_ignore_ascii_case("agenda") && !p.chars().all(|c| c.is_ascii_digit())).collect();
+                let numbers: Vec<usize> = agenda.iter().filter(|p| !p.is_empty() && p.chars().all(|c| c.is_ascii_digit())).map(|p| p.parse().unwrap()).collect();
+                labels.into_iter().cloned().zip(numbers).collect()
+            };
+            for (label, n) in pairs {
+                let start = slides.iter().position(|s| s.len() <= 3 && s.iter().any(|f| f.eq_ignore_ascii_case(&label))).map(|i| i + 1);
+                println!("  agenda {label} → {n} (starts at {start:?})");
+                if start != Some(n) { problems.push(format!("{tag}: agenda '{label}' says {n}, section starts at {start:?}")); }
+            }
+        }
+        if *tag == "eor" && slides.iter().flatten().any(|p| p.to_lowercase().contains("only if recruitment required")) { problems.push("eor: recruitment-only slide present".into()); }
+        let status: String = db.lock().unwrap().query_row("SELECT status FROM proposals WHERE id = ?1", [id], |r| r.get(0)).unwrap();
+        println!("  status {status}");
+        if status != "Drafting" { problems.push(format!("{tag}: status {status}")); }
+    }
+    for p in &problems { println!("PROBLEM {p}"); }
+    assert!(problems.is_empty(), "{} problems", problems.len());
+}

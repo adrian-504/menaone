@@ -10,7 +10,7 @@
 
 use crate::pptx::{self, Package, TemplateInspection};
 use serde::Serialize;
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::path::Path;
 use std::sync::{Mutex, OnceLock};
 use std::time::SystemTime;
@@ -134,7 +134,8 @@ pub fn classify(inspection: &TemplateInspection) -> Vec<ClassifiedSlide> {
     let mut current: Vec<&'static str> = Vec::new();
     let mut out = Vec::new();
     for s in &inspection.slides {
-        let l = lines(&s.text);
+        // The whole slide: a terms slide's service subtitle can sit past the first 400 characters.
+        let l = lines(if s.full_text.is_empty() { &s.text } else { &s.full_text });
         let first = l.first().cloned().unwrap_or_default();
         let joined = l.join(" | ");
         let lower = joined.to_lowercase();
@@ -313,7 +314,12 @@ pub fn plan(library: &[LibraryTemplate], wanted: &[&'static str]) -> Result<Plan
             .map(|s| s.index)
             .collect();
         imports.push(Import { template: src, positions: module, terms: false, module: key });
-        let terms: Vec<usize> = slides.iter().filter(|s| s.role == Role::Terms && s.modules.contains(&key)).map(|s| s.index).collect();
+        // Its own terms; a deck whose terms are one merged general slide (Admin & PRO,
+        // Maintenance, Labour Law) offers that, and composition keeps only the clauses it adds.
+        let mut terms: Vec<usize> = slides.iter().filter(|s| s.role == Role::Terms && s.modules.contains(&key)).map(|s| s.index).collect();
+        if terms.is_empty() {
+            terms = slides.iter().filter(|s| s.role == Role::Terms && s.modules.is_empty()).map(|s| s.index).collect();
+        }
         if !terms.is_empty() {
             imports.push(Import { template: src, positions: terms, terms: true, module: key });
         }
@@ -459,6 +465,18 @@ pub fn compose(library: &[LibraryTemplate], wanted: &[&'static str]) -> Result<C
         let parts = pptx::slide_parts_in_order(&pkg);
         neutralise_client(&mut pkg, &parts, client);
     }
+    // The base deck's own terms slides say each clause once too.
+    {
+        let parts = pptx::slide_parts_in_order(&pkg);
+        let mut seen = HashSet::new();
+        for (s, part) in slides.iter().zip(parts.iter()) {
+            if s.role != Role::Terms { continue; }
+            let xml = pkg.text_of(part);
+            let cleaned = without_clauses(&xml, &seen);
+            seen.extend(clause_keys(&cleaned));
+            if cleaned != xml { pkg.set_text(part, cleaned); }
+        }
+    }
 
     let mut sources: HashMap<usize, Package> = HashMap::new();
     for import in &plan.imports {
@@ -467,10 +485,32 @@ pub fn compose(library: &[LibraryTemplate], wanted: &[&'static str]) -> Result<C
             sources.insert(import.template, Package::read(Path::new(&src_template.path))?);
         }
         let src = &sources[&import.template];
+        // Terms: the general block is already in the deck once; a service's terms slide comes in
+        // only when it adds clauses, and without the clauses the deck already has.
+        let existing = if import.terms { terms_clauses(&pkg, &slides) } else { HashSet::new() };
+        let positions: Vec<usize> = if import.terms {
+            let src_parts = pptx::slide_parts_in_order(src);
+            import.positions.iter().copied().filter(|p| src_parts.get(p - 1).map(|part| pptx::paragraphs(&src.text_of(part)).iter().any(|t| !clause_sentences(t).is_empty() && !repeats(t, &existing))).unwrap_or(false)).collect()
+        } else {
+            import.positions.clone()
+        };
+        if positions.is_empty() {
+            continue;
+        }
         let at = if import.terms { terms_insert_at(&slides) } else { modules_insert_at(&slides) };
-        let added = crate::pptx_import::import_slides(&mut pkg, src, &import.positions, at)?;
-        let new_slides: Vec<ComposedSlide> = import
-            .positions
+        let added = crate::pptx_import::import_slides(&mut pkg, src, &positions, at)?;
+        if import.terms {
+            let mut seen = existing;
+            for part in pptx::slide_parts_in_order(&pkg)[at..at + added].to_vec() {
+                // A general terms slide brought in for one service says which service it is for.
+                let named = format!("Assumptions and Limitations – {} Services", module_name(import.module));
+                let (xml, _) = crate::smartfill::rewrite_paragraphs(&pkg.text_of(&part), |_, t| (t.trim() == "Assumptions and Limitations").then(|| named.clone()));
+                let xml = without_clauses(&xml, &seen);
+                seen.extend(clause_keys(&xml));
+                pkg.set_text(&part, xml);
+            }
+        }
+        let new_slides: Vec<ComposedSlide> = positions
             .iter()
             .filter_map(|p| src_template.slides.iter().find(|s| s.index == *p))
             .map(|s| ComposedSlide { title: s.title.clone(), role: s.role, modules: s.modules.clone(), source: src_template.name.clone(), source_index: s.index })
@@ -506,7 +546,134 @@ pub fn compose(library: &[LibraryTemplate], wanted: &[&'static str]) -> Result<C
             pkg.set_text(part, edited);
         }
     }
+    renumber_parts(&mut pkg, &slides);
     Ok(Composition { package: pkg, slides, base: base.name.clone(), missing: plan.missing, title })
+}
+
+/// Service dividers ("… PART 1") numbered in deck order: a mixed deck reads 1, 2, 3, not 1, 2, 1.
+fn renumber_parts(pkg: &mut Package, slides: &[ComposedSlide]) {
+    let parts = pptx::slide_parts_in_order(pkg);
+    let mut n = 0;
+    for (i, s) in slides.iter().enumerate() {
+        if !matches!(s.role, Role::ServiceDivider | Role::FeesDivider) { continue; }
+        let Some(part) = parts.get(i) else { continue };
+        let xml = pkg.text_of(part);
+        n += 1;
+        let (edited, changed) = renumber_part_xml(&xml, n);
+        if changed { pkg.set_text(part, edited); }
+    }
+}
+
+/// Sets the number after "PART" (its own paragraph, or "PART 1" in one).
+fn renumber_part_xml(xml: &str, n: usize) -> (String, bool) {
+    let mut after_part = false;
+    let (out, changed) = crate::smartfill::rewrite_paragraphs(xml, |_, t| {
+        let t = t.trim();
+        if t.eq_ignore_ascii_case("part") { after_part = true; return None; }
+        if after_part && !t.is_empty() && t.chars().all(|c| c.is_ascii_digit()) { after_part = false; return (t != n.to_string()).then(|| n.to_string()); }
+        if let Some(rest) = t.strip_prefix("PART ").filter(|r| r.chars().all(|c| c.is_ascii_digit())) { return (rest != n.to_string()).then(|| format!("PART {n}")); }
+        None
+    });
+    (out, changed > 0)
+}
+
+/// A clause's sentences as compared across decks: lower case, single spaces, the client
+/// placeholder as "client". Titles, subtitles and short headings are not clauses.
+fn clause_sentences(text: &str) -> Vec<String> {
+    let mut t = text.to_lowercase();
+    for p in crate::smartfill::CLIENT_PLACEHOLDERS {
+        t = t.replace(&p.to_lowercase(), "client");
+    }
+    let t = t.split_whitespace().collect::<Vec<_>>().join(" ");
+    let heading = ["terms & conditions", "assumptions and limitations"];
+    if t.chars().count() < 30 || heading.iter().any(|h| t.starts_with(h)) {
+        return vec![];
+    }
+    t.split(". ")
+        .map(|s| s.trim().trim_end_matches(['.', ';', ':', ',']).to_string())
+        .filter(|s| s.chars().count() >= 15)
+        // The decks word the VAT exclusion four ways; a deck states it once.
+        .map(|s| if s.contains("vat") && s.contains("exclud") { "§ prices exclude vat".to_string() } else { s })
+        .collect()
+}
+
+fn clause_keys(xml: &str) -> HashSet<String> {
+    pptx::paragraphs(xml).iter().flat_map(|p| clause_sentences(p)).collect()
+}
+
+/// Every sentence of this paragraph is already in the deck.
+fn repeats(text: &str, seen: &HashSet<String>) -> bool {
+    let s = clause_sentences(text);
+    !s.is_empty() && s.iter().all(|k| seen.contains(k))
+}
+
+/// Clauses on the deck's terms slides so far.
+fn terms_clauses(pkg: &Package, slides: &[ComposedSlide]) -> HashSet<String> {
+    let parts = pptx::slide_parts_in_order(pkg);
+    slides.iter().zip(parts.iter()).filter(|(s, _)| s.role == Role::Terms).flat_map(|(_, p)| clause_keys(&pkg.text_of(p))).collect()
+}
+
+/// A terms slide without the clauses already in the deck: shapes left without text go, a terms
+/// card left with only its heading goes, and the remaining cards close up in their columns.
+fn without_clauses(xml: &str, seen: &HashSet<String>) -> String {
+    static PARA: OnceLock<regex::Regex> = OnceLock::new();
+    static SP: OnceLock<regex::Regex> = OnceLock::new();
+    let para = PARA.get_or_init(|| regex::Regex::new(r"(?s)<a:p>.*?</a:p>|<a:p\b[^/>]*>.*?</a:p>").expect("regex"));
+    let sp = SP.get_or_init(|| regex::Regex::new(r"(?s)<p:sp>.*?</p:sp>").expect("regex"));
+    let mut out = xml.to_string();
+    let mut top = cards_top(xml);
+    for shape in sp.find_iter(xml).map(|m| m.as_str().to_string()).collect::<Vec<_>>() {
+        let mut edited = shape.clone();
+        let mut removed = 0;
+        for p in para.find_iter(&shape).map(|m| m.as_str().to_string()).collect::<Vec<_>>() {
+            let text = pptx::paragraphs(&p).join(" ");
+            if repeats(&text, seen) {
+                edited = edited.replacen(&p, "", 1);
+                removed += 1;
+            }
+        }
+        if removed == 0 { continue; }
+        let empty = pptx::paragraphs(&edited).is_empty();
+        // A card left without a clause (only its heading or sub-headings) goes.
+        let heading_only = shape.contains("name=\"Terms Card") && pptx::paragraphs(&edited).iter().all(|t| clause_sentences(t).is_empty());
+        if empty && shape.contains("name=\"LeadIn Bar\"") {
+            // The cards move up into the lead-in band's place.
+            top = regex::Regex::new(r#"<a:off x="\d+" y="(\d+)"/>"#).expect("regex").captures(&shape).and_then(|c| c[1].parse().ok()).or(top);
+        }
+        out = out.replacen(&shape, if empty || heading_only { "" } else { &edited }, 1);
+    }
+    restack_cards(&out, top)
+}
+
+fn cards_top(xml: &str) -> Option<i64> {
+    let card = regex::Regex::new(r#"(?s)name="Terms Card[^"]*"/>.*?<a:off x="\d+" y="(\d+)"/>"#).expect("regex");
+    card.captures_iter(xml).filter_map(|c| c[1].parse().ok()).min()
+}
+
+/// Terms cards stacked top-down in their column again, after some were removed.
+fn restack_cards(xml: &str, top: Option<i64>) -> String {
+    static CARD: OnceLock<regex::Regex> = OnceLock::new();
+    let card = CARD.get_or_init(|| regex::Regex::new(r#"(?s)<p:sp><p:nvSpPr><p:cNvPr id="\d+" name="Terms Card[^"]*"/>.*?</p:sp>"#).expect("regex"));
+    let off = regex::Regex::new(r#"<a:off x="(\d+)" y="(\d+)"/><a:ext cx="\d+" cy="(\d+)"/>"#).expect("regex");
+    let mut cards: Vec<(String, i64, i64, i64)> = card.find_iter(xml).filter_map(|m| {
+        let c = off.captures(m.as_str())?;
+        Some((m.as_str().to_string(), c[1].parse().ok()?, c[2].parse().ok()?, c[3].parse().ok()?))
+    }).collect();
+    if cards.is_empty() { return xml.to_string(); }
+    let top = top.unwrap_or_else(|| cards.iter().map(|c| c.2).min().unwrap_or(0));
+    cards.sort_by_key(|c| (c.1, c.2));
+    let mut out = xml.to_string();
+    let mut column: Option<i64> = None;
+    let mut y = top;
+    for (shape, x, old_y, h) in cards {
+        if column != Some(x) { column = Some(x); y = top; }
+        if old_y != y {
+            let moved = shape.replacen(&format!(r#"<a:off x="{x}" y="{old_y}"/>"#), &format!(r#"<a:off x="{x}" y="{y}"/>"#), 1);
+            out = out.replacen(&shape, &moved, 1);
+        }
+        y += h + 203200;
+    }
+    out
 }
 
 #[cfg(test)]
@@ -583,7 +750,7 @@ mod tests {
         ]);
         let workforce = deck(&[
             "'Client Name'\nProposal for Providing\nWorkforce Services", "Attn: 'Client Name'", "AGENDA", "Detailed Approach & Project Fees\n1",
-            "WORKFORCE\nSERVICES\nPART\n1", "Detailed Approach\nWorkforce Services", "Detailed Approach\nRecruitment Process", "WORKFORCE\nSERVICES FEES BREAKDOWN\nPART\n2",
+            "WORKFORCE\nSERVICES\nPART\n1", "Detailed Approach\nWorkforce Services", "Detailed Approach\nWorkforce Services\nAdvantages", "WORKFORCE\nSERVICES FEES BREAKDOWN\nPART\n2",
             "Value Based\nProject Fees\nWorkforce Services", "Terms & Conditions, and Acceptance\n2", "Terms & Conditions, and Acceptance\nAssumptions and Limitations – Workforce Services",
             "Terms & Conditions, and Acceptance\nAcceptance\nWe believe that this proposal", "About MENA BIG\n3", "MENA - BIG\n@mena_big",
         ]);
@@ -599,11 +766,68 @@ mod tests {
         let mixed = plan(&library, &["accountancy", "workforce"]).unwrap();
         assert_eq!(mixed.base, 1);
         assert_eq!(mixed.imports.len(), 2);
-        assert_eq!(mixed.imports[0].positions, vec![5, 6, 7, 8, 9], "workforce module incl. its recruitment process slide");
+        assert_eq!(mixed.imports[0].positions, vec![5, 6, 7, 8, 9], "workforce module (recruitment is a separate proposal)");
         assert_eq!((mixed.imports[1].terms, mixed.imports[1].positions.clone()), (true, vec![11]));
         assert_eq!(services_title(&["accountancy", "workforce"]), "Accountancy & VAT and Workforce Services");
 
         let unknown = plan(&library, &["liquidation"]).unwrap();
         assert_eq!(unknown.missing, vec!["liquidation"]);
+    }
+
+    #[test]
+    fn numbers_service_dividers_in_deck_order() {
+        let p = |t: &str| format!("<a:p><a:r><a:t>{t}</a:t></a:r></a:p>");
+        let divider = format!("{}{}{}{}", p("LABOR LAW &amp; EMPLOYMENT"), p("CONSULTANCY SERVICES"), p("PART"), p("1"));
+        let (out, changed) = renumber_part_xml(&divider, 3);
+        assert!(changed);
+        assert_eq!(pptx::paragraphs(&out), vec!["LABOR LAW & EMPLOYMENT", "CONSULTANCY SERVICES", "PART", "3"]);
+        assert!(!renumber_part_xml(&divider, 1).1, "already right: unchanged");
+        let (one_line, _) = renumber_part_xml(&p("PART 2"), 4);
+        assert_eq!(pptx::paragraphs(&one_line), vec!["PART 4"]);
+    }
+
+    #[test]
+    fn a_second_terms_slide_brings_only_new_clauses() {
+        let p = |t: &str, bullet: bool| format!("<a:p>{}<a:r><a:t>{t}</a:t></a:r></a:p>", if bullet { "<a:pPr><a:buChar char=\"●\"/></a:pPr>" } else { "" });
+        let card = |id: u32, y: i64, h: i64, body: &str| format!(r#"<p:sp><p:nvSpPr><p:cNvPr id="{id}" name="Terms Card {id}"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="152400" y="{y}"/><a:ext cx="5000000" cy="{h}"/></a:xfrm></p:spPr><p:txBody>{body}</p:txBody></p:sp>"#);
+        let general = "All Agreement fees excluding all Governmental Expenses and/or Taxes.";
+        let law = "This Subcontract shall be governed in accordance with the laws of The Kingdom of Saudi Arabia.";
+        let own = "MENA commits to replace the candidate once within the first 90 days.";
+        let slide = format!("<p:spTree>{}{}{}</p:spTree>",
+            card(2, 1000000, 800000, &format!("{}{}", p("General Terms", false), p(general, true))),
+            card(3, 2003200, 800000, &format!("{}{}", p("Applicable Law", false), p(law, true))),
+            card(4, 3006400, 900000, &format!("{}{}", p("Employee Termination Terms", false), p(&own.replace("MENA", "'Client Name' and MENA"), true))));
+        // The deck already has the general and law clauses (with another client placeholder).
+        let seen: HashSet<String> = [general, law].iter().flat_map(|t| clause_sentences(t)).collect();
+        let out = without_clauses(&slide, &seen);
+        assert_eq!(pptx::paragraphs(&out), vec!["Employee Termination Terms".to_string(), own.replace("MENA", "'Client Name' and MENA")], "only the new clause and its heading stay");
+        assert!(out.contains(r#"<a:off x="152400" y="1000000"/>"#), "the remaining card moves up to the top");
+        assert!(clause_keys(&slide).iter().any(|k| !seen.contains(k)), "the slide adds a clause, so it is imported");
+        let dup = format!("<p:spTree>{}</p:spTree>", card(2, 1000000, 800000, &format!("{}{}", p("General Terms", false), p(&general.replace("All", "all"), true))));
+        assert!(clause_keys(&dup).iter().all(|k| seen.contains(k)), "a slide of known clauses adds nothing and is skipped");
+    }
+}
+#[cfg(test)]
+mod clause_tests {
+    use super::*;
+    #[test]
+    fn headings_are_not_clauses_and_sentences_count_one_by_one() {
+        assert!(clause_sentences("Terminations & Conditions").is_empty());
+        assert!(clause_sentences("Assumptions and Limitations – Consultancy Services").is_empty());
+        let seen: HashSet<String> = clause_sentences("Unless previously terminated, this Agreement will initially to complete duration of 1 year minimum. The client may terminate this agreement for convenience at any time with a notice period to the Agent of (3) Three months.").into_iter().collect();
+        assert!(repeats("The client may terminate this agreement for convenience at any time with a notice period to the Agent of (3) Three months.", &seen));
+        assert!(!repeats("'Client Name' may terminate this agreement for convenience at any time with a notice period to MENA of (1) one months.", &seen));
+    }
+}
+
+#[cfg(test)]
+mod vat_tests {
+    use super::*;
+    #[test]
+    fn every_wording_of_the_vat_exclusion_is_one_clause() {
+        let a = clause_sentences("All our prices exclude VAT and WHT; they are added to our invoices according to the applicable law.");
+        let b = clause_sentences("All Fees are excluding VAT or WHT and will be added according to the country laws.");
+        let c = clause_sentences("All our prices are excluding VAT, it will be added in our invoices according to the VAT Law.");
+        assert_eq!(a, b); assert_eq!(b, c);
     }
 }

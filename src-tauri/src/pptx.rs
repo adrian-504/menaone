@@ -287,6 +287,9 @@ pub struct SlideInfo {
     pub has_line_table: bool,
     /// What the automatic fields would fill here (client name, date, logo…).
     pub smart_fields: Vec<String>,
+    /// Every paragraph (`text` keeps the first 400 characters for display).
+    #[serde(skip)]
+    pub full_text: String,
 }
 
 #[derive(Debug, Clone, Serialize, Default)]
@@ -331,6 +334,7 @@ pub fn inspect(pkg: &Package) -> TemplateInspection {
                 slide_id: s.slide_id,
                 title: slide_title(&xml),
                 text: text.chars().take(400).collect(),
+                full_text: text.clone(),
                 tags: parse_tags(&notes),
                 notes,
                 has_line_table: tokens.iter().any(|t| t.starts_with("line.")),

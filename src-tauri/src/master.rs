@@ -76,7 +76,6 @@ pub struct Choice {
 /// Which master slides a proposal keeps.
 pub fn choose(inspection: &TemplateInspection, lines: &[MasterLine], months: Option<i64>) -> Vec<Choice> {
     let wanted: BTreeSet<&str> = lines.iter().flat_map(|l| l.modules.iter().copied()).collect();
-    let recruitment = lines.iter().any(|l| l.modules.contains(&"workforce") && l.with_recruitment);
     let term = months.filter(|m| *m > 0).unwrap_or(12);
     inspection
         .slides
@@ -86,7 +85,8 @@ pub fn choose(inspection: &TemplateInspection, lines: &[MasterLine], months: Opt
             let (included, reason) = match (&t.module, t.always) {
                 (_, true) => (true, "Standard slide".to_string()),
                 (Some(m), _) if wanted.contains(m.as_str()) => match t.when.as_deref() {
-                    Some("recruitment") if !recruitment => (false, "Workforce without recruitment".into()),
+                    // Recruitment is proposed separately (owner, 22-Sep-2026); a Recruitment line brings its own slides.
+                    Some("recruitment") => (false, "Recruitment is a separate proposal".into()),
                     Some("term12") if term < 12 => (false, "Only with a 12-month term".into()),
                     Some("term_short") if term >= 12 => (false, "Only for terms under 12 months".into()),
                     _ => (true, format!("For {}", crate::proposal_library::module_name(m))),
