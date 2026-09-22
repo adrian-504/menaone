@@ -1,3 +1,5 @@
+> **Superseded (22-Sep-2026):** MENA One builds proposals from the service templates in `Proposals New Logo` or the 2026 master; single saved templates are no longer offered. See [proposal-generation.md](proposal-generation.md). Kept for history.
+
 # Preparing the master proposal deck
 
 MENA One builds each client's proposal from one PowerPoint file. For every

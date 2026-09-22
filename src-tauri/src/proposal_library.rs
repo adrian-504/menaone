@@ -359,6 +359,26 @@ pub fn services_title(modules: &[&str]) -> String {
 
 type CacheEntry = (Option<SystemTime>, u64, LibraryTemplate);
 
+/// A service template: "… Template.pptx" (any separator before "Template"). The All Services
+/// deck is a reference copy of the service templates, not a source; other decks saved in the
+/// folder (sent proposals) are not templates.
+pub fn is_template_file(p: &Path) -> bool {
+    let name = p.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+    let lower = name.to_lowercase();
+    p.is_file() && !name.starts_with("~$") && !name.starts_with('.') && lower.ends_with("template.pptx") && !lower.starts_with("all services")
+}
+
+/// PowerPoint files in the folder that are not read as templates, for the Generate report.
+pub fn ignored_files(dir: &Path) -> Vec<String> {
+    let Ok(entries) = std::fs::read_dir(dir) else { return vec![] };
+    let mut out: Vec<String> = entries.filter_map(|e| e.ok()).map(|e| e.path())
+        .filter(|p| { let n = p.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default(); let l = n.to_lowercase(); l.ends_with(".pptx") && !n.starts_with("~$") && !n.starts_with('.') && !l.starts_with("all services") && !is_template_file(p) })
+        .filter_map(|p| p.file_name().map(|n| n.to_string_lossy().to_string()))
+        .collect();
+    out.sort();
+    out
+}
+
 /// Every template in the folder, classified. Files are only re-read when they change.
 pub fn load_library(dir: &Path) -> Result<Vec<LibraryTemplate>, String> {
     static CACHE: OnceLock<Mutex<HashMap<String, CacheEntry>>> = OnceLock::new();
@@ -366,10 +386,7 @@ pub fn load_library(dir: &Path) -> Result<Vec<LibraryTemplate>, String> {
     let mut paths: Vec<std::path::PathBuf> = entries
         .filter_map(|e| e.ok())
         .map(|e| e.path())
-        .filter(|p| {
-            let name = p.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
-            p.is_file() && name.to_lowercase().ends_with(".pptx") && !name.starts_with("~$") && !name.starts_with('.')
-        })
+        .filter(|p| is_template_file(p))
         .collect();
     paths.sort();
     let cache = CACHE.get_or_init(|| Mutex::new(HashMap::new()));
@@ -1103,5 +1120,25 @@ mod family_tests {
         // Different obligations stay separate.
         assert!(clause_family("all fees excluding employee and company taxes and expenses").is_none());
         assert!(clause_family("client may terminate this agreement for convenience at any time with a notice period to mena of (1) one months").is_none());
+    }
+}
+
+#[cfg(test)]
+mod naming_tests {
+    use super::*;
+    #[test]
+    fn only_templates_are_read() {
+        let dir = std::env::temp_dir().join(format!("menabig_tpl_names_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        for n in ["Company Liquidation Proposal Template.pptx", "Business_Setup_Package_Proposal_V1_Template.pptx", "All Services Proposal Template.pptx", "Acme Holdings Liquidation Proposal.pptx", "~$Company Liquidation Proposal Template.pptx"] {
+            std::fs::write(dir.join(n), b"x").unwrap();
+        }
+        assert!(is_template_file(&dir.join("Company Liquidation Proposal Template.pptx")));
+        assert!(is_template_file(&dir.join("Business_Setup_Package_Proposal_V1_Template.pptx")));
+        assert!(!is_template_file(&dir.join("All Services Proposal Template.pptx")), "a reference copy, not a source");
+        assert!(!is_template_file(&dir.join("Acme Holdings Liquidation Proposal.pptx")), "a sent proposal");
+        assert_eq!(ignored_files(&dir), vec!["Acme Holdings Liquidation Proposal.pptx".to_string()], "the All Services copy is skipped on purpose, not reported");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

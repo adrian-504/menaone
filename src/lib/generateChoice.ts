@@ -4,15 +4,10 @@
 
 export interface DesignOption { value: string; label: string; selected: boolean }
 
-export function designOptions(
-  library: { count: number } | null,
-  hasMaster: boolean,
-  templates: { id: number; name: string }[],
-  preferredId: number | null,
-): DesignOption[] {
+export function designOptions(library: { count: number } | null, hasMaster: boolean): DesignOption[] {
   const out: DesignOption[] = [];
   if (library) out.push({ value: 'library', label: `Current design — built from your service templates (${library.count} in Proposals New Logo)`, selected: true });
+  // With no service templates the master is the only choice; the select shows it without preselecting.
   if (hasMaster) out.push({ value: 'master', label: '2026 design — MENA BIG Proposal Master', selected: false });
-  for (const t of templates) out.push({ value: String(t.id), label: t.name, selected: !library && t.id === preferredId });
   return out;
 }

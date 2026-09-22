@@ -1,274 +1,45 @@
-// Proposal templates (under Services) and the Generate proposal dialog.
-// A template is a .pptx plus rules: which slides are always in, which belong
-// to which services or entity, and plain-text replacements for decks that
-// don't use {{tokens}} yet. Generating writes the next version of the deck
-// into the client's OneDrive folder and records it on the proposal.
+// The proposal templates list (under Services) and the Generate proposal dialog.
+// Proposals are built from the service templates in "Proposals New Logo" (current
+// design) or the 2026 master. Generating writes the next version of the deck into
+// the client's OneDrive folder and records it on the proposal.
 
 import { S } from '../lib/state';
-import { escHtml, expose, localIsoDate, showConfirm } from '../lib/utils';
+import { escHtml, expose, localIsoDate } from '../lib/utils';
 import { icon } from '../lib/icons';
 import { emptyState, toast } from '../lib/ui';
-import { templatesList, templateInspect, templateDetail, templateSave, templateDelete, templateTokens, proposalGenerate, proposalLibrary, filesOpen, proposalFolderLookup } from '../lib/db';
+import { proposalGenerate, proposalLibrary, filesOpen, proposalFolderLookup } from '../lib/db';
 import { persistProposals, proposalsAndAgreementsSaved } from '../lib/persist';
 import { renderIcons } from '../core/chrome';
-import { lineTotals, nextDeckFileName, entityById, applyGeneratedDocument, proposalDecks } from '../lib/commercial';
+import { lineTotals, nextDeckFileName, applyGeneratedDocument, proposalDecks } from '../lib/commercial';
 import { designOptions } from '../lib/generateChoice';
-import type { ProposalTemplate, SlideRule, TemplateDetail, TemplateInspection, TokenInfo, GenerateResult } from '../lib/types';
+import type { GenerateResult } from '../lib/types';
 
 const w = window as any;
-let templates: ProposalTemplate[] = [];
-let tokens: TokenInfo[] = [];
-/** Template being edited: saved detail, or a new file not saved yet. */
-let editing: { template: ProposalTemplate; inspection: TemplateInspection; rules: SlideRule[] } | null = null;
-
-async function ensureTokens(): Promise<TokenInfo[]> {
-  if (!tokens.length) tokens = await templateTokens().catch(() => []);
-  return tokens;
-}
-
-export async function loadTemplates(): Promise<ProposalTemplate[]> {
-  templates = await templatesList().catch(() => []);
-  return templates;
-}
 
 // ═══════════════ Services → Templates view ═══════════════
+// Read-only: which service templates the generator reads, the 2026 master, and
+// files in the folder it leaves alone. Templates are edited in PowerPoint.
 
 export async function renderTemplatesView(container: HTMLElement): Promise<void> {
-  if (editing) { renderEditor(container); return; }
-  await loadTemplates();
+  const library = await proposalLibrary().catch(() => null);
+  const templates = library?.templates || [];
+  const ignored = library?.ignored || [];
   container.innerHTML = `
     <section class="sec tpl-intro">
-      <div class="rec-section-hd"><h2>Proposal templates</h2><div class="rec-section-actions"><button class="btn-secondary" onclick="addProposalTemplate()">${icon('plus', 13)} Add template…</button></div></div>
-      <p class="settings-card-desc">A template is a PowerPoint deck. For each proposal, MENA One keeps the slides it needs, fills in the client's details and the fee table, and saves the result in the client's OneDrive folder.</p>
-      ${guideHtml()}
+      <div class="rec-section-hd"><h2>Proposal templates</h2></div>
+      <p class="settings-card-desc">Proposals are built from the service templates in ${escHtml(library?.dir || 'Proposals Templates/Proposals New Logo')}: only files named “… Template.pptx” are read, and the proposal's first service leads the deck. Edit a template in PowerPoint; MENA One reads the new version the next time it generates.</p>
     </section>
-    ${templates.length ? `<section class="sec"><div class="rec-list">${templates.map((t) => `<div class="rec-row${t.exists ? '' : ' is-unavailable'}" onclick="editProposalTemplate(${t.id})">
+    ${templates.length ? `<section class="sec"><div class="rec-list">${templates.map((t) => `<div class="rec-row">
       <span class="rec-row-icon">${icon('document', 15)}</span>
       <div class="rec-row-main">
-        <div class="rec-row-title">${escHtml(t.name)} ${t.isDefault ? '<span class="rec-badge tone-accent">Default</span>' : ''} ${t.exists ? '' : '<span class="rec-badge tone-red">File missing</span>'}</div>
-        <div class="rec-row-sub">${[entityById(t.businessEntityId)?.name || 'Any entity', t.slideCount ? `${t.slideCount} slides` : '', t.config.slides.filter((s) => s.include === 'services').length ? `${t.config.slides.filter((s) => s.include === 'services').length} service slides` : ''].filter(Boolean).map(escHtml).join(' · ')}</div>
+        <div class="rec-row-title">${escHtml(t.name)}</div>
+        <div class="rec-row-sub">${[t.services.join(', '), `${t.slideCount} slides`].filter(Boolean).map(escHtml).join(' · ')}</div>
       </div>
-      <div class="rec-row-actions"><button class="rec-icon-btn" onclick="event.stopPropagation();removeProposalTemplate(${t.id})" title="Remove" aria-label="Remove template">${icon('trash', 13)}</button></div>
     </div>`).join('')}</div></section>`
-    : `<section class="sec">${emptyState({ icon: 'document', title: 'No template yet', body: 'Add the master proposal deck when it is ready. You can also try one of the current single-service templates in the meantime.', compact: true })}</section>`}`;
+    : `<section class="sec">${emptyState({ icon: 'document', title: 'No service templates found', body: 'MENA One looks for "Proposals Templates/Proposals New Logo" next to your Proposals folder.', compact: true })}</section>`}
+    <section class="sec"><p class="settings-card-desc">2026 design: ${library?.master ? escHtml(library.master.split('/').pop() || '') : 'not found'}${ignored.length ? ` · Not read as templates: ${ignored.map(escHtml).join(', ')}` : ''}</p></section>`;
   renderIcons(container);
 }
-
-function guideHtml(): string {
-  return `<details class="settings-help tpl-guide">
-    <summary>How to prepare the master deck</summary>
-    <ol>
-      <li>Put every slide any proposal might need in one file: cover, letter, agenda, a module per service, commercials, terms, About MENA BIG, back cover.</li>
-      <li>In each slide's <strong>speaker notes</strong>, say when it's used: <code class="inline-code">[always]</code>, <code class="inline-code">[services: Payroll, PRO]</code> (service or category names from the catalog), <code class="inline-code">[entity: KSA]</code> or <code class="inline-code">[never]</code>. Rules can also be set here after adding the file.</li>
-      <li>Type placeholders where details go, e.g. <code class="inline-code">{{client_name}}</code> or <code class="inline-code">{{proposal_date_ordinal}}</code>. The full list is shown when you edit a template.</li>
-      <li>For the fee table, make one row with <code class="inline-code">{{line.service}}</code>, <code class="inline-code">{{line.billing}}</code>, <code class="inline-code">{{line.amount}}</code> — it is repeated for each service. Put totals like <code class="inline-code">{{monthly_total}}</code> below it.</li>
-      <li>Set text boxes that hold a client name to "Shrink text on overflow", and drop typed page numbers from the agenda (slides are removed per proposal).</li>
-    </ol>
-  </details>`;
-}
-
-export async function addProposalTemplate(): Promise<void> {
-  let path: string | null = null;
-  try {
-    const { open } = await import('@tauri-apps/plugin-dialog');
-    const picked = await open({ multiple: false, directory: false, filters: [{ name: 'PowerPoint', extensions: ['pptx'] }], title: 'Choose the proposal template' });
-    path = typeof picked === 'string' ? picked : null;
-  } catch (err) {
-    toast('Could not open the file picker', { tone: 'error', detail: String(err) });
-    return;
-  }
-  if (!path) return;
-  try {
-    const inspection = await templateInspect(path);
-    const name = path.split('/').pop()!.replace(/\.pptx$/i, '');
-    const template: ProposalTemplate = { id: 0, name, path, businessEntityId: null, config: { smartFields: true, slides: [], replacements: [] }, slideCount: inspection.slideCount, fileModifiedAt: null, isDefault: templates.length === 0, exists: true };
-    editing = { template, inspection, rules: defaultRules(inspection) };
-    w.renderPricingTab?.();
-  } catch (err) {
-    toast('That file can’t be used as a template', { tone: 'error', detail: String(err) });
-  }
-}
-expose('addProposalTemplate', addProposalTemplate);
-
-function defaultRules(inspection: TemplateInspection): SlideRule[] {
-  return inspection.slides.map((s) => ({
-    slideId: s.slideId,
-    include: s.tags.never ? 'never' : s.tags.services.length ? 'services' : 'always',
-    services: s.tags.services,
-    entity: s.tags.entity,
-  }));
-}
-
-export async function editProposalTemplate(id: number): Promise<void> {
-  try {
-    const detail: TemplateDetail = await templateDetail(id);
-    editing = { template: detail.template, inspection: detail.inspection, rules: detail.rules };
-    w.renderPricingTab?.();
-  } catch (err) {
-    toast('Could not open the template', { tone: 'error', detail: String(err) });
-  }
-}
-expose('editProposalTemplate', editProposalTemplate);
-
-export async function removeProposalTemplate(id: number): Promise<void> {
-  const t = templates.find((x) => x.id === id);
-  if (!t || !(await showConfirm(`Remove "${t.name}" from MENA One? The PowerPoint file itself is not touched.`, { confirmLabel: 'Remove' }))) return;
-  await templateDelete(id);
-  w.renderPricingTab?.();
-}
-expose('removeProposalTemplate', removeProposalTemplate);
-
-export function closeTemplateEditor(): void {
-  editing = null;
-  w.renderPricingTab?.();
-}
-expose('closeTemplateEditor', closeTemplateEditor);
-
-function serviceOptions(): string[] {
-  return [...new Set([...S.services.filter((s) => s.active).map((s) => s.name), ...S.services.map((s) => s.category || '').filter(Boolean)])].sort((a, b) => a.localeCompare(b));
-}
-
-function renderEditor(container: HTMLElement): void {
-  if (!editing) return;
-  const { template, inspection, rules } = editing;
-  void ensureTokens().then((list) => {
-    const el = document.getElementById('tpl-tokens');
-    if (!el) return;
-    const known = new Set(list.map((t) => t.token));
-    const used = inspection.tokens;
-    el.innerHTML = `${used.length ? `<p class="settings-card-desc">Placeholders in this deck:</p><div class="chip-row">${used.map((t) => `<span class="rec-badge ${known.has(t) ? 'tone-green' : 'tone-red'}" title="${known.has(t) ? 'Filled automatically' : 'MENA One doesn’t know this one'}">{{${escHtml(t)}}}</span>`).join('')}</div>` : '<p class="settings-card-desc">This deck has no {{placeholders}} yet — use replacements below, or add placeholders to the file.</p>'}
-      <details class="settings-help"><summary>All placeholders you can use (${list.length})</summary><div class="tpl-token-list">${list.map((t) => `<div><code class="inline-code">{{${escHtml(t.token)}}}</code><span>${escHtml(t.label)}</span><span class="t-muted">${escHtml(t.example)}</span></div>`).join('')}</div></details>`;
-    renderReplacements();
-  });
-  const opts = serviceOptions();
-  container.innerHTML = `
-    <section class="sec tpl-editor">
-      <div class="rec-section-hd"><h2>${template.id ? 'Edit template' : 'New template'}</h2>
-        <div class="rec-section-actions"><button class="btn-secondary" onclick="closeTemplateEditor()">Cancel</button><button class="btn-primary" onclick="saveProposalTemplate()">Save template</button></div></div>
-      <div class="fg">
-        <div class="fgrp"><label class="flbl" for="tpl-name">Name</label><input class="finp" id="tpl-name" value="${escHtml(template.name)}"></div>
-        <div class="fgrp"><label class="flbl" for="tpl-entity">Used for</label><select class="finp" id="tpl-entity"><option value="">Any entity</option>${S.businessEntities.map((e) => `<option value="${e.id}"${e.id === template.businessEntityId ? ' selected' : ''}>${escHtml(e.name)}</option>`).join('')}</select></div>
-        <div class="fgrp fgrp-full"><label class="check-label"><input type="checkbox" id="tpl-default"${template.isDefault ? ' checked' : ''}> Default template for this entity</label><div class="form-hint"><code class="path-code">${escHtml(template.path)}</code></div></div>
-      </div>
-      <label class="check-label tpl-smart"><input type="checkbox" id="tpl-smart"${template.config.smartFields !== false ? ' checked' : ''} onchange="editingSmartFields(this.checked)">
-        <span><strong>Fill it like the team does by hand</strong> — client name, cover and letter dates, the country under "Attn", the client logo in the "Logo" box, agenda page numbers, and fee amounts that match the proposal's services. For templates without {{placeholders}}.</span></label>
-      <div id="tpl-tokens"></div>
-      <div class="settings-subsection">
-        <div class="settings-subsection-title">Text to replace</div>
-        <p class="settings-card-desc">For decks without placeholders: replace text exactly as it's typed on the slides.</p>
-        <div id="tpl-replacements"></div>
-      </div>
-    </section>
-    <section class="sec tpl-slides">
-      <div class="rec-section-hd"><h2>Slides</h2><span class="rec-count">${inspection.slideCount}</span>
-        <div class="rec-section-actions"><button class="btn-secondary btn-sm" onclick="setAllSlideRules('always')">All always</button></div></div>
-      <datalist id="tpl-service-options">${opts.map((o) => `<option value="${escHtml(o)}">`).join('')}</datalist>
-      <div class="tpl-slide-list">${inspection.slides.map((s, i) => {
-        const r = rules[i];
-        return `<div class="tpl-slide${r.include === 'never' ? ' is-unavailable' : ''}">
-          <span class="tpl-slide-num">${s.index}</span>
-          <div class="tpl-slide-main">
-            <div class="tpl-slide-title">${escHtml(s.title || 'Untitled slide')}${s.hasLineTable ? ' <span class="rec-badge tone-accent">Fee table</span>' : ''}</div>
-            <div class="tpl-slide-text">${escHtml(s.text.replace(/\n/g, ' · ').slice(0, 160))}</div>
-            ${s.notes ? `<div class="tpl-slide-notes">${icon('note', 11)} ${escHtml(s.notes.slice(0, 120))}</div>` : ''}
-            ${template.config.smartFields !== false && s.smartFields?.length ? `<div class="chip-row">${s.smartFields.map((f) => `<span class="rec-badge${/amount/.test(f) ? ' tone-amber' : ' tone-accent'}">${escHtml(f)}</span>`).join('')}</div>` : ''}
-          </div>
-          <div class="tpl-slide-rule">
-            <select class="td-select" onchange="setSlideRule(${i}, 'include', this.value)" aria-label="When slide ${s.index} is used">
-              <option value="always"${r.include === 'always' ? ' selected' : ''}>Always</option>
-              <option value="services"${r.include === 'services' ? ' selected' : ''}>For services…</option>
-              <option value="never"${r.include === 'never' ? ' selected' : ''}>Never</option>
-            </select>
-            ${r.include === 'services' ? `<div class="chip-row">${r.services.map((sv, k) => `<span class="prb-chip on">${escHtml(sv)}<button class="tpl-chip-x" onclick="setSlideRule(${i}, 'removeService', '${k}')" aria-label="Remove ${escHtml(sv)}">×</button></span>`).join('')}
-              <input class="td-input tpl-add-service" list="tpl-service-options" placeholder="Add service…" onchange="setSlideRule(${i}, 'addService', this.value)"></div>` : ''}
-            <select class="td-select tpl-entity" onchange="setSlideRule(${i}, 'entity', this.value)" aria-label="Entity for slide ${s.index}">
-              <option value="">Any entity</option>${S.businessEntities.map((e) => `<option value="${escHtml(e.code)}"${r.entity === e.code ? ' selected' : ''}>Only ${escHtml(e.code)}</option>`).join('')}
-            </select>
-          </div>
-        </div>`;
-      }).join('')}</div>
-    </section>`;
-  renderIcons(container);
-}
-
-function renderReplacements(): void {
-  const el = document.getElementById('tpl-replacements');
-  if (!el || !editing) return;
-  const reps = editing.template.config.replacements;
-  const tokenOpts = (sel: string) => tokens.filter((t) => !t.token.startsWith('line.')).map((t) => `<option value="${escHtml(t.token)}"${t.token === sel ? ' selected' : ''}>${escHtml(t.label)}</option>`).join('');
-  el.innerHTML = reps.map((r, i) => `<div class="tpl-rep">
-      <input class="finp" value="${escHtml(r.find)}" placeholder="Text on the slides" onchange="setReplacement(${i}, 'find', this.value)">
-      <span class="t-muted">→</span>
-      <select class="finp" onchange="setReplacement(${i}, 'token', this.value)">${tokenOpts(r.token)}</select>
-      <button class="rec-icon-btn" onclick="setReplacement(${i}, 'remove', '')" aria-label="Remove replacement">${icon('close', 13)}</button>
-    </div>`).join('') + `<button class="btn-secondary btn-sm" onclick="setReplacement(-1, 'add', '')">${icon('plus', 12)} Add replacement</button>`;
-  renderIcons(el);
-}
-
-export function editingSmartFields(on: boolean): void {
-  if (!editing) return;
-  syncNameFields();
-  editing.template.config.smartFields = on;
-  w.renderPricingTab?.();
-}
-expose('editingSmartFields', editingSmartFields);
-
-export function setReplacement(i: number, field: string, value: string): void {
-  if (!editing) return;
-  const reps = editing.template.config.replacements;
-  if (field === 'add') reps.push({ find: '', token: 'client_name' });
-  else if (field === 'remove') reps.splice(i, 1);
-  else if (reps[i]) (reps[i] as any)[field] = value;
-  renderReplacements();
-}
-expose('setReplacement', setReplacement);
-
-export function setSlideRule(i: number, field: string, value: string): void {
-  if (!editing) return;
-  const r = editing.rules[i];
-  if (!r) return;
-  if (field === 'include') r.include = value as SlideRule['include'];
-  else if (field === 'entity') r.entity = value || null;
-  else if (field === 'addService' && value.trim() && !r.services.includes(value.trim())) r.services.push(value.trim());
-  else if (field === 'removeService') r.services.splice(Number(value), 1);
-  syncNameFields();
-  w.renderPricingTab?.();
-}
-expose('setSlideRule', setSlideRule);
-
-export function setAllSlideRules(include: SlideRule['include']): void {
-  if (!editing) return;
-  editing.rules.forEach((r) => { r.include = include; });
-  syncNameFields();
-  w.renderPricingTab?.();
-}
-expose('setAllSlideRules', setAllSlideRules);
-
-/** Keeps typed name/entity/default when the editor re-renders. */
-function syncNameFields(): void {
-  if (!editing) return;
-  const name = document.getElementById('tpl-name') as HTMLInputElement | null;
-  const entity = document.getElementById('tpl-entity') as HTMLSelectElement | null;
-  const def = document.getElementById('tpl-default') as HTMLInputElement | null;
-  if (name) editing.template.name = name.value;
-  if (entity) editing.template.businessEntityId = entity.value ? Number(entity.value) : null;
-  if (def) editing.template.isDefault = def.checked;
-}
-
-export async function saveProposalTemplate(): Promise<void> {
-  if (!editing) return;
-  syncNameFields();
-  const template: ProposalTemplate = { ...editing.template, config: { smartFields: editing.template.config.smartFields !== false, slides: editing.rules, replacements: editing.template.config.replacements.filter((r) => r.find.trim()) } };
-  try {
-    await templateSave(template);
-    editing = null;
-    toast('Template saved', { tone: 'success' });
-    w.renderPricingTab?.();
-  } catch (err) {
-    toast('Could not save the template', { tone: 'error', detail: String(err) });
-  }
-}
-expose('saveProposalTemplate', saveProposalTemplate);
 
 // ═══════════════ Generate proposal dialog ═══════════════
 
@@ -277,19 +48,17 @@ let generating: { proposalId: number; preview: GenerateResult | null; keep: Set<
 export async function openGenerateProposal(proposalId: number): Promise<void> {
   const p = S.proposals.find((x) => x.id === proposalId);
   if (!p) return;
-  const [, library] = await Promise.all([loadTemplates(), proposalLibrary().catch(() => null)]);
-  const usable = templates.filter((t) => t.exists);
+  const library = await proposalLibrary().catch(() => null);
   const hasLibrary = !!library?.templates.length;
   const hasMaster = !!library?.master;
-  if (!usable.length && !hasLibrary && !hasMaster) {
-    toast('No proposal templates found', { detail: 'MENA One looks for "Proposals Templates/Proposals New Logo" next to your Proposals folder, or add a template in Services → Templates', action: { label: 'Open', run: () => { w.navToModule('pricing'); w.setServicesView('templates'); } } });
+  if (!hasLibrary && !hasMaster) {
+    toast('No proposal templates found', { detail: 'MENA One looks for "Proposals Templates/Proposals New Logo" next to your Proposals folder', action: { label: 'Open', run: () => { w.navToModule('pricing'); w.setServicesView('templates'); } } });
     return;
   }
   // The current design (the team's service templates, combined) is the default; the 2026 master is second.
-  const preferred = usable.find((t) => t.isDefault && t.businessEntityId === p.businessEntityId) || usable.find((t) => t.businessEntityId === p.businessEntityId) || usable.find((t) => t.isDefault) || usable[0];
   const sel = document.getElementById('gen-template') as HTMLSelectElement | null;
   if (sel) {
-    sel.innerHTML = designOptions(hasLibrary ? { count: library!.templates.length } : null, hasMaster, usable, preferred?.id ?? null)
+    sel.innerHTML = designOptions(hasLibrary ? { count: library!.templates.length } : null, hasMaster)
       .map((o) => `<option value="${escHtml(o.value)}"${o.selected ? ' selected' : ''}>${escHtml(o.label)}</option>`).join('');
   }
   const folder = await proposalFolderLookup(p.client, p.folderPath ?? null).catch(() => null);
@@ -319,7 +88,7 @@ function request(dryRun: boolean) {
   const chosen = (document.getElementById('gen-template') as HTMLSelectElement).value;
   const fromLibrary = chosen === 'library';
   const fromMaster = chosen === 'master';
-  const templateId = fromLibrary || fromMaster ? 0 : Number(chosen);
+  const templateId = 0;
   const fileName = (document.getElementById('gen-file-name') as HTMLInputElement).value.trim();
   const logoPath = (document.getElementById('gen-logo') as HTMLSelectElement | null)?.value || null;
   return { proposalId: generating!.proposalId, templateId, date: localIsoDate(new Date()), fileName, keep: generating!.keep ? [...generating!.keep] : null, logoPath, dryRun, fromLibrary, fromMaster };

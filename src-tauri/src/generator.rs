@@ -491,6 +491,8 @@ pub struct LibraryInfo {
     pub templates: Vec<LibraryTemplateInfo>,
     /// The 2026 proposal master, when found.
     pub master: Option<String>,
+    /// PowerPoint files in the folder that are not read as templates.
+    pub ignored: Vec<String>,
 }
 
 #[tauri::command]
@@ -501,7 +503,7 @@ pub fn proposal_library(state: State<DbState>) -> CmdResult<LibraryInfo> {
         (library_dir(&conn).map_err(err)?, configured)
     };
     let master = crate::master::locate(dir.as_deref(), configured).map(|p| p.to_string_lossy().to_string());
-    let Some(dir) = dir else { return Ok(LibraryInfo { dir: None, templates: vec![], master }) };
+    let Some(dir) = dir else { return Ok(LibraryInfo { dir: None, templates: vec![], master, ignored: vec![] }) };
     let templates = crate::proposal_library::load_library(&dir)?
         .into_iter()
         .map(|t| LibraryTemplateInfo {
@@ -512,7 +514,8 @@ pub fn proposal_library(state: State<DbState>) -> CmdResult<LibraryInfo> {
             path: t.path,
         })
         .collect();
-    Ok(LibraryInfo { dir: Some(dir.to_string_lossy().to_string()), templates, master })
+    let ignored = crate::proposal_library::ignored_files(&dir);
+    Ok(LibraryInfo { dir: Some(dir.to_string_lossy().to_string()), templates, master, ignored })
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -709,6 +712,8 @@ pub fn generate_proposal(db: &Mutex<Connection>, request: &GenerateRequest, poli
             services_title = Some(crate::proposal_library::services_title(&wanted));
             (pkg, inspection, slides)
         }
+        // Deprecated: single saved templates (the proposal_templates table). The app no longer
+        // offers them (22-Sep-2026); kept for the document-versioning tests until they move to the library.
         (Some(template), _) => {
             let pkg = Package::read(Path::new(&template.path))?;
             let inspection = pptx::inspect(&pkg);
@@ -732,6 +737,10 @@ pub fn generate_proposal(db: &Mutex<Connection>, request: &GenerateRequest, poli
                 }
             }
             let library = lib::load_library(dir)?;
+            let ignored = lib::ignored_files(dir);
+            if !ignored.is_empty() {
+                warnings.push(format!("Not read as templates (only \"… Template.pptx\" files are): {}", ignored.join(", ")));
+            }
             let composed = lib::compose(&library, &wanted)?;
             for m in &composed.missing {
                 warnings.push(format!("None of the templates has slides for {}; add them by hand.", lib::module_name(m)));

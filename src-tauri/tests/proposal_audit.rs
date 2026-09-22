@@ -227,10 +227,11 @@ fn generates_real_decks_on_a_database_copy() {
     let mut written = Vec::new();
     let mut highlighted: Vec<String> = Vec::new();
     let service = |name: &str| -> i64 { conn.query_row("SELECT id FROM services WHERE name = ?1", [name], |r| r.get(0)).unwrap() };
-    let cases = [(990001_i64, "Administration and PRO", 4000.0), (990002, "Labour Law Consultancy", 7000.0), (990003, "Accountancy", 5000.0)];
+    // A price of 0 leaves the line unpriced (the fee must not be the template's sample amount).
+    let cases = [(990001_i64, "Administration and PRO", 4000.0), (990002, "Labour Law Consultancy", 7000.0), (990003, "Accountancy", 5000.0), (990004, "Company Liquidation", 0.0)];
     let rows: Vec<Proposal> = cases.iter().map(|(id, name, price)| Proposal {
         id: *id, client: "Acme Test Co".into(), status: "Drafting".into(), currency: Some("SAR".into()), contract_months: Some(6),
-        lines: vec![CommercialLine { id: *id, service_id: Some(service(name)), service_name: (*name).into(), billing: "monthly".into(), quantity: 1.0, unit_price: Some(*price), ..Default::default() }],
+        lines: vec![CommercialLine { id: *id, service_id: Some(service(name)), service_name: (*name).into(), billing: "monthly".into(), quantity: 1.0, unit_price: Some(*price).filter(|p| *p > 0.0), ..Default::default() }],
         ..Default::default()
     }).collect();
     upsert_proposal_rows(&mut conn, &rows).unwrap();
@@ -248,6 +249,12 @@ fn generates_real_decks_on_a_database_copy() {
         let deck = Package::read(&PathBuf::from(r.path.clone().unwrap())).unwrap();
         let lit: Vec<usize> = menabig_tracker_lib::pptx::slide_parts_in_order(&deck).iter().enumerate().filter(|(_, p)| deck.text_of(p).contains("<a:highlight")).map(|(i, _)| i + 1).collect();
         println!("  highlighted slides: {lit:?}");
+        if name == "Company Liquidation" {
+            let fees = r.report.as_ref().and_then(|b| b.smart.as_ref()).map(|s| s.fees_to_check.clone()).unwrap_or_default();
+            println!("  liquidation fees to check: {fees:?}");
+            let sample = menabig_tracker_lib::pptx::slide_parts_in_order(&deck).iter().any(|p| deck.text_of(p).contains("22,000"));
+            assert!(!sample || !fees.is_empty(), "the sample 22,000 SAR is printed without being flagged");
+        }
         highlighted.extend(lit.iter().map(|n| format!("{name} slide {n}")));
     }
     finish_scratch_generation(real, &out, &written);

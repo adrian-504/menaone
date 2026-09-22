@@ -376,7 +376,7 @@ export async function installDevMockIfNeeded(): Promise<void> {
           return { master: '/OneDrive/MENA BD 2026/Proposals Templates/MENA BIG Proposal Master 2026.pptx', dir: '/OneDrive/MENA BD 2026/Proposals Templates/Proposals New Logo', templates: [
             { name: 'Accountancy & VAT Service Proposal Template', path: 'a.pptx', slideCount: 18, services: ['Accountancy & VAT'], sentTo: null },
             { name: 'Labor Law - HR - Manpower Consultancy Services Proposal Template', path: 'b.pptx', slideCount: 22, services: ['Labor Law Consultancy'], sentTo: null },
-          ] };
+          ], ignored: [] };
         case 'proposal_generate': {
           const r = (_payload as any).request;
           const built = mockBuildDeck(r);

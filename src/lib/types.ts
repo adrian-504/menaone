@@ -752,7 +752,7 @@ export interface TemplateDetail { template: ProposalTemplate; inspection: Templa
 export interface TokenInfo { token: string; label: string; example: string }
 
 export interface SlideChoice { index: number; slideId: string; title: string; included: boolean; reason: string; source?: string }
-export interface ProposalLibraryInfo { dir: string | null; templates: { name: string; path: string; slideCount: number; services: string[]; sentTo: string | null }[]; master?: string | null }
+export interface ProposalLibraryInfo { dir: string | null; templates: { name: string; path: string; slideCount: number; services: string[]; sentTo: string | null }[]; master?: string | null; ignored?: string[] }
 export interface SmartFillReport { filled: string[]; feesToCheck: string[]; warnings: string[]; checks?: string[] }
 export interface DeckBuildReport { slidesBefore: number; slidesAfter: number; partsRemoved: number; tokensFilled: number; missingTokens: string[]; smart: SmartFillReport | null }
 export interface GenerateResult {
