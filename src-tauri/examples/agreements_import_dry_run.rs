@@ -2,7 +2,7 @@
 //   cargo run --example agreements_import_dry_run -- <bundle dir> <database copy> <report dir> [onedrive root]
 // Writes report.json and report.md (client data — keep them out of the repo).
 // Refuses the live database.
-use menabig_tracker_lib::agreements_import::{active_mrr, company_mrr, run, Bundle, ImportOptions};
+use menabig_tracker_lib::agreements_import::{active_mrr, company_mrr, run, Bundle, ImportOptions, Removal};
 use menabig_tracker_lib::db::{init_connection, schema_version};
 use serde_json::Value;
 use std::collections::{BTreeMap, HashMap};
@@ -23,6 +23,26 @@ fn sar(v: f64) -> String {
     format!("SAR {}{}", if n < 0 { "-" } else { "" }, out)
 }
 
+struct Decisions { removals: std::collections::HashMap<i64, Removal>, add_skipped: bool, entity: bool }
+
+impl Decisions {
+    fn read(path: &std::path::Path) -> Self {
+        let Ok(text) = std::fs::read_to_string(path) else { return Decisions { removals: Default::default(), add_skipped: false, entity: false } };
+        let v: serde_json::Value = serde_json::from_str(&text).expect("decisions.json");
+        let removals = v["removals"].as_object().map(|m| m.iter().filter_map(|(k, d)| {
+            let r = match d.as_str()? {
+                "keep" => Removal::Keep,
+                "on_hold" => Removal::OnHold,
+                "lost" => Removal::Remove { proposal_status: Some("Lost".into()) },
+                "withdrawn" => Removal::Remove { proposal_status: Some("Withdrawn".into()) },
+                _ => Removal::Remove { proposal_status: None },
+            };
+            Some((k.parse().ok()?, r))
+        }).collect()).unwrap_or_default();
+        Decisions { removals, add_skipped: v["addSkippedWithBilling"].as_bool().unwrap_or(false), entity: v["defaultBusinessEntity"].as_bool().unwrap_or(false) }
+    }
+}
+
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     let [_, bundle_dir, db_path, out_dir, ..] = args.as_slice() else { panic!("usage: <bundle dir> <database copy> <report dir> [onedrive root]") };
@@ -32,13 +52,18 @@ fn main() {
     let bundle = Bundle::read(std::path::Path::new(bundle_dir)).expect("read bundle");
     let mut conn = init_connection(&PathBuf::from(db_path)).expect("open copy (migrates to the latest schema)");
 
+    // The owner's decisions, if given: <report dir>/decisions.json
+    // {"removals": {"<app id>": "keep" | "on_hold" | "remove" | "lost" | "withdrawn"}, "addSkippedWithBilling": true, "defaultBusinessEntity": true}
+    let decisions = Decisions::read(&PathBuf::from(out_dir).join("decisions.json"));
+
     let tables = ["companies", "company_aliases", "agreements", "agreement_lines", "documents", "billing", "company_review_queue", "entity_links"];
     let before: Vec<(String, i64)> = tables.iter().map(|t| (t.to_string(), count(&conn, &format!("SELECT COUNT(*) FROM {t}")))).collect();
     let mrr_before = active_mrr(&conn, &today).unwrap();
     let company_before = company_mrr(&conn, &today).unwrap();
     let active_clients_before = company_before.values().filter(|v| v.0 > 0.0).count();
 
-    let opts = ImportOptions { onedrive_root: onedrive, library_dir: Some("Agreements Central Folder/00_Organized_Library_2026".into()), today: today.clone(), remove_company_records: false };
+    let opts = ImportOptions { onedrive_root: onedrive, library_dir: Some("Agreements Central Folder/00_Organized_Library_2026".into()), today: today.clone(), remove_company_records: false,
+        removals: decisions.removals, add_skipped_with_billing: decisions.add_skipped, default_business_entity: decisions.entity };
     let report = run(&mut conn, &bundle, &opts).expect("import");
 
     let after: Vec<(String, i64)> = tables.iter().map(|t| (t.to_string(), count(&conn, &format!("SELECT COUNT(*) FROM {t}")))).collect();
@@ -95,7 +120,7 @@ fn main() {
     let _ = writeln!(md, "| Other names recorded | {aliases} (earlier names and invoice names, so records find their company) |");
     let _ = writeln!(md, "| Groups | {} group records, {} companies under them |", report.groups.len(), report.groups.iter().map(|g| g.2).sum::<usize>());
     let by = |a: &str| report.agreements.iter().filter(|x| x.action == a).count();
-    let _ = writeln!(md, "| Agreements | {} added · {} merged into the app's drafts · {} matched to existing rows by reference · {} absorbed (+ {} old-tracker copies) · {} removed · {} left for your review |", by("inserted"), by("merged"), by("matched by reference"), report.absorbed.len(), report.tracker_duplicates.len(), report.removed.len(), report.review.len());
+    let _ = writeln!(md, "| Agreements | {} added · {} merged into the app's drafts · {} matched to existing rows by reference · {} absorbed (+ {} old-tracker copies) · {} · {} left for your review |", by("inserted"), by("merged"), by("matched by reference"), report.absorbed.len(), report.tracker_duplicates.len(), report.removed.iter().map(|r| r.outcome.split(" · ").next().unwrap_or("").to_string()).fold(BTreeMap::<String, usize>::new(), |mut m, o| { *m.entry(o).or_default() += 1; m }).iter().map(|(o, n)| format!("{n} {o}")).collect::<Vec<_>>().join(" · "), report.review.len());
     let _ = writeln!(md, "| Price lines | {} |", report.lines_written);
     let _ = writeln!(md, "| Documents | {} linked to their agreement · {} to the company only · {} not placed |", report.documents_linked, report.documents_company_only, report.documents_unplaced);
     let _ = writeln!(md, "| Library folders | {} linked · {} not found |", report.folders_linked, report.folders_missing.len());
@@ -129,12 +154,12 @@ fn main() {
             .unwrap().collect::<Result<Vec<_>, _>>().unwrap()
     };
     let _ = writeln!(md, "\n## Checked against how the business works\n");
-    let by_type = q("SELECT COALESCE(NULLIF(type, ''), '(no type)'), ROUND(SUM(monthly_fee)), COUNT(*) FROM agreements WHERE fee_basis = 'invoiced' AND service_status = 'Active' AND (end_date IS NULL OR end_date >= date('now')) AND monthly_fee > 0 GROUP BY 1 ORDER BY 2 DESC");
-    let _ = writeln!(md, "**What the contracted MRR is made of** (invoiced May–Jul average, live agreements). Recruitment is paid per hire, so its average is revenue but not a retainer:\n\n| Agreement type | Monthly | Agreements |\n|---|---|---|");
+    let by_type = q("SELECT COALESCE(NULLIF(type, ''), '(no type)'), ROUND(SUM(monthly_fee)), COUNT(*) FROM agreements WHERE fee_basis = 'invoiced' AND service_status = 'Active' AND monthly_fee > 0 GROUP BY 1 ORDER BY 2 DESC");
+    let _ = writeln!(md, "**What the contracted MRR is made of** (invoiced May–Jul average, including agreements billed after their term).\n\n| Agreement type | Monthly | Agreements |\n|---|---|---|");
     for r in &by_type { let _ = writeln!(md, "| {} | {} | {} |", r[0], sar(r[1].parse().unwrap_or(0.0)), r[2]); }
-    let exposure = q("SELECT COALESCE(NULLIF(agr_ref, ''), '(no reference)'), client, end_date FROM agreements WHERE import_key IS NOT NULL AND service_status = 'Active' AND end_date < date('now') ORDER BY end_date");
-    let _ = writeln!(md, "\n**Exposure — still invoiced, term ended ({}).** Kept as Signed · Active with the past end date, so they stay out of contracted MRR; the real build shows them on the company page and in their own list (not the Clean-up queue):\n", exposure.len());
-    for r in &exposure { let _ = writeln!(md, "- {} · {} · ended {}", r[1], r[0], r[2]); }
+    let exposure = q("SELECT COALESCE(NULLIF(agr_ref, ''), '(no reference)'), client, end_date, printf('SAR %,d', CAST(COALESCE(monthly_fee, 0) AS INTEGER)) FROM agreements WHERE import_key IS NOT NULL AND service_status = 'Active' AND end_date < date('now') ORDER BY end_date");
+    let _ = writeln!(md, "\n**Exposure — still invoiced, term ended ({}).** Most likely renewed by themselves with the renewal paperwork missing: Signed · Active, their real end date kept, counted in MRR at the invoiced fee (§5.6 column). The real build lists them as \"renewal not on file\" on the company page and in their own list:\n", exposure.len());
+    for r in &exposure { let _ = writeln!(md, "- {} · {} · ended {} · {} a month", r[1], r[0], r[2], r[3]); }
     let idle = q("SELECT COALESCE(NULLIF(agr_ref, ''), '(no reference)'), client, COALESCE(NULLIF(type, ''), 'no type'), COALESCE('ends ' || end_date, 'no end date'), COALESCE(renewal_rule, 'unknown') FROM agreements WHERE import_key IS NOT NULL AND service_status IS NULL ORDER BY client");
     let _ = writeln!(md, "\n**In force but not invoiced May–Jul ({}).** The service is left unset, so they don't count as active. Each is either dormant or work that isn't being billed — worth a look:\n", idle.len());
     for r in &idle { let _ = writeln!(md, "- {} · {} · {} · {} · renewal {}", r[1], r[0], r[2], r[3], r[4]); }
@@ -160,53 +185,34 @@ fn main() {
         count(&conn, "SELECT COUNT(*) FROM agreements WHERE import_key IS NOT NULL AND service_status = 'Active' AND carries_current_terms = 1 AND end_date IS NULL"),
         count(&conn, "SELECT COUNT(*) FROM agreements WHERE import_key IS NOT NULL AND service_status = 'Active' AND carries_current_terms = 1 AND notice_days IS NULL"));
 
-    let _ = writeln!(md, "\n## Decisions for you\n");
-    let _ = writeln!(md, "**1. Which MENA companies bill clients?** The agreements name the MENA side in {} different ways; grouped by entity (number of agreements):\n", report.mena_entities.len());
-    let family = |e: &str| -> &'static str {
-        let l = e.to_lowercase();
-        if l.contains("hb business") { "HB Business Solutions DMCC (UAE)" }
-        else if l.contains("alfaraz") || l.contains("al faraz") { "ALFARAZ Business Consulting DMCC (UAE)" }
-        else if l.contains("abaad") || l.contains("astoorah") { "Abaad Business / Abaad Al Astoorah (KSA)" }
-        else if l.contains("sig block: slu") || l.contains("cover: slu") { "MENA One Partner Limited LLC — but signed in the SLU Branch's name (which one is the party?)" }
-        else if l.contains("one partner") || l.contains("individual limited") { "MENA Business Investment Group One Partner Limited LLC (KSA)" }
-        else if l.contains("slu") || l.contains("s.l.u") || l.contains("s.l.,") { "MENA Business Investment Group S.L.U. — KSA Branch" }
-        else if l.contains("llc") || l.contains("مينا") { "MENA Business Investment Group LLC (probably the One Partner company — confirm)" }
-        else if l.contains("not stated") { "Not stated in the agreement" }
-        else { "MENA Business Investment Group (no entity named)" }
-    };
-    let mut fam: BTreeMap<&str, usize> = BTreeMap::new();
-    for (e, n) in &report.mena_entities { *fam.entry(family(e)).or_default() += n; }
-    let mut fams: Vec<_> = fam.into_iter().collect();
-    fams.sort_by(|a, b| b.1.cmp(&a.1));
-    for (f, n) in fams { let _ = writeln!(md, "- {f} — {n}"); }
-    let _ = writeln!(md, "\nThe app knows two billing entities today. Tell me which of these are billing entities (they're added and set on their agreements) and which are affiliates (left off). Until then, agreements keep no billing entity.\n");
-    let _ = writeln!(md, "**2. The four removed clients.** Their draft agreements are deleted. Each one's proposal:\n\n| Client | Draft | Proposal | Would come back? | Other records of the company |\n|---|---|---|---|---|");
+    let _ = writeln!(md, "\n## Your decisions (22-Sep), as applied\n");
+    let entity_rows = q("SELECT COALESCE(e.name, '(none)'), COUNT(*) FROM agreements a LEFT JOIN business_entities e ON e.id = a.business_entity_id WHERE a.import_key IS NOT NULL GROUP BY 1 ORDER BY 2 DESC");
+    let _ = writeln!(md, "**1. Billing entity: all under MENA.** No legal billing entity is tracked for now; the imported agreements take the app's MENA entity for their currency: {}. (The agreements name the MENA side in {} ways; that stays in the review files, not the app.)\n",
+        entity_rows.iter().map(|r| format!("{} ({})", r[0], r[1])).collect::<Vec<_>>().join(", "), report.mena_entities.len());
+    let _ = writeln!(md, "**2. The review's four removals:**\n\n| Client | Draft | Proposal (before) | Done |\n|---|---|---|---|");
     for r in &report.removed {
-        let _ = writeln!(md, "| {} | #{} {} | {} | {} | {} |", r.client, r.app_id, r.agr_ref.clone().unwrap_or_default(), r.proposal_id.map(|p| format!("SL# {p} · {}", r.proposal_status.clone().unwrap_or_default())).unwrap_or("—".into()),
-            if r.would_be_recreated { "Yes — \"Draft from proposals\" recreates it" } else { "No" }, r.company_other_records);
+        let _ = writeln!(md, "| {} | #{} {} | {} | {} |", r.client, r.app_id, r.agr_ref.clone().unwrap_or_default(),
+            r.proposal_id.map(|p| format!("SL# {p} · {}", r.proposal_status.clone().unwrap_or_default())).unwrap_or("—".into()), r.outcome);
     }
-    let _ = writeln!(md, "\nChoose for each: move its proposal to *Withdrawn* or *Lost* (so the draft can't come back), and whether the company record goes too (the last column counts what else the company has — proposals, contacts, other agreements, meetings).\n");
+    let _ = writeln!(md, "\nThe app has no \"Postponed\" status for proposals, so a postponed client's draft is kept and set *On Hold*: that records the postponement and stops \"Draft from proposals\" from making a second draft. Company records are all kept.\n");
     let created: Vec<String> = report.groups.iter().map(|g| g.0.clone()).collect();
     let not_created: Vec<String> = bundle.groups.iter().filter_map(|g| g.get("group").and_then(|v| v.as_str()))
         .filter(|g| !created.iter().any(|c| c == g)).map(str::to_string).collect();
-    let _ = writeln!(md, "**3. Groups.** No company is named as the parent of a group, so the trial created one group record each ({}). The alternative is to name one member as the parent. Which do you prefer?{}\n",
+    let _ = writeln!(md, "**3. Groups:** one group record each ({}), members under it.{}\n",
         created.join(", "),
-        if not_created.is_empty() { String::new() } else { format!(" Not created: {} — its members aren't among the imported clients (skipped or for review).", not_created.join(", ")) });
-    if report.types_inferred > 0 { let _ = writeln!(md, "*{} agreements had no type; the import set it from their services (e.g. Workforce). Types already given were never changed.*\n", report.types_inferred); }
-    if !report.types_outside_list.is_empty() {
-        let _ = writeln!(md, "**4. Agreement types outside the app's list:** {}. Kept as written; say if they should be added to the list or mapped (e.g. Recruitment → Other).\n", report.types_outside_list.iter().map(|(t, n)| format!("{t} ({n})")).collect::<Vec<_>>().join(", "));
-    }
-    let k = 5;
-    if report.notes.iter().any(|n| n.starts_with("Billing for ")) {
-        let _ = writeln!(md, "**{k}. The clients invoiced in 2026 but skipped** (listed above): add them as companies so their invoicing loads, or leave them out?\n");
-    }
-    let _ = writeln!(md, "## Where the import differs from the spec, and why\n");
-    let _ = writeln!(md, "- **{} app agreements from the old tracker have the same reference as a reviewed agreement** but weren't in the collision list. Inserting them would have duplicated them, so the import updates them in place (\"matched by reference\" in the table below).", report.agreements.iter().filter(|a| a.action == "matched by reference").count());
-    let _ = writeln!(md, "- **Billing key.** Finance's own row (department, service, sales type) is unique per month, but several of those map to one catalogue service — so the spec's key (company, service, month, source) would have merged real invoice rows. The import keys on Finance's row instead.");
-    let _ = writeln!(md, "- **Coverage counted once.** When a billed service is covered by two agreements (an agreement and its amendment), its invoicing sits on the one carrying current terms; the other shows SAR 0, so nothing counts twice. A superseded agreement listed beside a live successor is treated as ended, not as exposure. One-time work isn't a monthly fee.");
-    let _ = writeln!(md, "- **Library folders** are relative to the agreements library, not the OneDrive root as the spec says. The import looks there.");
-    let _ = writeln!(md, "- **Counts.** The match file has {} for review and {} skipped (the spec says 2 and 68).", report.companies.iter().filter(|c| c.action == "REVIEW").count(), report.companies.iter().filter(|c| c.action == "SKIP").count());
-    let _ = writeln!(md, "- **Additive addenda.** The data has no \"adds to parent\" flag; the import recognises one from its note (\"adding …\") and keeps it in force beside its parent.");
+        if not_created.is_empty() { String::new() } else { format!(" Not created: {} — its members aren't among the imported clients.", not_created.join(", ")) });
+    let _ = writeln!(md, "**4. Types mapped to the app's list.** {}{}\n",
+        if report.types_mapped.is_empty() { "Every agreement carries one of the app's types.".to_string() } else { format!("The document's own word → the app's type: {}.", report.types_mapped.iter().map(|(t, n)| format!("{t} ({n})")).collect::<Vec<_>>().join(", ")) },
+        if report.types_outside_list.is_empty() { String::new() } else { format!(" Still outside the list: {}.", report.types_outside_list.iter().map(|(t, n)| format!("{t} ({n})")).collect::<Vec<_>>().join(", ")) });
+    let added: Vec<&str> = report.companies.iter().filter(|c| c.action.starts_with("CREATE (invoiced")).map(|c| c.name.as_str()).collect();
+    let _ = writeln!(md, "**5. Invoiced clients skipped as dormant: added** ({}) as companies, so their 2026 invoicing loads and the app's billing total matches Finance's report.{}\n",
+        added.join(", "), if skipped.is_empty() { "" } else { " Some billing still has no company — see Notes." });
+    let _ = writeln!(md, "**Billed after the term ended: counted in MRR.** Most likely the service renewed by itself and the renewal paperwork is missing. They count at their invoiced fee in the §5.6 column, keep their real end date, and stay on the exposure list above until the renewal is on file.\n");
+    let _ = writeln!(md, "## How the import reads the review (bundle v1.2)\n");
+    let _ = writeln!(md, "- **{} app agreements from the old tracker have the same reference as a reviewed agreement** but aren't in the collision list; the import updates them in place (\"matched by reference\" below) instead of duplicating them.", report.agreements.iter().filter(|a| a.action == "matched by reference").count());
+    let _ = writeln!(md, "- **Billing** is keyed on Finance's own row (company, department, service, sales type, month, source), as §4 now says.");
+    let _ = writeln!(md, "- **Coverage counted once.** Each billed service has one primary agreement, which takes the fee; the other agreements naming it are in force at SAR 0. A billed service whose agreement ended puts its fee on the chain's current link. One-time work isn't a monthly fee.");
+    let _ = writeln!(md, "- **Additive addenda** are keyed on the review's `addsToParent` flag and stay in force beside their parent.");
     let _ = writeln!(md, "- **Reports** isn't affected by §5.6: its MRR column shows proposal fees, not agreements.\n");
     let _ = writeln!(md, "## Left for review\n");
     let _ = writeln!(md, "**App drafts the review couldn't match to a live agreement ({}):**\n", report.review.len());

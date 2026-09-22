@@ -1,7 +1,7 @@
 // The agreements import on a fictional bundle: companies and aliases, merge /
 // absorb / remove, chains, coverage counted once, exposure on the current link,
 // superseded links ended, idempotent billing, and a second run changes nothing.
-use menabig_tracker_lib::agreements_import::{active_mrr, run, Bundle, ImportOptions};
+use menabig_tracker_lib::agreements_import::{active_mrr, run, Bundle, ImportOptions, Removal};
 use menabig_tracker_lib::db::init_connection;
 use rusqlite::{params, Connection};
 use serde_json::json;
@@ -44,7 +44,7 @@ fn bundle() -> Bundle {
               "companyKey": "globex-me", "client": "Globex ME", "agreementType": "Workforce", "signatureStatus": "SIGNED-BOTH", "documentHeld": true, "currentTermEndDate": "2025-09-19", "services": ["Employer of Record"] },
             // Globex International: in term, not invoiced.
             { "sourceId": "G3", "importKey": "G3", "agrRef": null, "refStem": "GLXI_WF_0824", "chainId": "G3", "carriesCurrentTerms": true, "evidenceState": "documented",
-              "companyKey": "globex-intl", "client": "Globex International", "agreementType": null, "signatureStatus": "SIGNED-BOTH", "documentHeld": true, "currentTermEndDate": "2027-12-31", "services": ["Workforce"] }
+              "companyKey": "globex-intl", "client": "Globex International", "agreementType": "Recruitment", "appType": "Workforce", "signatureStatus": "SIGNED-BOTH", "documentHeld": true, "currentTermEndDate": "2027-12-31", "services": ["Workforce"] }
         ])),
         lines: v(json!([
             { "agreementSourceId": "C2", "serviceName": "Payroll", "billing": "monthly", "unitPrice": 900.0 },
@@ -61,12 +61,15 @@ fn bundle() -> Bundle {
             // Covered by both links of Contoso's chain: counted once, on the current one.
             { "companyKey": "contoso", "service": "Payroll", "coverage": "covered", "coveredBy": ["CON_001_0125", "CON_001_0125 / Amendment 1"], "endedAgreements": [], "monthlyAvgMayJul": 5300.0 },
             { "companyKey": "contoso", "service": "Company Setup", "coverage": "one-time work", "coveredBy": ["CON_001_0125 / Amendment 1"], "endedAgreements": [], "monthlyAvgMayJul": 2000.0 },
+            // Invoiced in May but not since: not billed now, so G3 isn't live.
+            { "companyKey": "globex-intl", "service": "Workforce", "coverage": "covered", "coveredBy": ["GLXI_WF_0824"], "endedAgreements": [], "monthlyAvgMayJul": 100.0, "activeNow": false },
             { "companyKey": "globex-me", "service": "Employer of Record", "coverage": "agreement ended", "coveredBy": [], "endedAgreements": ["GLX/2022/001"], "monthlyAvgMayJul": 40000.0 }
         ])),
         collisions: v(json!([
             { "appId": 10, "action": "MERGE", "targetAgreement": "CON_001_0125 / Amendment 1" },
             { "appId": 11, "action": "ABSORB", "targetAgreement": "CON_001_0125 / Amendment 1" },
             { "appId": 12, "action": "REMOVE" },
+            { "appId": 15, "action": "REMOVE" },
             { "appId": 13, "action": "REVIEW", "appRef": "CON_OTH_001", "actionNote": "services don't match" }
         ])),
     }
@@ -81,7 +84,8 @@ fn seed(c: &Connection) {
            (11, 'CON_ADM_002_0125', 'Contoso Logistics', 1, 'In Preparation', NULL, '2026-01-01'),
            (12, 'UMB_WF_001_0625', 'Umbrella Co', 3, 'In Preparation', 71, '2026-01-01'),
            (13, 'CON_OTH_001', 'Contoso Logistics', 1, 'In Preparation', NULL, '2026-01-01'),
-           (14, 'GLX/2022/001 AM_01', 'Globex Middle East LLC', 2, 'Signed', NULL, '2026-01-01');",
+           (14, 'GLX/2022/001 AM_01', 'Globex Middle East LLC', 2, 'Signed', NULL, '2026-01-01'),
+           (15, 'UMB_CM_002_0625', 'Umbrella Co', 3, 'In Preparation', NULL, '2026-01-01');",
     ).unwrap();
 }
 
@@ -89,7 +93,11 @@ fn seed(c: &Connection) {
 fn imports_the_bundle_by_the_rules_and_a_second_run_changes_nothing() {
     let mut c = init_connection(&tmp("db")).unwrap();
     seed(&c);
-    let opts = ImportOptions { onedrive_root: None, library_dir: None, today: "2026-09-22".into(), remove_company_records: false };
+    let opts = ImportOptions {
+        onedrive_root: None, library_dir: None, today: "2026-09-22".into(), remove_company_records: false,
+        removals: [(12, Removal::Remove { proposal_status: Some("Lost".into()) }), (15, Removal::OnHold)].into_iter().collect(),
+        add_skipped_with_billing: true, default_business_entity: true,
+    };
     let r = run(&mut c, &bundle(), &opts).unwrap();
 
     // Companies: aliases on the matched company, a new one created, groups, skip does nothing.
@@ -98,7 +106,8 @@ fn imports_the_bundle_by_the_rules_and_a_second_run_changes_nothing() {
     let group: i64 = one(&c, "SELECT id FROM companies WHERE name = 'Globex Group'");
     assert_eq!(one::<Option<i64>>(&c, "SELECT parent_company_id FROM companies WHERE id = 2"), Some(group));
     assert_eq!(c.query_row("SELECT parent_company_id FROM companies WHERE id = ?1", params![intl], |r| r.get::<_, Option<i64>>(0)).unwrap(), Some(group));
-    assert_eq!(one::<i64>(&c, "SELECT COUNT(*) FROM companies WHERE name = 'Initech'"), 0);
+    // Skipped as dormant but invoiced: added, so its invoicing loads (owner decision).
+    assert_eq!(one::<i64>(&c, "SELECT COUNT(*) FROM companies WHERE name = 'Initech'"), 1);
 
     // MERGE: the draft keeps its id and proposal, and takes the current link's data.
     let (status, service, fee, basis, sig, renew, auto): (String, String, f64, String, String, String, i64) = c.query_row(
@@ -117,10 +126,14 @@ fn imports_the_bundle_by_the_rules_and_a_second_run_changes_nothing() {
     assert_eq!(one::<i64>(&c, "SELECT COUNT(*) FROM agreement_lines WHERE agreement_id = 10"), 2);
     assert_eq!(one::<String>(&c, "SELECT billing FROM agreement_lines WHERE agreement_id = 10 AND service_name = 'Visa processing'"), "per_action");
 
-    // ABSORB kept and marked; REMOVE deleted with its proposal flagged; REVIEW left alone.
+    // ABSORB kept and marked; REMOVE per the owner: deleted with its proposal Lost, or kept On Hold; REVIEW left alone.
     assert_eq!(one::<Option<i64>>(&c, "SELECT absorbed_into_id FROM agreements WHERE id = 11"), Some(10));
     assert_eq!(one::<i64>(&c, "SELECT COUNT(*) FROM agreements WHERE id = 12"), 0);
-    assert!(r.removed[0].would_be_recreated);
+    assert_eq!(one::<String>(&c, "SELECT status FROM proposals WHERE id = 71"), "Lost");
+    assert!(!r.removed[0].would_be_recreated);
+    assert_eq!(one::<String>(&c, "SELECT status FROM agreements WHERE id = 15"), "On Hold");
+    // All under MENA: the entity for the currency.
+    assert_eq!(one::<i64>(&c, "SELECT COUNT(*) FROM agreements WHERE import_key IS NOT NULL AND business_entity_id IS NULL"), 0);
     assert_eq!(one::<String>(&c, "SELECT status FROM agreements WHERE id = 13"), "In Preparation");
     assert_eq!(r.review.len(), 1);
 
@@ -128,17 +141,21 @@ fn imports_the_bundle_by_the_rules_and_a_second_run_changes_nothing() {
     assert_eq!(c.query_row("SELECT status, service_status, end_date FROM agreements WHERE id = 14", [], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?, r.get::<_, String>(2)?))).unwrap(),
         ("Signed".into(), "Active".into(), "2025-09-19".into()));
     assert_eq!(one::<String>(&c, "SELECT service_status FROM agreements WHERE import_key = 'G1'"), "Ended", "the superseded principal isn't exposure too");
-    // In term, not invoiced: service left unset; no reference → the stem; type from its services.
+    // In term, not invoiced now: service left unset; no reference → the stem; the review's app type wins.
+    assert_eq!(r.types_mapped.get("Recruitment → Workforce"), Some(&1));
     assert_eq!(c.query_row("SELECT agr_ref, service_status, type FROM agreements WHERE import_key = 'G3'", [], |r| Ok((r.get::<_, String>(0)?, r.get::<_, Option<String>>(1)?, r.get::<_, String>(2)?))).unwrap(),
         ("GLXI_WF_0824".into(), None, "Workforce".into()));
 
-    // Billing: one row per Finance row (two rows for one service in one month), skipped client left out.
-    assert_eq!(one::<i64>(&c, "SELECT COUNT(*) FROM billing"), 3);
+    // Billing: one row per Finance row (two rows for one service in one month), the added client's too.
+    assert_eq!(one::<i64>(&c, "SELECT COUNT(*) FROM billing"), 4);
     assert_eq!(one::<f64>(&c, "SELECT SUM(amount) FROM billing WHERE company_id = 1"), 5300.0);
     assert_eq!(one::<i64>(&c, "SELECT COUNT(*) FROM documents WHERE agreement_id = 10"), 1);
 
-    // Contracted MRR: today's rule prefers the lines (900); after §5.6 the invoiced fee (5,300). Exposure stays out.
-    assert_eq!(active_mrr(&c, "2026-09-22").unwrap(), (900.0, 5300.0));
+    // Exposure carries what is still invoiced for it.
+    assert_eq!(one::<f64>(&c, "SELECT monthly_fee FROM agreements WHERE id = 14"), 40000.0);
+    // Contracted MRR: today's rule prefers the lines (900) and drops a past end date; after §5.6
+    // the invoiced fee wins (5,300) and a past-term agreement still invoiced counts (40,000).
+    assert_eq!(active_mrr(&c, "2026-09-22").unwrap(), (900.0, 45300.0));
 
     // A second run: same rows, nothing doubled.
     let counts = |c: &Connection| ["agreements", "agreement_lines", "billing", "documents", "company_aliases", "companies"].map(|t| one::<i64>(c, &format!("SELECT COUNT(*) FROM {t}")));

@@ -37,6 +37,26 @@ pub struct ImportOptions {
     pub today: String,
     /// Owner decision: whether the removed clients' company records go too.
     pub remove_company_records: bool,
+    /// Owner decisions on the review's REMOVE rows, by app agreement id; a row with no
+    /// decision is removed and its proposal left as it is.
+    pub removals: HashMap<i64, Removal>,
+    /// Owner decision: clients the review skipped as dormant but that were invoiced
+    /// are added as companies, so their invoicing loads.
+    pub add_skipped_with_billing: bool,
+    /// Owner decision: agreements with no business entity take the app's entity for
+    /// their currency (MENA as a whole; no legal billing entity is tracked yet).
+    pub default_business_entity: bool,
+}
+
+/// What happens to an app draft the review would remove.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Removal {
+    /// Delete the draft; set its proposal to this status (e.g. "Lost") so it isn't recreated.
+    Remove { proposal_status: Option<String> },
+    /// Keep the draft as it is (the client isn't lost).
+    Keep,
+    /// Keep the draft, On Hold (postponed), so "Draft from proposals" doesn't recreate it.
+    OnHold,
 }
 
 // ── Report ──────────────────────────────────────────────────────────────────
@@ -79,6 +99,8 @@ pub struct RemovedLine {
     /// A proposal signed by both recreates the draft on the next "Draft from proposals".
     pub would_be_recreated: bool,
     pub company_other_records: i64,
+    /// What was done: "removed", "removed · proposal Lost", "kept", "kept · On Hold".
+    pub outcome: String,
 }
 
 #[derive(Debug, Default, Serialize)]
@@ -107,6 +129,8 @@ pub struct ImportReport {
     pub billing_future_months: Vec<(String, f64)>,
     pub mena_entities: BTreeMap<String, usize>,
     pub types_outside_list: BTreeMap<String, usize>,
+    /// The document's own type outside the app's list, and the list type the review mapped it to.
+    pub types_mapped: BTreeMap<String, usize>,
     pub types_inferred: usize,
     pub notes: Vec<String>,
 }
@@ -215,10 +239,13 @@ fn apply(tx: &Connection, bundle: &Bundle, opts: &ImportOptions) -> Res<ImportRe
 
     // 1. Companies ------------------------------------------------------------
     let mut company_of: HashMap<String, i64> = HashMap::new();
+    let invoiced_keys: HashSet<&str> = bundle.billing.iter().filter(|r| i(r, "appCompanyId").is_none()).filter_map(|r| s(r, "companyKey")).collect();
     for (n, m) in bundle.matches.iter().enumerate() {
         let key = s(m, "companyKey").unwrap_or_default().to_string();
         let name = s(m, "displayName").unwrap_or(&key).to_string();
-        let action = s(m, "action").unwrap_or("SKIP").to_string();
+        let mut action = s(m, "action").unwrap_or("SKIP").to_string();
+        // Skipped as dormant, but invoiced: the owner chose to add these so their invoicing loads.
+        if action == "SKIP" && opts.add_skipped_with_billing && invoiced_keys.contains(key.as_str()) { action = "CREATE (invoiced, skipped as dormant)".into(); }
         let mut line = CompanyLine { company_key: key.clone(), name: name.clone(), action: action.clone(), ..Default::default() };
         match action.as_str() {
             "MATCH" => {
@@ -325,18 +352,26 @@ fn apply(tx: &Connection, bundle: &Bundle, opts: &ImportOptions) -> Res<ImportRe
     let current_refs: HashSet<String> = bundle.agreements.iter().filter(|a| b(a, "carriesCurrentTerms"))
         .flat_map(|a| [s(a, "agrRef"), s(a, "refStem")].into_iter().flatten().map(norm).collect::<Vec<_>>()).collect();
     let mut live_refs: HashSet<String> = HashSet::new();
+    let mut ended_fee_by_ref: HashMap<String, f64> = HashMap::new(); // still invoiced after its term
     for sv in &bundle.services {
+        // Only what is billed now (May–Jul) makes an agreement live or exposed; a service
+        // invoiced earlier in the year and since stopped doesn't.
+        if sv.get("activeNow").and_then(Value::as_bool) == Some(false) { continue; }
         // One-time work isn't a monthly fee.
         let avg = if s(sv, "coverage") == Some("one-time work") { 0.0 } else { f(sv, "monthlyAvgMayJul").unwrap_or(0.0) };
         let refs: Vec<String> = strs(sv, "coveredBy").iter().map(|r| norm(r)).collect();
         live_refs.extend(refs.iter().cloned());
+        // Other live agreements naming the same service: in force, but the fee sits on the primary.
+        live_refs.extend(strs(sv, "alsoCoveredBy").iter().map(|r| norm(r)));
         if let Some(target) = refs.iter().find(|r| current_refs.contains(*r)).or(refs.first()) {
             *covering.entry(target.clone()).or_default() += avg;
         }
         // Exposure only where nothing live covers the billed service; an earlier contract
         // listed beside a live successor (an amendment) is simply superseded.
         if s(sv, "coverage") == Some("agreement ended") {
-            for r in strs(sv, "endedAgreements") { ended_billed.insert(norm(&r)); }
+            let ended = strs(sv, "endedAgreements");
+            if let Some(first) = ended.first() { *ended_fee_by_ref.entry(norm(first)).or_default() += avg; }
+            for r in ended { ended_billed.insert(norm(&r)); }
         }
     }
     // Exposure follows the chain: the review may name an earlier link as the ended
@@ -347,6 +382,8 @@ fn apply(tx: &Connection, bundle: &Bundle, opts: &ImportOptions) -> Res<ImportRe
             [s(a, "agrRef"), s(a, "refStem")].into_iter().flatten().map(move |r| (norm(r), chain.clone())).collect::<Vec<_>>()
         }).collect();
     let exposed_chains: HashSet<String> = ended_billed.iter().filter_map(|r| chain_of_ref.get(r).cloned()).collect();
+    let mut ended_fee_by_chain: HashMap<String, f64> = HashMap::new();
+    for (r, v) in &ended_fee_by_ref { if let Some(c) = chain_of_ref.get(r) { *ended_fee_by_chain.entry(c.clone()).or_default() += v; } }
     let collision_by_target: HashMap<String, Vec<&Value>> = {
         let mut m: HashMap<String, Vec<&Value>> = HashMap::new();
         for c in &bundle.collisions {
@@ -395,8 +432,7 @@ fn apply(tx: &Connection, bundle: &Bundle, opts: &ImportOptions) -> Res<ImportRe
         let chain = s(a, "chainId").unwrap_or(&source_id).to_string();
         let billed_ended = current && (ended_billed.contains(&ref_key) || exposed_chains.contains(&chain));
         // An additive addendum (it adds services; the parent stays current) is in force with its parent.
-        let adds_to_parent = !current && s(a, "documentRole").is_some_and(|r| r == "addendum")
-            && s(a, "notes").is_some_and(|n| { let n = n.to_lowercase(); n.contains("adding") || n.contains(" adds ") });
+        let adds_to_parent = !current && b(a, "addsToParent");
         let status = match signature.as_deref() {
             Some("MENA-SIGNED") => "Client Signature",
             Some("CLIENT-SIGNED") => "MENA Signature",
@@ -418,7 +454,14 @@ fn apply(tx: &Connection, bundle: &Bundle, opts: &ImportOptions) -> Res<ImportRe
         // Monthly fee: what is invoiced for the services this agreement covers (May–Jul average).
         // Live agreements are measured by invoicing; one whose services' invoicing sits on
         // its partner agreement (an amendment, a parallel contract) carries 0, so nothing counts twice.
-        let invoiced = if billed_live || adds_to_parent { Some(covering.get(&ref_key).copied().unwrap_or(0.0)) } else { None };
+        let invoiced = if billed_live || adds_to_parent {
+            Some(covering.get(&ref_key).copied().unwrap_or(0.0))
+        } else if billed_ended {
+            // Still invoiced after the term: what is billed for it, on the chain's current link.
+            Some(ended_fee_by_chain.get(&chain).copied().unwrap_or(0.0))
+        } else {
+            None
+        };
         let agr_lines: Vec<&Value> = bundle.lines.iter().filter(|l| s(l, "agreementSourceId") == Some(source_id.as_str())).collect();
         let fee_basis = if invoiced.is_some() {
             "invoiced"
@@ -431,7 +474,13 @@ fn apply(tx: &Connection, bundle: &Bundle, opts: &ImportOptions) -> Res<ImportRe
         };
         let currency = s(a, "currency").map(|c| c.split('/').next().unwrap_or(c).trim().to_string()).unwrap_or_else(|| "SAR".into());
         if let Some(c) = s(a, "currency").filter(|c| c.contains('/')) { report.notes.push(format!("{}: currency \"{c}\" — stored as {currency}", agr_ref.clone().unwrap_or(import_key.clone()))); }
-        let mut agr_type = s(a, "agreementType").filter(|t| *t != "Agreement").map(str::to_string);
+        // The review's type in the app's list (appType) wins; the document's own word is kept in the report.
+        let doc_type = s(a, "agreementType").filter(|t| *t != "Agreement").map(str::to_string);
+        let mut agr_type = s(a, "appType").filter(|t| AGR_TYPES.contains(t)).map(str::to_string);
+        if let (Some(app), Some(doc)) = (&agr_type, &doc_type) {
+            if app != doc && !AGR_TYPES.contains(&doc.as_str()) { *report.types_mapped.entry(format!("{doc} → {app}")).or_default() += 1; }
+        }
+        if agr_type.is_none() { agr_type = doc_type; }
         if agr_type.is_none() {
             // Missing type: what its services are (a service named like a type, or the catalogue's agreement type).
             for sv in strs(a, "services") {
@@ -481,6 +530,16 @@ fn apply(tx: &Connection, bundle: &Bundle, opts: &ImportOptions) -> Res<ImportRe
                 current as i64, adds_to_parent as i64, import_key, s(a, "notes"),
             ],
         ).map_err(err)?;
+        if opts.default_business_entity {
+            // MENA as a whole: the app's entity for the agreement's currency, else its first entity.
+            tx.execute(
+                "UPDATE agreements SET business_entity_id = COALESCE(
+                   (SELECT e.id FROM business_entities e WHERE e.active = 1 AND e.currency = agreements.currency ORDER BY e.sort_order LIMIT 1),
+                   (SELECT e.id FROM business_entities e WHERE e.active = 1 ORDER BY e.sort_order LIMIT 1))
+                 WHERE id = ?1 AND business_entity_id IS NULL",
+                params![id],
+            ).map_err(err)?;
+        }
         id_of.insert(source_id.clone(), id);
         ref_to_id.insert(ref_key.clone(), id);
         if let Some(stem) = s(a, "refStem") { ref_to_id.entry(norm(stem)).or_insert(id); }
@@ -546,12 +605,34 @@ fn apply(tx: &Connection, bundle: &Bundle, opts: &ImportOptions) -> Res<ImportRe
                         params![cid, app_id], |r| r.get(0)).map_err(err)?,
                     None => 0,
                 };
-                tx.execute("DELETE FROM agreements WHERE id = ?1", params![app_id]).map_err(err)?;
-                if opts.remove_company_records { report.notes.push(format!("Company records of removed clients were NOT deleted in this build (#{app_id}): needs its own confirmation step")); }
+                let decision = opts.removals.get(&app_id).cloned().unwrap_or(Removal::Remove { proposal_status: None });
+                let outcome = match &decision {
+                    Removal::Keep => "kept as it is".to_string(),
+                    Removal::OnHold => {
+                        tx.execute("UPDATE agreements SET status = 'On Hold', service_status = NULL WHERE id = ?1", params![app_id]).map_err(err)?;
+                        "kept, On Hold (postponed)".to_string()
+                    }
+                    Removal::Remove { proposal_status: new_status } => {
+                        tx.execute("DELETE FROM agreements WHERE id = ?1", params![app_id]).map_err(err)?;
+                        if opts.remove_company_records { report.notes.push(format!("Company records of removed clients were NOT deleted in this build (#{app_id}): needs its own confirmation step")); }
+                        match (new_status, proposal_id) {
+                            (Some(st), Some(p)) => {
+                                tx.execute("UPDATE proposals SET status = ?2 WHERE id = ?1", params![p, st]).map_err(err)?;
+                                format!("removed · proposal {st}")
+                            }
+                            _ => "removed".to_string(),
+                        }
+                    }
+                };
+                // Only a deleted draft whose proposal is still signed by both comes back.
+                let still_signed = match (&decision, proposal_id) {
+                    (Removal::Remove { proposal_status: None }, Some(_)) => proposal_status.as_deref() == Some("Signed by Both Parties"),
+                    _ => false,
+                };
                 report.removed.push(RemovedLine {
                     app_id, client, agr_ref, proposal_id,
-                    would_be_recreated: proposal_status.as_deref() == Some("Signed by Both Parties"),
-                    proposal_status, company_other_records: others,
+                    would_be_recreated: still_signed,
+                    proposal_status, company_other_records: others, outcome,
                 });
             }
             Some("REVIEW") => {
@@ -638,25 +719,37 @@ fn service_id_for(tx: &Connection, name: &str) -> rusqlite::Result<Option<i64>> 
 /// Active MRR (SAR) the way the app computes it today (lines win over the
 /// stored fee) and after spec §5.6 (the stored fee wins when fee_basis =
 /// invoiced). Active = not cancelled, service Active, end date not passed.
+/// One active agreement's MRR (today's rule, the new rule). Today the app prefers the
+/// price lines and drops a past end date. The new rule: the invoiced fee wins (§5.6), and an
+/// agreement still invoiced after its term counts — it most likely renewed by itself
+/// and the renewal paperwork is missing (owner, 22-Sep); it stays on the exposure list.
+fn mrr_rules(fee: f64, basis: &str, n_lines: i64, lines_monthly: f64, past_term: bool) -> (f64, f64) {
+    let app = if n_lines > 0 { lines_monthly } else { fee };
+    let today = if past_term { 0.0 } else { app };
+    let new = if basis == "invoiced" { fee } else if past_term { 0.0 } else { app };
+    (today, new)
+}
+
 pub fn active_mrr(conn: &Connection, today: &str) -> rusqlite::Result<(f64, f64)> {
     let has_basis = crate::db::schema_version(conn).unwrap_or(0) >= 38;
     let sql = format!(
         "SELECT a.id, COALESCE(a.monthly_fee, 0), {basis},
                 (SELECT COUNT(*) FROM agreement_lines l WHERE l.agreement_id = a.id),
-                (SELECT COALESCE(SUM(COALESCE(l.quantity, 1) * l.unit_price), 0) FROM agreement_lines l WHERE l.agreement_id = a.id AND l.billing = 'monthly' AND l.unit_price IS NOT NULL)
+                (SELECT COALESCE(SUM(COALESCE(l.quantity, 1) * l.unit_price), 0) FROM agreement_lines l WHERE l.agreement_id = a.id AND l.billing = 'monthly' AND l.unit_price IS NOT NULL),
+                COALESCE(a.end_date < ?1, 0)
          FROM agreements a
-         WHERE COALESCE(a.status, '') != 'Canceled' AND a.service_status = 'Active' AND (a.end_date IS NULL OR a.end_date >= ?1)
+         WHERE COALESCE(a.status, '') != 'Canceled' AND a.service_status = 'Active'
            AND COALESCE(a.currency, 'SAR') = 'SAR'",
         basis = if has_basis { "COALESCE(a.fee_basis, '')" } else { "''" }
     );
     let mut stmt = conn.prepare(&sql)?;
-    let rows = stmt.query_map(params![today], |r| Ok((r.get::<_, f64>(1)?, r.get::<_, String>(2)?, r.get::<_, i64>(3)?, r.get::<_, f64>(4)?)))?;
+    let rows = stmt.query_map(params![today], |r| Ok((r.get::<_, f64>(1)?, r.get::<_, String>(2)?, r.get::<_, i64>(3)?, r.get::<_, f64>(4)?, r.get::<_, bool>(5)?)))?;
     let (mut today_rule, mut new_rule) = (0.0, 0.0);
     for row in rows {
-        let (fee, basis, n_lines, lines_monthly) = row?;
-        let app = if n_lines > 0 { lines_monthly } else { fee };
-        today_rule += app;
-        new_rule += if basis == "invoiced" { fee } else { app };
+        let (fee, basis, n_lines, lines_monthly, past_term) = row?;
+        let (a, b) = mrr_rules(fee, &basis, n_lines, lines_monthly, past_term);
+        today_rule += a;
+        new_rule += b;
     }
     Ok((today_rule, new_rule))
 }
@@ -667,20 +760,21 @@ pub fn company_mrr(conn: &Connection, today: &str) -> rusqlite::Result<HashMap<i
     let sql = format!(
         "SELECT a.company_id, COALESCE(a.monthly_fee, 0), {basis},
                 (SELECT COUNT(*) FROM agreement_lines l WHERE l.agreement_id = a.id),
-                (SELECT COALESCE(SUM(COALESCE(l.quantity, 1) * l.unit_price), 0) FROM agreement_lines l WHERE l.agreement_id = a.id AND l.billing = 'monthly' AND l.unit_price IS NOT NULL)
+                (SELECT COALESCE(SUM(COALESCE(l.quantity, 1) * l.unit_price), 0) FROM agreement_lines l WHERE l.agreement_id = a.id AND l.billing = 'monthly' AND l.unit_price IS NOT NULL),
+                COALESCE(a.end_date < ?1, 0)
          FROM agreements a
-         WHERE a.company_id IS NOT NULL AND COALESCE(a.status, '') != 'Canceled' AND a.service_status = 'Active' AND (a.end_date IS NULL OR a.end_date >= ?1)",
+         WHERE a.company_id IS NOT NULL AND COALESCE(a.status, '') != 'Canceled' AND a.service_status = 'Active'",
         basis = if has_basis { "COALESCE(a.fee_basis, '')" } else { "''" }
     );
     let mut out: HashMap<i64, (f64, f64)> = HashMap::new();
     let mut stmt = conn.prepare(&sql)?;
-    let rows = stmt.query_map(params![today], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, f64>(1)?, r.get::<_, String>(2)?, r.get::<_, i64>(3)?, r.get::<_, f64>(4)?)))?;
+    let rows = stmt.query_map(params![today], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, f64>(1)?, r.get::<_, String>(2)?, r.get::<_, i64>(3)?, r.get::<_, f64>(4)?, r.get::<_, bool>(5)?)))?;
     for row in rows {
-        let (company, fee, basis, n_lines, lines_monthly) = row?;
-        let app = if n_lines > 0 { lines_monthly } else { fee };
+        let (company, fee, basis, n_lines, lines_monthly, past_term) = row?;
+        let (a, b) = mrr_rules(fee, &basis, n_lines, lines_monthly, past_term);
         let e = out.entry(company).or_default();
-        e.0 += app;
-        e.1 += if basis == "invoiced" { fee } else { app };
+        e.0 += a;
+        e.1 += b;
     }
     Ok(out)
 }
