@@ -108,11 +108,12 @@ def labor_law():
     slides = [divider(m, "Labor Law & Employment Consultancy", "Continuous legal and HR advisory on Saudi labor law, visas, Saudization and employee relations.")]
     s = Slide("Content", notes=tags(m, "approach"))
     y = heading(s, "Detailed approach · Labor law & employment consultancy", "Main tasks",
-                "MENA BIG provides legal and HR labor law advisory, periodic quality assurance of HR guidelines, and continuous off-site support to the {{client_name}} HR team on general HR practices and local laws.")
+                "MENA BIG provides legal and HR labor law advisory, and continuous off-site support to the {{client_name}} HR team on general HR practices, local laws and the proper implementation of new or updated HR guidelines.")
     numbered(s, [
         ("Visas & Iqamas", "Due diligence so {{client_name}} always works within KSA law for visas and Iqamas; visa types for expats, requirements for all visa categories, and the risks in current visa types with a mitigation plan."),
-        ("Saudization", "Saudization requirements and specialized categories, solutions and costs, cost sheet per position, expat mobilization vs. Saudization hiring, planning and forecast, and Nitaqat management."),
-        ("Labor law advisory", "Working hours, employment liabilities, holidays and compensation, contractual matters, and how current and future labor law changes affect {{client_name}}."),
+        ("Saudization & nationalization", "Saudization requirements and specialized categories, solutions and costs, cost sheet per position, expat mobilization vs. Saudization hiring, planning and forecast, and Nitaqat management."),
+        ("Labor law advisory", "Working hours, employment liabilities & contractual matters, holidays and compensation, labor law & guidelines, termination clauses, onboarding & hiring, and how changing laws affect {{client_name}}."),
+        ("Reporting", "Monthly reports on Saudization & nationalization, new law updates, renewals, professions & platform match, with recommendations and solutions."),
         ("Claims & improvement", "General laws and clarifications, employee claims and complaints advisory (excluding courts and related sessions), and areas for improvement against local law and leading practice."),
     ], MARGIN, y + 4, SPLIT_L, gap=16)
     side_panel(s, y, 560, "Deliverables & duration", [

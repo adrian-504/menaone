@@ -60,16 +60,16 @@ def admin_pro() -> list:
     left_w = 900
     section_label(s, "PRO representation", MARGIN, y, left_w)
     numbered(s, [
-        "PRO representative for employee services at immigration and passport departments, the labor office, GOSI and Qiwa, and any other authority required.",
+        "PRO representative for employee services at immigration and passport departments (including the manual immigration department), the labor office, GOSI and Qiwa, and any other authority required.",
         "Manage and control online systems — Muqeem, Labor Office, Qiwa, GOSI, COC and Mudad.",
-        "Issuance of new labor cards and Iqamas, and renewal of existing labor cards and Iqamas.",
-        "Claims and complaints filing and follow-up, with a monthly review and report.",
+        "Iqamas and labor cards: new issuance, renewal and Iqama transfer.",
+        "Reporting & advisory: a weekly report, follow-up of renewals and extensions, and Qiwa contracts & notices.",
     ], MARGIN, y + 44, left_w)
     px, pw = MARGIN + left_w + 70, 1712 - left_w - 70
     panel(s, px, y, pw, 640)
     section_label(s, "Management of employee services", px + 36, y + 30, pw - 72)
-    bullets(s, ["Exit re-entries & amendments", "Family visas and family Iqamas", "Driver license", "GAZT / tax certificate", "Criminal records & other certificates",
-                "Unified contracts, kept current in the system", "Employment contracts & e-contracts", "Saudi Council of Engineers & of Accountancy"],
+    bullets(s, ["Exit re-entries & amendments", "Family visas support (applications & advice)", "Family Iqamas", "Driver license support (applications & advice)",
+                "GAZT / tax certificate", "Criminal records & other certificates", "Employment contracts & e-contracts", "Saudi Council of Engineers & of Accountancy"],
             px + 36, y + 80, pw - 72, cols=2, gap=12, color=INK)
     slides.append(s)
     slides.append(tranche_fees(m, "Project fees · Administration & government services", "Fee structure — PRO services",
@@ -85,17 +85,18 @@ def gosi_payroll() -> list:
                 "Administration and governmental services management for payroll and social insurance, requested by purchase order as required.")
     left_w = 900
     numbered(s, [
-        ("Payroll management & preparation", "Monthly payroll cycle prepared, reviewed and reported."),
-        ("Wages Protection System control", "WPS compliance monitored and maintained each month."),
-        ("Adding, deleting & modifying employment", "Across GOSI and the Labor Office."),
-        ("Social insurance monthly match", "GOSI calculations reconciled with payroll, with a monthly GOSI report."),
-        ("Terminations and end of service", "End-of-service clarification and calculations, including social insurance treatment."),
+        ("Payroll management & preparation", "Monthly payroll cycle, payslip generation, deductions and attendance."),
+        ("Wages Protection System control", "WPS compliance monitored each month, preventing salary violations in advance."),
+        ("Adding, deleting & modifying employment", "In GOSI, with social insurance (GOSI) calculations."),
+        ("Monthly match & reporting", "Social insurance monthly match, monthly GOSI report, and a matching report of GOSI vs Labor Office vs payroll."),
+        ("Terminations and end of service", "End-of-service clarification and calculations."),
+        ("Business intelligence reports", "Payroll and workforce reporting for management."),
     ], MARGIN, y + 4, left_w, gap=18)
     px, pw = MARGIN + left_w + 70, 1712 - left_w - 70
     panel(s, px, y, pw, 520)
     section_label(s, "Option · GOSI without payroll", px + 36, y + 30, pw - 72, color=CORAL_DK)
     s.text(px + 36, y + 70, pw - 72, 50, [Para([Run("Social insurance services only", size=29, color=BLUE, bold=True, font="+mj-lt")])], anchor="ctr")
-    bullets(s, ["Adding, deleting and modifying employment in GOSI and the Labor Office", "Monthly GOSI report and costs report", "Terminations and end of service"], px + 36, y + 140, pw - 72, gap=12, color=INK)
+    bullets(s, ["Adding, deleting and modifying employment in GOSI", "Monthly GOSI report and costs report", "Terminations and end of service"], px + 36, y + 140, pw - 72, gap=12, color=INK)
     s.text(px + 36, y + 380, pw - 72, 100, [Para([R("Available where {{client_name}} keeps payroll in-house and requires social insurance administration only.", size=BODY)], line=1.15)])
     slides.append(s)
     slides.append(tranche_fees(m, "Project fees · GOSI and payroll services", "Fee structure — GOSI and payroll",

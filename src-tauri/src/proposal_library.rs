@@ -47,8 +47,12 @@ pub fn modules_in(text: &str) -> Vec<&'static str> {
     let t = text.to_lowercase();
     let mut out: Vec<&'static str> = Vec::new();
     let mut add = |k: &'static str| if !out.contains(&k) { out.push(k) };
-    if t.contains("business setup") {
+    // Since the 16-Sep renames "Business Setup" is the one-time company setup (was Company
+    // Constitution); with maintenance or "package" it is the Business Setup and Maintenance Package.
+    if t.contains("business setup") && (t.contains("maintenance") || t.contains("package")) {
         add("business_setup");
+    } else if t.contains("business setup") {
+        add("constitution");
     } else if t.contains("constitution") && (t.contains("+ maintenance") || t.contains("& maintenance") || t.contains("and maintenance") || t.contains("maintenance package") || t.contains("maintenance bundle")) {
         add("constitution_maintenance");
     } else {
@@ -59,7 +63,7 @@ pub fn modules_in(text: &str) -> Vec<&'static str> {
     let gm = t.contains("gm representative") || t.contains("temporary gm") || t.contains("general manager representative");
     if gm { add("gm_representative"); }
     if t.contains("mobili") { add("mobilization"); }
-    if t.contains("workforce") { add("workforce"); }
+    if t.contains("workforce") || t.contains("employer of record") { add("workforce"); }
     if t.contains("manpower") { add("manpower"); } else if t.contains("recruit") { add("recruitment"); }
     if t.contains("hr consultancy") || t.contains("human resources consultancy") { add("hr_consultancy"); }
     if t.contains("labor law") || t.contains("labour law") { add("labor_law"); }
@@ -187,6 +191,13 @@ pub fn classify(inspection: &TemplateInspection) -> Vec<ClassifiedSlide> {
             (Role::Other, vec![])
         };
         out.push(ClassifiedSlide { index: s.index, title: s.title.clone(), role, modules });
+    }
+    // A package deck (cover: "Business Setup & Maintenance Services") explains the package on
+    // its own slides, even where a slide names only the setup or only the maintenance.
+    if cover_services(inspection).map(|c| modules_in(&c) == vec!["business_setup"]).unwrap_or(false) {
+        for s in out.iter_mut().filter(|s| s.is_module()) {
+            s.modules = vec!["business_setup"];
+        }
     }
     out
 }
@@ -540,7 +551,11 @@ mod tests {
         assert_eq!(modules_for_service("Consultancy", Some("Labor Law Consultancy")), vec!["labor_law"]);
         assert_eq!(modules_for_service("National Staffing", Some("Manpower & Recruitment")), vec!["manpower"]);
         assert_eq!(modules_for_service("Recruitment", Some("Manpower & Recruitment")), vec!["recruitment"]);
-        assert_eq!(modules_for_service("Business Setup and Maintenance Package", None), vec!["business_setup"]);
+        assert_eq!(modules_for_service("Business Setup and Maintenance Package", Some("Company Maintenance")), vec!["business_setup"]);
+        // Renamed 16-Sep: Business Setup is the one-time setup (Company Constitution); Employer of Record is Workforce.
+        assert_eq!(modules_for_service("Business Setup", Some("Company Constitution")), vec!["constitution"]);
+        assert_eq!(modules_for_service("Employer of Record", Some("Workforce Services")), vec!["workforce"]);
+        assert_eq!(modules_in("EMPLOYER OF RECORD SERVICES"), vec!["workforce"]);
         assert_eq!(modules_for_service("GM Representative", Some("Administration & PRO")), vec!["gm_representative"]);
         assert_eq!(modules_in("GM REPRESENTATIVE SERVICES"), vec!["gm_representative"]);
     }

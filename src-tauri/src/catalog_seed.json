@@ -589,7 +589,7 @@
     "trancheLabel": "Employee Type",
     "tranches": [
      {
-      "label": "Nationalized (Engineers & Managers)",
+      "label": "High Category/White Collar (Managers, Engineers, Specialists & Admins)",
       "noCommMin": 3250,
       "noCommMax": 3550,
       "commMin": 3650,
@@ -597,7 +597,7 @@
       "volMin": 3150
      },
      {
-      "label": "Nationalized (Technicians & Supervisors)",
+      "label": "Medium Category/Grey Collar (Technicians and Supervisors)",
       "noCommMin": 2450,
       "noCommMax": 2650,
       "commMin": 2750,
@@ -605,7 +605,7 @@
       "volMin": 2150
      },
      {
-      "label": "Non-Nationalized (Unskilled)",
+      "label": "Low Category/Blue Collar (Unskilled and Workers)",
       "noCommMin": 1350,
       "noCommMax": 1650,
       "commMin": 1700,

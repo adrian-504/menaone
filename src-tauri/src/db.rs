@@ -714,7 +714,31 @@ const CODE_MIGRATIONS: &[(i64, fn(&Connection) -> rusqlite::Result<()>)] = &[
     (36, crate::commitments::migrate_commitments),
     // Company 360 as a briefing: pinned company notes, decision makers.
     (37, migrate_company_brief),
+    // Workforce employee categories renamed (owner, 22-Sep): the rate card and saved proposal lines follow the templates.
+    (38, migrate_workforce_categories),
 ];
+
+/// Old Workforce category label → the name the proposal templates now use.
+pub const WORKFORCE_CATEGORY_RENAMES: &[(&str, &str)] = &[
+    ("Non-Nationalized (Unskilled)", "Low Category/Blue Collar (Unskilled and Workers)"),
+    ("Nationalized (Engineers & Managers)", "High Category/White Collar (Managers, Engineers, Specialists & Admins)"),
+    ("Nationalized (Technicians & Supervisors)", "Medium Category/Grey Collar (Technicians and Supervisors)"),
+];
+
+fn migrate_workforce_categories(conn: &Connection) -> rusqlite::Result<()> {
+    // Exact labels inside the JSON only ("Non-" first, so it is never read as the "Nationalized" one).
+    for (old, new) in WORKFORCE_CATEGORY_RENAMES {
+        let (old_json, new_json) = (format!("\"{old}\""), format!("\"{new}\""));
+        if column_exists(conn, "rate_cards", "pricing_json")? {
+            conn.execute("UPDATE rate_cards SET pricing_json = replace(pricing_json, ?1, ?2) WHERE instr(pricing_json, ?1) > 0", rusqlite::params![old_json, new_json])?;
+        }
+        // An old backup may not have the column yet (it is added with the commercial tables).
+        if column_exists(conn, "proposal_lines", "rates_json")? {
+            conn.execute("UPDATE proposal_lines SET rates_json = replace(rates_json, ?1, ?2) WHERE instr(rates_json, ?1) > 0", rusqlite::params![old_json, new_json])?;
+        }
+    }
+    Ok(())
+}
 
 fn column_exists(conn: &Connection, table: &str, col: &str) -> rusqlite::Result<bool> {
     Ok(conn
