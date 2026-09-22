@@ -479,18 +479,34 @@ pub fn compose(library: &[LibraryTemplate], wanted: &[&'static str]) -> Result<C
     }
 
     let mut sources: HashMap<usize, Package> = HashMap::new();
+    // Terms: the general block is in the deck once (from the base). Other services' clauses that
+    // aren't there yet are gathered into one service-terms section, grouped by service.
+    let mut seen = terms_clauses(&pkg, &slides);
+    let mut service_terms: Vec<TermsGroup> = Vec::new();
+    let mut vessel: Option<(usize, usize)> = None;
     for import in &plan.imports {
         let src_template = &library[import.template];
         if !sources.contains_key(&import.template) {
             sources.insert(import.template, Package::read(Path::new(&src_template.path))?);
         }
         let src = &sources[&import.template];
-        // Terms: the general block is already in the deck once; a service's terms slide comes in
-        // only when it adds clauses, and without the clauses the deck already has.
-        let existing = if import.terms { terms_clauses(&pkg, &slides) } else { HashSet::new() };
         let positions: Vec<usize> = if import.terms {
             let src_parts = pptx::slide_parts_in_order(src);
-            import.positions.iter().copied().filter(|p| src_parts.get(p - 1).map(|part| pptx::paragraphs(&src.text_of(part)).iter().any(|t| !clause_sentences(t).is_empty() && !repeats(t, &existing))).unwrap_or(false)).collect()
+            let mut whole = Vec::new();
+            for &p in &import.positions {
+                let Some(part) = src_parts.get(p - 1) else { continue };
+                let xml = src.text_of(part);
+                if xml.contains("name=\"Terms Card") {
+                    // Card-style terms: their new clauses join the service-terms section.
+                    if collect_service_terms(&xml, import.module, &mut seen, &mut service_terms) && vessel.is_none() {
+                        vessel = Some((import.template, p));
+                    }
+                } else if pptx::paragraphs(&xml).iter().any(|t| !clause_sentences(t).is_empty() && !repeats(t, &seen)) {
+                    // Other terms slides (Employer of Record's own) come in whole, without repeated clauses.
+                    whole.push(p);
+                }
+            }
+            whole
         } else {
             import.positions.clone()
         };
@@ -500,12 +516,8 @@ pub fn compose(library: &[LibraryTemplate], wanted: &[&'static str]) -> Result<C
         let at = if import.terms { terms_insert_at(&slides) } else { modules_insert_at(&slides) };
         let added = crate::pptx_import::import_slides(&mut pkg, src, &positions, at)?;
         if import.terms {
-            let mut seen = existing;
             for part in pptx::slide_parts_in_order(&pkg)[at..at + added].to_vec() {
-                // A general terms slide brought in for one service says which service it is for.
-                let named = format!("Assumptions and Limitations – {} Services", module_name(import.module));
-                let (xml, _) = crate::smartfill::rewrite_paragraphs(&pkg.text_of(&part), |_, t| (t.trim() == "Assumptions and Limitations").then(|| named.clone()));
-                let xml = without_clauses(&xml, &seen);
+                let xml = without_clauses(&pkg.text_of(&part), &seen);
                 seen.extend(clause_keys(&xml));
                 pkg.set_text(&part, xml);
             }
@@ -524,6 +536,25 @@ pub fn compose(library: &[LibraryTemplate], wanted: &[&'static str]) -> Result<C
         }
         slides.splice(at..at, new_slides);
     }
+    if let (Some((template, position)), false) = (vessel, service_terms.is_empty()) {
+        let pages = layout_service_terms(&service_terms);
+        let src = &sources[&template];
+        let modules: Vec<&'static str> = wanted.iter().copied().filter(|m| service_terms.iter().any(|g| g.module == *m)).collect();
+        let subtitle = format!("Assumptions and Limitations – {}", services_title(&modules));
+        for page in pages {
+            let at = terms_insert_at(&slides);
+            crate::pptx_import::import_slides(&mut pkg, src, &[position], at)?;
+            let part = pptx::slide_parts_in_order(&pkg)[at].clone();
+            let xml = service_terms_slide(&pkg.text_of(&part), &page, &service_terms, &subtitle);
+            pkg.set_text(&part, xml);
+            if let Some(client) = &library[template].client_on_cover {
+                neutralise_client(&mut pkg, &[part.clone()], client);
+            }
+            slides.insert(at, ComposedSlide { title: "Terms & Conditions, and Acceptance".into(), role: Role::Terms, modules: modules.clone(), source: "service terms".into(), source_index: 0 });
+        }
+    }
+    // Service sections follow the order of the proposal's lines.
+    order_sections(&mut pkg, &mut slides, wanted);
 
     // Cover and letter name the services this proposal is for.
     let base_cov = covered(&base.slides);
@@ -548,6 +579,157 @@ pub fn compose(library: &[LibraryTemplate], wanted: &[&'static str]) -> Result<C
     }
     renumber_parts(&mut pkg, &slides);
     Ok(Composition { package: pkg, slides, base: base.name.clone(), missing: plan.missing, title })
+}
+
+/// One service's clauses under one of its headings, for the service-terms section.
+struct TermsGroup {
+    module: &'static str,
+    heading: String,
+    /// (bullet level, the paragraph's runs, its text)
+    clauses: Vec<(usize, String, String)>,
+}
+
+/// Adds a card-style terms slide's new clauses to the service-terms section, keeping each
+/// card's heading. Returns whether anything was added.
+fn collect_service_terms(xml: &str, module: &'static str, seen: &mut HashSet<String>, groups: &mut Vec<TermsGroup>) -> bool {
+    static CARD: OnceLock<regex::Regex> = OnceLock::new();
+    static PARA: OnceLock<regex::Regex> = OnceLock::new();
+    static RUN: OnceLock<regex::Regex> = OnceLock::new();
+    let card = CARD.get_or_init(|| regex::Regex::new(r#"(?s)<p:sp><p:nvSpPr><p:cNvPr id="\d+" name="Terms Card (\d+)"/>.*?</p:sp>"#).expect("regex"));
+    let para = PARA.get_or_init(|| regex::Regex::new(r"(?s)<a:p>.*?</a:p>|<a:p\b[^/>]*>.*?</a:p>").expect("regex"));
+    let run = RUN.get_or_init(|| regex::Regex::new(r"(?s)<a:r>.*?</a:r>").expect("regex"));
+    let mut cards: Vec<(usize, &str)> = card.captures_iter(xml).filter_map(|c| Some((c[1].parse().ok()?, c.get(0)?.as_str()))).collect();
+    cards.sort_by_key(|c| c.0);
+    let mut added = false;
+    for (_, shape) in cards {
+        let mut heading = String::new();
+        let mut clauses = Vec::new();
+        for p in para.find_iter(shape).map(|m| m.as_str()) {
+            let text = pptx::paragraphs(p).join(" ");
+            if text.trim().is_empty() { continue; }
+            if !p.contains("<a:buChar") {
+                if heading.is_empty() { heading = text.trim().to_string(); }
+                continue;
+            }
+            if repeats(&text, seen) { continue; }
+            let level = pptx::attr(p, "marL").and_then(|m| m.parse::<i64>().ok()).map(|m| (m / 187200).max(1) as usize).unwrap_or(1);
+            seen.extend(clause_sentences(&text));
+            clauses.push((level, run.find_iter(p).map(|m| m.as_str()).collect::<String>(), text.trim().to_string()));
+        }
+        // A heading with only sub-headings left (no clause) says nothing.
+        if clauses.iter().all(|c| clause_sentences(&c.2).is_empty()) { continue; }
+        groups.push(TermsGroup { module, heading, clauses });
+        added = true;
+    }
+    added
+}
+
+const COL_LEFT: i64 = 152400;
+const COL_GAP: i64 = 203200;
+const COL_W: i64 = (12192000 - 2 * 152400 - 203200) / 2;
+const CARDS_TOP: i64 = 838200;
+const CARDS_BOTTOM: i64 = 6480000;
+
+/// A card's height at 10.5 pt (Calibri, about half an em per character).
+fn group_height(g: &TermsGroup) -> i64 {
+    let line = 10.5 * 1.22 * 12700.0;
+    let usable = (COL_W - 2 * 91440) as f64;
+    let mut h = 2.0 * 45720.0 + 4.0 * 12700.0 + line * 1.15 + 3.0 * 12700.0;
+    for (level, _, text) in &g.clauses {
+        let cpl = (((usable - 187200.0 * *level as f64) / 12700.0) / (10.5 * 0.5)).max(20.0);
+        h += line * (text.chars().count() as f64 / cpl).ceil().max(1.0) + 5.0 * 12700.0;
+    }
+    h as i64
+}
+
+/// Pages of cards: each group goes to the shorter column; a new page when neither fits.
+fn layout_service_terms(groups: &[TermsGroup]) -> Vec<Vec<(usize, i64, i64, i64)>> {
+    let mut pages = Vec::new();
+    let mut page: Vec<(usize, i64, i64, i64)> = Vec::new();
+    let mut bottoms = [CARDS_TOP, CARDS_TOP];
+    for (i, g) in groups.iter().enumerate() {
+        let h = group_height(g);
+        let c = if bottoms[0] <= bottoms[1] { 0 } else { 1 };
+        if bottoms[c] + h > CARDS_BOTTOM && !page.is_empty() {
+            pages.push(std::mem::take(&mut page));
+            bottoms = [CARDS_TOP, CARDS_TOP];
+        }
+        let c = if bottoms[0] <= bottoms[1] { 0 } else { 1 };
+        page.push((i, COL_LEFT + c as i64 * (COL_W + COL_GAP), bottoms[c], h));
+        bottoms[c] += h + COL_GAP;
+    }
+    if !page.is_empty() { pages.push(page); }
+    pages
+}
+
+/// A service-terms page: the vessel slide's title stays, its cards and lead-in go, the
+/// subtitle names the services, and one card per service heading is drawn.
+fn service_terms_slide(xml: &str, page: &[(usize, i64, i64, i64)], groups: &[TermsGroup], subtitle: &str) -> String {
+    static SP: OnceLock<regex::Regex> = OnceLock::new();
+    let sp = SP.get_or_init(|| regex::Regex::new(r"(?s)<p:sp>.*?</p:sp>").expect("regex"));
+    let mut out = xml.to_string();
+    for shape in sp.find_iter(xml).map(|m| m.as_str().to_string()).collect::<Vec<_>>() {
+        if shape.contains("name=\"Terms Card") || shape.contains("name=\"LeadIn Bar\"") {
+            out = out.replacen(&shape, "", 1);
+        }
+    }
+    let (titled, _) = crate::smartfill::rewrite_paragraphs(&out, |_, t| t.trim().starts_with("Assumptions and Limitations").then(|| subtitle.to_string()));
+    let mut next_id = regex::Regex::new(r#"<p:cNvPr id="(\d+)""#).expect("regex").captures_iter(&titled).filter_map(|c| c[1].parse::<u32>().ok()).max().unwrap_or(1) + 1;
+    let mut cards = String::new();
+    for (i, x, y, h) in page {
+        let g = &groups[*i];
+        let heading = if g.heading.is_empty() { format!("{} Services", module_name(g.module)) } else { format!("{} · {}", module_name(g.module), g.heading) };
+        let mut body = format!(r#"<a:p><a:pPr marL="0" indent="0"><a:spcAft><a:spcPts val="300"/></a:spcAft><a:buNone/></a:pPr><a:r><a:rPr lang="en-US" sz="1100" b="1" dirty="0"><a:solidFill><a:srgbClr val="004C8E"/></a:solidFill><a:latin typeface="Calibri"/></a:rPr><a:t>{}</a:t></a:r></a:p>"#, xml_escape(&heading));
+        for (level, runs, _) in &g.clauses {
+            body.push_str(&format!(r#"<a:p><a:pPr marL="{}" indent="-187200" algn="l"><a:spcAft><a:spcPts val="500"/></a:spcAft><a:buClr><a:srgbClr val="005DA5"/></a:buClr><a:buFont typeface="Arial"/><a:buChar char="{}"/></a:pPr>{}</a:p>"#, 187200 * *level as i64, if *level <= 1 { "●" } else { "–" }, runs));
+        }
+        cards.push_str(&format!(r#"<p:sp><p:nvSpPr><p:cNvPr id="{next_id}" name="Terms Card {}"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="{x}" y="{y}"/><a:ext cx="{COL_W}" cy="{h}"/></a:xfrm><a:prstGeom prst="roundRect"><a:avLst><a:gd name="adj" fmla="val 6000"/></a:avLst></a:prstGeom><a:solidFill><a:srgbClr val="F7FAFC"/></a:solidFill><a:ln><a:noFill/></a:ln></p:spPr><p:txBody><a:bodyPr wrap="square" lIns="91440" tIns="45720" rIns="91440" bIns="45720" anchor="t"><a:noAutofit/></a:bodyPr><a:lstStyle/>{body}</p:txBody></p:sp>"#, i + 1));
+        next_id += 1;
+    }
+    // Cards first in shape order, as on the other terms slides.
+    match titled.find("</p:grpSpPr>") {
+        Some(k) => format!("{}{}{}", &titled[..k + "</p:grpSpPr>".len()], cards, &titled[k + "</p:grpSpPr>".len()..]),
+        None => titled,
+    }
+}
+
+fn xml_escape(s: &str) -> String {
+    s.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;")
+}
+
+/// Service sections (a service divider and the slides up to the next one) in the order of the
+/// proposal's lines; the rest of the deck stays where it is. Dividers are renumbered after.
+fn order_sections(pkg: &mut Package, slides: &mut Vec<ComposedSlide>, wanted: &[&'static str]) {
+    let rank = |m: &&'static str| wanted.iter().position(|w| w == m).unwrap_or(usize::MAX);
+    let Some(first) = slides.iter().position(|s| s.role == Role::ServiceDivider) else { return };
+    let last = slides.iter().rposition(|s| is_service_content(s.role)).unwrap_or(first);
+    if slides[first..=last].iter().any(|s| !is_service_content(s.role)) { return; }
+    let mut groups: Vec<(usize, Vec<usize>)> = Vec::new();
+    for i in first..=last {
+        if slides[i].role == Role::ServiceDivider || groups.is_empty() { groups.push((usize::MAX, Vec::new())); }
+        let g = groups.last_mut().expect("group");
+        g.1.push(i);
+        g.0 = g.0.min(slides[i].modules.iter().map(rank).min().unwrap_or(usize::MAX));
+    }
+    let mut sorted = groups.clone();
+    sorted.sort_by_key(|g| g.0);
+    if sorted.iter().map(|g| g.1[0]).eq(groups.iter().map(|g| g.1[0])) { return; }
+    let mut order: Vec<usize> = (0..first).collect();
+    order.extend(sorted.iter().flat_map(|g| g.1.iter().copied()));
+    order.extend(last + 1..slides.len());
+    reorder_slides(pkg, &order);
+    *slides = order.iter().map(|&i| slides[i].clone()).collect();
+}
+
+/// Puts the deck's slides in this order (indexes into the current order).
+pub(crate) fn reorder_slides(pkg: &mut Package, order: &[usize]) {
+    let pres = pkg.text_of("ppt/presentation.xml");
+    let ids: Vec<String> = regex::Regex::new(r"<p:sldId\b[^>]*/>").expect("regex").find_iter(&pres).map(|m| m.as_str().to_string()).collect();
+    if ids.len() != order.len() { return; }
+    let Some(start) = pres.find("<p:sldIdLst>") else { return };
+    let Some(end) = pres.find("</p:sldIdLst>") else { return };
+    let list: String = order.iter().map(|&i| ids[i].clone()).collect();
+    pkg.set_text("ppt/presentation.xml", format!("{}<p:sldIdLst>{}{}", &pres[..start], list, &pres[end..]));
 }
 
 /// Service dividers ("… PART 1") numbered in deck order: a mixed deck reads 1, 2, 3, not 1, 2, 1.
@@ -589,12 +771,29 @@ fn clause_sentences(text: &str) -> Vec<String> {
     if t.chars().count() < 30 || heading.iter().any(|h| t.starts_with(h)) {
         return vec![];
     }
-    t.split(". ")
-        .map(|s| s.trim().trim_end_matches(['.', ';', ':', ',']).to_string())
-        .filter(|s| s.chars().count() >= 15)
-        // The decks word the VAT exclusion four ways; a deck states it once.
-        .map(|s| if s.contains("vat") && s.contains("exclud") { "§ prices exclude vat".to_string() } else { s })
-        .collect()
+    // The decks word some clauses several ways; each family is one clause (the first wording wins).
+    if let Some(family) = clause_family(&t) {
+        return vec![family.to_string()];
+    }
+    t.split(". ").map(|s| s.trim().trim_end_matches(['.', ';', ':', ',']).to_string()).filter(|s| s.chars().count() >= 15).collect()
+}
+
+/// Clauses every deck carries in its own words.
+fn clause_family(t: &str) -> Option<&'static str> {
+    let money = t.contains("fee") || t.contains("price") || t.contains("rate");
+    if t.contains("vat") && t.contains("exclud") {
+        Some("§ prices exclude vat")
+    } else if t.contains("as per the current governmental expenses") {
+        Some("§ changes in governmental expenses invoiced at cost")
+    } else if money && t.contains("exclud") && (t.contains("governmental") || t.contains("any costs")) {
+        Some("§ fees exclude governmental expenses and taxes")
+    } else if t.contains("last purchase order") {
+        Some("§ services finalised against the last purchase orders")
+    } else if t.contains("non-refundable") && t.contains("payment") {
+        Some("§ payments are non-refundable")
+    } else {
+        None
+    }
 }
 
 fn clause_keys(xml: &str) -> HashSet<String> {
@@ -622,17 +821,22 @@ fn without_clauses(xml: &str, seen: &HashSet<String>) -> String {
     let sp = SP.get_or_init(|| regex::Regex::new(r"(?s)<p:sp>.*?</p:sp>").expect("regex"));
     let mut out = xml.to_string();
     let mut top = cards_top(xml);
+    // Clauses count as seen as the slide is read, so a repeat on the same slide goes too.
+    let mut seen = seen.clone();
     for shape in sp.find_iter(xml).map(|m| m.as_str().to_string()).collect::<Vec<_>>() {
         let mut edited = shape.clone();
         let mut removed = 0;
         for p in para.find_iter(&shape).map(|m| m.as_str().to_string()).collect::<Vec<_>>() {
             let text = pptx::paragraphs(&p).join(" ");
-            if repeats(&text, seen) {
+            if repeats(&text, &seen) {
                 edited = edited.replacen(&p, "", 1);
                 removed += 1;
+            } else {
+                seen.extend(clause_sentences(&text));
             }
         }
         if removed == 0 { continue; }
+        edited = without_empty_subheadings(&edited);
         let empty = pptx::paragraphs(&edited).is_empty();
         // A card left without a clause (only its heading or sub-headings) goes.
         let heading_only = shape.contains("name=\"Terms Card") && pptx::paragraphs(&edited).iter().all(|t| clause_sentences(t).is_empty());
@@ -643,6 +847,21 @@ fn without_clauses(xml: &str, seen: &HashSet<String>) -> String {
         out = out.replacen(&shape, if empty || heading_only { "" } else { &edited }, 1);
     }
     restack_cards(&out, top)
+}
+
+/// Drops a short bullet line ("Terms", "Duration of this agreement") left with no deeper line under it.
+fn without_empty_subheadings(shape: &str) -> String {
+    let para = regex::Regex::new(r"(?s)<a:p>.*?</a:p>|<a:p\b[^/>]*>.*?</a:p>").expect("regex");
+    let level = |p: &str| pptx::attr(p, "marL").and_then(|m| m.parse::<i64>().ok()).unwrap_or(0);
+    let paras: Vec<String> = para.find_iter(shape).map(|m| m.as_str().to_string()).collect();
+    let mut out = shape.to_string();
+    for (i, p) in paras.iter().enumerate() {
+        let text = pptx::paragraphs(p).join(" ");
+        if !p.contains("<a:buChar") || text.trim().is_empty() || !clause_sentences(&text).is_empty() { continue; }
+        let has_child = paras.get(i + 1).map(|n| level(n) > level(p) && !pptx::paragraphs(n).is_empty()).unwrap_or(false);
+        if !has_child { out = out.replacen(p.as_str(), "", 1); }
+    }
+    out
 }
 
 fn cards_top(xml: &str) -> Option<i64> {
@@ -829,5 +1048,23 @@ mod vat_tests {
         let b = clause_sentences("All Fees are excluding VAT or WHT and will be added according to the country laws.");
         let c = clause_sentences("All our prices are excluding VAT, it will be added in our invoices according to the VAT Law.");
         assert_eq!(a, b); assert_eq!(b, c);
+    }
+}
+
+#[cfg(test)]
+mod family_tests {
+    use super::*;
+    #[test]
+    fn the_same_clause_in_other_words_is_one_clause() {
+        let fees = ["All fees excluding governmental taxes, expenses and any cost and shall be borne by the Client.",
+            "All Agreement fees excluding all Governmental Expenses and/or Taxes. All taxes as per the current country laws and regulation",
+            "All fees, monthly rates are excluding any costs, expenses or taxes and shall be borne by the 'Client Name'.",
+            "All prices excluding any governmental expenses."];
+        for f in fees { assert_eq!(clause_sentences(f), vec!["§ fees exclude governmental expenses and taxes".to_string()], "{f}"); }
+        assert_eq!(clause_sentences("The above all Rates as per the current governmental expenses and any changing in all the governmental or other expenses will be invoiced to Client at cost as per the payment receipt."), vec!["§ changes in governmental expenses invoiced at cost".to_string()]);
+        assert_eq!(clause_sentences("In case of termination, unless otherwise agreed by the Parties, MENA may be entitled to finalize all the Services agreed by last purchase orders."), vec!["§ services finalised against the last purchase orders".to_string()]);
+        // Different obligations stay separate.
+        assert!(clause_family("all fees excluding employee and company taxes and expenses").is_none());
+        assert!(clause_family("client may terminate this agreement for convenience at any time with a notice period to mena of (1) one months").is_none());
     }
 }

@@ -683,7 +683,10 @@ pub fn generate_proposal(db: &Mutex<Connection>, request: &GenerateRequest, poli
         .collect();
     let (mut pkg, inspection, mut slides) = match (&template, &library) {
         _ if master.is_some() => {
-            let pkg = Package::read(master.as_deref().expect("master"))?;
+            let mut pkg = Package::read(master.as_deref().expect("master"))?;
+            // Service sections in the order of the proposal's lines.
+            let line_order: Vec<&str> = master_lines.iter().flat_map(|l| l.modules.iter().copied()).collect();
+            crate::master::order_modules(&mut pkg, &line_order);
             let inspection = pptx::inspect(&pkg);
             if !crate::master::is_master(&inspection) {
                 return Err("The 2026 proposal master has no tagged slides.".into());

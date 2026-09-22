@@ -73,6 +73,31 @@ pub struct Choice {
     pub module: Option<String>,
 }
 
+/// The master's service sections (each module's divider, approach and fee slides) in the
+/// order of the proposal's lines; the rest of the deck (terms included) keeps the master's order.
+pub fn order_modules(pkg: &mut Package, wanted: &[&str]) {
+    let inspection = pptx::inspect(pkg);
+    let tags: Vec<MasterTags> = inspection.slides.iter().map(|s| parse(&s.notes)).collect();
+    let service = |t: &MasterTags| t.module.is_some() && !matches!(t.role.as_deref(), Some("terms"));
+    let Some(first) = tags.iter().position(service) else { return };
+    let last = tags.iter().rposition(service).unwrap_or(first);
+    if tags[first..=last].iter().any(|t| !service(t)) { return; }
+    let rank = |m: &str| wanted.iter().position(|w| *w == m).unwrap_or(usize::MAX);
+    let mut groups: Vec<(usize, Vec<usize>)> = Vec::new();
+    for i in first..=last {
+        let m = tags[i].module.as_deref().unwrap_or_default();
+        if groups.last().map(|g| tags[g.1[0]].module.as_deref() != Some(m)).unwrap_or(true) { groups.push((rank(m), Vec::new())); }
+        groups.last_mut().expect("group").1.push(i);
+    }
+    let mut sorted = groups.clone();
+    sorted.sort_by_key(|g| g.0);
+    if sorted.iter().map(|g| g.1[0]).eq(groups.iter().map(|g| g.1[0])) { return; }
+    let mut order: Vec<usize> = (0..first).collect();
+    order.extend(sorted.iter().flat_map(|g| g.1.iter().copied()));
+    order.extend(last + 1..tags.len());
+    crate::proposal_library::reorder_slides(pkg, &order);
+}
+
 /// Which master slides a proposal keeps.
 pub fn choose(inspection: &TemplateInspection, lines: &[MasterLine], months: Option<i64>) -> Vec<Choice> {
     let wanted: BTreeSet<&str> = lines.iter().flat_map(|l| l.modules.iter().copied()).collect();

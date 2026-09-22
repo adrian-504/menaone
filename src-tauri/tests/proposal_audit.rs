@@ -188,8 +188,11 @@ fn finish_scratch_generation(real: Option<(PathBuf, Vec<String>)>, out: &str, wr
         after.sort();
         assert_eq!(before, after, "the real Proposals folder changed");
     }
-    for w in written {
-        if let Some(dir) = w.parent() { let _ = std::fs::remove_dir_all(dir); }
+    // MENA_KEEP_OUTPUT=1 leaves the decks in MENA_OUT (scratch) to look at.
+    if std::env::var("MENA_KEEP_OUTPUT").is_err() {
+        for w in written {
+            if let Some(dir) = w.parent() { let _ = std::fs::remove_dir_all(dir); }
+        }
     }
 }
 
@@ -247,6 +250,7 @@ fn mixed_proposal_is_consistent() {
         (990011, "mixed", vec![line(990011, "Administration and PRO", 4000.0), line(990012, "Payroll", 1500.0), line(990013, "Labour Law Consultancy", 7000.0)]),
         (990021, "eor", vec![line(990021, "Employer of Record", 3550.0)]),
         (990031, "mixed2", vec![line(990031, "Administration and PRO", 4000.0), line(990032, "Accountancy", 5000.0), line(990033, "Recruitment", 10.0)]),
+        (990041, "reversed", vec![line(990041, "Recruitment", 10.0), line(990042, "Administration and PRO", 4000.0)]),
     ];
     let rows: Vec<Proposal> = cases.iter().map(|(id, _, lines)| Proposal { id: *id, client: "Acme Test Co".into(), status: "Proposal Request Received".into(), currency: Some("SAR".into()), lines: lines.clone(), ..Default::default() }).collect();
     upsert_proposal_rows(&mut conn, &rows).unwrap();
@@ -301,6 +305,16 @@ fn mixed_proposal_is_consistent() {
                 if start != Some(n) { problems.push(format!("{tag}: agenda '{label}' says {n}, section starts at {start:?}")); }
             }
         }
+        // Service sections follow the proposal's lines (first line first).
+        let expected: &[&str] = match *tag { "mixed" => &["admin", "labor"], "mixed2" => &["admin", "accountancy", "recruitment"], "reversed" => &["recruitment", "admin"], _ => &[] };
+        let dividers: Vec<String> = slides.iter().filter_map(|s| {
+            if s.first().map(|f| f == "Service").unwrap_or(false) { s.get(1).map(|x| x.to_lowercase()) }
+            else if s.len() <= 7 && s.iter().any(|p| p == "PART") { s.first().map(|x| x.to_lowercase()) }
+            else { None }
+        }).collect();
+        let firsts: Vec<Option<usize>> = expected.iter().map(|k| dividers.iter().position(|d| d.contains(k))).collect();
+        println!("  section order {dividers:?}");
+        if firsts.iter().any(|f| f.is_none()) || firsts.windows(2).any(|w| w[0] >= w[1]) { problems.push(format!("{tag}: sections {dividers:?} not in line order {expected:?}")); }
         if *tag == "eor" && slides.iter().flatten().any(|p| p.to_lowercase().contains("only if recruitment required")) { problems.push("eor: recruitment-only slide present".into()); }
         let status: String = db.lock().unwrap().query_row("SELECT status FROM proposals WHERE id = ?1", [id], |r| r.get(0)).unwrap();
         println!("  status {status}");
