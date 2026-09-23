@@ -42,7 +42,7 @@ Saving over an older backup file is safe: the new file is written first and only
 
 ## 5a. A client's page, pinned notes, decision makers and the Brief
 
-**Where we stand.** A company's page opens with a few plain sentences: the relationship and what they pay, what's in flight and who it's waiting on, when you last met or emailed, who owes what, and any pinned notes. Below them are the open threads, the people, the timeline and the company notes; every other record is under **All records** (click to open or close it — the app remembers which).
+**Where we stand.** A company's page opens with a few plain sentences: the relationship and what they pay, what's in flight and who it's waiting on, when you last met or emailed, who owes what, and any pinned notes. Below them are the open threads, the people, the timeline and the company notes, then every kind of record the company has — proposals, agreements, opportunities, projects, meetings, tasks, commitments, notes, files and linked emails — each open with its count. Kinds with nothing yet are one line at the bottom with their **+ New**.
 
 **Pinning a note.** In **Company notes**, click the pin beside a note to show it at the top of the page and in the Brief. Click it again to unpin. Pinning doesn't change the note's date.
 

@@ -443,7 +443,7 @@ One surface, hairlines, fewer of everything; tokens and components only, no layo
 - Schema 37: `company_note_entries.pinned`, `contacts.is_decision_maker` (both default 0; in the full backup; a JSON backup without them restores as off). `set_company_note_pinned` pins an entry without touching its dates.
 - `src/lib/companyBrief.ts`: pure rules — `buildCompanyState`, `liveThreads`, `lastContactByPerson`, `orderPeople`, `meetingBrief`, `relationshipStatus` (the header badge), `briefCommandMatches` (⌘K). It keeps its own two date/company helpers because `utils.ts` registers window handlers on import.
 - `src/tabs/companyState.ts`: the input from the loaded data, a cache of each company's pinned notes, and the clause renderer shared by Company 360 and the meeting page. `src/tabs/companyBriefView.ts`: the Brief overlay and its print stylesheet; `window.print()` needs `core:webview:allow-print` on macOS.
-- Company 360 (`companies.ts`): state block, Open threads (`threadStripHtml` with `prefix` and `labelCurrent`), People, the shared timeline (`renderRecordTimeline` with `company`), Company notes with pins, and "All records" (open state in `app_meta.company_records_open`). Key facts moved to the edit panel.
+- Company 360 (`companies.ts`): state block, Open threads (`threadStripHtml` with `prefix` and `labelCurrent`), People, the shared timeline (`renderRecordTimeline` with `company`), Company notes with pins, and the record sections, open when they have content, in the order of `lib/companyRecords.ts` (empty ones collapse after them; `app_meta.company_records_open` is no longer read). Key facts moved to the edit panel.
 
 ## Focus pass
 
