@@ -51,17 +51,14 @@ export async function renderLinkedEmails(entityType: EntityKind, entityId: numbe
 }
 
 /** Company variant: emails carry a `company_id` (resolved from the company
- * name they were tagged with) rather than an entity_links row. */
-export async function renderLinkedEmailsForCompany(companyId: number, containerId: string): Promise<void> {
+ * name they were tagged with) rather than an entity_links row. Renders the
+ * rows only (Company 360 gives them a section) and returns how many, or null
+ * when the container went away while loading. */
+export async function renderLinkedEmailsForCompany(companyId: number, containerId: string): Promise<number | null> {
   const el = document.getElementById(containerId);
-  if (!el) return;
+  if (!el) return null;
   const emails = await ms365GetEmailsByCompany(companyId);
-  if (document.getElementById(containerId) !== el) return;
-  if (emails.length === 0) {
-    el.innerHTML = '';
-    el.style.display = 'none';
-    return;
-  }
-  el.style.display = '';
-  el.innerHTML = `<div class="group-label">Linked Emails (${emails.length})</div>${emails.map(emailRowCompact).join('')}`;
+  if (document.getElementById(containerId) !== el) return null;
+  el.innerHTML = emails.map(emailRowCompact).join('');
+  return emails.length;
 }

@@ -6,6 +6,7 @@ import { renderBulkBar } from '../lib/bulkBar';
 import { STATUSES, ST, AGR_ST } from '../lib/constants';
 import { renderCompanyCommitments } from './commitments';
 import { collapseEmptySections } from '../lib/sectionLayout';
+import { companyNavItems, layoutCompanyRecords, type RecordCounts } from '../lib/companyRecords';
 import { today, fmtDate, escHtml, expose, showConfirm, statusDot, showTextPrompt, getClients, companyRef, inCompany, daysSince, daysUntil, strColor, type CompanyRef } from '../lib/utils';
 import { shownColumns, sortState, setSort, sortRows, headerCells, openColumnPicker, agoLabel, type Column, type SortState } from '../lib/tableColumns';
 import { companyLists, companyNamesInList, contactsInCompanyList, contactsAtCompanies, createSavedList, renameSavedList, removeSavedList, updateSmartListFilters, addCompaniesToList, removeCompaniesFromList, addToCompanyListChoices, exportToActiveCampaign, listById, sameFilters, cleanFilters, listChipLabel, listsForCompany } from '../core/lists';
@@ -1010,14 +1011,20 @@ function renderCompanyDetail(): void {
   renderCompanyThreads(key);
   renderCompanyFacts(d);
   void loadCompanyNoteEntries();
-  if (d.companyId != null) void renderLinkedEmailsForCompany(d.companyId, 'co-emails');
+  if (d.companyId != null) {
+    void renderLinkedEmailsForCompany(d.companyId, 'co-emails').then((n) => {
+      if (n == null) return;
+      const c = document.getElementById('co-emails-count'); if (c) c.textContent = n ? String(n) : '';
+      setCompanyRecordCount('emails', n, d.name);
+    });
+  }
 
   const openCommitments = renderCompanyCommitments(ref);
-  renderCompanySectionNav({
+  renderCompanySectionNav(d.name, {
     overview: null, threads: liveThreads(briefInputFor(key)).length, contacts: d.contacts.length, activity: null, 'notes-log': null,
     commitments: openCommitments, opportunities: opps.length, proposals: d.proposals.length,
     projects: projects.length, agreements: d.agreements.length, meetings: meetings.length, notes: notes.length,
-    tasks: tasks.filter((t) => t.status !== 'Done').length, files: null,
+    tasks: tasks.filter((t) => t.status !== 'Done').length, files: null, emails: d.companyId == null ? 0 : null,
   });
   renderCoContacts(d);
   renderCoOpportunities(d, opps);
@@ -1030,7 +1037,6 @@ function renderCompanyDetail(): void {
   (window as any).renderCoMeetingsSection?.(d);
   void renderCoFiles(d);
   void renderCoActivity(d);
-  void applyCompanyRecordsOpen();
   renderIcons(document.getElementById('co-detail') || document);
 }
 registerCompanyViewRefresher(() => {
@@ -1107,72 +1113,35 @@ export function showAllCompanyThreads(): void {
 }
 expose('showAllCompanyThreads', showAllCompanyThreads);
 
-// ── All records: one group, collapsed by default, remembered per user ───────
+// ── Record sections: open when they have content (lib/companyRecords.ts) ────
 
-let recordsOpen: boolean | null = null;
+/** What the open company has, per section; files and emails arrive later. */
+let recordCounts: RecordCounts = {};
+let recordCountsFor: string | null = null;
 
-async function applyCompanyRecordsOpen(): Promise<void> {
-  if (recordsOpen == null) {
-    try { recordsOpen = (await getAppMeta('company_records_open')) === '1'; } catch { recordsOpen = false; }
-  }
-  setRecordsOpen(recordsOpen);
+function renderCompanySectionNav(company: string, counts: RecordCounts): void {
+  recordCounts = { ...counts };
+  recordCountsFor = company;
+  refreshCompanyRecords();
 }
 
-function setRecordsOpen(on: boolean): void {
-  document.getElementById('co-records')?.classList.toggle('is-open', on);
-  document.getElementById('co-records-hd')?.setAttribute('aria-expanded', String(on));
-}
-
-export function toggleCompanyRecords(): void {
-  recordsOpen = !document.getElementById('co-records')?.classList.contains('is-open');
-  setRecordsOpen(recordsOpen);
-  void setAppMeta('company_records_open', recordsOpen ? '1' : '0').catch(() => undefined);
-}
-expose('toggleCompanyRecords', toggleCompanyRecords);
-
-const COMPANY_SECTIONS: [string, string][] = [
-  ['overview', 'Overview'], ['threads', 'Open threads'], ['contacts', 'People'], ['activity', 'Timeline'], ['notes-log', 'Company notes'],
-  ['commitments', 'Commitments'], ['opportunities', 'Opportunities'], ['proposals', 'Proposals'], ['projects', 'Projects'],
-  ['agreements', 'Agreements'], ['meetings', 'Meetings'], ['notes', 'Notes'], ['tasks', 'Tasks'], ['files', 'Files'],
-];
-/** The section bar: short, whatever the company has. */
-const COMPANY_NAV: [string, string][] = [['overview', 'Overview'], ['contacts', 'People'], ['activity', 'Timeline'], ['notes-log', 'Notes'], ['records', 'All records']];
-/** The sections inside "All records". */
-const RECORD_SECTIONS = ['commitments', 'opportunities', 'proposals', 'projects', 'agreements', 'meetings', 'notes', 'tasks', 'files'];
-
-function renderCompanySectionNav(counts: Record<string, number | null>): void {
+/** Lays the record sections out and rebuilds the section bar from `recordCounts`. */
+function refreshCompanyRecords(): void {
+  const host = document.getElementById('co-records');
+  if (host) layoutCompanyRecords(host, recordCounts);
   const nav = document.getElementById('co-section-nav');
-  if (!nav) return;
-  // Short: the record kinds and their counts are in the "All records" header.
-  nav.innerHTML = COMPANY_NAV.map(([id, label]) => {
-    const n = id === 'contacts' ? counts.contacts : null;
-    return `<button class="rec-section-link" data-target="${id}" onclick="scrollToCompanySection('${id}')">${label}${n ? `<span>${n}</span>` : ''}</button>`;
-  }).join('');
-  const summary = document.getElementById('co-records-counts');
-  if (summary) {
-    summary.textContent = RECORD_SECTIONS.map((id) => [COMPANY_SECTIONS.find(([x]) => x === id)![1], counts[id]] as const)
-      .filter(([, n]) => n).map(([label, n]) => `${label} ${n}`).join(' · ');
+  if (nav) {
+    nav.innerHTML = companyNavItems(recordCounts).map(({ id, label, count }) =>
+      `<button class="rec-section-link" data-target="${id}" onclick="scrollToCompanySection('${id}')">${label}${count ? `<span>${count}</span>` : ''}</button>`).join('');
   }
-  applyCompanySectionLayout(counts);
   updateCompanySectionSpy();
 }
 
-/**
- * What this company actually has comes first. A section with nothing in it
- * collapses to a single line and moves below the ones with content, so a
- * client with proposals and agreements isn't two screens of "No opportunities
- * yet" before you reach them.
- *
- * Nothing is removed: the collapsed line keeps its + New button, and clicking
- * it opens the section.
- */
-function applyCompanySectionLayout(counts: Record<string, number | null>): void {
-  const anchor = document.getElementById('co-sec-files');
-  const host = anchor?.parentElement;
-  if (!host || !anchor) return;
-  const movable = COMPANY_SECTIONS.filter(([id]) => RECORD_SECTIONS.includes(id) && id !== 'files');
-  collapseEmptySections(host, movable.map(([id]) => document.getElementById(`co-sec-${id}`)).filter((el): el is HTMLElement => !!el)
-    .map((el) => ({ el, empty: counts[el.id.replace('co-sec-', '')] === 0 })), anchor);
+/** A count that loads after the page (files, emails). */
+function setCompanyRecordCount(id: string, n: number, company: string): void {
+  if (company !== recordCountsFor || recordCounts[id] === n) return;
+  recordCounts[id] = n;
+  refreshCompanyRecords();
 }
 
 /** Clicking a collapsed section opens it for this visit. */
@@ -1182,11 +1151,9 @@ export function expandCompanySection(id: string): void {
 expose('expandCompanySection', expandCompanySection);
 
 export function scrollToCompanySection(id: string): void {
-  if (id === 'records') setRecordsOpen(true);
-  const el = document.getElementById(id === 'records' ? 'co-records' : `co-sec-${id}`);
+  const el = document.getElementById(`co-sec-${id}`);
   if (!el) return;
-  // A record section opens its group (for this visit) and itself.
-  if (RECORD_SECTIONS.includes(id)) { setRecordsOpen(true); el.classList.remove('is-empty'); }
+  el.classList.remove('is-empty');
   const top = el.getBoundingClientRect().top + window.scrollY - 44 - 52;
   window.scrollTo({ top: id === 'overview' ? 0 : top, behavior: 'smooth' });
 }
@@ -1196,11 +1163,20 @@ expose('scrollToCompanySection', scrollToCompanySection);
 function updateCompanySectionSpy(): void {
   if (!document.getElementById('co-detail')?.classList.contains('open')) return;
   let active = 'overview';
-  for (const [id] of COMPANY_NAV) {
-    const el = document.getElementById(id === 'records' ? 'co-records' : `co-sec-${id}`);
+  for (const { id } of companyNavItems(recordCounts)) {
+    const el = document.getElementById(`co-sec-${id}`);
     if (el && el.getBoundingClientRect().top - 110 <= 0) active = id;
   }
-  document.querySelectorAll<HTMLElement>('#co-section-nav .rec-section-link').forEach((b) => b.classList.toggle('active', b.dataset.target === active));
+  const links = document.querySelectorAll<HTMLElement>('#co-section-nav .rec-section-link');
+  links.forEach((b) => b.classList.toggle('active', b.dataset.target === active));
+  // A long bar scrolls sideways (no visible bar): keep the active link in view.
+  const on = [...links].find((b) => b.dataset.target === active);
+  const nav = on?.parentElement;
+  if (on && nav && nav.scrollWidth > nav.clientWidth) {
+    const n = nav.getBoundingClientRect(), b = on.getBoundingClientRect();
+    if (b.left < n.left) nav.scrollLeft -= n.left - b.left + 24;
+    else if (b.right > n.right) nav.scrollLeft += b.right - n.right + 24;
+  }
 }
 window.addEventListener('scroll', () => { if (S.currentTab === 'companies') updateCompanySectionSpy(); }, { passive: true });
 
@@ -1441,8 +1417,8 @@ export function renderCoContacts(d: CompanyData): void {
   if (!list) return;
   const sec = document.getElementById('co-sec-contacts');
   const host = sec?.parentElement;
-  // No people yet: one quiet line (its "+ Add" stays), below the rest.
-  if (sec && host) collapseEmptySections(host, [{ el: sec, empty: d.contacts.length === 0 }], document.getElementById(d.contacts.length ? 'co-sec-activity' : 'co-records'));
+  // No people yet: one quiet line (its "+ Add" stays), at the bottom with the empty record lines.
+  if (sec && host) collapseEmptySections(host, [{ el: sec, empty: d.contacts.length === 0 }], d.contacts.length ? document.getElementById('co-sec-activity') : null);
   if (d.contacts.length === 0) { list.innerHTML = ''; return; }
   const input = briefInputFor({ id: d.companyId, name: d.name });
   const last = lastContactByPerson(input);
@@ -1555,10 +1531,9 @@ export function renderCoAgreements(d: CompanyData): void {
  * a company with no real `companies` row yet (never referenced by an
  * Opportunity or the setup wizard) simply has no folders to show, correctly. */
 /** No folder linked: the section is one line with its "Match a folder…" (no sentence explaining it). */
-function markCoFilesEmpty(inner: HTMLElement, empty: boolean): void {
+function markCoFilesEmpty(inner: HTMLElement, company: string, empty: boolean, n = 0): void {
   if (empty) inner.innerHTML = '';
-  const sec = document.getElementById('co-sec-files');
-  if (sec?.parentElement) collapseEmptySections(sec.parentElement, [{ el: sec, empty }], sec.nextElementSibling as HTMLElement | null);
+  setCompanyRecordCount('files', empty ? 0 : n, company);
 }
 
 async function renderCoFiles(d: CompanyData): Promise<void> {
@@ -1568,17 +1543,17 @@ async function renderCoFiles(d: CompanyData): Promise<void> {
   const company = S.companies.find((c) => c.name === d.name);
   if (!company) {
     if (cntEl) cntEl.textContent = '0';
-    markCoFilesEmpty(inner, true);
+    markCoFilesEmpty(inner, d.name, true);
     return;
   }
   const links = await getLinksFor('company', company.id);
   const msfileIds = links.filter((l) => l.toType === 'company' && l.toId === company.id && l.fromType === 'msfile').map((l) => l.fromId);
   if (cntEl) cntEl.textContent = String(msfileIds.length);
   if (msfileIds.length === 0) {
-    markCoFilesEmpty(inner, true);
+    markCoFilesEmpty(inner, d.name, true);
     return;
   }
-  markCoFilesEmpty(inner, false);
+  markCoFilesEmpty(inner, d.name, false, msfileIds.length);
   const folders = await filesGetByIds(msfileIds);
   inner.innerHTML = `<div class="rec-list">${folders.map((f) => `
     <div class="rec-row${f.exists ? '' : ' is-unavailable'}" onclick="switchTab('files');msFilesNavigateToPath('${escHtml(f.path).replace(/'/g, "\\'")}')">

@@ -2482,14 +2482,6 @@ a.ts-name:focus-visible,.ts-more:focus-visible{outline:2px solid var(--accent);o
 .conote-pin.is-pinned{color:var(--amber)}
 .co-edit-panel{margin-bottom:16px}
 .co-edit-facts{margin-bottom:12px}
-.co-records{margin-top:8px;border-top:1px solid var(--hairline)}
-.co-records-hd{font:inherit;display:flex;align-items:center;gap:8px;width:100%;padding:12px 0;border:none;background:none;color:var(--text);cursor:pointer;text-align:left}
-.co-records-hd:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
-.co-records-title{font-weight:600;font-size:var(--type-secondary)}
-.co-records-counts{color:var(--muted);font-size:var(--type-meta);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
-.co-records-chev{display:inline-flex;color:var(--muted);transition:transform var(--dur-fast) var(--ease-out)}
-.co-records.is-open .co-records-chev{transform:rotate(90deg)}
-.co-records:not(.is-open) .co-records-body{display:none}
 
 /* ── The Brief (tabs/companyBriefView.ts) ─────────────────────────────────── */
 .brief-view{position:fixed;inset:0;z-index:5000;overflow:auto;background:var(--surface);padding:0 16px 48px}
