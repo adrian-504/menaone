@@ -21,6 +21,9 @@ import { registerDragSource, registerDropTarget, reorder } from '../lib/dnd';
 import { renderIcons } from '../core/chrome';
 import { parseTaskInput, friendlyDate, isoDate, type ParsedTask } from '../lib/taskParse';
 import type { Todo } from '../lib/types';
+import { openPromiseCount } from '../lib/promises';
+import { renderPromisesView, leavePromisesView } from './commitments';
+import { normalizeCompanyKey, taskCompanyKey, todayRailCounts } from '../lib/taskRail';
 
 // ── Dates ───────────────────────────────────────────────────────────────────
 
@@ -79,15 +82,18 @@ function currentList(): string {
   if (f === 'all' || f === 'pending' || f === 'in_progress' || f === 'high') return 'anytime';
   if (f === 'overdue') return 'today';
   if (f === 'done') return 'completed';
+  // A client list saved by name reads as its company (one entry per company).
+  if (f.startsWith('company:')) return `company:${normalizeCompanyKey(f.slice(8), S.companies)}`;
   return f;
 }
 
+/** One key per company, whether the task has its id or only its name. */
 function companyKey(t: Todo): string | null {
-  if (!t.client) return null;
-  return t.companyId != null ? `id:${t.companyId}` : `name:${t.client}`;
+  return taskCompanyKey(t, S.companies);
 }
 
-function companyRefFromKey(key: string): { id: number | null; name: string } {
+function companyRefFromKey(raw: string): { id: number | null; name: string } {
+  const key = normalizeCompanyKey(raw, S.companies);
   if (key.startsWith('id:')) {
     const id = Number(key.slice(3));
     return { id, name: S.companies.find((c) => c.id === id)?.name ?? S.todos.find((t) => t.companyId === id)?.client ?? 'Client' };
@@ -106,10 +112,7 @@ function inList(t: Todo, list: string): boolean {
     case 'someday': return !!t.someday;
   }
   if (list.startsWith('project:')) return t.projectId === Number(list.slice(8));
-  if (list.startsWith('company:')) {
-    const ref = companyRefFromKey(list.slice(8));
-    return inCompany(ref, t.companyId, t.client);
-  }
+  if (list.startsWith('company:')) return companyKey(t) === normalizeCompanyKey(list.slice(8), S.companies);
   if (list.startsWith('tag:')) return (t.tags || []).includes(list.slice(4));
   return true;
 }
@@ -215,6 +218,7 @@ function listTitle(list: string): { title: string; subtitle: string } {
     return { title: ref.name, subtitle: companyLink(ref.id, ref.name).replace(`>${escHtml(ref.name)}<`, '>Open company page<') };
   }
   if (list.startsWith('tag:')) return { title: `#${list.slice(4)}`, subtitle: 'Open tasks with this tag' };
+  if (list === 'promises') return { title: 'Promises', subtitle: 'What we owe clients and what they owe us, across every client' };
   return { title: 'Tasks', subtitle: '' };
 }
 
@@ -227,7 +231,8 @@ function renderSidebar(): void {
   if (!el) return;
   const list = currentList();
   const count = (key: string) => tasksForList(key).length;
-  const overdue = S.todos.filter(isOverdue).length;
+  // Today's badge (overdue) and count (due today) from what the Today list shows.
+  const { overdue, dueToday } = todayRailCounts(tasksForList('today'), todayIso());
   const item = (key: string, label: string, iconHtml: string, n: number | string, extra = '') =>
     `<button class="ws-side-item${list === key ? ' active' : ''}" data-drop="task-list" data-drop-value="${escHtml(key)}" onclick="setTodoFilter('${escHtml(key).replace(/'/g, "\\'")}')">
       ${iconHtml}<span class="ws-side-label">${escHtml(label)}</span>${extra}<span class="ws-side-count">${n || ''}</span>
@@ -238,7 +243,11 @@ function renderSidebar(): void {
         <div class="ws-side-section-body">${body}</div>
       </div>` : '';
 
-  const smart = SMART.map((s) => item(s.key, s.label, `<span class="ws-side-icon" style="color:${s.tint}">${icon(s.icon, 15)}</span>`, s.key === 'completed' ? '' : s.key === 'today' ? count(s.key) - overdue : count(s.key),
+  // Promises (commitments, not tasks): after Someday, before Completed; no drop target.
+  const promises = `<button class="ws-side-item${list === 'promises' ? ' active' : ''}" onclick="setTodoFilter('promises')">
+      <span class="ws-side-icon" style="color:var(--accent)">${icon('flag', 15)}</span><span class="ws-side-label">Promises</span><span class="ws-side-count">${openPromiseCount(S.commitments) || ''}</span>
+    </button>`;
+  const smart = SMART.map((s) => (s.key === 'completed' ? promises : '') + item(s.key, s.label, `<span class="ws-side-icon" style="color:${s.tint}">${icon(s.icon, 15)}</span>`, s.key === 'completed' ? '' : s.key === 'today' ? dueToday : count(s.key),
     s.key === 'today' && overdue ? `<span class="ws-side-alert" title="${overdue} overdue">${overdue}</span>` : '')).join('');
 
   const projects = S.projects.filter((p) => !p.archived && p.status !== 'Completed')
@@ -270,6 +279,12 @@ function renderSidebar(): void {
     ${section('tags', 'Tags', tagItems)}
   </div>`;
 }
+
+/** Counts in the rail follow commitments changed elsewhere (Promises, record pages). */
+export function refreshTaskRail(): void {
+  if (getActiveTabId() === 'todo') renderSidebar();
+}
+expose('refreshTaskRail', refreshTaskRail);
 
 export function toggleTaskSideSection(id: string): void {
   if (collapsedSections.has(id)) collapsedSections.delete(id); else collapsedSections.add(id);
@@ -323,10 +338,21 @@ export function renderTodo(): void {
   const subEl = document.getElementById('tasks-subtitle'); if (subEl) subEl.innerHTML = subtitle;
   document.querySelectorAll<HTMLElement>('.task-vbtn').forEach((b) => b.classList.toggle('active', b.dataset.view === S.taskView));
   const calNav = document.getElementById('task-cal-nav'); if (calNav) calNav.hidden = S.taskView !== 'calendar';
-  const quickAdd = document.getElementById('task-quickadd'); if (quickAdd) quickAdd.hidden = list === 'completed';
+  const quickAdd = document.getElementById('task-quickadd'); if (quickAdd) quickAdd.hidden = list === 'completed' || list === 'promises';
 
   const container = document.getElementById('todo-list');
   if (!container) return;
+  // Promises: commitments, one list view (no board or calendar, no task sort).
+  const promises = list === 'promises';
+  const viewBtns = document.getElementById('task-view-btns'); if (viewBtns) viewBtns.hidden = promises;
+  const listMenu = document.getElementById('task-list-menu'); if (listMenu) listMenu.hidden = promises;
+  if (promises) {
+    if (calNav) calNav.hidden = true;
+    renderPromisesView('todo-list');
+    if (S.taskDetailId != null) closeTaskDetail();
+    return;
+  }
+  leavePromisesView('todo-list');
   if (S.taskView === 'board') container.innerHTML = renderBoard(list);
   else if (S.taskView === 'calendar') container.innerHTML = renderCalendar(list);
   else container.innerHTML = renderListView(list);

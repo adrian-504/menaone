@@ -17,6 +17,7 @@ const VIEWS = [
   ['My Day', "switchTab('myday')", {}],
   ['Inbox', "switchTab('inbox')", {}],
   ['Tasks', "switchTab('todo')", {}],
+  ['Tasks → Promises', "switchTab('todo'), setTodoFilter('promises')", {}],
   ['Projects', "switchTab('projects')", {}],
   ['Meetings', "switchTab('meetings')", {}],
   ['Notes', "switchTab('notes')", {}],

@@ -41,6 +41,11 @@ function quickActions(): Action[] {
     ...contextualActions(),
     goTo('Dashboard', 'dashboard', 'home'),
     goTo('Tasks', 'todo', 'check'),
+    { id: 'goto-promises-owe', label: 'What do I owe', group: 'Navigate', iconName: 'flag', run: () => { switchTab('todo'); (window as any).setTodoFilter('promises'); } },
+    {
+      id: 'goto-promises-owed', label: 'Owed to me', group: 'Navigate', iconName: 'flag',
+      run: () => { switchTab('todo'); (window as any).setTodoFilter('promises'); setTimeout(() => document.getElementById('pm-owed')?.scrollIntoView({ block: 'start' }), 50); },
+    },
     goTo('Opportunities', 'opportunities', 'briefcase'),
     goTo('Projects', 'projects', 'target'),
     goTo('Pending', 'pending', 'clock'),

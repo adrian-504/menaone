@@ -16,6 +16,7 @@ import { icon } from '../lib/icons';
 import { showContextMenu } from '../lib/contextMenu';
 import { attachCompanySelector } from '../lib/companySelector';
 import { parseCommitmentLines } from '../lib/commitments';
+import { nudgeMailto, promisesView } from '../lib/promises';
 import { companyFromForm, contextFromMeeting, contextFromOpportunity, contextFromProject, inheritCompany, EMPTY_CONTEXT, type WorkContext } from '../lib/workGraph';
 import type { Commitment } from '../lib/types';
 
@@ -74,15 +75,16 @@ function whoLabel(c: Commitment): string {
 }
 
 /** One commitment: who owes it, what, who, when, where it came from. */
-export function commitmentRow(c: Commitment, opts: { showCompany?: boolean } = {}): string {
+export function commitmentRow(c: Commitment, opts: { showCompany?: boolean; plain?: boolean } = {}): string {
   const closed = c.status !== 'open';
   const overdue = !closed && !!c.dueDate && c.dueDate < today();
-  const dir = c.direction === 'ours'
+  // plain: the section already says who owes it (Tasks → Promises).
+  const dir = opts.plain ? '' : c.direction === 'ours'
     ? `<span class="cm-dir" title="We owe it" aria-label="We owe it">→</span>`
     : `<span class="cm-dir is-theirs" title="They owe it" aria-label="They owe it">←</span>`;
   const company = opts.showCompany && c.companyId != null ? companyLink(c.companyId, S.companies.find((x) => x.id === c.companyId)?.name || null) : '';
   const meta = [
-    c.direction === 'ours' ? 'We owe' : 'They owe',
+    opts.plain ? '' : c.direction === 'ours' ? 'We owe' : 'They owe',
     whoLabel(c),
     company,
     c.dueDate ? `<span class="${overdue ? 'cm-overdue' : ''}">${overdue ? 'was due' : 'due'} ${escHtml(fmtDate(c.dueDate))}</span>` : '',
@@ -157,6 +159,7 @@ export function refreshCommitmentViews(): void {
   for (const draw of sections.values()) draw();
   (window as any).refreshMeetingActions?.();
   (window as any).renderTaskDetailExternal?.();
+  (window as any).refreshTaskRail?.();
 }
 
 // ── Actions ─────────────────────────────────────────────────────────────────
@@ -240,6 +243,10 @@ export function commitmentMenu(e: MouseEvent, id: number): void {
   const hasSource = (c.sourceType === 'meeting' || c.sourceType === 'note') && c.sourceId != null;
   showContextMenu(e, [
     { label: 'Edit', iconName: 'edit', run: () => openCommitmentModal(EMPTY_CONTEXT, id) },
+    ...(c.status === 'open' && c.direction === 'theirs' ? [
+      { label: 'Mark kept', iconName: 'check', run: () => setCommitmentKept(id, true) },
+      { label: 'Nudge…', iconName: 'mail', run: () => nudgeCommitment(id) },
+    ] : []),
     ...(c.status === 'open' ? [{ label: 'Drop…', iconName: 'close', run: () => { void dropCommitment(id); } }] : [{ label: 'Reopen', iconName: 'repeat', run: () => reopenCommitment(id) }]),
     ...(hasSource ? [{ label: c.sourceType === 'meeting' ? 'Open the meeting' : 'Open the note', iconName: c.sourceType === 'meeting' ? 'meeting' : 'note', run: () => openCommitmentSource(id) }] : []),
     { label: '', run: () => {}, separator: true },
@@ -247,6 +254,57 @@ export function commitmentMenu(e: MouseEvent, id: number): void {
   ]);
 }
 expose('commitmentMenu', commitmentMenu);
+
+/** Something a client owes us: an email draft to whoever promised it
+ * (subject "Following up: …"). Opens in the mail app; never sends. */
+export function nudgeCommitment(id: number): void {
+  const c = byId(id);
+  if (!c) return;
+  const email = c.contactId != null ? S.contacts.find((x) => x.id === c.contactId)?.email : null;
+  (window as any).openExternalUrl?.(nudgeMailto(email, c.text));
+  if (!email) toast('No email for whoever promised it — add the recipient in the draft');
+}
+expose('nudgeCommitment', nudgeCommitment);
+
+// ── Tasks → Promises ────────────────────────────────────────────────────────
+
+/** Every open commitment across clients: You owe, Owed to you, and what was
+ * kept or dropped in the last 30 days (folded). An empty section is one line. */
+export function renderPromisesView(elId: string): void {
+  const draw = () => {
+    const el = document.getElementById(elId);
+    if (!el || !el.dataset.promises) { sections.delete('promises-view'); return; }
+    const v = promisesView(S.commitments, today());
+    const late = (xs: Commitment[]) => xs.filter((c) => !!c.dueDate && c.dueDate < today()).length;
+    const sec = (id: string, title: string, xs: Commitment[], emptyText: string) => {
+      const n = late(xs);
+      const count = xs.length ? `${xs.length}${n ? ` · <span class="cm-overdue">${n} late</span>` : ''}` : '';
+      return { empty: !xs.length, html: `<section class="rec-section sec pm-sec${xs.length ? '' : ' is-empty'}" id="${id}">
+        <div class="rec-section-hd"><h2>${title}</h2><span class="rec-count">${count}</span>${xs.length ? '' : `<span class="rec-empty-hint">${emptyText}</span>`}</div>
+        ${xs.length ? `<div class="cm-list">${xs.map((c) => commitmentRow(c, { showCompany: true, plain: true })).join('')}</div>` : ''}
+      </section>` };
+    };
+    const parts = [sec('pm-owe', 'You owe', v.owe, 'Nothing open'), sec('pm-owed', 'Owed to you', v.owed, 'Nothing open')];
+    // Focus rule: an empty section is one quiet line, after the ones with content.
+    const ordered = [...parts.filter((p) => !p.empty), ...parts.filter((p) => p.empty)];
+    const wasOpen = (el.querySelector('.pm-closed') as HTMLDetailsElement | null)?.open ?? false;
+    el.innerHTML = ordered.map((p) => p.html).join('')
+      + (v.closed.length ? `<details class="cm-closed pm-closed"${wasOpen ? ' open' : ''}><summary>Kept or dropped in the last 30 days · ${v.closed.length}</summary>
+        <div class="cm-list">${v.closed.map((c) => commitmentRow(c, { showCompany: true })).join('')}</div></details>` : '');
+    renderIcons(el);
+  };
+  const el = document.getElementById(elId);
+  if (el) el.dataset.promises = '1';
+  sections.set('promises-view', draw);
+  draw();
+}
+
+/** Leaving the Promises view: the list container goes back to tasks. */
+export function leavePromisesView(elId: string): void {
+  const el = document.getElementById(elId);
+  if (el) delete el.dataset.promises;
+  sections.delete('promises-view');
+}
 
 /** New commitment from an opportunity, project or meeting, with its context. */
 export function createCommitmentFor(kind: 'opportunity' | 'project' | 'meeting', id: number): void {
