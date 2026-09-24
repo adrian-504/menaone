@@ -1,5 +1,8 @@
 # Phone app — skeleton and the road to iOS
 
+> **Now (24 Sep 2026):** the iPhone app is being built as a SwiftUI companion that syncs through a OneDrive folder — see [phone-sync.md](phone-sync.md).
+> `mobile/` and `mobile-api/` stay in the repo but are superseded until the Azure server arrives.
+
 What exists today, what it is standing in for, and what has to be true before this becomes an app on a phone. Written 16 September 2026 after the owner interview.
 
 ## What the owner asked for

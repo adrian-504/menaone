@@ -220,3 +220,43 @@ fn a_file_still_arriving_is_left_for_the_next_scan() {
     let later = import(&conn, &root);
     assert_eq!(later.imported, 1);
 }
+
+/// Opt-in: the snapshot's inputs from a copy of the real database, for the
+/// size check in src/lib/phoneSnapshot.test.ts. Reads the copy only; writes
+/// one JSON file to MENA_OUT (a scratch path, never inside OneDrive).
+///   MENA_DB_COPY=/scratch/copy.db MENA_OUT=/scratch/phone-inputs.json cargo test --test phone -- --ignored --nocapture
+#[test]
+#[ignore]
+fn dump_snapshot_inputs_from_a_database_copy() {
+    use menabig_tracker_lib::{commands::read_all_data, commercial::read_team_members, insights::pipeline_facts, ms365::commands::read_flagged_emails,
+        opportunities::{read_companies, read_opportunities}, v2_commands::{read_meetings, read_projects}};
+    let (Some(copy), Some(out)) = (std::env::var_os("MENA_DB_COPY"), std::env::var_os("MENA_OUT")) else { return };
+    let (copy, out) = (PathBuf::from(copy), PathBuf::from(out));
+    for p in [&copy, &out] {
+        assert!(!p.to_string_lossy().contains("Library/CloudStorage"), "scratch paths only: {}", p.display());
+        assert!(!p.to_string_lossy().contains("com.menabig.tracker"), "never the live database: {}", p.display());
+    }
+    let conn = init_connection(&copy).unwrap();
+    let pinned: Vec<serde_json::Value> = conn
+        .prepare("SELECT id, company_id, company_name, body, created_at FROM company_note_entries WHERE pinned = 1").unwrap()
+        .query_map([], |r| Ok(serde_json::json!({ "id": r.get::<_, i64>(0)?, "companyId": r.get::<_, Option<i64>>(1)?,
+            "companyName": r.get::<_, Option<String>>(2)?, "body": r.get::<_, String>(3)?, "createdAt": r.get::<_, String>(4)? }))).unwrap()
+        .collect::<rusqlite::Result<_>>().unwrap();
+    let inbox: i64 = one(&conn, "SELECT COUNT(*) FROM inbox_items WHERE processed = 0");
+    let snoozed: Option<String> = conn.query_row("SELECT value FROM app_meta WHERE key = 'myday_snoozed'", [], |r| r.get(0)).ok();
+    let dump = serde_json::json!({
+        "data": read_all_data(&conn).unwrap(),
+        "companies": read_companies(&conn).unwrap(),
+        "opportunities": read_opportunities(&conn).unwrap(),
+        "projects": read_projects(&conn, true).unwrap(),
+        "meetings": read_meetings(&conn).unwrap(),
+        "emails": read_flagged_emails(&conn).unwrap(),
+        "pipelineFacts": pipeline_facts(&conn).unwrap(),
+        "team": read_team_members(&conn).unwrap(),
+        "pinnedNotes": pinned,
+        "inboxCount": inbox,
+        "snoozed": snoozed,
+    });
+    std::fs::write(&out, serde_json::to_string(&dump).unwrap()).unwrap();
+    println!("inputs written: {} ({} bytes)", out.display(), std::fs::metadata(&out).unwrap().len());
+}

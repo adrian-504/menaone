@@ -318,10 +318,15 @@ pub(crate) fn read_company(conn: &Connection, id: i64) -> rusqlite::Result<Compa
 #[tauri::command]
 pub fn get_companies(state: State<DbState>) -> CmdResult<Vec<Company>> {
     let conn = state.0.lock().map_err(err)?;
+    read_companies(&conn).map_err(err)
+}
+
+/// Read by the command above and by the phone snapshot's opt-in size check.
+pub fn read_companies(conn: &Connection) -> rusqlite::Result<Vec<Company>> {
     let sql = format!("SELECT {COMPANY_COLUMNS} FROM companies ORDER BY name");
-    let mut stmt = conn.prepare(&sql).map_err(err)?;
-    let mut companies: Vec<Company> = stmt.query_map([], row_to_company_base).map_err(err)?.collect::<rusqlite::Result<_>>().map_err(err)?;
-    hydrate_industries(&conn, &mut companies).map_err(err)?;
+    let mut stmt = conn.prepare(&sql)?;
+    let mut companies: Vec<Company> = stmt.query_map([], row_to_company_base)?.collect::<rusqlite::Result<_>>()?;
+    hydrate_industries(conn, &mut companies)?;
     Ok(companies)
 }
 
@@ -462,18 +467,23 @@ pub fn merge_company_links_core(conn: &mut Connection, old_name: &str, new_name:
 #[tauri::command]
 pub fn get_opportunities(state: State<DbState>) -> CmdResult<Vec<Opportunity>> {
     let conn = state.0.lock().map_err(err)?;
+    read_opportunities(&conn).map_err(err)
+}
+
+/// Read by the command above and by the phone snapshot's opt-in size check.
+pub fn read_opportunities(conn: &Connection) -> rusqlite::Result<Vec<Opportunity>> {
     let sql = format!(
         "SELECT {OPP_COLUMNS} FROM opportunities o LEFT JOIN companies c ON c.id = o.company_id \
          WHERE o.archived = 0 ORDER BY COALESCE(o.sort_order, o.id)"
     );
-    let mut stmt = conn.prepare(&sql).map_err(err)?;
-    let mut opps: Vec<Opportunity> = stmt.query_map([], row_to_opportunity).map_err(err)?.collect::<rusqlite::Result<_>>().map_err(err)?;
+    let mut stmt = conn.prepare(&sql)?;
+    let mut opps: Vec<Opportunity> = stmt.query_map([], row_to_opportunity)?.collect::<rusqlite::Result<_>>()?;
 
-    let mut tstmt = conn.prepare("SELECT entity_id, tag FROM entity_tags WHERE entity_type = 'opportunity' ORDER BY tag").map_err(err)?;
+    let mut tstmt = conn.prepare("SELECT entity_id, tag FROM entity_tags WHERE entity_type = 'opportunity' ORDER BY tag")?;
     let mut by_opp: std::collections::HashMap<i64, Vec<String>> = std::collections::HashMap::new();
-    let trows = tstmt.query_map([], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, String>(1)?))).map_err(err)?;
+    let trows = tstmt.query_map([], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, String>(1)?)))?;
     for row in trows {
-        let (id, tag) = row.map_err(err)?;
+        let (id, tag) = row?;
         by_opp.entry(id).or_default().push(tag);
     }
     for o in opps.iter_mut() {

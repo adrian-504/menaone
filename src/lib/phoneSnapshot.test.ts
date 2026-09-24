@@ -172,3 +172,36 @@ describe('helpers', () => {
     expect(shortLocation('')).toBeNull();
   });
 });
+
+// Opt-in size check on real data: PHONE_INPUTS points at the file written by
+// `dump_snapshot_inputs_from_a_database_copy` (src-tauri/tests/phone.rs), built
+// from a database copy in a scratch folder. Prints the snapshot's size only.
+// @ts-ignore -- process exists under Vitest
+const inputsFile: string | undefined = typeof process !== 'undefined' ? process.env?.PHONE_INPUTS : undefined;
+describe.skipIf(!inputsFile)('snapshot size on a database copy', () => {
+  it('stays under 500 KB', async () => {
+    const { normalizeEmail, normalizeMeeting } = await import('./outlookTime');
+    const d = JSON.parse(readFileSync(inputsFile!, 'utf8'));
+    const team = new Map<number, string>(d.team.map((t: { id: number; name: string }) => [t.id, t.name]));
+    const domains = new Set<string>(d.team.map((t: { email?: string }) => (t.email || '').split('@')[1]).filter(Boolean));
+    const now = new Date();
+    const pad2 = (n: number) => String(n).padStart(2, '0');
+    const todayIso = `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(now.getDate())}`;
+    const snap = buildPhoneSnapshot({
+      generatedAt: isoWithOffset(now), today: todayIso, now, mac: 'Size check',
+      proposals: d.data.proposals, agreements: d.data.agreements, todos: d.data.todos, commitments: d.data.commitments || [],
+      contacts: d.data.contacts, companies: d.companies, opportunities: d.opportunities, projects: d.projects,
+      meetings: d.meetings.map(normalizeMeeting), emails: d.emails.map(normalizeEmail), pipelineFacts: d.pipelineFacts,
+      inboxCount: d.inboxCount, reviewerName: (p) => team.get((p as { reviewerId?: number }).reviewerId ?? -1) || 'the reviewer',
+      ownDomains: domains, snoozed: d.snoozed ? JSON.parse(d.snoozed) : {},
+      pinnedNotes: d.pinnedNotes, importedCaptureIds: [], failedCaptures: [],
+    });
+    expect(snapshotShapeErrors(snap)).toEqual([]);
+    const bytes = new TextEncoder().encode(stableJson(snap)).length;
+    const counts = Object.fromEntries(['attention', 'meetings', 'tasks', 'promises', 'companies', 'comingUp'].map((k) => [k, (snap as unknown as Record<string, unknown[]>)[k].length]));
+    const biggest = Object.fromEntries(Object.entries(counts).map(([k]) => [k, new TextEncoder().encode(stableJson((snap as unknown as Record<string, unknown>)[k])).length]));
+    // Beside the inputs, in the same scratch folder (the test runner hides console output).
+    writeFileSync(`${inputsFile}.size.json`, JSON.stringify({ bytes, counts, bytesBySection: biggest }, null, 2));
+    expect(bytes).toBeLessThan(500 * 1024);
+  });
+});

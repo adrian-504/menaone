@@ -396,9 +396,14 @@ async fn sync_flagged(db: &State<'_, DbState>, ms: &State<'_, Ms365State>) -> Cm
 #[tauri::command]
 pub fn ms365_get_cached_emails(state: State<DbState>) -> CmdResult<Vec<EmailRecord>> {
     let conn = state.0.lock().map_err(err)?;
-    let mut stmt = conn.prepare(&format!("{EMAIL_SELECT} WHERE flag_status = 'flagged' ORDER BY received_at DESC")).map_err(err)?;
-    let rows = stmt.query_map([], row_to_email).map_err(err)?;
-    rows.collect::<rusqlite::Result<_>>().map_err(err)
+    read_flagged_emails(&conn).map_err(err)
+}
+
+/// Read by the command above and by the phone snapshot's opt-in size check.
+pub fn read_flagged_emails(conn: &Connection) -> rusqlite::Result<Vec<EmailRecord>> {
+    let mut stmt = conn.prepare(&format!("{EMAIL_SELECT} WHERE flag_status = 'flagged' ORDER BY received_at DESC"))?;
+    let rows = stmt.query_map([], row_to_email)?;
+    rows.collect::<rusqlite::Result<_>>()
 }
 
 /// Emails from or to one address (a contact's page), newest first.

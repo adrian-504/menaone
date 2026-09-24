@@ -2632,7 +2632,7 @@ tr:hover .td-status .row-more,tr:focus-within .td-status .row-more{opacity:1}
 .pm-closed{margin-top:16px;padding-top:12px;border-top:1px solid var(--hairline)}
 
 /* Settings → Connections → Phone (phone sync over OneDrive): a quiet reference panel, no card. */
-.phone-panel{background:var(--surface-flat);border-radius:12px;padding:16px;max-width:680px}
+.phone-panel{background:var(--surface-flat);border-radius:12px;padding:16px}
 .phone-eyebrow{margin:0 0 6px;font-size:var(--type-caption);font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
 .phone-desc{font-size:var(--type-secondary);color:var(--sub);line-height:1.55;margin:0 0 10px}
 .phone-path{margin-bottom:8px;overflow-wrap:anywhere}

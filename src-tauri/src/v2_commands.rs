@@ -85,15 +85,20 @@ const PROJECT_COLUMNS: &str = "id, name, type, status, priority, owner, descript
 #[tauri::command]
 pub fn get_projects(state: State<DbState>, include_archived: bool) -> CmdResult<Vec<Project>> {
     let conn = state.0.lock().map_err(err)?;
+    read_projects(&conn, include_archived).map_err(err)
+}
+
+/// Read by the command above and by the phone snapshot's opt-in size check.
+pub fn read_projects(conn: &Connection, include_archived: bool) -> rusqlite::Result<Vec<Project>> {
     let sql = format!(
         "SELECT {PROJECT_COLUMNS} FROM projects {} ORDER BY updated_at DESC, id DESC",
         if include_archived { "" } else { "WHERE archived = 0" }
     );
-    let mut stmt = conn.prepare(&sql).map_err(err)?;
-    let rows = stmt.query_map([], row_to_project).map_err(err)?;
+    let mut stmt = conn.prepare(&sql)?;
+    let rows = stmt.query_map([], row_to_project)?;
     let mut out = Vec::new();
     for row in rows {
-        out.push(hydrate_project(&conn, row.map_err(err)?).map_err(err)?);
+        out.push(hydrate_project(conn, row?)?);
     }
     Ok(out)
 }
@@ -300,10 +305,15 @@ pub(crate) const MEETING_SELECT: &str = "SELECT id, title, meeting_date, company
 #[tauri::command]
 pub fn get_meetings(state: State<DbState>) -> CmdResult<Vec<Meeting>> {
     let conn = state.0.lock().map_err(err)?;
+    read_meetings(&conn).map_err(err)
+}
+
+/// Read by the command above and by the phone snapshot's opt-in size check.
+pub fn read_meetings(conn: &Connection) -> rusqlite::Result<Vec<Meeting>> {
     let sql = format!("{MEETING_SELECT} ORDER BY meeting_date DESC, id DESC");
-    let mut stmt = conn.prepare(&sql).map_err(err)?;
-    let rows = stmt.query_map([], row_to_meeting).map_err(err)?;
-    rows.collect::<rusqlite::Result<_>>().map_err(err)
+    let mut stmt = conn.prepare(&sql)?;
+    let rows = stmt.query_map([], row_to_meeting)?;
+    rows.collect::<rusqlite::Result<_>>()
 }
 
 #[tauri::command]
