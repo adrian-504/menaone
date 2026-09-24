@@ -306,6 +306,8 @@ function mockBuildDeck(r: any): any {
 const generatedDecks: { proposalId: number; fileName: string; version: number }[] = [];
 
 const attachmentDataStore = new Map<number, string>();
+let mockPhoneBytes: number | null = null;
+let mockPhoneWrittenAt: string | null = null;
 const appMetaStore = new Map<string, string>();
 let entityLinksStore: EntityLink[] = [];
 
@@ -523,6 +525,25 @@ export async function installDevMockIfNeeded(): Promise<void> {
           return { fileName: 'manual-now.sqlite3', sizeBytes: 1_500_000, modifiedAt: Math.floor(Date.now() / 1000), kind: 'manual' };
         case 'reveal_backups_folder':
           return null;
+        // Phone sync: the preview has no OneDrive; writes are measured and dropped.
+        case 'phone_get_status':
+          return { root: '/Users/you/Library/CloudStorage/OneDrive-Example/MENA One Phone', exists: true, snapshotWrittenAt: mockPhoneWrittenAt,
+            snapshotBytes: mockPhoneBytes, importedToday: 0, failedCount: 0, failed: [], importedCaptureIds: [], mac: 'Preview Mac' };
+        case 'phone_write_snapshot': {
+          mockPhoneBytes = String((_payload as any)?.json ?? '').length;
+          mockPhoneWrittenAt = new Date().toISOString();
+          return mockPhoneBytes;
+        }
+        case 'phone_import_inbox':
+          return { imported: 0, failed: 0, touched: [] };
+        case 'phone_pinned_notes':
+          return [];
+        case 'phone_reveal':
+          return null;
+        // Native events (menu actions, phone imports) never fire in the browser preview.
+        case 'plugin:event|listen':
+        case 'plugin:event|unlisten':
+          return 0;
         case 'upsert_todos': {
           // Projects' computedProgress is derived from task completion (see
           // recomputeProject below), so the mock needs the live task list to

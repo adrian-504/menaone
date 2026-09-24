@@ -206,6 +206,20 @@ export async function getAttachmentDataUrl(id: number): Promise<string> { return
 export async function deleteAttachment(id: number): Promise<void> { await invoke('delete_attachment', { id }); }
 
 export async function getInboxItems(): Promise<InboxItem[]> { return invoke<InboxItem[]>('get_inbox_items'); }
+
+// Phone sync over OneDrive (phone.rs, docs/phone-sync.md).
+export interface PhoneStatus {
+  root: string | null; exists: boolean; snapshotWrittenAt: string | null; snapshotBytes: number | null;
+  importedToday: number; failedCount: number; failed: { id: string; error: string }[];
+  importedCaptureIds: string[]; mac: string;
+}
+export interface PhoneImportResult { imported: number; failed: number; touched: { kind: string; id: number }[] }
+export async function phoneGetStatus(): Promise<PhoneStatus> { return invoke<PhoneStatus>('phone_get_status'); }
+export async function phoneSetRoot(path: string | null): Promise<PhoneStatus> { return invoke<PhoneStatus>('phone_set_root', { path }); }
+export async function phoneWriteSnapshot(json: string): Promise<number> { return invoke<number>('phone_write_snapshot', { json }); }
+export async function phoneImportInbox(): Promise<PhoneImportResult> { return invoke<PhoneImportResult>('phone_import_inbox'); }
+export async function phonePinnedNotes(): Promise<CompanyNoteEntry[]> { return invoke<CompanyNoteEntry[]>('phone_pinned_notes'); }
+export async function phoneReveal(failed: boolean): Promise<void> { await invoke('phone_reveal', { failed }); }
 export async function addInboxItem(itemType: string, content: string): Promise<InboxItem> {
   return invoke<InboxItem>('add_inbox_item', { itemType, content });
 }

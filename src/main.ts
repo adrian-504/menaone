@@ -60,6 +60,7 @@ import './tabs/myday';
 import './tabs/cleanup';
 import './core/shortcuts';
 import { startReminders } from './tabs/reminders';
+import { startPhoneSync } from './tabs/phone';
 import { rememberFilters } from './lib/rememberFilters';
 import './tabs/inbox';
 import './tabs/meetings';
@@ -252,6 +253,8 @@ async function init(): Promise<void> {
   foldFilterBar(document.querySelector('#agr-list-view .fbar'), ['agr-status', 'agr-service']);
   foldFilterBar(document.querySelector('#tab-contacts .fbar'), ['ct-client', 'ct-list-filter']);
   startReminders();
+  // Phone sync over OneDrive: the snapshot the iPhone reads, and its captures.
+  void startPhoneSync();
   // Who is using this device. Needs the Microsoft connection, so it runs in the
   // background and never holds up the start.
   void identityCurrentUser().then((id) => { S.currentUserId = id; }).catch(() => undefined);

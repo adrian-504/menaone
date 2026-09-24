@@ -233,7 +233,7 @@ fn read_agreements(conn: &Connection) -> rusqlite::Result<Vec<Agreement>> {
     Ok(agreements)
 }
 
-fn read_todos(conn: &Connection) -> rusqlite::Result<Vec<Todo>> {
+pub(crate) fn read_todos(conn: &Connection) -> rusqlite::Result<Vec<Todo>> {
     let mut stmt = conn.prepare(
         "SELECT id, title, type, client, priority, due_date, status, description, created_at, completed_at,
                 project_id, parent_id, area_id, section, sort_order, recurrence_rule, meeting_id, company_id,

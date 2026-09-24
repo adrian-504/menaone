@@ -15,6 +15,7 @@ pub mod localfiles;
 pub mod models;
 pub mod ms365;
 pub mod opportunities;
+pub mod phone;
 pub mod pptx;
 pub mod pptx_import;
 pub mod proposal_library;
@@ -219,6 +220,8 @@ pub fn run() {
             let _ = v2_search::rebuild_note_links(&conn);
             app.manage(DbState(Mutex::new(conn)));
             backups::spawn_daily_backup_loop(app.handle().clone(), backups_dir);
+            // Phone sync: import the phone's captures at launch and every minute.
+            phone::spawn_phone_import_loop(app.handle().clone());
             app.manage(Ms365State::default());
 
             let menu = build_menu(app.handle())?;
@@ -262,6 +265,12 @@ pub fn run() {
             commercial::set_proposals_root,
             commands::upsert_todos,
             commitments::get_commitments,
+            phone::phone_get_status,
+            phone::phone_set_root,
+            phone::phone_write_snapshot,
+            phone::phone_import_inbox,
+            phone::phone_pinned_notes,
+            phone::phone_reveal,
             commands::draft_agreement_for_proposal,
             full_backup::export_full_backup,
             ms365::email_people::ms365_email_people_cached,

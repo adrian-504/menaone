@@ -1,0 +1,15 @@
+{
+  "format": "mena-one-capture/1",
+  "id": "b7e1c2d4-5a6f-4b3c-8d9e-0f1a2b3c4d5e",
+  "createdAt": "2026-09-24T14:05:11+03:00",
+  "device": "Ahmad's iPhone",
+  "kind": "commitment",
+  "text": "Send the revised fee schedule",
+  "direction": "ours",
+  "companyId": 11,
+  "companyName": "Contoso Logistics",
+  "contactId": 21,
+  "dueDate": "2026-09-30",
+  "commitmentId": null,
+  "todoId": null
+}

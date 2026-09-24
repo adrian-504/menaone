@@ -1,0 +1,656 @@
+{
+  "format": "mena-one-phone/1",
+  "generatedAt": "2026-09-24T09:12:03+03:00",
+  "today": "2026-09-24",
+  "mac": "Ahmad's MacBook Pro",
+  "importedCaptureIds": [
+    "5b0c7a2e-3f41-4d7e-9a61-0c2d8e4f1a90"
+  ],
+  "failedCaptures": [],
+  "attention": [
+    {
+      "key": "commitment:83:overdue",
+      "kind": "commitment",
+      "tone": "red",
+      "score": 90,
+      "title": "Send the UAE setup options",
+      "companyId": 13,
+      "companyName": "Fabrikam Engineering",
+      "reason": "You promised this for 20 Sept — 4 days late",
+      "when": "4 days",
+      "record": {
+        "kind": "meeting",
+        "id": 64
+      },
+      "commitmentId": 83,
+      "children": []
+    },
+    {
+      "key": "proposal:41:approved",
+      "kind": "review",
+      "tone": "amber",
+      "score": 86,
+      "title": "Contoso Logistics",
+      "companyId": 11,
+      "companyName": "Contoso Logistics",
+      "reason": "Approved by Hassan — send it to the client · Payroll",
+      "when": null,
+      "record": {
+        "kind": "proposal",
+        "id": 41
+      },
+      "commitmentId": null,
+      "children": []
+    },
+    {
+      "key": "meeting:63:prepare",
+      "kind": "meeting",
+      "tone": "amber",
+      "score": 64,
+      "title": "Recruitment brief",
+      "companyId": 12,
+      "companyName": "Northwind Trading",
+      "reason": "No agenda yet — check the client brief",
+      "when": "Tomorrow 14:00",
+      "record": {
+        "kind": "meeting",
+        "id": 63
+      },
+      "commitmentId": null,
+      "children": []
+    },
+    {
+      "key": "group:owed",
+      "kind": "commitment",
+      "tone": "accent",
+      "score": 22,
+      "title": "Owed to you (1)",
+      "companyId": null,
+      "companyName": null,
+      "reason": "Clients promised these and the date has passed",
+      "when": null,
+      "record": null,
+      "commitmentId": null,
+      "children": [
+        {
+          "key": "commitment:84:owed",
+          "kind": "commitment",
+          "tone": "accent",
+          "score": 24,
+          "title": "Confirm the hiring budget",
+          "companyId": 12,
+          "companyName": "Northwind Trading",
+          "reason": "Promised to you for 19 Sept — chase it or mark it kept",
+          "when": "5 days",
+          "record": {
+            "kind": "company",
+            "id": 12
+          },
+          "commitmentId": 84,
+          "children": []
+        }
+      ]
+    }
+  ],
+  "meetings": [
+    {
+      "id": 64,
+      "title": "Intro call",
+      "date": "2026-09-08",
+      "startAt": "2026-09-08T15:00:00+02:00",
+      "endAt": "2026-09-08T16:00:00+02:00",
+      "companyId": 13,
+      "companyName": "Fabrikam Engineering",
+      "attendees": [
+        "Karim Aziz"
+      ],
+      "attendeeEmails": [
+        "karim@fabrikam.test"
+      ],
+      "location": "Online",
+      "isOnline": true,
+      "onlineMeetingUrl": "https://teams.microsoft.com/l/meetup-join/y",
+      "agenda": null,
+      "decisions": null,
+      "actionItems": null,
+      "followUp": "Send the UAE setup options."
+    },
+    {
+      "id": 61,
+      "title": "Monthly check-in",
+      "date": "2026-09-18",
+      "startAt": "2026-09-18T11:00:00+02:00",
+      "endAt": "2026-09-18T12:00:00+02:00",
+      "companyId": 11,
+      "companyName": "Contoso Logistics",
+      "attendees": [
+        "Sara Haddad",
+        "Omar Nasser"
+      ],
+      "attendeeEmails": [
+        "sara@contoso.test",
+        "omar@contoso.test"
+      ],
+      "location": "Contoso office",
+      "isOnline": false,
+      "onlineMeetingUrl": null,
+      "agenda": null,
+      "decisions": "Move payroll to MENA BIG from November.",
+      "actionItems": ">> Send the payroll proposal by 26 Sep\n<< Share the October headcount",
+      "followUp": null
+    },
+    {
+      "id": 66,
+      "title": "Team weekly",
+      "date": "2026-09-22",
+      "startAt": "2026-09-22T09:00:00+02:00",
+      "endAt": "2026-09-22T10:00:00+02:00",
+      "companyId": null,
+      "companyName": null,
+      "attendees": [
+        "Hassan Balaghi"
+      ],
+      "attendeeEmails": [
+        "hassan@menabig.test"
+      ],
+      "location": null,
+      "isOnline": false,
+      "onlineMeetingUrl": null,
+      "agenda": null,
+      "decisions": null,
+      "actionItems": null,
+      "followUp": null
+    },
+    {
+      "id": 62,
+      "title": "Payroll kick-off",
+      "date": "2026-09-25",
+      "startAt": "2026-09-25T10:00:00+02:00",
+      "endAt": "2026-09-25T11:00:00+02:00",
+      "companyId": 11,
+      "companyName": "Contoso Logistics",
+      "attendees": [
+        "Sara Haddad"
+      ],
+      "attendeeEmails": [
+        "sara@contoso.test"
+      ],
+      "location": "Online",
+      "isOnline": true,
+      "onlineMeetingUrl": "https://teams.microsoft.com/l/meetup-join/x",
+      "agenda": "Timeline, data handover, first cut-off date",
+      "decisions": null,
+      "actionItems": null,
+      "followUp": null
+    },
+    {
+      "id": 63,
+      "title": "Recruitment brief",
+      "date": "2026-09-25",
+      "startAt": "2026-09-25T14:00:00+02:00",
+      "endAt": "2026-09-25T15:00:00+02:00",
+      "companyId": 12,
+      "companyName": "Northwind Trading",
+      "attendees": [
+        "Lina Farouk"
+      ],
+      "attendeeEmails": [
+        "lina@northwind.test"
+      ],
+      "location": "Northwind HQ",
+      "isOnline": false,
+      "onlineMeetingUrl": null,
+      "agenda": null,
+      "decisions": null,
+      "actionItems": null,
+      "followUp": null
+    },
+    {
+      "id": 65,
+      "title": "Site visit",
+      "date": "2026-10-06",
+      "startAt": null,
+      "endAt": null,
+      "companyId": 14,
+      "companyName": "Tailspin Hotels",
+      "attendees": [],
+      "attendeeEmails": [],
+      "location": "Tailspin Corniche Hotel",
+      "isOnline": false,
+      "onlineMeetingUrl": null,
+      "agenda": null,
+      "decisions": null,
+      "actionItems": null,
+      "followUp": null
+    }
+  ],
+  "tasks": [
+    {
+      "id": 72,
+      "title": "Send the UAE setup options",
+      "dueDate": "2026-09-20",
+      "priority": "Medium",
+      "companyId": 13,
+      "companyName": "Fabrikam Engineering",
+      "projectId": null,
+      "commitmentId": 83
+    },
+    {
+      "id": 71,
+      "title": "Send the payroll proposal",
+      "dueDate": "2026-09-26",
+      "priority": "High",
+      "companyId": 11,
+      "companyName": "Contoso Logistics",
+      "projectId": null,
+      "commitmentId": 81
+    },
+    {
+      "id": 75,
+      "title": "Chase the Northwind shortlist",
+      "dueDate": "2026-09-29",
+      "priority": "Medium",
+      "companyId": 12,
+      "companyName": "Northwind Trading",
+      "projectId": null,
+      "commitmentId": null
+    },
+    {
+      "id": 76,
+      "title": "Prepare the Q4 pipeline review",
+      "dueDate": "2026-09-30",
+      "priority": "Medium",
+      "companyId": null,
+      "companyName": null,
+      "projectId": null,
+      "commitmentId": null
+    },
+    {
+      "id": 73,
+      "title": "Book the Al Khobar trip",
+      "dueDate": "2026-10-02",
+      "priority": "Medium",
+      "companyId": null,
+      "companyName": null,
+      "projectId": null,
+      "commitmentId": null
+    },
+    {
+      "id": 74,
+      "title": "Update the rate card",
+      "dueDate": null,
+      "priority": "Low",
+      "companyId": null,
+      "companyName": null,
+      "projectId": null,
+      "commitmentId": null
+    }
+  ],
+  "promises": [
+    {
+      "id": 81,
+      "direction": "ours",
+      "text": "Send the payroll proposal",
+      "dueDate": "2026-09-26",
+      "status": "open",
+      "closedAt": null,
+      "companyId": 11,
+      "companyName": "Contoso Logistics",
+      "contactId": 21,
+      "contactName": "Sara Haddad",
+      "contactEmail": "sara@contoso.test",
+      "sourceType": "meeting",
+      "sourceId": 61,
+      "todoId": 71
+    },
+    {
+      "id": 82,
+      "direction": "theirs",
+      "text": "Share the October headcount",
+      "dueDate": "2026-09-30",
+      "status": "open",
+      "closedAt": null,
+      "companyId": 11,
+      "companyName": "Contoso Logistics",
+      "contactId": 22,
+      "contactName": "Omar Nasser",
+      "contactEmail": "omar@contoso.test",
+      "sourceType": "meeting",
+      "sourceId": 61,
+      "todoId": null
+    },
+    {
+      "id": 83,
+      "direction": "ours",
+      "text": "Send the UAE setup options",
+      "dueDate": "2026-09-20",
+      "status": "open",
+      "closedAt": null,
+      "companyId": 13,
+      "companyName": "Fabrikam Engineering",
+      "contactId": 24,
+      "contactName": "Karim Aziz",
+      "contactEmail": "karim@fabrikam.test",
+      "sourceType": "meeting",
+      "sourceId": 64,
+      "todoId": 72
+    },
+    {
+      "id": 84,
+      "direction": "theirs",
+      "text": "Confirm the hiring budget",
+      "dueDate": "2026-09-19",
+      "status": "open",
+      "closedAt": null,
+      "companyId": 12,
+      "companyName": "Northwind Trading",
+      "contactId": 23,
+      "contactName": "Lina Farouk",
+      "contactEmail": "lina@northwind.test",
+      "sourceType": "capture",
+      "sourceId": null,
+      "todoId": null
+    },
+    {
+      "id": 85,
+      "direction": "ours",
+      "text": "Send the shortlist template",
+      "dueDate": null,
+      "status": "kept",
+      "closedAt": "2026-09-21T10:00:00Z",
+      "companyId": 12,
+      "companyName": "Northwind Trading",
+      "contactId": null,
+      "contactName": null,
+      "contactEmail": null,
+      "sourceType": "manual",
+      "sourceId": null,
+      "todoId": null
+    },
+    {
+      "id": 86,
+      "direction": "theirs",
+      "text": "Signed engagement letter",
+      "dueDate": null,
+      "status": "kept",
+      "closedAt": "2026-09-09T08:00:00Z",
+      "companyId": 11,
+      "companyName": "Contoso Logistics",
+      "contactId": null,
+      "contactName": null,
+      "contactEmail": null,
+      "sourceType": "meeting",
+      "sourceId": null,
+      "todoId": null
+    },
+    {
+      "id": 87,
+      "direction": "ours",
+      "text": "Visit the new site",
+      "dueDate": null,
+      "status": "dropped",
+      "closedAt": "2026-09-15T12:00:00Z",
+      "companyId": 14,
+      "companyName": "Tailspin Hotels",
+      "contactId": null,
+      "contactName": null,
+      "contactEmail": null,
+      "sourceType": "manual",
+      "sourceId": null,
+      "todoId": null
+    }
+  ],
+  "companies": [
+    {
+      "id": 11,
+      "name": "Contoso Logistics",
+      "industries": [
+        "Transportation & Logistics"
+      ],
+      "country": "Saudi Arabia",
+      "city": "Riyadh",
+      "status": "Client",
+      "relationship": {
+        "label": "Active client",
+        "tone": "green"
+      },
+      "brief": [
+        "Active client since Mar 2026 — Administration at SAR 18,500 a month. CON_ADM_001 ends 14 Mar 2027; notice due 13 Jan 2027.",
+        "One in flight — Payroll with us 9 days.",
+        "Last meeting 18 Sept 2026, Monthly check-in. Next meeting 25 Sept 2026, Payroll kick-off.",
+        "We owe 1. They owe 1."
+      ],
+      "threads": [
+        {
+          "kind": "proposal",
+          "label": "Payroll",
+          "stand": "proposal in internal review"
+        }
+      ],
+      "lastContact": {
+        "date": "2026-09-18",
+        "label": "Meeting · Monthly check-in",
+        "kind": "meeting"
+      },
+      "contacts": [
+        {
+          "id": 21,
+          "name": "Sara Haddad",
+          "role": "HR Director",
+          "email": "sara@contoso.test",
+          "phone": "+966500000001",
+          "whatsapp": "+966500000001",
+          "isDecisionMaker": true
+        },
+        {
+          "id": 22,
+          "name": "Omar Nasser",
+          "role": "Finance Manager",
+          "email": "omar@contoso.test",
+          "phone": null,
+          "whatsapp": null,
+          "isDecisionMaker": false
+        }
+      ],
+      "pinnedNotes": [
+        {
+          "id": 91,
+          "body": "Prefers WhatsApp; no calls before 10.",
+          "createdAt": "2026-08-02"
+        }
+      ],
+      "recentMeetingIds": [
+        62,
+        61
+      ],
+      "openTaskIds": [
+        71
+      ],
+      "openPromiseIds": [
+        81,
+        82
+      ]
+    },
+    {
+      "id": 12,
+      "name": "Northwind Trading",
+      "industries": [
+        "Retail & Consumer"
+      ],
+      "country": "Saudi Arabia",
+      "city": "Jeddah",
+      "status": "Active",
+      "relationship": {
+        "label": "In discussion",
+        "tone": "amber"
+      },
+      "brief": [
+        "In discussion — first contact 10 Sept 2026.",
+        "One in flight.",
+        "Next meeting 25 Sept 2026, Recruitment brief.",
+        "They owe 1 (1 late)."
+      ],
+      "threads": [
+        {
+          "kind": "proposal",
+          "label": "Recruitment",
+          "stand": "proposal sent to client"
+        }
+      ],
+      "lastContact": null,
+      "contacts": [
+        {
+          "id": 23,
+          "name": "Lina Farouk",
+          "role": "COO",
+          "email": "lina@northwind.test",
+          "phone": null,
+          "whatsapp": null,
+          "isDecisionMaker": true
+        }
+      ],
+      "pinnedNotes": [],
+      "recentMeetingIds": [
+        63
+      ],
+      "openTaskIds": [
+        75
+      ],
+      "openPromiseIds": [
+        84
+      ]
+    },
+    {
+      "id": 13,
+      "name": "Fabrikam Engineering",
+      "industries": [
+        "Engineering & Consulting"
+      ],
+      "country": "United Arab Emirates",
+      "city": "Dubai",
+      "status": "Active",
+      "relationship": {
+        "label": "In discussion",
+        "tone": "amber"
+      },
+      "brief": [
+        "In discussion — first contact 05 Sept 2026.",
+        "One in flight.",
+        "Last meeting 08 Sept 2026, Intro call.",
+        "We owe 1 (1 late). 1 task overdue."
+      ],
+      "threads": [
+        {
+          "kind": "opportunity",
+          "label": "Fabrikam UAE setup",
+          "stand": "opportunity at discovery"
+        }
+      ],
+      "lastContact": {
+        "date": "2026-09-08",
+        "label": "Meeting · Intro call",
+        "kind": "meeting"
+      },
+      "contacts": [
+        {
+          "id": 24,
+          "name": "Karim Aziz",
+          "role": "Country Manager",
+          "email": "karim@fabrikam.test",
+          "phone": null,
+          "whatsapp": null,
+          "isDecisionMaker": false
+        }
+      ],
+      "pinnedNotes": [],
+      "recentMeetingIds": [
+        64
+      ],
+      "openTaskIds": [
+        72
+      ],
+      "openPromiseIds": [
+        83
+      ]
+    },
+    {
+      "id": 14,
+      "name": "Tailspin Hotels",
+      "industries": [
+        "Hospitality"
+      ],
+      "country": "Saudi Arabia",
+      "city": "Al Khobar",
+      "status": "Active",
+      "relationship": {
+        "label": "Prospect",
+        "tone": "accent"
+      },
+      "brief": [
+        "Prospect — first contact 06 Oct 2026.",
+        "Next meeting 06 Oct 2026, Site visit."
+      ],
+      "threads": [],
+      "lastContact": null,
+      "contacts": [],
+      "pinnedNotes": [],
+      "recentMeetingIds": [
+        65
+      ],
+      "openTaskIds": [],
+      "openPromiseIds": []
+    }
+  ],
+  "comingUp": [
+    {
+      "date": "2026-09-25",
+      "entries": [
+        {
+          "kind": "meeting",
+          "id": 62,
+          "label": "Payroll kick-off · Contoso Logistics",
+          "time": "10:00"
+        },
+        {
+          "kind": "meeting",
+          "id": 63,
+          "label": "Recruitment brief · Northwind Trading",
+          "time": "14:00"
+        }
+      ]
+    },
+    {
+      "date": "2026-09-26",
+      "entries": [
+        {
+          "kind": "task",
+          "id": 71,
+          "label": "Send the payroll proposal · Contoso Logistics",
+          "time": null
+        }
+      ]
+    },
+    {
+      "date": "2026-09-29",
+      "entries": [
+        {
+          "kind": "task",
+          "id": 75,
+          "label": "Chase the Northwind shortlist · Northwind Trading",
+          "time": null
+        }
+      ]
+    },
+    {
+      "date": "2026-09-30",
+      "entries": [
+        {
+          "kind": "task",
+          "id": 76,
+          "label": "Prepare the Q4 pipeline review",
+          "time": null
+        }
+      ]
+    }
+  ]
+}

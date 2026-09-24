@@ -56,6 +56,7 @@ async function renderSettingsTab(): Promise<void> {
   showSettingsPane();
   (window as any).renderReminderSettings?.();
   (window as any).renderOfficeStripSettings?.();
+  (window as any).renderPhoneSettings?.();
   renderThemePicker();
   renderCommercialSettings();
   await loadStatus();
