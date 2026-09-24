@@ -21,6 +21,8 @@ import { registerDragSource, registerDropTarget, reorder } from '../lib/dnd';
 import { renderIcons } from '../core/chrome';
 import { parseTaskInput, friendlyDate, isoDate, type ParsedTask } from '../lib/taskParse';
 import type { Todo } from '../lib/types';
+import { openPromiseCount } from '../lib/promises';
+import { renderPromisesView, leavePromisesView } from './commitments';
 
 // ── Dates ───────────────────────────────────────────────────────────────────
 
@@ -215,6 +217,7 @@ function listTitle(list: string): { title: string; subtitle: string } {
     return { title: ref.name, subtitle: companyLink(ref.id, ref.name).replace(`>${escHtml(ref.name)}<`, '>Open company page<') };
   }
   if (list.startsWith('tag:')) return { title: `#${list.slice(4)}`, subtitle: 'Open tasks with this tag' };
+  if (list === 'promises') return { title: 'Promises', subtitle: 'What we owe clients and what they owe us, across every client' };
   return { title: 'Tasks', subtitle: '' };
 }
 
@@ -238,7 +241,11 @@ function renderSidebar(): void {
         <div class="ws-side-section-body">${body}</div>
       </div>` : '';
 
-  const smart = SMART.map((s) => item(s.key, s.label, `<span class="ws-side-icon" style="color:${s.tint}">${icon(s.icon, 15)}</span>`, s.key === 'completed' ? '' : s.key === 'today' ? count(s.key) - overdue : count(s.key),
+  // Promises (commitments, not tasks): after Someday, before Completed; no drop target.
+  const promises = `<button class="ws-side-item${list === 'promises' ? ' active' : ''}" onclick="setTodoFilter('promises')">
+      <span class="ws-side-icon" style="color:var(--accent)">${icon('flag', 15)}</span><span class="ws-side-label">Promises</span><span class="ws-side-count">${openPromiseCount(S.commitments) || ''}</span>
+    </button>`;
+  const smart = SMART.map((s) => (s.key === 'completed' ? promises : '') + item(s.key, s.label, `<span class="ws-side-icon" style="color:${s.tint}">${icon(s.icon, 15)}</span>`, s.key === 'completed' ? '' : s.key === 'today' ? count(s.key) - overdue : count(s.key),
     s.key === 'today' && overdue ? `<span class="ws-side-alert" title="${overdue} overdue">${overdue}</span>` : '')).join('');
 
   const projects = S.projects.filter((p) => !p.archived && p.status !== 'Completed')
@@ -270,6 +277,12 @@ function renderSidebar(): void {
     ${section('tags', 'Tags', tagItems)}
   </div>`;
 }
+
+/** Counts in the rail follow commitments changed elsewhere (Promises, record pages). */
+export function refreshTaskRail(): void {
+  if (getActiveTabId() === 'todo') renderSidebar();
+}
+expose('refreshTaskRail', refreshTaskRail);
 
 export function toggleTaskSideSection(id: string): void {
   if (collapsedSections.has(id)) collapsedSections.delete(id); else collapsedSections.add(id);
@@ -323,10 +336,21 @@ export function renderTodo(): void {
   const subEl = document.getElementById('tasks-subtitle'); if (subEl) subEl.innerHTML = subtitle;
   document.querySelectorAll<HTMLElement>('.task-vbtn').forEach((b) => b.classList.toggle('active', b.dataset.view === S.taskView));
   const calNav = document.getElementById('task-cal-nav'); if (calNav) calNav.hidden = S.taskView !== 'calendar';
-  const quickAdd = document.getElementById('task-quickadd'); if (quickAdd) quickAdd.hidden = list === 'completed';
+  const quickAdd = document.getElementById('task-quickadd'); if (quickAdd) quickAdd.hidden = list === 'completed' || list === 'promises';
 
   const container = document.getElementById('todo-list');
   if (!container) return;
+  // Promises: commitments, one list view (no board or calendar, no task sort).
+  const promises = list === 'promises';
+  const viewBtns = document.getElementById('task-view-btns'); if (viewBtns) viewBtns.hidden = promises;
+  const listMenu = document.getElementById('task-list-menu'); if (listMenu) listMenu.hidden = promises;
+  if (promises) {
+    if (calNav) calNav.hidden = true;
+    renderPromisesView('todo-list');
+    if (S.taskDetailId != null) closeTaskDetail();
+    return;
+  }
+  leavePromisesView('todo-list');
   if (S.taskView === 'board') container.innerHTML = renderBoard(list);
   else if (S.taskView === 'calendar') container.innerHTML = renderCalendar(list);
   else container.innerHTML = renderListView(list);

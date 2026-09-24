@@ -50,6 +50,10 @@ Saving over an older backup file is safe: the new file is written first and only
 
 **The Brief.** Click **Brief** on a company's page, or press ⌘K and type "brief" and the company name. It's one page to read before a meeting: where you stand, open threads, people, open commitments and the next meeting. **Print or save as PDF** prints just that page, always in Light.
 
+## 5b. Promises: what you owe and what you're owed
+
+Every `>>` (we promised) and `<<` (the client promised) line from your meeting notes and notes is a commitment. **Tasks → Promises** lists all the open ones across every client: **You owe** and **Owed to you**, late ones first in red. Tick one to mark it kept (a promise you owe also completes its task). The **…** menu drops it with a reason or opens the meeting it came from. On something a client owes you, **Nudge** opens an email draft to the person who promised it, for you to edit and send yourself. What was kept or dropped in the last 30 days is folded at the bottom. From anywhere, ⌘K "What do I owe" or "Owed to me" opens it.
+
 ## 6. Exporting data (CSV / HubSpot)
 
 All the export buttons that existed in the old tracker are still here and work the same way — Database tab CSV export, Reports tab CSV export, Agreements CSV, the ActiveCampaign contacts export, and the two HubSpot exports (Deals CSV and Companies CSV) on the Reports tab. Each one now opens a native "Save As" dialog instead of silently dropping a file in your Downloads folder — pick where you want it saved.

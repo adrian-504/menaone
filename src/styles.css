@@ -2626,3 +2626,7 @@ tr:hover .td-status .row-more,tr:focus-within .td-status .row-more{opacity:1}
 .mdy-rail > .sec:first-child,.rec-side > .sec:first-child,.mdy-rail > .sec[hidden]:first-child + .sec,.rec-side > .sec[hidden]:first-child + .sec{border-top:none;padding-top:0}
 .mdy-rail > .sec:last-child,.rec-side > .sec:last-child{padding-bottom:0}
 
+
+/* Tasks → Promises (owner, 24-Sep-2026): You owe / Owed to you, then kept or dropped folded. */
+#todo-list > .pm-sec:first-child{border-top:none;padding-top:12px}
+.pm-closed{margin-top:16px;padding-top:12px;border-top:1px solid var(--hairline)}
