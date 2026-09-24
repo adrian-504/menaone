@@ -6,6 +6,7 @@ import { renderBulkBar } from '../lib/bulkBar';
 import { STATUSES, ST, AGR_ST } from '../lib/constants';
 import { renderCompanyCommitments } from './commitments';
 import { collapseEmptySections } from '../lib/sectionLayout';
+import { COMPANIES_VIEW_KEY, initialCompaniesView } from '../lib/companiesView';
 import { companyNavItems, layoutCompanyRecords, type RecordCounts } from '../lib/companyRecords';
 import { today, fmtDate, escHtml, expose, showConfirm, statusDot, showTextPrompt, getClients, companyRef, inCompany, daysSince, daysUntil, strColor, type CompanyRef } from '../lib/utils';
 import { shownColumns, sortState, setSort, sortRows, headerCells, openColumnPicker, agoLabel, type Column, type SortState } from '../lib/tableColumns';
@@ -444,8 +445,12 @@ export function buildCompanyData(name: string): CompanyData {
   return { name, companyId: ref.id, proposals: cp, agreements: ca, contacts: cc, notes: allNotes, activeMrr, clientSince, latestDate, activeAgreements, signedAgreements, clientAgreements, latestStatus };
 }
 
+// List or Grid, remembered on this device (List until one is chosen).
+try { S.coListView = initialCompaniesView(localStorage.getItem(COMPANIES_VIEW_KEY)); } catch { /* List */ }
+
 export function setCoListView(v: string): void {
   S.coListView = v as typeof S.coListView;
+  try { localStorage.setItem(COMPANIES_VIEW_KEY, S.coListView); } catch { /* per-device only */ }
   document.querySelectorAll('.co-vbtn').forEach((b) => b.classList.toggle('active', (b as HTMLElement).dataset.view === v));
   const grid = document.getElementById('co-grid');
   const table = document.getElementById('co-list-table');

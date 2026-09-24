@@ -106,7 +106,7 @@ export const S = {
 
   // Companies tab
   currentCompany: null as string | null,
-  coListView: 'grid' as 'grid' | 'list',
+  coListView: 'list' as 'grid' | 'list',
   coChart1: null as any,
   coChart2: null as any,
 
