@@ -23,6 +23,7 @@ import { parseTaskInput, friendlyDate, isoDate, type ParsedTask } from '../lib/t
 import type { Todo } from '../lib/types';
 import { openPromiseCount } from '../lib/promises';
 import { renderPromisesView, leavePromisesView } from './commitments';
+import { normalizeCompanyKey, taskCompanyKey, todayRailCounts } from '../lib/taskRail';
 
 // ── Dates ───────────────────────────────────────────────────────────────────
 
@@ -81,15 +82,18 @@ function currentList(): string {
   if (f === 'all' || f === 'pending' || f === 'in_progress' || f === 'high') return 'anytime';
   if (f === 'overdue') return 'today';
   if (f === 'done') return 'completed';
+  // A client list saved by name reads as its company (one entry per company).
+  if (f.startsWith('company:')) return `company:${normalizeCompanyKey(f.slice(8), S.companies)}`;
   return f;
 }
 
+/** One key per company, whether the task has its id or only its name. */
 function companyKey(t: Todo): string | null {
-  if (!t.client) return null;
-  return t.companyId != null ? `id:${t.companyId}` : `name:${t.client}`;
+  return taskCompanyKey(t, S.companies);
 }
 
-function companyRefFromKey(key: string): { id: number | null; name: string } {
+function companyRefFromKey(raw: string): { id: number | null; name: string } {
+  const key = normalizeCompanyKey(raw, S.companies);
   if (key.startsWith('id:')) {
     const id = Number(key.slice(3));
     return { id, name: S.companies.find((c) => c.id === id)?.name ?? S.todos.find((t) => t.companyId === id)?.client ?? 'Client' };
@@ -108,10 +112,7 @@ function inList(t: Todo, list: string): boolean {
     case 'someday': return !!t.someday;
   }
   if (list.startsWith('project:')) return t.projectId === Number(list.slice(8));
-  if (list.startsWith('company:')) {
-    const ref = companyRefFromKey(list.slice(8));
-    return inCompany(ref, t.companyId, t.client);
-  }
+  if (list.startsWith('company:')) return companyKey(t) === normalizeCompanyKey(list.slice(8), S.companies);
   if (list.startsWith('tag:')) return (t.tags || []).includes(list.slice(4));
   return true;
 }
@@ -230,7 +231,8 @@ function renderSidebar(): void {
   if (!el) return;
   const list = currentList();
   const count = (key: string) => tasksForList(key).length;
-  const overdue = S.todos.filter(isOverdue).length;
+  // Today's badge (overdue) and count (due today) from what the Today list shows.
+  const { overdue, dueToday } = todayRailCounts(tasksForList('today'), todayIso());
   const item = (key: string, label: string, iconHtml: string, n: number | string, extra = '') =>
     `<button class="ws-side-item${list === key ? ' active' : ''}" data-drop="task-list" data-drop-value="${escHtml(key)}" onclick="setTodoFilter('${escHtml(key).replace(/'/g, "\\'")}')">
       ${iconHtml}<span class="ws-side-label">${escHtml(label)}</span>${extra}<span class="ws-side-count">${n || ''}</span>
@@ -245,7 +247,7 @@ function renderSidebar(): void {
   const promises = `<button class="ws-side-item${list === 'promises' ? ' active' : ''}" onclick="setTodoFilter('promises')">
       <span class="ws-side-icon" style="color:var(--accent)">${icon('flag', 15)}</span><span class="ws-side-label">Promises</span><span class="ws-side-count">${openPromiseCount(S.commitments) || ''}</span>
     </button>`;
-  const smart = SMART.map((s) => (s.key === 'completed' ? promises : '') + item(s.key, s.label, `<span class="ws-side-icon" style="color:${s.tint}">${icon(s.icon, 15)}</span>`, s.key === 'completed' ? '' : s.key === 'today' ? count(s.key) - overdue : count(s.key),
+  const smart = SMART.map((s) => (s.key === 'completed' ? promises : '') + item(s.key, s.label, `<span class="ws-side-icon" style="color:${s.tint}">${icon(s.icon, 15)}</span>`, s.key === 'completed' ? '' : s.key === 'today' ? dueToday : count(s.key),
     s.key === 'today' && overdue ? `<span class="ws-side-alert" title="${overdue} overdue">${overdue}</span>` : '')).join('');
 
   const projects = S.projects.filter((p) => !p.archived && p.status !== 'Completed')
