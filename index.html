@@ -1497,15 +1497,15 @@
         <option value="proposals">Sort: Most proposals</option>
       </select>
       <div class="seg-btns" id="co-view-btns">
-        <button class="seg-btn co-vbtn active" data-view="grid" onclick="setCoListView('grid')"><span data-icon="board" data-icon-size="13"></span> Grid</button>
-        <button class="seg-btn co-vbtn" data-view="list" onclick="setCoListView('list')"><span data-icon="list" data-icon-size="13"></span> List</button>
+        <button class="seg-btn co-vbtn" data-view="grid" onclick="setCoListView('grid')"><span data-icon="board" data-icon-size="13"></span> Grid</button>
+        <button class="seg-btn co-vbtn active" data-view="list" onclick="setCoListView('list')"><span data-icon="list" data-icon-size="13"></span> List</button>
       </div>
-      <button class="btn-secondary btn-sm" id="co-columns-btn" onclick="openCompanyColumns(event)" title="Choose columns" hidden>Columns</button>
+      <button class="btn-secondary btn-sm" id="co-columns-btn" onclick="openCompanyColumns(event)" title="Choose columns">Columns</button>
       <span class="rcnt" id="co-cnt">0 companies</span>
     </div>
     <div class="list-bar" id="co-lists-bar" aria-label="Company lists"></div>
-    <div class="co-grid" id="co-grid"></div>
-    <div class="tbl-wrap" id="co-list-table" style="display:none"><table class="tbl-lists"><thead id="co-thead"></thead><tbody id="co-tbody"></tbody></table></div>
+    <div class="co-grid" id="co-grid" style="display:none"></div>
+    <div class="tbl-wrap" id="co-list-table"><table class="tbl-lists"><thead id="co-thead"></thead><tbody id="co-tbody"></tbody></table></div>
   </div>
 
   <div class="co-detail record-page" id="co-detail">
