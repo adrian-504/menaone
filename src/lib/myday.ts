@@ -483,9 +483,18 @@ export function buildComingUp(i: Pick<MyDayInput, 'today' | 'meetings' | 'todos'
     if (p.archived || p.status === 'Completed' || p.status === 'Cancelled' || !inRange(p.targetDate)) continue;
     entries.push({ date: p.targetDate, sort: '4', kind: 'project', title: p.name, detail: `Project due · ${p.computedProgress ?? 0}% done`, record: { kind: 'project', id: p.id }, companyId: p.companyId ?? null, companyName: p.companyName });
   }
+  // Proposals promised in the next days; those requested together are one line.
+  const promised = new Map<string, Proposal[]>();
   for (const p of i.proposals) {
     if (p.archived || (p.status !== PS.REQUEST && p.status !== PS.DRAFTING) || !inRange(p.promisedBy)) continue;
-    entries.push({ date: p.promisedBy, sort: '5', kind: 'proposal', title: 'Proposal promised', detail: p.client, record: { kind: 'proposal', id: p.id }, companyId: p.companyId ?? null, companyName: p.client });
+    const key = `${p.promisedBy}|${p.requestGroup || `id:${p.id}`}`;
+    promised.set(key, [...(promised.get(key) || []), p]);
+  }
+  for (const ps of promised.values()) {
+    const p = ps[0];
+    const together = ps.length > 1 && p.companyId != null;
+    entries.push({ date: p.promisedBy!, sort: '5', kind: 'proposal', title: together ? `${ps.length} proposals promised` : 'Proposal promised', detail: p.client,
+      record: together ? { kind: 'company', id: p.companyId! } : { kind: 'proposal', id: p.id }, companyId: p.companyId ?? null, companyName: p.client });
   }
   for (const p of i.proposals) {
     if (p.archived || p.status !== PS.SENT || !inRange(p.validUntil)) continue;

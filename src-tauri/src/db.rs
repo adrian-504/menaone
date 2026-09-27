@@ -742,7 +742,7 @@ fn migrate_workforce_categories(conn: &Connection) -> rusqlite::Result<()> {
     Ok(())
 }
 
-fn column_exists(conn: &Connection, table: &str, col: &str) -> rusqlite::Result<bool> {
+pub(crate) fn column_exists(conn: &Connection, table: &str, col: &str) -> rusqlite::Result<bool> {
     Ok(conn
         .prepare(&format!("PRAGMA table_info({table})"))?
         .query_map([], |r| r.get::<_, String>(1))?

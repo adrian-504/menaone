@@ -179,10 +179,7 @@ BEGIN UPDATE commitments SET company_id = NULL WHERE company_id = OLD.id; END;
 /// that proposal, and follows it: sent or signed → kept, lost or withdrawn →
 /// dropped (the status as the reason). Deleting the proposal unlinks it.
 pub const PROPOSAL_REQUESTS_MIGRATION: &str = r#"
-ALTER TABLE proposals ADD COLUMN promised_by TEXT;
-ALTER TABLE proposals ADD COLUMN request_group TEXT;
 CREATE INDEX IF NOT EXISTS idx_proposals_request_group ON proposals(request_group);
-ALTER TABLE commitments ADD COLUMN proposal_id INTEGER;
 CREATE INDEX IF NOT EXISTS idx_commitments_proposal ON commitments(proposal_id);
 
 CREATE TRIGGER IF NOT EXISTS cm_proposal_sent AFTER UPDATE OF status ON proposals
@@ -202,6 +199,12 @@ BEGIN UPDATE commitments SET proposal_id = NULL WHERE proposal_id = OLD.id; END;
 "#;
 
 pub fn migrate_proposal_requests(conn: &Connection) -> rusqlite::Result<()> {
+    // Each column only once: a restored backup may already have them.
+    for (table, col, ty) in [("proposals", "promised_by", "TEXT"), ("proposals", "request_group", "TEXT"), ("commitments", "proposal_id", "INTEGER")] {
+        if !crate::db::column_exists(conn, table, col)? {
+            conn.execute_batch(&format!("ALTER TABLE {table} ADD COLUMN {col} {ty};"))?;
+        }
+    }
     conn.execute_batch(PROPOSAL_REQUESTS_MIGRATION)
 }
 

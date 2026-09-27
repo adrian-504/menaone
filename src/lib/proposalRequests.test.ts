@@ -20,7 +20,7 @@ describe('proposalBlocks', () => {
     const out = proposalsFromBlocks(shared, [{ lines: [line('Payroll', 3000)], contractMonths: 12 }], 40, () => 'g-1');
     expect(out).toHaveLength(1);
     expect(out[0]).toMatchObject({ id: 40, client: 'Contoso Logistics', contractMonths: 12, requestGroup: null, type: null, promisedBy: '2026-10-02' });
-    expect(out[0].lines.map((l) => l.serviceName)).toEqual(['Payroll']);
+    expect((out[0].lines ?? []).map((l) => l.serviceName)).toEqual(["Payroll"]);
   });
 
   it('several blocks share the header and one request group; each keeps its own lines and term', () => {
@@ -33,7 +33,7 @@ describe('proposalBlocks', () => {
     expect(out.map((p) => p.id)).toEqual([40, 41]);
     expect(out.map((p) => p.requestGroup)).toEqual(['g-1', 'g-1']);
     expect(out.map((p) => p.contractMonths)).toEqual([12, null]);
-    expect(out.map((p) => p.lines.map((l) => l.serviceName))).toEqual([['Administration and PRO', 'Payroll'], ['Recruitment']]);
+    expect(out.map((p) => (p.lines ?? []).map((l) => l.serviceName))).toEqual([['Administration and PRO', 'Payroll'], ['Recruitment']]);
     expect(out.every((p) => p.client === 'Contoso Logistics' && p.promisedBy === '2026-10-02' && p.ownerId === 1)).toBe(true);
     // Own arrays, not shared ones.
     expect(out[0].notes).not.toBe(out[1].notes);
@@ -122,6 +122,11 @@ describe('My Day: promised by', () => {
   it('a request or draft promised in the next seven days is on its day in Coming up', () => {
     const days = buildComingUp(input({ proposals: [proposal({ promisedBy: '2026-10-01' }), proposal({ id: 2, status: 'Sent to Client', promisedBy: '2026-10-01' })] }));
     expect(days).toEqual([{ date: '2026-10-01', entries: [expect.objectContaining({ kind: 'proposal', title: 'Proposal promised', detail: 'Contoso Logistics', record: { kind: 'proposal', id: 1 } })] }]);
+  });
+
+  it('proposals requested together and promised the same day are one line', () => {
+    const days = buildComingUp(input({ proposals: [proposal({ id: 1, requestGroup: 'g', promisedBy: '2026-10-01' }), proposal({ id: 2, requestGroup: 'g', promisedBy: '2026-10-01' })] }));
+    expect(days[0].entries).toEqual([expect.objectContaining({ title: '2 proposals promised', detail: 'Contoso Logistics', record: { kind: 'company', id: 7 } })]);
   });
 });
 
