@@ -41,6 +41,7 @@ import { populateCtListFilter, populateCtTypeFilter } from './core/contacts';
 // Tabs (each registers its renderer with the registry on import)
 import './tabs/dashboard';
 import './tabs/followup';
+import './tabs/pending';
 import './tabs/database';
 import './tabs/reports';
 import './tabs/analytics';
