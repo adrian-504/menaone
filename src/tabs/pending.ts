@@ -11,6 +11,7 @@ import { showContextMenu } from '../lib/contextMenu';
 import { icon } from '../lib/icons';
 import { PS, teamMember, defaultReviewer, ownerName, fmtMoney, currencyOf } from '../lib/commercial';
 import type { Proposal } from '../lib/types';
+import { pendingRuns } from '../lib/queues';
 
 export function getPendingProposals(): Proposal[] {
   return S.proposals.filter((p) => !p.archived && matchesProposalPeriod(p) && WQ_STATUSES.includes(p.status));
@@ -92,9 +93,11 @@ export function renderPending(): void {
     const group = data.filter((p) => p.status === status);
     if (group.length === 0) return;
     const cfg = WQ_CFG[status];
+    // Requested together: side by side under one quiet line, ordered by the oldest.
+    const runs = pendingRuns(group, sort);
     html += `<section class="sec pq-group">
       <div class="rec-section-hd"><h2>${statusDot(cfg, cfg.label)}</h2><span class="rec-count">${group.length}</span></div>
-      <div class="pq-list">${group.map((p) => wqCard(p)).join('')}</div>
+      <div class="pq-list">${runs.map((r) => (r.group ? `<div class="pq-together">Requested together · ${escHtml(fmtDate(r.items.map((p) => p.dateAdded || '').sort().pop() || r.date))}</div>` : '') + r.items.map((p) => wqCard(p)).join('')).join('')}</div>
     </section>`;
   });
   container.innerHTML = html;
@@ -120,6 +123,14 @@ export function renderPending(): void {
 registerTabRenderer('pending', () => { populateWqOwnerFilter(); renderPending(); });
 expose('renderPending', renderPending);
 
+/** "promised by 2 Oct", red once the day has come. Meta only: it changes neither the order nor the age. */
+function promisedMeta(p: Proposal): string {
+  if (!p.promisedBy) return '';
+  const d = new Date(`${p.promisedBy.slice(0, 10)}T12:00:00`);
+  const label = isNaN(d.getTime()) ? p.promisedBy : d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  return `<span class="${p.promisedBy.slice(0, 10) <= today() ? 't-red' : ''}">promised by ${escHtml(label)}</span>`;
+}
+
 /** One pending proposal: age, client and services, where it is, and the next step. */
 export function wqCard(p: Proposal): string {
   const refDate = p.dateAdded || p.sentDate || null;
@@ -137,6 +148,7 @@ export function wqCard(p: Proposal): string {
     ownerName(p) ? escHtml(ownerName(p)) : '',
     `SL# ${p.id}`,
     refDate ? `added ${fmtDate(refDate)}` : '',
+    promisedMeta(p),
     nc ? `<a href="#" class="rlink" onclick="event.preventDefault();openNotesModal(${p.id})">${nc} note${nc === 1 ? '' : 's'}</a>` : '',
   ].filter(Boolean).join('<span class="pq-sep">·</span>');
   return `<div class="pq-row" onclick="if(!event.target.closest('a,button'))openRecord('proposal', ${p.id})" oncontextmenu="pqMenu(event, ${p.id})">
@@ -146,7 +158,6 @@ export function wqCard(p: Proposal): string {
       <div class="pq-meta">${meta}</div>
       ${p.remarks ? `<div class="pq-remarks" title="${escHtml(p.remarks)}">${escHtml(p.remarks)}</div>` : ''}
     </div>
-    <ol class="pq-steps" aria-label="Progress">${['Added', 'Review', 'Client', 'Signed'].map((label, i) => `<li class="${[p.dateAdded, p.dateSentToHassan, p.dateSentToClient, p.dateSigned][i] ? 'done' : ''}" title="${label}${[p.dateAdded, p.dateSentToHassan, p.dateSentToClient, p.dateSigned][i] ? ` · ${fmtDate([p.dateAdded, p.dateSentToHassan, p.dateSentToClient, p.dateSigned][i])}` : ''}"></li>`).join('')}</ol>
     ${p.monthlyFee ? `<span class="pq-fee">${fmtMoney(p.monthlyFee, currencyOf(p))}<small>/mo</small></span>` : '<span class="pq-fee"></span>'}
     <div class="pq-actions">${primary}<button class="rec-icon-btn" onclick="pqMenu(event, ${p.id})" title="More" aria-label="More">${icon('more', 14)}</button></div>
   </div>`;

@@ -1,3 +1,5 @@
+import { backInDays, lastTouch, FOLLOW_UP_AFTER_DAYS, type LastTouch } from '../lib/followup';
+import { ownDomains } from '../lib/clientMatch';
 import { S } from '../lib/state';
 import { STATUSES, WIN_REASONS, LOSS_REASONS } from '../lib/constants';
 import { today, fmtDate, daysSince, daysUntil, escHtml, expose, showTextPrompt, showConfirm, localIsoDate } from '../lib/utils';
@@ -30,10 +32,16 @@ export function isSnoozed(p: Proposal): boolean {
   return new Date(p.snoozedUntil + 'T23:59:59') > new Date();
 }
 
-/** Sent to the client over 10 days ago with no answer yet. */
+/** A sent proposal's latest contact: its notes, the client's emails and meetings since it was sent (lib/followup.ts). */
+export function proposalLastTouch(p: Proposal): LastTouch | null {
+  return lastTouch(p, { emails: S.emails, meetings: S.meetings, today: today(), ownDomains: ownDomains() });
+}
+
+/** Sent to the client, and nothing with them for over 10 days. */
 export function needsFollowUp(p: Proposal): boolean {
-  const sent = p.dateSentToClient || p.sentDate;
-  return !p.archived && p.status === PS.SENT && !!sent && (daysSince(sent) || 0) > 10;
+  if (p.archived || p.status !== PS.SENT) return false;
+  const t = proposalLastTouch(p);
+  return !!t && t.days > FOLLOW_UP_AFTER_DAYS;
 }
 
 export function getSnoozed(): Proposal[] {
@@ -45,7 +53,7 @@ export function getSnoozed(): Proposal[] {
 export function getFollowups(): Proposal[] {
   return S.proposals
     .filter((p) => needsFollowUp(p) && !isSnoozed(p) && matchesProposalPeriod(p))
-    .sort((a, b) => (daysSince(b.dateSentToClient || b.sentDate) || 0) - (daysSince(a.dateSentToClient || a.sentDate) || 0));
+    .sort((a, b) => (proposalLastTouch(b)?.days ?? 0) - (proposalLastTouch(a)?.days ?? 0));
 }
 
 // ═══════════════ BADGE + ALERTS ═══════════════
@@ -248,10 +256,15 @@ expose('unarchiveProposal', unarchiveProposal);
 
 // ═══════════════ ACTIVITY LOG / NOTES MODAL ═══════════════
 
-export function openNotesModal(id: number): void {
+export function openNotesModal(id: number, from?: 'followup'): void {
   S.notesTargetId = id;
   const p = S.proposals.find((x) => x.id === id);
   if (!p) return;
+  // From Follow-up, for a sent proposal: "Back in 7 days" (ticked) snoozes it on save.
+  const back = document.getElementById('notes-back-row');
+  if (back) back.hidden = !(from === 'followup' && p.status === PS.SENT);
+  const tick = document.getElementById('notes-back') as HTMLInputElement | null; if (tick) tick.checked = true;
+  const n = document.getElementById('notes-back-days') as HTMLInputElement | null; if (n) n.value = '7';
   const clientEl = document.getElementById('notes-client'); if (clientEl) clientEl.textContent = `${p.client} — ${p.type} (SL# ${p.id})`;
   const inputEl = document.getElementById('notes-input') as HTMLTextAreaElement | null; if (inputEl) inputEl.value = '';
   renderActivityNotesList(p);
@@ -276,6 +289,12 @@ export function addNote(): void {
   if (!p) return;
   if (!p.notes) p.notes = [];
   p.notes.push({ id: Date.now(), date: today(), text });
+  const back = document.getElementById('notes-back-row');
+  if (back && !back.hidden && (document.getElementById('notes-back') as HTMLInputElement | null)?.checked) {
+    p.snoozedUntil = backInDays(today(), Number((document.getElementById('notes-back-days') as HTMLInputElement | null)?.value));
+    back.hidden = true;
+    toast(`Back on Follow-up on ${fmtDate(p.snoozedUntil)}`);
+  }
   if (input) input.value = '';
   persistProposals();
   renderActivityNotesList(p);

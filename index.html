@@ -2202,6 +2202,8 @@
     <div class="fgrp">
       <label class="flbl">Add New Note</label>
       <textarea class="finp" id="notes-input" rows="2" placeholder="Log a call, email, meeting outcome…"></textarea>
+      <!-- From Follow-up, for a sent proposal: it leaves the list and comes back by itself. -->
+      <label class="check-label notes-back" id="notes-back-row" hidden><input type="checkbox" id="notes-back" checked> Back in <input class="finp notes-back-days" type="number" id="notes-back-days" min="1" max="60" value="7" aria-label="Days"> days</label>
     </div>
     <div class="fact">
       <button class="btn-secondary" onclick="closeNotesModal()">Close</button>

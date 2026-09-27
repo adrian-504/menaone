@@ -24,6 +24,8 @@ const VIEWS = [
   ['Companies', "switchTab('companies')", { filters: 3 }],
   ['Contacts', "switchTab('contacts')", { filters: 3 }],
   ['Opportunities', "switchTab('opportunities')", { filters: 3 }],
+  ['Pending', "switchTab('pending')", { filters: 3 }],
+  ['Follow-up', "switchTab('followup')", {}],
   ['Proposals', "switchTab('database')", { filters: 3 }],
   ['Agreements', "switchTab('agreements')", { filters: 3 }],
   ['Services', "navToModule('pricing')", {}],
