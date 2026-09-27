@@ -315,6 +315,11 @@ pub struct NewCommitment {
     /// instead of a task.
     #[serde(default)]
     pub proposal: bool,
+    /// The keys of every line in the source as it stands now. A proposal request
+    /// whose promise line is no longer among them was edited: the edited line
+    /// joins that request instead of starting another one.
+    #[serde(default)]
+    pub live_keys: Vec<String>,
 }
 
 /// What `add_commitments` created: the new commitments and their tasks.
@@ -334,6 +339,8 @@ pub fn add_commitments_in(tx: &Connection, items: &[NewCommitment]) -> rusqlite:
     let now = crate::commands::now_iso();
     let today = chrono_today(tx)?;
     let mut out = AddedCommitments::default();
+    // Requests an edited line has already joined in this batch.
+    let mut claimed: Vec<i64> = Vec::new();
     for n in items {
         let text = n.text.trim();
         if text.is_empty() || !matches!(n.direction.as_str(), "ours" | "theirs") { continue; }
@@ -351,7 +358,12 @@ pub fn add_commitments_in(tx: &Connection, items: &[NewCommitment]) -> rusqlite:
         // A promise to send a proposal, with a company: the proposal is the work, not a task.
         if n.proposal && n.direction == "ours" && !n.kept {
             if let Some(cid) = n.company_id {
-                if let Some(p) = create_proposal_request(tx, cid, text, n.due_date.as_deref(), n.meeting_id, &today)? {
+                let edited = edited_request(tx, n, cid, &claimed)?;
+                let request = match edited {
+                    Some(pid) => { claimed.push(pid); update_request(tx, pid, text, n.due_date.as_deref())? }
+                    None => create_proposal_request(tx, cid, text, n.due_date.as_deref(), n.meeting_id, &today)?,
+                };
+                if let Some(p) = request {
                     tx.execute("UPDATE commitments SET proposal_id = ?2 WHERE id = ?1", params![id, p.id])?;
                     out.proposals.push(p);
                     crate::v2_search::reindex_commitment(tx, id)?;
@@ -412,6 +424,42 @@ pub fn services_named_in(conn: &Connection, text: &str) -> rusqlite::Result<Vec<
     }
     found.sort();
     Ok(found.into_iter().map(|(_, n)| n).collect())
+}
+
+/// The request an edited promise line belongs to: from the same meeting or note,
+/// for the same company, still a request or a draft, whose own line is no longer
+/// in the source. None for quick capture and hand-written promises.
+fn edited_request(tx: &Connection, n: &NewCommitment, company: i64, claimed: &[i64]) -> rusqlite::Result<Option<i64>> {
+    let Some(source) = n.source_id else { return Ok(None) };
+    if !matches!(n.source_type.as_str(), "meeting" | "note") { return Ok(None); }
+    let mut stmt = tx.prepare(
+        "SELECT c.proposal_id, c.source_key FROM commitments c JOIN proposals p ON p.id = c.proposal_id
+         WHERE c.source_type = ?1 AND c.source_id = ?2 AND p.company_id = ?3
+           AND p.status IN ('Proposal Request Received', 'Drafting')
+         ORDER BY c.id DESC",
+    )?;
+    let rows: Vec<(i64, Option<String>)> = stmt.query_map(params![n.source_type, source, company], |r| Ok((r.get(0)?, r.get(1)?)))?.collect::<rusqlite::Result<_>>()?;
+    // A request is still in use when any of its lines is live.
+    let live = |pid: i64| rows.iter().any(|(p, k)| *p == pid && k.as_deref().is_some_and(|k| n.live_keys.iter().any(|l| l == k)));
+    Ok(rows.iter().map(|(p, _)| *p).find(|pid| !claimed.contains(pid) && !live(*pid)))
+}
+
+/// An edited line's new date and services on its request.
+fn update_request(tx: &Connection, id: i64, text: &str, promised_by: Option<&str>) -> rusqlite::Result<Option<crate::models::Proposal>> {
+    let Some(mut p) = crate::commands::read_proposals(tx)?.into_iter().find(|x| x.id == id) else { return Ok(None) };
+    if let Some(d) = promised_by { p.promised_by = Some(d.to_string()); }
+    let services = services_named_in(tx, text)?;
+    if !services.is_empty() && p.lines.is_empty() { p.r#type = Some(services.join(", ")); }
+    crate::commands::upsert_proposal_rows_in(tx, std::slice::from_ref(&p))?;
+    // With lines the type follows them; services the edit names that have no line
+    // yet are added to the type, and the app gives each its line (addNamedServiceLines).
+    let have: Vec<String> = p.lines.iter().map(|l| l.service_name.clone()).collect();
+    let new: Vec<String> = services.into_iter().filter(|s| !have.contains(s)).collect();
+    if !have.is_empty() && !new.is_empty() {
+        let names: Vec<String> = have.into_iter().chain(new).collect();
+        tx.execute("UPDATE proposals SET type = ?2 WHERE id = ?1", params![id, names.join(", ")])?;
+    }
+    Ok(crate::commands::read_proposals(tx)?.into_iter().find(|x| x.id == id))
 }
 
 /// A proposal request for `company`, as the create form would make one with its

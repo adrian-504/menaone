@@ -2,7 +2,7 @@
 // promises to send a proposal, and the promised-by date.
 import { describe, expect, it } from 'vitest';
 import { blockSummary, blocksToSave, emptyBlock, proposalsFromBlocks, type ProposalBlock, type SharedProposalFields } from './proposalBlocks';
-import { isProposalCommitment, parseCommitmentLines } from './commitments';
+import { isProposalCommitment, parseCommitmentLines, stripCompanyToken } from './commitments';
 import { groupRequestedTogether } from './companyRecords';
 import { buildAttention, buildComingUp, promisedRank, requestGroupReason, type MyDayInput } from './myday';
 import { threadStand } from './companyBrief';
@@ -159,5 +159,14 @@ describe('the engagement thread says when a request was promised', () => {
     expect(threadStand(engagementThread({ kind: 'proposal', id: 1 }, data, '2026-09-27'))).toBe('proposal at proposal request received, promised by 2 Oct');
     const sent = { ...data, proposals: [proposal({ id: 1, status: 'Sent to Client', promisedBy: '2026-10-02' })] };
     expect(threadStand(engagementThread({ kind: 'proposal', id: 1 }, sent, '2026-09-27'))).not.toContain('promised');
+  });
+});
+
+describe('quick capture: the company token comes out whole', () => {
+  it('removes "@" and the matched company\'s full name, any case', () => {
+    expect(stripCompanyToken('Proposal for Accountancy @Acme Holdings by Thursday', 'Acme Holdings', '@Acme')).toBe('Proposal for Accountancy by Thursday');
+    expect(stripCompanyToken('>> Proposal for Accountancy ＠acme  holdings by Thursday', 'Acme Holdings', '＠acme')).toBe('>> Proposal for Accountancy by Thursday');
+    expect(stripCompanyToken('Send the deck @Acme', 'Acme Holdings', '@Acme')).toBe('Send the deck');
+    expect(stripCompanyToken('Call @Acme Holdingsx today', 'Acme Holdings', '@Acme')).toBe('Call Holdingsx today');
   });
 });

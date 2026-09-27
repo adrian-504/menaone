@@ -1091,6 +1091,8 @@ function renderBlocks(): void {
     <button type="button" class="rlink prb-block-remove" onclick="prbRemoveBlock(${i})">Remove</button></div>`;
   before.innerHTML = blocks.slice(0, activeBlock).map((b, i) => line(b, i)).join('');
   after.innerHTML = blocks.slice(activeBlock + 1).map((b, i) => line(b, activeBlock + 1 + i)).join('');
+  const sub = document.getElementById('prb-subtitle');
+  if (sub) sub.textContent = blocks.length < 2 ? 'One proposal, with a line for each service.' : `${blocks.length} proposals for one client, each its own document.`;
   hd.hidden = blocks.length < 2;
   hd.innerHTML = blocks.length < 2 ? '' : `<span>Proposal ${activeBlock + 1}</span><button type="button" class="rlink prb-block-remove" onclick="prbRemoveBlock(${activeBlock})">Remove</button>`;
 }

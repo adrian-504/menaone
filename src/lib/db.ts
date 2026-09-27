@@ -37,6 +37,8 @@ export interface NewCommitment {
   sourceType: 'meeting' | 'note' | 'capture' | 'manual'; sourceId?: number | null; sourceKey?: string | null;
   /** A promise to send a proposal: with a company, a proposal request instead of a task. */
   proposal?: boolean;
+  /** Keys of every line in the source now: a request whose line is gone was edited. */
+  liveKeys?: string[];
 }
 export async function commitmentsAdd(items: NewCommitment[]): Promise<{ commitments: Commitment[]; tasks: Todo[]; proposals: Proposal[] }> {
   const r = await invoke<{ commitments: Commitment[]; tasks: Todo[]; proposals?: Proposal[] } | null>('commitments_add', { items });

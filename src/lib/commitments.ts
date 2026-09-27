@@ -103,6 +103,16 @@ export function isProposalCommitment(text: string): boolean {
   return /^(send|prepare|draft)?\s*(a |the )?proposal\b/i.test(t) || /^proposals?\s+for\b/i.test(t);
 }
 
+/** Quick capture's "@Company" comes out of the promise text whole: the matched
+ * company's full name after the @ (any case, any spacing), else just the token
+ * as typed. Spaces left behind collapse to one. */
+export function stripCompanyToken(raw: string, companyName: string | null | undefined, tokenText: string): string {
+  const words = (companyName || '').trim().split(/\s+/).filter(Boolean).map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  const full = words.length ? new RegExp(`[@＠]${words.join('\\s+')}(?![\\p{L}\\p{N}])`, 'iu') : null;
+  const out = full && full.test(raw) ? raw.replace(full, ' ') : raw.replace(tokenText, ' ');
+  return out.replace(/[ \t]{2,}/g, ' ').replace(/\s+$/, '');
+}
+
 /** Whether a line starts with a commitment marker (after list/checkbox markers). */
 export function isCommitmentLine(line: string): boolean {
   return LINE.test(line) && !!LINE.exec(line)![3];

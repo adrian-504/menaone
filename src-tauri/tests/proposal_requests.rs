@@ -200,3 +200,62 @@ fn saving_a_promise_from_the_app_keeps_its_proposal() {
     let back = read_commitments(&conn).unwrap().into_iter().find(|c| c.id == cm).unwrap();
     assert_eq!(back.proposal_id, Some(p));
 }
+
+fn live(n: NewCommitment, keys: &[&str]) -> NewCommitment {
+    NewCommitment { live_keys: keys.iter().map(|k| k.to_string()).collect(), ..n }
+}
+
+#[test]
+fn an_edited_line_joins_its_request_instead_of_starting_another() {
+    let mut conn = fresh_db("edited");
+    let s = setup(&mut conn);
+    let first = add_commitments(&mut conn, &[live(promise("Proposal for Payroll", Some(s.company), 20), &["proposal for payroll"])]).unwrap();
+    let pid = first.proposals[0].id;
+    // The meeting is saved again with the line edited: a new source key, the old line gone.
+    let edited = NewCommitment { due_date: Some("2026-10-05".into()), ..promise("Proposal for Payroll and Recruitment", Some(s.company), 20) };
+    let second = add_commitments(&mut conn, &[live(edited, &["proposal for payroll and recruitment"])]).unwrap();
+    assert_eq!(second.proposals.len(), 1);
+    assert_eq!(second.proposals[0].id, pid, "the same request");
+    assert_eq!(second.proposals[0].promised_by.as_deref(), Some("2026-10-05"));
+    assert_eq!(second.proposals[0].r#type.as_deref(), Some("Payroll, Recruitment"));
+    let proposals: i64 = one(&conn, "SELECT COUNT(*) FROM proposals");
+    assert_eq!(proposals, 1, "no second SL#");
+    let pointing: i64 = conn.query_row("SELECT COUNT(*) FROM commitments WHERE proposal_id = ?1", params![pid], |r| r.get(0)).unwrap();
+    assert_eq!(pointing, 2, "both promises point at it");
+    assert_eq!(one::<i64>(&conn, "SELECT COUNT(*) FROM todos"), 0);
+}
+
+#[test]
+fn a_second_different_proposal_line_is_its_own_request() {
+    let mut conn = fresh_db("second_line");
+    let s = setup(&mut conn);
+    add_commitments(&mut conn, &[live(promise("Proposal for Payroll", Some(s.company), 21), &["proposal for payroll"])]).unwrap();
+    // A new line under the first, which is still there.
+    let second = add_commitments(&mut conn, &[live(promise("Proposal for Recruitment", Some(s.company), 21), &["proposal for payroll", "proposal for recruitment"])]).unwrap();
+    assert_eq!(one::<i64>(&conn, "SELECT COUNT(*) FROM proposals"), 2);
+    assert_eq!(second.proposals[0].r#type.as_deref(), Some("Recruitment"));
+}
+
+#[test]
+fn an_edit_does_not_reopen_a_request_already_sent() {
+    let mut conn = fresh_db("sent_edit");
+    let s = setup(&mut conn);
+    let first = add_commitments(&mut conn, &[live(promise("Proposal for Payroll", Some(s.company), 22), &["proposal for payroll"])]).unwrap();
+    set_status(&mut conn, first.proposals[0].id, "Sent to Client");
+    add_commitments(&mut conn, &[live(promise("Proposal for Payroll v2", Some(s.company), 22), &["proposal for payroll v2"])]).unwrap();
+    assert_eq!(one::<i64>(&conn, "SELECT COUNT(*) FROM proposals"), 2, "a sent proposal isn't reused");
+}
+
+#[test]
+fn an_edit_naming_a_new_service_adds_it_to_the_type_when_the_request_has_lines() {
+    use menabig_tracker_lib::models::CommercialLine;
+    let mut conn = fresh_db("edit_lines");
+    let s = setup(&mut conn);
+    let first = add_commitments(&mut conn, &[live(promise("Proposal for Payroll", Some(s.company), 23), &["proposal for payroll"])]).unwrap();
+    // The app gives the named service its line.
+    let mut p = first.proposals[0].clone();
+    p.lines = vec![CommercialLine { service_name: "Payroll".into(), billing: "monthly".into(), quantity: 1.0, unit_price: Some(1250.0), ..Default::default() }];
+    upsert_proposal_rows(&mut conn, &[p.clone()]).unwrap();
+    let second = add_commitments(&mut conn, &[live(promise("Proposal for Payroll and Recruitment", Some(s.company), 23), &["proposal for payroll and recruitment"])]).unwrap();
+    assert_eq!(second.proposals[0].r#type.as_deref(), Some("Payroll, Recruitment"), "the app adds the Recruitment line from here");
+}
