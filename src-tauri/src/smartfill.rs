@@ -701,7 +701,10 @@ fn repoint_scope_pages(pkg: &mut Package, slides: &[SlidePart]) -> (Option<Strin
     if !texts.iter().flatten().any(|t| reference.is_match(t)) {
         return (None, None);
     }
-    let page_of = |name: &str| texts.iter().position(|t| t.iter().any(|p| p.trim() == name)).map(|i| slides[i].position);
+    // Only approach slides (first line "Detailed Approach", as `classify` reads them) are targets.
+    let page_of = |name: &str| {
+        texts.iter().position(|t| t.first().map(|f| f.trim().starts_with("Detailed Approach")).unwrap_or(false) && t.iter().any(|p| p.trim() == name)).map(|i| slides[i].position)
+    };
     let (setup, maintenance) = (page_of("Business Setup Scope"), page_of("Company Maintenance Scope"));
     let mut changed = 0;
     let mut missing = false;
@@ -795,7 +798,7 @@ mod tests {
     #[test]
     fn scope_page_references_follow_the_slides() {
         let slide = |texts: &[&str]| format!("<p:sld><p:cSld><p:spTree><p:sp><p:txBody>{}</p:txBody></p:sp></p:spTree></p:cSld></p:sld>", texts.iter().map(|t| format!("<a:p><a:r><a:t>{t}</a:t></a:r></a:p>")).collect::<String>());
-        let slides = [slide(&["Detailed Approach", "Other Service"]), slide(&["Detailed Approach", "Business Setup Scope"]), slide(&["Detailed Approach", "Company Maintenance Scope"]),
+        let slides = [slide(&["AGENDA", "Business Setup Scope", "Company Maintenance Scope"]), slide(&["Detailed Approach", "Business Setup Scope"]), slide(&["Detailed Approach", "Company Maintenance Scope"]),
                       slide(&["Complete package: Business Setup Scope (p. 6) &amp; Company Maintenance Scope (p. 7)", "Company Maintenance (p. 7) can be added later"])];
         let mut parts = crate::pptx::Parts::new();
         let ids: String = (0..slides.len()).map(|i| format!(r#"<p:sldId id="{}" r:id="rId{}"/>"#, 256 + i, i + 2)).collect();
