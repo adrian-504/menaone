@@ -44,9 +44,11 @@ export function needsFollowUp(p: Proposal): boolean {
   return !!t && t.days > FOLLOW_UP_AFTER_DAYS;
 }
 
+/** Sent proposals put aside until a date — including ones just logged, whose
+ * note alone would keep them off the list for ten days: they show when they're back. */
 export function getSnoozed(): Proposal[] {
   return S.proposals
-    .filter((p) => needsFollowUp(p) && matchesProposalPeriod(p) && isSnoozed(p))
+    .filter((p) => !p.archived && p.status === PS.SENT && isSnoozed(p) && matchesProposalPeriod(p))
     .sort((a, b) => (a.snoozedUntil || '').localeCompare(b.snoozedUntil || ''));
 }
 
