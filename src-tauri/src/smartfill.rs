@@ -102,9 +102,17 @@ fn rewrite_paragraphs_in_box(xml: &str, box_width: Option<i64>, mut edit: impl F
         }
         changed += 1;
         let mut rebuilt = para.clone();
-        for (k, (s, e, _)) in spans.iter().enumerate().rev() {
-            let text = if k == 0 { escape(&new_text) } else { String::new() };
-            rebuilt.replace_range(*s..*e, &text);
+        // An edit inside one run changes only that run, so a paragraph that mixes a small label
+        // and a large price, or a bold lead-in and plain text, keeps its formatting.
+        let runs: Vec<&str> = spans.iter().map(|s| s.2.as_str()).collect();
+        if let Some((k, text)) = single_run_edit(&runs, &new_text) {
+            let (s, e, _) = &spans[k];
+            rebuilt.replace_range(*s..*e, &escape(&text));
+        } else {
+            for (k, (s, e, _)) in spans.iter().enumerate().rev() {
+                let text = if k == 0 { escape(&new_text) } else { String::new() };
+                rebuilt.replace_range(*s..*e, &text);
+            }
         }
         let rebuilt = crate::pptx::clear_highlight(&rebuilt);
         match box_width {
@@ -113,6 +121,29 @@ fn rewrite_paragraphs_in_box(xml: &str, box_width: Option<i64>, mut edit: impl F
         }
     });
     (out.to_string(), changed)
+}
+
+/// When `new_text` differs from the runs joined together only inside one run,
+/// that run's index and its new text.
+fn single_run_edit(runs: &[&str], new_text: &str) -> Option<(usize, String)> {
+    let old: Vec<char> = runs.concat().chars().collect();
+    let new: Vec<char> = new_text.chars().collect();
+    let prefix = old.iter().zip(&new).take_while(|(a, b)| a == b).count();
+    let room = old.len().min(new.len()) - prefix;
+    let suffix = old.iter().rev().zip(new.iter().rev()).take(room).take_while(|(a, b)| a == b).count();
+    let (from, to) = (prefix, old.len() - suffix);
+    let mut start = 0;
+    for (k, run) in runs.iter().enumerate() {
+        let chars: Vec<char> = run.chars().collect();
+        let end = start + chars.len();
+        if from >= start && to <= end {
+            let middle: String = new[from..new.len() - suffix].iter().collect();
+            let text = chars[..from - start].iter().collect::<String>() + &middle + &chars[to - start..].iter().collect::<String>();
+            return Some((k, text));
+        }
+        start = end;
+    }
+    None
 }
 
 /// A short line that grew (a long client name where "'Client Name'" was, a
@@ -573,6 +604,10 @@ pub fn apply(pkg: &mut Package, input: SmartInput) -> SmartReport {
     if let Some(msg) = recount_agenda(pkg, &slides) {
         report.filled.push(msg);
     }
+    // "Business Setup Scope (p. 6)": page references follow where the scope slides ended up.
+    let (msg, check) = repoint_scope_pages(pkg, &slides);
+    report.filled.extend(msg);
+    report.checks.extend(check);
 
     if client_count > 0 { report.filled.insert(0, format!("Client name in {client_count} place{}", if client_count == 1 { "" } else { "s" })); }
     if date_slides > 0 { report.filled.push(format!("Date on {date_slides} slide{}", if date_slides == 1 { "" } else { "s" })); }
@@ -655,6 +690,39 @@ fn recount_agenda(pkg: &mut Package, slides: &[SlidePart]) -> Option<String> {
     (changed > 0).then(|| "Agenda page numbers recounted".to_string())
 }
 
+/// The Business Setup and Maintenance Package's fee slide points at its scope slides by name and
+/// page ("Business Setup Scope (p. 6) & Company Maintenance Scope (p. 7)"); those pages move when
+/// the package is combined with other services, so they are recounted from the slide subtitled
+/// with that name. "Company Maintenance (p. 7)" points at the Company Maintenance Scope slide.
+fn repoint_scope_pages(pkg: &mut Package, slides: &[SlidePart]) -> (Option<String>, Option<String>) {
+    static REF: OnceLock<Regex> = OnceLock::new();
+    let reference = re(r"(Business Setup Scope|Company Maintenance Scope|Company Maintenance) \(p\. (\d+)\)", &REF);
+    let texts: Vec<Vec<String>> = slides.iter().map(|s| paragraph_texts(&pkg.text_of(&s.part))).collect();
+    if !texts.iter().flatten().any(|t| reference.is_match(t)) {
+        return (None, None);
+    }
+    let page_of = |name: &str| texts.iter().position(|t| t.iter().any(|p| p.trim() == name)).map(|i| slides[i].position);
+    let (setup, maintenance) = (page_of("Business Setup Scope"), page_of("Company Maintenance Scope"));
+    let mut changed = 0;
+    let mut missing = false;
+    for s in slides {
+        let xml = pkg.text_of(&s.part);
+        let (new_xml, n) = rewrite_paragraphs(&xml, |_, t| {
+            if !reference.is_match(t) { return None; }
+            Some(reference.replace_all(t, |c: &regex::Captures| {
+                let page = if &c[1] == "Business Setup Scope" { setup } else { maintenance };
+                match page {
+                    Some(p) => format!("{} (p. {p})", &c[1]),
+                    None => { missing = true; c[0].to_string() }
+                }
+            }).to_string())
+        });
+        if n > 0 { changed += n; pkg.set_text(&s.part, new_xml); }
+    }
+    let check = missing.then(|| "The fee slide refers to a scope slide that isn't in this deck — check its page references".to_string());
+    ((changed > 0).then(|| "Scope page references recounted".to_string()), check)
+}
+
 /// What the automatic fields would change on a slide, for the template screen.
 pub fn detect_slide(xml: &str) -> Vec<String> {
     let texts = paragraph_texts(xml);
@@ -713,6 +781,34 @@ mod tests {
         assert!(!narrow.contains(r#"sz="3200""#), "{narrow}");
         let (wide, _) = rewrite_shapes(&shape(11_000_000), edit);
         assert!(wide.contains(r#"sz="3200""#), "{wide}");
+    }
+
+    #[test]
+    fn edits_inside_one_run_keep_the_other_runs() {
+        let xml = r#"<a:p><a:r><a:rPr sz="1100" b="1"/><a:t>Option B: </a:t></a:r><a:r><a:rPr sz="1100"/><a:t>fixed period of twelve (12) months</a:t></a:r></a:p>"#;
+        let (out, n) = rewrite_paragraphs(xml, |_, t| Some(t.replace("twelve (12)", "six (6)")));
+        assert_eq!(n, 1);
+        assert!(out.contains(r#"b="1"/><a:t>Option B: </a:t>"#) && out.contains("<a:t>fixed period of six (6) months</a:t>"), "{out}");
+        assert_eq!(single_run_edit(&["a", "b"], "xy"), None, "a change across runs falls back to the first run");
+    }
+
+    #[test]
+    fn scope_page_references_follow_the_slides() {
+        let slide = |texts: &[&str]| format!("<p:sld><p:cSld><p:spTree><p:sp><p:txBody>{}</p:txBody></p:sp></p:spTree></p:cSld></p:sld>", texts.iter().map(|t| format!("<a:p><a:r><a:t>{t}</a:t></a:r></a:p>")).collect::<String>());
+        let slides = [slide(&["Detailed Approach", "Other Service"]), slide(&["Detailed Approach", "Business Setup Scope"]), slide(&["Detailed Approach", "Company Maintenance Scope"]),
+                      slide(&["Complete package: Business Setup Scope (p. 6) &amp; Company Maintenance Scope (p. 7)", "Company Maintenance (p. 7) can be added later"])];
+        let mut parts = crate::pptx::Parts::new();
+        let ids: String = (0..slides.len()).map(|i| format!(r#"<p:sldId id="{}" r:id="rId{}"/>"#, 256 + i, i + 2)).collect();
+        let rels: String = (0..slides.len()).map(|i| format!(r#"<Relationship Id="rId{}" Type="x/slide" Target="slides/slide{}.xml"/>"#, i + 2, i + 1)).collect();
+        parts.insert("ppt/presentation.xml".into(), format!("<p:presentation><p:sldIdLst>{ids}</p:sldIdLst></p:presentation>").into_bytes());
+        parts.insert("ppt/_rels/presentation.xml.rels".into(), format!("<Relationships>{rels}</Relationships>").into_bytes());
+        for (i, s) in slides.iter().enumerate() { parts.insert(format!("ppt/slides/slide{}.xml", i + 1), s.clone().into_bytes()); }
+        let mut pkg = crate::pptx::Package { order: parts.keys().cloned().collect(), parts };
+        let kept = kept_slides(&pkg);
+        let (msg, check) = repoint_scope_pages(&mut pkg, &kept);
+        assert!(msg.is_some() && check.is_none());
+        let fee = paragraph_texts(&pkg.text_of("ppt/slides/slide4.xml"));
+        assert_eq!(fee, vec!["Complete package: Business Setup Scope (p. 2) & Company Maintenance Scope (p. 3)", "Company Maintenance (p. 3) can be added later"]);
     }
 
     #[test]

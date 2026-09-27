@@ -113,9 +113,9 @@ fn terms_stay_in_their_own_deck() {
     let only_in: &[(&str, &[&str])] = &[
         ("saudization", &["Labor Law", "Workforce", "All Services"]),
         // Owner decision 22-Sep-2026: GM Representative carries the Business Setup penalties.
-        ("constitution of the ksa entity", &["Company Constitution", "Business_Setup_Package", "GM Representative"]),
-        ("15,000 sar", &["Company Constitution", "Business_Setup_Package", "GM Representative"]),
-        ("40,000 sar", &["Company Constitution", "Business_Setup_Package", "GM Representative"]),
+        ("constitution of the ksa entity", &["Company Constitution", "Business_Setup_Package", "Business Setup and Maintenance", "GM Representative"]),
+        ("15,000 sar", &["Company Constitution", "Business_Setup_Package", "Business Setup and Maintenance", "GM Representative"]),
+        ("40,000 sar", &["Company Constitution", "Business_Setup_Package", "Business Setup and Maintenance", "GM Representative"]),
         ("probation", &["Recruitment", "Workforce", "Labor Law"]),
         ("replace the candidate", &["Recruitment", "Workforce"]),
     ];
@@ -287,6 +287,7 @@ fn mixed_proposal_is_consistent() {
         (990061, "admin_payroll", vec![line(990061, "Administration and PRO", 4000.0), line(990062, "Payroll", 1500.0)]),
         (990071, "setup_maint", vec![line(990071, "Business Setup", 55000.0), line(990072, "Company Maintenance", 3000.0)]),
         (990081, "package", vec![line(990081, "Business Setup and Maintenance Package", 8000.0)]),
+        (990091, "admin_package", vec![line(990091, "Administration and PRO", 4000.0), line(990092, "Business Setup and Maintenance Package", 7000.0)]),
     ];
     let rows: Vec<Proposal> = cases.iter().map(|(id, _, lines)| Proposal { id: *id, client: "Acme Test Co".into(), status: "Proposal Request Received".into(), currency: Some("SAR".into()), lines: lines.clone(), ..Default::default() }).collect();
     upsert_proposal_rows(&mut conn, &rows).unwrap();
@@ -317,6 +318,12 @@ fn mixed_proposal_is_consistent() {
             for p in s.iter().filter(|p| p.len() > 60 && !p.starts_with("Assumptions and Limitations") && !p.starts_with("Terms & Conditions")) {
                 if let Some(first) = seen.insert(p.to_lowercase(), i + 1) { problems.push(format!("{tag}: slide {} repeats slide {first}: {}", i + 1, p.chars().take(70).collect::<String>())); }
             }
+        }
+        // "Business Setup Scope (p. 6)": each page reference lands on the slide it names.
+        let reference = regex::Regex::new(r"(Business Setup Scope|Company Maintenance Scope|Company Maintenance) \(p\. (\d+)\)").unwrap();
+        for c in slides.iter().flatten().flat_map(|p| reference.captures_iter(p).map(|c| (c[1].to_string(), c[2].parse::<usize>().unwrap())).collect::<Vec<_>>()) {
+            let name = if c.0 == "Company Maintenance" { "Company Maintenance Scope".to_string() } else { c.0.clone() };
+            if !slides.get(c.1 - 1).map(|s| s.iter().any(|p| *p == name)).unwrap_or(false) { problems.push(format!("{tag}: \"{} (p. {})\" points at the wrong slide", c.0, c.1)); }
         }
         let acceptance = slides.iter().filter(|s| s.iter().any(|p| p.starts_with("We believe that this proposal"))).count();
         if acceptance != 1 { problems.push(format!("{tag}: {acceptance} acceptance slides")); }
@@ -378,12 +385,21 @@ fn mixed_proposal_is_consistent() {
         }
         // Business Setup + Company Maintenance: the maintenance scope and its fees are there.
         if *tag == "setup_maint" || (*tag == "package" && !master_mode) {
-            let scope = slides.iter().any(|s| (s.iter().any(|p| p.contains("Company Maintenance Services")) && s.iter().any(|p| p.eq_ignore_ascii_case("Main Tasks"))) || s.iter().any(|p| p == "What company maintenance covers"));
-            let fees = slides.iter().any(|s| s.iter().any(|p| p.starts_with("Value Based") || p.starts_with("Package Deal") || p.contains("Fee structure")) && s.iter().any(|p| p.to_lowercase().contains("maintenance")));
+            // The 27-Sep-2026 package deck has its own "Company Maintenance Scope" and "Fee Options" slides.
+            let scope = slides.iter().any(|s| (s.iter().any(|p| p.contains("Company Maintenance Services")) && s.iter().any(|p| p.eq_ignore_ascii_case("Main Tasks"))) || s.iter().any(|p| p == "What company maintenance covers" || p == "Company Maintenance Scope"));
+            let fees = slides.iter().any(|s| s.iter().any(|p| p.starts_with("Value Based") || p.starts_with("Package Deal") || p.contains("Fee structure") || p == "Fee Options") && s.iter().any(|p| p.to_lowercase().contains("maintenance")));
             if !scope { problems.push(format!("{tag}: no Company Maintenance approach slide")); }
             if !fees { problems.push(format!("{tag}: no Company Maintenance fee slide")); }
             // The package keeps its own price: no separate Company Maintenance fee breakdown.
             if *tag == "package" && slides.iter().any(|s| s.first().map(|f| f == "COMPANY MAINTENANCE").unwrap_or(false)) { problems.push("package: a separate Company Maintenance divider/fees came in".into()); }
+        }
+        // The package after another service still brings its own scope and fee slides, once.
+        if *tag == "admin_package" && !master_mode {
+            for want in ["Business Setup Scope", "Company Maintenance Scope", "Fee Options"] {
+                let n = slides.iter().filter(|s| s.iter().any(|p| p == want)).count();
+                if n != 1 { problems.push(format!("{tag}: {n} \"{want}\" slides")); }
+            }
+            if slides.iter().any(|s| s.iter().any(|p| p == "Company Maintenance Services") && s.iter().any(|p| p.eq_ignore_ascii_case("Main Tasks"))) { problems.push(format!("{tag}: the Company Maintenance deck's approach came in beside the package's own")); }
         }
         for left in leftover_placeholders(&path) { problems.push(format!("{tag}: placeholder left — {left}")); }
         if *tag == "eor" && slides.iter().flatten().any(|p| p.to_lowercase().contains("only if recruitment required")) { problems.push("eor: recruitment-only slide present".into()); }

@@ -769,6 +769,53 @@ pub fn price_sentences(xml: &str, position: usize, input: &SentenceInput) -> (St
         }
     }
 
+    // Business Setup and Maintenance Package, two-option fee slide (owner, 27 Sep 2026): Option A
+    // is the one-time setup; Option B is the monthly maintenance, with the setup's value shown
+    // struck through because it isn't billed on a 12-month term.
+    if x.contains("OPTION B") && x.contains("Company Maintenance:") {
+        if let Some(bs) = line_where(input.lines, |l| l.modules.contains(&"business_setup")) {
+            let setup = line_where(input.lines, |l| l.modules.contains(&"constitution") && l.unit_price.is_some()).and_then(|l| l.unit_price).or(input.standards.constitution);
+            let months = if input.months > 0 { input.months } else { 12 };
+            static MONTHLY: OnceLock<Regex> = OnceLock::new();
+            static TOTAL: OnceLock<Regex> = OnceLock::new();
+            static ONE_TIME: OnceLock<Regex> = OnceLock::new();
+            static STRUCK: OnceLock<Regex> = OnceLock::new();
+            let monthly = re(r"(?i)(company maintenance:\s*)([\d.,]+\s*SAR)", &MONTHLY);
+            let total = re(r"(?i)^(\s*)([\d.,]+\s*SAR)(\s+over\s+\d+\s+months?)", &TOTAL);
+            let one_time = re(r"(?i)^(\s*)([\d.,]+\s*SAR)(\s+one time)", &ONE_TIME);
+            let struck = re(r"(?i)(business setup:\s*)([\d.,]+\s*SAR)", &STRUCK);
+            let (y, n) = rewrite_paragraphs(&x, |_, t| {
+                if let Some(p) = bs.unit_price {
+                    if let Some(s) = money_in(t, p, input.currency, monthly) { return Some(s); }
+                    if let Some(s) = money_in(t, p * months as f64, input.currency, total) { return Some(s); }
+                }
+                let c = setup?;
+                money_in(t, c, input.currency, one_time).or_else(|| money_in(t, c, input.currency, struck))
+            });
+            x = y;
+            if n > 0 { out.filled.push(format!("Slide {position}: fee options filled")); }
+            if bs.unit_price.is_none() { out.checks.push(format!("Slide {position}: the package has no monthly price — Option B keeps the template's figure")); }
+            if setup.is_none() { out.checks.push(format!("Slide {position}: no Business Setup price — Option A keeps the template's figure")); }
+            // Under 12 months the setup is charged (owner's rule of 14 Sep 2026): no strikethrough.
+            if months < 12 {
+                static PARA: OnceLock<Regex> = OnceLock::new();
+                static STRIKE: OnceLock<Regex> = OnceLock::new();
+                let mut unstruck = 0;
+                x = re(r"(?s)<a:p>.*?</a:p>|<a:p\b[^/>]*>.*?</a:p>", &PARA).replace_all(&x, |c: &regex::Captures| {
+                    let p = &c[0];
+                    if !paragraph_texts(p).join(" ").contains("Business Setup:") { return p.to_string(); }
+                    // Charged, so no longer struck through or greyed out.
+                    let q = re(r#"\s*strike="[a-zA-Z]+""#, &STRIKE).replace_all(p, "").replace(r#"val="7F7F7F""#, r#"val="004C8E""#);
+                    if q != *p { unstruck += 1; }
+                    q
+                }).to_string();
+                if unstruck > 0 {
+                    out.checks.push(format!("Slide {position}: on a {months}-month term the setup is charged in Option B — say how it is paid"));
+                }
+            }
+        }
+    }
+
     // Business Setup offered on a term under 12 months: the constitution is no longer free.
     if input.months > 0 && input.months < 12 {
         if let Some(bs) = line_where(input.lines, |l| l.modules.contains(&"business_setup")) {
@@ -972,6 +1019,42 @@ mod tests {
         assert!(texts.contains(&"Save 27,000 SAR/year by opting for the package.".to_string()), "{texts:?}");
         assert_eq!(parse_amount("3.550 SAR"), Some(3550.0));
         assert!(texts.iter().any(|t| t.contains("monthly payments of 9,000 SAR")), "{texts:?}");
+    }
+
+    /// The package's two-option fee slide (27 Sep 2026): a small label run and a large price run.
+    fn fee_options_slide() -> String {
+        let p = |runs: &[(&str, &str)]| format!("<p:sp><p:txBody><a:p>{}</a:p></p:txBody></p:sp>", runs.iter().map(|(sz, t)| format!(r#"<a:r><a:rPr lang="en-US" sz="{sz}" b="1"/><a:t>{t}</a:t></a:r>"#)).collect::<String>());
+        let struck = r#"<p:sp><p:txBody><a:p><a:r><a:rPr sz="1100" b="1"/><a:t>Business Setup:  </a:t></a:r><a:r><a:rPr sz="1500" b="1" strike="sngStrike"/><a:t>55,000 SAR</a:t></a:r></a:p></p:txBody></p:sp>"#;
+        [p(&[("1000", "OPTION A")]), p(&[("2400", "55,000 SAR"), ("1100", "   one time")]), p(&[("1000", "OPTION B")]), struck.to_string(),
+         p(&[("1100", "Company Maintenance:  "), ("2400", "7,000 SAR / month")]), p(&[("1100", "84,000 SAR over 12 months")]),
+         p(&[("1100", "12 months minimum, starting from the date of signature of this proposal")])].concat()
+    }
+
+    #[test]
+    fn fills_the_package_fee_options_on_twelve_months() {
+        let lines = vec![SmartLine { service: "Business Setup and Maintenance Package".into(), modules: vec!["business_setup"], unit_price: Some(8000.0), ..Default::default() }];
+        let (out, o) = price_sentences(&fee_options_slide(), 10, &SentenceInput { lines: &lines, standards: &Standards { constitution: Some(55000.0), maintenance: None }, months: 12, currency: "SAR" });
+        let texts = paragraph_texts(&out);
+        assert!(texts.contains(&"Company Maintenance:  8,000 SAR / month".to_string()), "{texts:?}");
+        assert!(texts.contains(&"96,000 SAR over 12 months".to_string()), "{texts:?}");
+        assert!(texts.contains(&"55,000 SAR   one time".to_string()) && texts.contains(&"Business Setup:  55,000 SAR".to_string()), "{texts:?}");
+        // The price keeps its own large run; the setup stays struck through.
+        assert!(out.contains(r#"sz="2400" b="1"/><a:t>8,000 SAR / month</a:t>"#), "{out}");
+        assert!(out.contains("sngStrike") && o.checks.is_empty(), "{:?}", o.checks);
+    }
+
+    #[test]
+    fn package_fee_options_under_twelve_months_charge_the_setup() {
+        let lines = vec![
+            SmartLine { service: "Business Setup and Maintenance Package".into(), modules: vec!["business_setup"], unit_price: Some(7000.0), ..Default::default() },
+            SmartLine { service: "Business Setup".into(), modules: vec!["constitution"], unit_price: Some(50000.0), ..Default::default() },
+        ];
+        let (out, o) = price_sentences(&fee_options_slide(), 10, &SentenceInput { lines: &lines, standards: &Standards { constitution: Some(55000.0), maintenance: None }, months: 6, currency: "SAR" });
+        let texts = paragraph_texts(&out);
+        assert!(texts.contains(&"42,000 SAR over 12 months".to_string()), "total for the term, before the term rewrite: {texts:?}");
+        assert!(texts.contains(&"Business Setup:  50,000 SAR".to_string()) && texts.contains(&"50,000 SAR   one time".to_string()), "{texts:?}");
+        assert!(!out.contains("sngStrike"), "charged, so not struck through");
+        assert!(o.checks.iter().any(|c| c.contains("setup is charged")), "{:?}", o.checks);
     }
 
     #[test]
