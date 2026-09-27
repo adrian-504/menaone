@@ -1,3 +1,5 @@
+import { backInDays, lastTouch, FOLLOW_UP_AFTER_DAYS, WAIT_LONGER_DAYS, type LastTouch } from '../lib/followup';
+import { ownDomains } from '../lib/clientMatch';
 import { S } from '../lib/state';
 import { STATUSES, WIN_REASONS, LOSS_REASONS } from '../lib/constants';
 import { today, fmtDate, daysSince, daysUntil, escHtml, expose, showTextPrompt, showConfirm, localIsoDate } from '../lib/utils';
@@ -30,22 +32,30 @@ export function isSnoozed(p: Proposal): boolean {
   return new Date(p.snoozedUntil + 'T23:59:59') > new Date();
 }
 
-/** Sent to the client over 10 days ago with no answer yet. */
-export function needsFollowUp(p: Proposal): boolean {
-  const sent = p.dateSentToClient || p.sentDate;
-  return !p.archived && p.status === PS.SENT && !!sent && (daysSince(sent) || 0) > 10;
+/** A sent proposal's latest contact: its notes, the client's emails and meetings since it was sent (lib/followup.ts). */
+export function proposalLastTouch(p: Proposal): LastTouch | null {
+  return lastTouch(p, { emails: S.emails, meetings: S.meetings, today: today(), ownDomains: ownDomains() });
 }
 
+/** Sent to the client, and nothing with them for over 10 days. */
+export function needsFollowUp(p: Proposal): boolean {
+  if (p.archived || p.status !== PS.SENT) return false;
+  const t = proposalLastTouch(p);
+  return !!t && t.days > FOLLOW_UP_AFTER_DAYS;
+}
+
+/** Sent proposals put aside until a date — including ones just logged, whose
+ * note alone would keep them off the list for ten days: they show when they're back. */
 export function getSnoozed(): Proposal[] {
   return S.proposals
-    .filter((p) => needsFollowUp(p) && matchesProposalPeriod(p) && isSnoozed(p))
+    .filter((p) => !p.archived && p.status === PS.SENT && isSnoozed(p) && matchesProposalPeriod(p))
     .sort((a, b) => (a.snoozedUntil || '').localeCompare(b.snoozedUntil || ''));
 }
 
 export function getFollowups(): Proposal[] {
   return S.proposals
     .filter((p) => needsFollowUp(p) && !isSnoozed(p) && matchesProposalPeriod(p))
-    .sort((a, b) => (daysSince(b.dateSentToClient || b.sentDate) || 0) - (daysSince(a.dateSentToClient || a.sentDate) || 0));
+    .sort((a, b) => (proposalLastTouch(b)?.days ?? 0) - (proposalLastTouch(a)?.days ?? 0));
 }
 
 // ═══════════════ BADGE + ALERTS ═══════════════
@@ -248,10 +258,16 @@ expose('unarchiveProposal', unarchiveProposal);
 
 // ═══════════════ ACTIVITY LOG / NOTES MODAL ═══════════════
 
-export function openNotesModal(id: number): void {
+export function openNotesModal(id: number, from?: 'followup'): void {
   S.notesTargetId = id;
   const p = S.proposals.find((x) => x.id === id);
   if (!p) return;
+  // From Follow-up, for a sent proposal: the note is contact, so it's back in 10 days
+  // anyway; "Wait longer" (unticked by default) puts it aside for longer.
+  const back = document.getElementById('notes-back-row');
+  if (back) back.hidden = !(from === 'followup' && p.status === PS.SENT);
+  const tick = document.getElementById('notes-back') as HTMLInputElement | null; if (tick) tick.checked = false;
+  const n = document.getElementById('notes-back-days') as HTMLInputElement | null; if (n) n.value = String(WAIT_LONGER_DAYS);
   const clientEl = document.getElementById('notes-client'); if (clientEl) clientEl.textContent = `${p.client} — ${p.type} (SL# ${p.id})`;
   const inputEl = document.getElementById('notes-input') as HTMLTextAreaElement | null; if (inputEl) inputEl.value = '';
   renderActivityNotesList(p);
@@ -276,6 +292,16 @@ export function addNote(): void {
   if (!p) return;
   if (!p.notes) p.notes = [];
   p.notes.push({ id: Date.now(), date: today(), text });
+  const back = document.getElementById('notes-back-row');
+  if (back && !back.hidden) {
+    if ((document.getElementById('notes-back') as HTMLInputElement | null)?.checked) {
+      p.snoozedUntil = backInDays(today(), Number((document.getElementById('notes-back-days') as HTMLInputElement | null)?.value));
+      toast(`Back on Follow-up on ${fmtDate(p.snoozedUntil)}`);
+    } else {
+      toast(`Logged — back on Follow-up in ${FOLLOW_UP_AFTER_DAYS} days if nothing happens.`);
+    }
+    back.hidden = true;
+  }
   if (input) input.value = '';
   persistProposals();
   renderActivityNotesList(p);

@@ -13,6 +13,9 @@ import { join } from 'node:path';
 const URL = process.env.FOCUS_URL || 'http://localhost:1420/';
 const CHROME = process.env.CHROME || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 // [name, how to open it, targets]
+// A tab only renders when its module is loaded: tab modules register their
+// renderer as a side effect, so src/main.ts imports each one (import './tabs/x').
+// Removing a tab's last named import without that line leaves the tab empty.
 const VIEWS = [
   ['My Day', "switchTab('myday')", {}],
   ['Inbox', "switchTab('inbox')", {}],
@@ -24,6 +27,8 @@ const VIEWS = [
   ['Companies', "switchTab('companies')", { filters: 3 }],
   ['Contacts', "switchTab('contacts')", { filters: 3 }],
   ['Opportunities', "switchTab('opportunities')", { filters: 3 }],
+  ['Pending', "switchTab('pending')", { filters: 3 }],
+  ['Follow-up', "switchTab('followup')", {}],
   ['Proposals', "switchTab('database')", { filters: 3 }],
   ['Agreements', "switchTab('agreements')", { filters: 3 }],
   ['Services', "navToModule('pricing')", {}],

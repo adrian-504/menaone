@@ -5,7 +5,8 @@ import { companyLink } from '../lib/links';
 import { today, fmtDate, daysSince, daysUntil, escHtml, expose, showConfirm } from '../lib/utils';
 import { registerTabRenderer, refreshAll } from '../lib/registry';
 import { persistProposals } from '../lib/persist';
-import { getFollowups, getSnoozed } from '../core/proposals';
+import { getFollowups, getSnoozed, proposalLastTouch } from '../core/proposals';
+import { touchLabel } from '../lib/followup';
 import { fmtMoney, currencyOf } from '../lib/commercial';
 import { icon } from '../lib/icons';
 import type { Proposal } from '../lib/types';
@@ -39,7 +40,7 @@ export function renderFollowup(): void {
   let html = '';
 
   if (fu.length === 0) {
-    html = `<div class="sec">${emptyState({ icon: 'check', title: 'All clear', body: 'Every sent proposal has been updated within the last 10 days.' })}</div>`;
+    html = `<div class="sec">${emptyState({ icon: 'check', title: 'All clear', body: 'Every sent proposal has had contact within the last 10 days.' })}</div>`;
   } else {
     html = `<section class="sec pq-group"><div class="pq-list">${fu.map((p) => fuCard(p, false)).join('')}</div></section>`;
   }
@@ -75,27 +76,28 @@ export function renderFollowup(): void {
 }
 registerTabRenderer('followup', renderFollowup);
 
-/** A sent proposal waiting for an answer: how long, the last note, and the outcome buttons. */
+/** A sent proposal waiting for an answer: days since the last contact and what it
+ * was, the last note, and one action — Log follow-up (Won and Lost are in "…"). */
 export function fuCard(p: Proposal, isArchived: boolean): string {
   const sent = p.dateSentToClient || p.sentDate;
-  const days = daysSince(sent) || 0;
+  const touch = proposalLastTouch(p);
+  const days = touch?.days ?? (daysSince(sent) || 0);
   const tone = days > 30 ? 'age-urgent' : days > 20 ? 'age-late' : 'age-warn';
   const notes = p.notes || [];
   const latest = notes[notes.length - 1];
-  const meta = [`Sent ${fmtDate(sent)}`, `SL# ${p.id}`, p.owner ? escHtml(p.owner) : '', p.winLossReason ? `previously: ${escHtml(p.winLossReason)}` : ''].filter(Boolean).join('<span class="pq-sep">·</span>');
+  const contact = touch ? escHtml(touchLabel(touch, fmtDate(sent))).replace(' · ', '<span class="pq-sep">·</span>') : `Sent ${fmtDate(sent)}`;
+  const meta = [contact, `SL# ${p.id}`, p.owner ? escHtml(p.owner) : '', p.winLossReason ? `previously: ${escHtml(p.winLossReason)}` : ''].filter(Boolean).join('<span class="pq-sep">·</span>');
   return `<div class="pq-row${isArchived ? ' is-archived' : ''}" onclick="if(!event.target.closest('a,button'))openRecord('proposal', ${p.id})" oncontextmenu="pqMenu(event, ${p.id})">
-    <span class="pq-age ${isArchived ? '' : tone}" title="${days} days since it was sent">${days}<small>d</small></span>
+    <span class="pq-age ${isArchived ? '' : tone}" title="${days} days since the last contact">${days}<small>d</small></span>
     <div class="pq-main">
       <div class="pq-title">${companyLink(p.companyId, p.client)}<span class="pq-services">${escHtml(p.type || '')}</span></div>
       <div class="pq-meta">${meta}</div>
-      ${latest?.text ? `<button class="pq-note" onclick="openNotesModal(${p.id})" title="All notes">${icon('note', 11)} <strong>${fmtDate(latest.date)}</strong> ${escHtml(latest.text.length > 120 ? `${latest.text.slice(0, 120)}…` : latest.text)}</button>` : ''}
+      ${latest?.text ? `<button class="pq-note" onclick="openNotesModal(${p.id}${isArchived ? '' : ", 'followup'"})" title="All notes">${icon('note', 11)} <strong>${fmtDate(latest.date)}</strong> ${escHtml(latest.text.length > 120 ? `${latest.text.slice(0, 120)}…` : latest.text)}</button>` : ''}
     </div>
     ${p.monthlyFee ? `<span class="pq-fee">${fmtMoney(p.monthlyFee, currencyOf(p))}<small>/mo</small></span>` : '<span class="pq-fee"></span>'}
     <div class="pq-actions">
-      ${isArchived ? `<button class="btn-secondary btn-sm" onclick="unarchiveProposal(${p.id});renderFollowup()">Unarchive</button>` : `
-      <button class="btn-secondary btn-sm" onclick="openNotesModal(${p.id})" title="Log what the client said">Log follow-up</button>
-      <button class="btn-secondary btn-sm pq-won" onclick="openWlModal(${p.id},'won')" title="Signed by both parties">Won</button>
-      <button class="btn-secondary btn-sm pq-lost" onclick="openWlModal(${p.id},'lost')">Lost</button>`}
+      ${isArchived ? `<button class="btn-secondary btn-sm" onclick="unarchiveProposal(${p.id});renderFollowup()">Unarchive</button>`
+        : `<button class="btn-secondary btn-sm" onclick="openNotesModal(${p.id}, 'followup')" title="Log what the client said">Log follow-up</button>`}
       <button class="rec-icon-btn" onclick="pqMenu(event, ${p.id})" title="More" aria-label="More">${icon('more', 14)}</button>
     </div>
   </div>`;
