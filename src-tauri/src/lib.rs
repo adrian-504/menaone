@@ -32,6 +32,7 @@ pub mod weather;
 
 use db::DbState;
 use ms365::models::Ms365State;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use tauri::menu::{MenuBuilder, MenuItemBuilder, PredefinedMenuItem, SubmenuBuilder};
 use tauri::{Emitter, Manager};
@@ -387,6 +388,40 @@ pub fn run() {
             opportunities::delete_opportunity,
             opportunities::get_opportunity_activity,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        // macOS: the red button (and ⌘W) hides the window and the app keeps
+        // running, as Mac apps do; ⌘Q (or MENA One → Quit) quits. Clicking the
+        // Dock icon brings the window back.
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                if cfg!(target_os = "macos") && !QUITTING.load(Ordering::SeqCst) {
+                    api.prevent_close();
+                    let _ = window.hide();
+                }
+            }
+        })
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app, event| match event {
+            tauri::RunEvent::ExitRequested { .. } => QUITTING.store(true, Ordering::SeqCst),
+            #[cfg(target_os = "macos")]
+            tauri::RunEvent::Reopen { has_visible_windows, .. } => {
+                if !has_visible_windows {
+                    show_main_window(app);
+                }
+            }
+            _ => {}
+        });
+}
+
+/// Set once the app is really quitting (⌘Q), so closing windows no longer just hides them.
+static QUITTING: AtomicBool = AtomicBool::new(false);
+
+/// The main window back from hiding, in front.
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+fn show_main_window(app: &tauri::AppHandle) {
+    if let Some(w) = app.get_webview_window("main") {
+        let _ = w.show();
+        let _ = w.unminimize();
+        let _ = w.set_focus();
+    }
 }
