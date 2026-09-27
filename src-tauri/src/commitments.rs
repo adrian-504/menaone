@@ -365,6 +365,17 @@ pub fn add_commitments_in(tx: &Connection, items: &[NewCommitment]) -> rusqlite:
                 };
                 if let Some(p) = request {
                     tx.execute("UPDATE commitments SET proposal_id = ?2 WHERE id = ?1", params![id, p.id])?;
+                    // The line this one replaced: its promise is dropped as edited, so
+                    // only the current wording stays open on the request.
+                    if edited.is_some() {
+                        for old in superseded(tx, n, p.id, id)? {
+                            tx.execute(
+                                "UPDATE commitments SET status = 'dropped', drop_reason = 'edited', closed_at = ?2, updated_at = ?2 WHERE id = ?1",
+                                params![old, now],
+                            )?;
+                            if let Some(c) = get_commitment(tx, old)? { out.commitments.push(c); }
+                        }
+                    }
                     out.proposals.push(p);
                     crate::v2_search::reindex_commitment(tx, id)?;
                     if let Some(c) = get_commitment(tx, id)? { out.commitments.push(c); }
@@ -442,6 +453,17 @@ fn edited_request(tx: &Connection, n: &NewCommitment, company: i64, claimed: &[i
     // A request is still in use when any of its lines is live.
     let live = |pid: i64| rows.iter().any(|(p, k)| *p == pid && k.as_deref().is_some_and(|k| n.live_keys.iter().any(|l| l == k)));
     Ok(rows.iter().map(|(p, _)| *p).find(|pid| !claimed.contains(pid) && !live(*pid)))
+}
+
+/// Open promises on `proposal` from the same source whose lines are gone: the
+/// wording an edit replaced.
+fn superseded(tx: &Connection, n: &NewCommitment, proposal: i64, current: i64) -> rusqlite::Result<Vec<i64>> {
+    let Some(source) = n.source_id else { return Ok(vec![]) };
+    let rows: Vec<(i64, Option<String>)> = tx
+        .prepare("SELECT id, source_key FROM commitments WHERE proposal_id = ?1 AND source_type = ?2 AND source_id = ?3 AND status = 'open' AND id != ?4")?
+        .query_map(params![proposal, n.source_type, source, current], |r| Ok((r.get(0)?, r.get(1)?)))?
+        .collect::<rusqlite::Result<_>>()?;
+    Ok(rows.into_iter().filter(|(_, k)| !k.as_deref().is_some_and(|k| n.live_keys.iter().any(|l| l == k))).map(|(id, _)| id).collect())
 }
 
 /// An edited line's new date and services on its request.

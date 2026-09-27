@@ -60,7 +60,13 @@ export async function readCommitmentsFrom(sourceType: 'meeting' | 'note' | 'capt
 }
 
 function addToState(added: { commitments: Commitment[]; tasks: import('../lib/types').Todo[]; proposals?: import('../lib/types').Proposal[] }, opts: { announce?: boolean } = {}): AddedRecords {
-  for (const c of added.commitments) if (!S.commitments.some((x) => x.id === c.id)) S.commitments.push(c);
+  // New promises are added; ones the backend changed (a line an edit replaced, dropped as edited) are updated.
+  const commitments = added.commitments.map((c) => {
+    const existing = S.commitments.find((x) => x.id === c.id);
+    if (!existing) { S.commitments.push(c); return c; }
+    Object.assign(existing, c);
+    return existing;
+  });
   for (const t of added.tasks) if (!S.todos.some((x) => x.id === t.id)) S.todos.push(t);
   const proposals = added.proposals || [];
   const fresh = proposals.filter((p) => !S.proposals.some((x) => x.id === p.id));
@@ -70,7 +76,7 @@ function addToState(added: { commitments: Commitment[]; tasks: import('../lib/ty
     if (existing && !fresh.includes(p)) { existing.promisedBy = p.promisedBy ?? null; existing.type = p.type; }
   }
   S.proposals.push(...fresh);
-  markCommitmentsSaved(added.commitments, added.tasks, fresh);
+  markCommitmentsSaved(commitments, added.tasks, fresh);
   const records = proposals.map((p) => S.proposals.find((x) => x.id === p.id)!).filter(Boolean);
   // The services the line named become fee lines with the builder's defaults.
   if (records.some(addNamedServiceLines) || records.length > fresh.length) persistProposals();
@@ -81,7 +87,7 @@ function addToState(added: { commitments: Commitment[]; tasks: import('../lib/ty
   }
   if (added.tasks.length || proposals.length) refreshBadges();
   if (added.commitments.length) refreshCommitmentViews();
-  return { commitments: added.commitments, tasks: added.tasks, proposals: records };
+  return { commitments, tasks: added.tasks, proposals: records };
 }
 
 /** Adds a line (the create form's defaults: rate card rows and standard price)

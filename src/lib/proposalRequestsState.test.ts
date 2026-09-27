@@ -73,17 +73,22 @@ describe('a proposal request from a >> line', () => {
     expect(added.proposals[0].id).toBe(31);
   });
 
-  it('an edited line that joined its request brings the new date and services', async () => {
+  it('an edited line that joined its request brings the new date and services, and the old promise is dropped', async () => {
     S.proposals = [request({ lines: [] })];
+    S.commitments = [promise()];
     markLoadedAsSaved();
     // Existing request with a Payroll line already; the edit names Recruitment too.
     S.proposals[0].lines = [{ id: 1, serviceId: 1, serviceName: 'Payroll', description: null, billing: 'monthly', quantity: 1, unitPrice: 1250, commission: false, sortOrder: 0, rates: [], employeeCount: null }];
-    vi.mocked(db.commitmentsAdd).mockResolvedValue({ commitments: [promise({ id: 52, text: 'Proposal for Payroll and Recruitment', sourceKey: 'proposal for payroll and recruitment' })], tasks: [],
+    vi.mocked(db.commitmentsAdd).mockResolvedValue({ commitments: [
+      promise({ status: 'dropped', dropReason: 'edited', closedAt: '2026-09-27T10:00:00Z' }),
+      promise({ id: 52, text: 'Proposal for Payroll and Recruitment', sourceKey: 'proposal for payroll and recruitment' }),
+    ], tasks: [],
       proposals: [request({ type: 'Payroll, Recruitment', promisedBy: '2026-10-05' })] });
     await readCommitmentsFrom('meeting', 3, ['>> Proposal for Payroll and Recruitment by 5 Oct'], ctx);
     const p = S.proposals.find((x) => x.id === 30)!;
     expect(S.proposals).toHaveLength(1);
     expect(p.promisedBy).toBe('2026-10-05');
     expect((p.lines ?? []).map((l) => l.serviceName)).toEqual(['Payroll', 'Recruitment']);
+    expect(S.commitments.map((c) => [c.id, c.status, c.dropReason])).toEqual([[50, 'dropped', 'edited'], [52, 'open', null]]);
   });
 });

@@ -223,6 +223,18 @@ fn an_edited_line_joins_its_request_instead_of_starting_another() {
     let pointing: i64 = conn.query_row("SELECT COUNT(*) FROM commitments WHERE proposal_id = ?1", params![pid], |r| r.get(0)).unwrap();
     assert_eq!(pointing, 2, "both promises point at it");
     assert_eq!(one::<i64>(&conn, "SELECT COUNT(*) FROM todos"), 0);
+    // Only the current wording stays open; the replaced one is dropped as edited.
+    let open: Vec<String> = conn.prepare("SELECT text FROM commitments WHERE proposal_id = ?1 AND status = 'open'").unwrap()
+        .query_map(params![pid], |r| r.get(0)).unwrap().collect::<Result<_, _>>().unwrap();
+    assert_eq!(open, vec!["Proposal for Payroll and Recruitment".to_string()]);
+    let old = first.commitments[0].id;
+    let (st, reason, closed) = status_of(&conn, old);
+    assert_eq!((st.as_str(), reason.as_deref()), ("dropped", Some("edited")));
+    assert!(closed.is_some());
+    assert!(second.commitments.iter().any(|c| c.id == old && c.status == "dropped"), "returned so the app updates it");
+    // The request itself is untouched by the drop.
+    let status: String = conn.query_row("SELECT status FROM proposals WHERE id = ?1", params![pid], |r| r.get(0)).unwrap();
+    assert_eq!(status, "Proposal Request Received");
 }
 
 #[test]
