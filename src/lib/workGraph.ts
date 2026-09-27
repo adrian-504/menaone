@@ -206,6 +206,8 @@ export interface ThreadNode {
   dateLabel: string;
   /** Agreements beside the one shown (a proposal with several). */
   others?: { id: number; label: string }[];
+  /** A proposal request or draft: the date we promised it. */
+  promisedBy?: string | null;
 }
 
 export interface ThreadGap {
@@ -266,7 +268,8 @@ function opportunityNode(o: Opportunity): ThreadNode {
 function proposalNode(p: Proposal): ThreadNode {
   const sent = p.dateSentToClient || p.sentDate;
   return { kind: 'proposal', id: p.id, label: `${p.type || 'Proposal'} (SL# ${p.id})`, status: p.status, tone: statusTone('proposal', p.status),
-    date: (sent || p.dateAdded || null)?.slice(0, 10) || null, dateLabel: sent ? 'Sent' : 'Created' };
+    date: (sent || p.dateAdded || null)?.slice(0, 10) || null, dateLabel: sent ? 'Sent' : 'Created',
+    promisedBy: p.status === 'Proposal Request Received' || p.status === 'Drafting' ? p.promisedBy ?? null : null };
 }
 function agreementNode(a: Agreement, others: Agreement[]): ThreadNode {
   const signed = later(a.dateClientSigned, a.dateMenaSigned);

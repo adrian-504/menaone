@@ -58,6 +58,9 @@ pub struct Commitment {
     /// For `ours`: its task.
     #[serde(default)]
     pub todo_id: Option<i64>,
+    /// For a promise to send a proposal: that proposal (instead of a task).
+    #[serde(default)]
+    pub proposal_id: Option<i64>,
     #[serde(default)]
     pub created_at: Option<String>,
     #[serde(default)]
@@ -171,6 +174,37 @@ CREATE TRIGGER IF NOT EXISTS cm_unlink_company AFTER DELETE ON companies
 BEGIN UPDATE commitments SET company_id = NULL WHERE company_id = OLD.id; END;
 "#;
 
+/// Migration 39: proposal requests. A proposal records when it was promised and
+/// which request it was created with; a promise to send a proposal points at
+/// that proposal, and follows it: sent or signed → kept, lost or withdrawn →
+/// dropped (the status as the reason). Deleting the proposal unlinks it.
+pub const PROPOSAL_REQUESTS_MIGRATION: &str = r#"
+ALTER TABLE proposals ADD COLUMN promised_by TEXT;
+ALTER TABLE proposals ADD COLUMN request_group TEXT;
+CREATE INDEX IF NOT EXISTS idx_proposals_request_group ON proposals(request_group);
+ALTER TABLE commitments ADD COLUMN proposal_id INTEGER;
+CREATE INDEX IF NOT EXISTS idx_commitments_proposal ON commitments(proposal_id);
+
+CREATE TRIGGER IF NOT EXISTS cm_proposal_sent AFTER UPDATE OF status ON proposals
+WHEN NEW.status IN ('Sent to Client','Signed by Client','Signed by Both Parties') AND OLD.status IS NOT NEW.status
+BEGIN
+  UPDATE commitments SET status = 'kept', closed_at = strftime('%Y-%m-%dT%H:%M:%fZ','now'), updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now')
+  WHERE proposal_id = NEW.id AND status = 'open';
+END;
+CREATE TRIGGER IF NOT EXISTS cm_proposal_closed AFTER UPDATE OF status ON proposals
+WHEN NEW.status IN ('Lost','Withdrawn') AND OLD.status IS NOT NEW.status
+BEGIN
+  UPDATE commitments SET status = 'dropped', drop_reason = NEW.status, closed_at = strftime('%Y-%m-%dT%H:%M:%fZ','now'), updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now')
+  WHERE proposal_id = NEW.id AND status = 'open';
+END;
+CREATE TRIGGER IF NOT EXISTS cm_unlink_proposal AFTER DELETE ON proposals
+BEGIN UPDATE commitments SET proposal_id = NULL WHERE proposal_id = OLD.id; END;
+"#;
+
+pub fn migrate_proposal_requests(conn: &Connection) -> rusqlite::Result<()> {
+    conn.execute_batch(PROPOSAL_REQUESTS_MIGRATION)
+}
+
 /// Migration 36: the table, its sync columns, the opportunity waiting fields.
 pub fn migrate_commitments(conn: &Connection) -> rusqlite::Result<()> {
     conn.execute_batch(COMMITMENTS_MIGRATION)?;
@@ -178,14 +212,14 @@ pub fn migrate_commitments(conn: &Connection) -> rusqlite::Result<()> {
 }
 
 const SELECT: &str = "SELECT id, direction, text, contact_id, due_date, status, closed_at, drop_reason, company_id, opportunity_id,
-    project_id, source_type, source_id, source_key, todo_id, created_at, updated_at FROM commitments";
+    project_id, source_type, source_id, source_key, todo_id, created_at, updated_at, proposal_id FROM commitments";
 
 fn row(r: &rusqlite::Row) -> rusqlite::Result<Commitment> {
     Ok(Commitment {
         id: r.get(0)?, direction: r.get(1)?, text: r.get(2)?, contact_id: r.get(3)?, due_date: r.get(4)?, status: r.get(5)?,
         closed_at: r.get(6)?, drop_reason: r.get(7)?, company_id: r.get(8)?, opportunity_id: r.get(9)?, project_id: r.get(10)?,
         source_type: r.get(11)?, source_id: r.get(12)?, source_key: r.get(13)?, todo_id: r.get(14)?, created_at: r.get(15)?,
-        updated_at: r.get(16)?,
+        updated_at: r.get(16)?, proposal_id: r.get(17)?,
     })
 }
 
@@ -206,24 +240,26 @@ pub fn upsert_commitment_rows_in(tx: &Connection, items: &[Commitment]) -> rusql
     for c in items {
         tx.execute(
             "INSERT INTO commitments (id, direction, text, contact_id, due_date, status, closed_at, drop_reason, company_id,
-                opportunity_id, project_id, source_type, source_id, source_key, todo_id, created_at, updated_at)
-             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,COALESCE(?16,?17),?17)
+                opportunity_id, project_id, source_type, source_id, source_key, todo_id, created_at, updated_at, proposal_id)
+             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,COALESCE(?16,?17),?17,?18)
              ON CONFLICT(id) DO UPDATE SET
                direction = excluded.direction, text = excluded.text, contact_id = excluded.contact_id, due_date = excluded.due_date,
                status = excluded.status, closed_at = excluded.closed_at, drop_reason = excluded.drop_reason,
                company_id = excluded.company_id, opportunity_id = excluded.opportunity_id, project_id = excluded.project_id,
                source_type = excluded.source_type, source_id = excluded.source_id, source_key = excluded.source_key,
-               todo_id = excluded.todo_id, updated_at = excluded.updated_at
+               todo_id = excluded.todo_id, proposal_id = excluded.proposal_id, updated_at = excluded.updated_at
              WHERE commitments.direction IS NOT excluded.direction OR commitments.text IS NOT excluded.text
                OR commitments.contact_id IS NOT excluded.contact_id OR commitments.due_date IS NOT excluded.due_date
                OR commitments.status IS NOT excluded.status OR commitments.closed_at IS NOT excluded.closed_at
                OR commitments.drop_reason IS NOT excluded.drop_reason OR commitments.company_id IS NOT excluded.company_id
                OR commitments.opportunity_id IS NOT excluded.opportunity_id OR commitments.project_id IS NOT excluded.project_id
                OR commitments.source_type IS NOT excluded.source_type OR commitments.source_id IS NOT excluded.source_id
-               OR commitments.source_key IS NOT excluded.source_key OR commitments.todo_id IS NOT excluded.todo_id",
+               OR commitments.source_key IS NOT excluded.source_key OR commitments.todo_id IS NOT excluded.todo_id
+               OR commitments.proposal_id IS NOT excluded.proposal_id",
             params![
                 c.id, c.direction, c.text, c.contact_id, c.due_date, c.status, c.closed_at, c.drop_reason, c.company_id,
                 c.opportunity_id, c.project_id, c.source_type, c.source_id, c.source_key, c.todo_id, c.created_at, now,
+                c.proposal_id,
             ],
         )?;
         crate::v2_search::reindex_commitment(tx, c.id)?;
@@ -271,6 +307,11 @@ pub struct NewCommitment {
     pub source_id: Option<i64>,
     #[serde(default)]
     pub source_key: Option<String>,
+    /// A promise to send a proposal (`>> Proposal for …`, see isProposalCommitment
+    /// in src/lib/commitments.ts): with a company it becomes a proposal request
+    /// instead of a task.
+    #[serde(default)]
+    pub proposal: bool,
 }
 
 /// What `add_commitments` created: the new commitments and their tasks.
@@ -279,6 +320,8 @@ pub struct NewCommitment {
 pub struct AddedCommitments {
     pub commitments: Vec<Commitment>,
     pub tasks: Vec<Todo>,
+    /// Proposal requests created for promises to send a proposal.
+    pub proposals: Vec<crate::models::Proposal>,
 }
 
 /// Adds commitments, skipping ones already read from the same source (same
@@ -302,6 +345,18 @@ pub fn add_commitments_in(tx: &Connection, items: &[NewCommitment]) -> rusqlite:
         )?;
         if inserted == 0 { continue; }
         let id = tx.last_insert_rowid();
+        // A promise to send a proposal, with a company: the proposal is the work, not a task.
+        if n.proposal && n.direction == "ours" && !n.kept {
+            if let Some(cid) = n.company_id {
+                if let Some(p) = create_proposal_request(tx, cid, text, n.due_date.as_deref(), n.meeting_id, &today)? {
+                    tx.execute("UPDATE commitments SET proposal_id = ?2 WHERE id = ?1", params![id, p.id])?;
+                    out.proposals.push(p);
+                    crate::v2_search::reindex_commitment(tx, id)?;
+                    if let Some(c) = get_commitment(tx, id)? { out.commitments.push(c); }
+                    continue;
+                }
+            }
+        }
         if n.direction == "ours" && !n.kept {
             let todo_id: i64 = tx.query_row("SELECT COALESCE(MAX(id), 0) + 1 FROM todos", [], |r| r.get(0))?;
             let client: Option<String> = match n.company_id {
@@ -331,6 +386,81 @@ pub fn add_commitments_in(tx: &Connection, items: &[NewCommitment]) -> rusqlite:
         if let Some(c) = get_commitment(tx, id)? { out.commitments.push(c); }
     }
     Ok(out)
+}
+
+/// Catalogue services named in `text` (whole words, any case), longest first so
+/// "Business Setup and Maintenance Package" wins over "Business Setup".
+pub fn services_named_in(conn: &Connection, text: &str) -> rusqlite::Result<Vec<String>> {
+    let mut names: Vec<String> = conn
+        .prepare("SELECT name FROM services WHERE active = 1 AND merged_into IS NULL")?
+        .query_map([], |r| r.get(0))?
+        .collect::<rusqlite::Result<_>>()?;
+    names.sort_by(|a, b| b.len().cmp(&a.len()).then(a.cmp(b)));
+    let mut taken: Vec<(usize, usize)> = Vec::new();
+    let mut found: Vec<(usize, String)> = Vec::new();
+    for name in names {
+        let Ok(re) = regex::Regex::new(&format!(r"(?i)(^|[^\p{{L}}\p{{N}}]){}($|[^\p{{L}}\p{{N}}])", regex::escape(&name))) else { continue };
+        if let Some(m) = re.find(text) {
+            let (s, e) = (m.start(), m.end());
+            if taken.iter().any(|(a, b)| s < *b && *a < e) { continue; }
+            taken.push((s, e));
+            found.push((s, name));
+        }
+    }
+    found.sort();
+    Ok(found.into_iter().map(|(_, n)| n).collect())
+}
+
+/// A proposal request for `company`, as the create form would make one with its
+/// defaults: status Request, received today, promised by the promise's date,
+/// the services the line names, this device's user as owner, the first reviewer,
+/// the KSA entity. Linked to the meeting it came from.
+fn create_proposal_request(tx: &Connection, company: i64, text: &str, promised_by: Option<&str>, meeting: Option<i64>, today: &str) -> rusqlite::Result<Option<crate::models::Proposal>> {
+    let Some(client) = tx.query_row("SELECT name FROM companies WHERE id = ?1", params![company], |r| r.get::<_, String>(0)).optional()? else {
+        return Ok(None);
+    };
+    let services = services_named_in(tx, text)?;
+    let owner = crate::identity::current_user_id(tx)?;
+    let owner_name: Option<String> = match owner {
+        Some(id) => tx.query_row("SELECT name FROM team_members WHERE id = ?1", params![id], |r| r.get(0)).optional()?,
+        None => None,
+    };
+    let reviewer: Option<i64> = tx
+        .query_row("SELECT id FROM team_members WHERE active = 1 AND is_reviewer = 1 ORDER BY name LIMIT 1", [], |r| r.get(0))
+        .optional()?;
+    let entity: Option<(i64, String)> = tx
+        .query_row(
+            "SELECT id, currency FROM business_entities WHERE active = 1 ORDER BY (code = 'KSA') DESC, sort_order, id LIMIT 1",
+            [],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )
+        .optional()?;
+    let id: i64 = tx.query_row("SELECT COALESCE(MAX(id), 0) + 1 FROM proposals", [], |r| r.get(0))?;
+    let p = crate::models::Proposal {
+        id,
+        client,
+        company_id: Some(company),
+        r#type: if services.is_empty() { None } else { Some(services.join(", ")) },
+        status: "Proposal Request Received".into(),
+        date_added: Some(today.to_string()),
+        owner: owner_name,
+        owner_id: owner,
+        reviewer_id: reviewer,
+        business_entity_id: entity.as_ref().map(|(id, _)| *id),
+        currency: Some(entity.map(|(_, c)| c).unwrap_or_else(|| "SAR".into())),
+        promised_by: promised_by.map(str::to_string),
+        remarks: Some(format!("From the promise: {text}")),
+        ..Default::default()
+    };
+    crate::commands::upsert_proposal_rows_in(tx, std::slice::from_ref(&p))?;
+    if let Some(m) = meeting {
+        tx.execute(
+            "INSERT OR IGNORE INTO entity_links (from_type, from_id, to_type, to_id, created_at) VALUES ('meeting', ?1, 'proposal', ?2, ?3)",
+            params![m, id, crate::commands::now_iso()],
+        )?;
+    }
+    let saved = crate::commands::read_proposals(tx)?.into_iter().find(|x| x.id == id);
+    Ok(saved.or(Some(p)))
 }
 
 pub fn add_commitments(conn: &mut Connection, items: &[NewCommitment]) -> rusqlite::Result<AddedCommitments> {

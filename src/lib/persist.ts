@@ -106,7 +106,10 @@ export function markAgreementsSaved(items: { id: number }[]): void {
   for (const a of items) trackers.agreements.saved.set(a.id, JSON.stringify(a));
 }
 
-export function persistProposals(): void { void saveChanges(trackers.proposals); }
+export function persistProposals(): void {
+  if (commitmentsFollowProposals()) void saveChanges(trackers.commitments);
+  void saveChanges(trackers.proposals);
+}
 export function persistContacts(): void { void saveChanges(trackers.contacts); }
 export function persistAgreements(): void { void saveChanges(trackers.agreements); }
 export function persistTodos(): void {
@@ -118,10 +121,32 @@ export function persistCommitments(): void {
   void saveChanges(trackers.commitments);
 }
 
-/** Records the backend created itself (commitments and their tasks) as saved. */
-export function markCommitmentsSaved(commitments: { id: number }[], tasks: { id: number }[]): void {
+/** Records the backend created itself (commitments, their tasks and proposal requests) as saved. */
+export function markCommitmentsSaved(commitments: { id: number }[], tasks: { id: number }[], proposals: { id: number }[] = []): void {
   for (const c of commitments) trackers.commitments.saved.set(c.id, JSON.stringify(c));
   for (const t of tasks) trackers.todos.saved.set(t.id, JSON.stringify(t));
+  for (const p of proposals) trackers.proposals.saved.set(p.id, JSON.stringify(p));
+}
+
+// A promise to send a proposal follows that proposal, as the database does
+// (cm_proposal_* triggers, commitments.rs): when its status *changes* to sent
+// or signed the promise is kept; to lost or withdrawn it is dropped, with the
+// status as the reason. A deleted proposal unlinks, never deletes, the promise.
+const PROPOSAL_KEEPS = new Set(['Sent to Client', 'Signed by Client', 'Signed by Both Parties']);
+const PROPOSAL_DROPS = new Set(['Lost', 'Withdrawn']);
+function commitmentsFollowProposals(): boolean {
+  let changed = false;
+  for (const c of S.commitments) {
+    if (c.proposalId == null) continue;
+    const p = S.proposals.find((x) => x.id === c.proposalId);
+    if (!p) { c.proposalId = null; changed = true; continue; }
+    const before = trackers.proposals.saved.get(p.id);
+    const was = before ? (JSON.parse(before) as { status?: string }).status : undefined;
+    if (was === p.status || c.status !== 'open') continue;
+    if (PROPOSAL_KEEPS.has(p.status)) { c.status = 'kept'; c.closedAt = new Date().toISOString(); changed = true; }
+    else if (PROPOSAL_DROPS.has(p.status)) { c.status = 'dropped'; c.dropReason = p.status; c.closedAt = new Date().toISOString(); changed = true; }
+  }
+  return changed;
 }
 
 // An `ours` commitment and its task move together — done ⇄ kept, reopened ⇄

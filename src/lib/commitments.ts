@@ -95,6 +95,14 @@ export function parseCommitmentLines(text: string | null | undefined, ctx: Commi
   return out;
 }
 
+/** A promise to send a proposal ("Proposal for Payroll by Thu", "Send the proposal
+ * to Sara"). With a company it becomes a proposal request, not a task. The
+ * caller only asks this of our own promises (`>>`). */
+export function isProposalCommitment(text: string): boolean {
+  const t = text.trim();
+  return /^(send|prepare|draft)?\s*(a |the )?proposal\b/i.test(t) || /^proposals?\s+for\b/i.test(t);
+}
+
 /** Whether a line starts with a commitment marker (after list/checkbox markers). */
 export function isCommitmentLine(line: string): boolean {
   return LINE.test(line) && !!LINE.exec(line)![3];

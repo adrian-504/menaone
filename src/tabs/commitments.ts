@@ -7,6 +7,7 @@ import { foldMoreDetails } from '../lib/moreDetails';
 import { S } from '../lib/state';
 import { renderIcons } from '../core/chrome';
 import { toast } from '../lib/ui';
+import { emitChange } from '../lib/changes';
 import { recordLink, companyLink } from '../lib/links';
 import { escHtml, expose, fmtDate, today, inCompany, showTextPrompt, showConfirm } from '../lib/utils';
 import { commitmentsAdd, type NewCommitment } from '../lib/db';
@@ -15,7 +16,7 @@ import { refreshBadges } from '../lib/registry';
 import { icon } from '../lib/icons';
 import { showContextMenu } from '../lib/contextMenu';
 import { attachCompanySelector } from '../lib/companySelector';
-import { parseCommitmentLines } from '../lib/commitments';
+import { isProposalCommitment, parseCommitmentLines } from '../lib/commitments';
 import { nudgeMailto, promisesView } from '../lib/promises';
 import { companyFromForm, contextFromMeeting, contextFromOpportunity, contextFromProject, inheritCompany, EMPTY_CONTEXT, type WorkContext } from '../lib/workGraph';
 import type { Commitment } from '../lib/types';
@@ -42,15 +43,23 @@ export async function readCommitmentsFrom(sourceType: 'meeting' | 'note' | 'capt
     direction: p.direction, text: p.text, contactId: p.contactId, dueDate: p.dueDate, kept: p.kept,
     companyId: ctx.companyId, opportunityId: ctx.opportunityId, projectId: ctx.projectId, meetingId: ctx.meetingId,
     sourceType, sourceId, sourceKey: p.sourceKey,
+    // "Proposal for …" we owe: with a company the backend makes it a proposal request, not a task.
+    proposal: p.direction === 'ours' && isProposalCommitment(p.text),
   }));
   return addToState(await commitmentsAdd(items));
 }
 
-function addToState(added: { commitments: Commitment[]; tasks: import('../lib/types').Todo[] }): number {
+function addToState(added: { commitments: Commitment[]; tasks: import('../lib/types').Todo[]; proposals?: import('../lib/types').Proposal[] }): number {
   for (const c of added.commitments) if (!S.commitments.some((x) => x.id === c.id)) S.commitments.push(c);
   for (const t of added.tasks) if (!S.todos.some((x) => x.id === t.id)) S.todos.push(t);
-  markCommitmentsSaved(added.commitments, added.tasks);
-  if (added.tasks.length) refreshBadges();
+  const proposals = added.proposals || [];
+  for (const p of proposals) if (!S.proposals.some((x) => x.id === p.id)) S.proposals.push(p);
+  markCommitmentsSaved(added.commitments, added.tasks, proposals);
+  if (proposals.length) {
+    emitChange({ kind: 'proposal', ids: proposals.map((p) => p.id) });
+    toast(proposals.length === 1 ? `Proposal request SL# ${proposals[0].id} created for ${proposals[0].client}` : `${proposals.length} proposal requests created`);
+  }
+  if (added.tasks.length || proposals.length) refreshBadges();
   if (added.commitments.length) refreshCommitmentViews();
   return added.commitments.length;
 }
@@ -67,6 +76,13 @@ function sourceLink(c: Commitment): string {
     return n ? `from ${recordLink('note', n.id, n.title || 'a note')}` : '';
   }
   return '';
+}
+
+/** A promise to send a proposal points at it (where others have a task). */
+function proposalLink(c: Commitment): string {
+  if (c.proposalId == null) return '';
+  const p = S.proposals.find((x) => x.id === c.proposalId);
+  return p ? `→ ${recordLink('proposal', p.id, `Proposal SL# ${p.id}`)}` : '';
 }
 
 function whoLabel(c: Commitment): string {
@@ -88,6 +104,7 @@ export function commitmentRow(c: Commitment, opts: { showCompany?: boolean; plai
     whoLabel(c),
     company,
     c.dueDate ? `<span class="${overdue ? 'cm-overdue' : ''}">${overdue ? 'was due' : 'due'} ${escHtml(fmtDate(c.dueDate))}</span>` : '',
+    proposalLink(c),
     sourceLink(c),
     c.status === 'dropped' ? `dropped${c.dropReason ? `: ${escHtml(c.dropReason)}` : ''}` : '',
   ].filter(Boolean).join(' · ');

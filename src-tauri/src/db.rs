@@ -716,6 +716,8 @@ const CODE_MIGRATIONS: &[(i64, fn(&Connection) -> rusqlite::Result<()>)] = &[
     (37, migrate_company_brief),
     // Workforce employee categories renamed (owner, 22-Sep): the rate card and saved proposal lines follow the templates.
     (38, migrate_workforce_categories),
+    // Proposal requests: promised-by date, proposals requested together, a promise's proposal.
+    (39, crate::commitments::migrate_proposal_requests),
 ];
 
 /// Old Workforce category label → the name the proposal templates now use.

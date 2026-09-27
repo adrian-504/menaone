@@ -127,7 +127,8 @@ export interface CompanyThread {
 export function threadStand(t: EngagementThread): string {
   const last = t.nodes[t.nodes.length - 1];
   const status = last.status ? lowerStatus(last.status) : '';
-  return `${last.kind} ${status && !/^(in|sent|signed|on)\b/.test(status) ? 'at ' : ''}${status}`.trim();
+  const promised = last.promisedBy ? `, promised by ${new Date(`${last.promisedBy.slice(0, 10)}T12:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' })}` : '';
+  return `${last.kind} ${status && !/^(in|sent|signed|on)\b/.test(status) ? 'at ' : ''}${status}`.trim() + promised;
 }
 
 function cleanupQueueFor(t: EngagementThread, i: CompanyBriefInput): string | null {

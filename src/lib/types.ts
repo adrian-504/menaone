@@ -51,6 +51,10 @@ export interface Proposal {
   validUntil?: string | null;
   folderPath?: string | null;
   leadSource?: string | null;
+  /** The date we told the client they'd have it. */
+  promisedBy?: string | null;
+  /** Shared by the proposals created together from one request. */
+  requestGroup?: string | null;
   lines?: CommercialLine[];
   documents?: ProposalDocument[];
 }
@@ -489,6 +493,8 @@ export interface Commitment {
   sourceId: number | null;
   sourceKey: string | null;
   todoId: number | null;
+  /** A promise to send a proposal: that proposal (it has no task). */
+  proposalId?: number | null;
   createdAt: string | null;
   updatedAt: string | null;
 }

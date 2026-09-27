@@ -43,3 +43,26 @@ export function companyNavItems(counts: RecordCounts): { id: string; label: stri
     ...COMPANY_RECORD_SECTIONS.filter(([id]) => (counts[id] ?? 0) > 0).map(([id, label]) => ({ id, label, count: counts[id] as number })),
   ];
 }
+
+/** Company 360's Proposals section: proposals requested together stay side by
+ * side, sorted as one item by the latest of their dates; everything else keeps
+ * its own date. `group` is set for a run of two or more. */
+export function groupRequestedTogether<T extends { id: number; requestGroup?: string | null }>(
+  list: T[], dateOf: (p: T) => string,
+): { group: string | null; date: string; items: T[] }[] {
+  const byDate = (a: T, b: T) => dateOf(b).localeCompare(dateOf(a)) || b.id - a.id;
+  const counts = new Map<string, number>();
+  for (const p of list) if (p.requestGroup) counts.set(p.requestGroup, (counts.get(p.requestGroup) || 0) + 1);
+  const out: { group: string | null; date: string; items: T[] }[] = [];
+  const seen = new Map<string, { group: string | null; date: string; items: T[] }>();
+  for (const p of list) {
+    const g = p.requestGroup && (counts.get(p.requestGroup) || 0) > 1 ? p.requestGroup : null;
+    if (!g) { out.push({ group: null, date: dateOf(p), items: [p] }); continue; }
+    let item = seen.get(g);
+    if (!item) { item = { group: g, date: '', items: [] }; seen.set(g, item); out.push(item); }
+    item.items.push(p);
+    if (dateOf(p) > item.date) item.date = dateOf(p);
+  }
+  for (const item of out) item.items.sort(byDate);
+  return out.sort((a, b) => b.date.localeCompare(a.date) || b.items[0].id - a.items[0].id);
+}

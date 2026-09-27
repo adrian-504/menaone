@@ -35,9 +35,12 @@ export interface NewCommitment {
   direction: 'ours' | 'theirs'; text: string; contactId?: number | null; dueDate?: string | null; kept?: boolean;
   companyId?: number | null; opportunityId?: number | null; projectId?: number | null; meetingId?: number | null;
   sourceType: 'meeting' | 'note' | 'capture' | 'manual'; sourceId?: number | null; sourceKey?: string | null;
+  /** A promise to send a proposal: with a company, a proposal request instead of a task. */
+  proposal?: boolean;
 }
-export async function commitmentsAdd(items: NewCommitment[]): Promise<{ commitments: Commitment[]; tasks: Todo[] }> {
-  return (await invoke<{ commitments: Commitment[]; tasks: Todo[] } | null>('commitments_add', { items })) ?? { commitments: [], tasks: [] };
+export async function commitmentsAdd(items: NewCommitment[]): Promise<{ commitments: Commitment[]; tasks: Todo[]; proposals: Proposal[] }> {
+  const r = await invoke<{ commitments: Commitment[]; tasks: Todo[]; proposals?: Proposal[] } | null>('commitments_add', { items });
+  return { commitments: r?.commitments ?? [], tasks: r?.tasks ?? [], proposals: r?.proposals ?? [] };
 }
 export async function upsertCommitments(items: Commitment[]): Promise<RecordCompanyLink[]> { return (await invoke<RecordCompanyLink[] | null>('upsert_commitments', { items })) ?? []; }
 export async function deleteCommitments(ids: number[]): Promise<void> { await invoke('delete_commitments', { ids }); }

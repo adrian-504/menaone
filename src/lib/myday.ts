@@ -92,6 +92,16 @@ export function isClientMeeting(m: Meeting, own: Set<string>): boolean {
   });
 }
 
+/** A request or draft we promised for a date: red on the day and after, amber
+ * within three days, accent before that. */
+export function promisedRank(promisedBy: string | null | undefined, today: string): { tone: AttentionItem['tone']; when: string; late: boolean } | null {
+  if (!promisedBy) return null;
+  const d = daysBetween(today, promisedBy) ?? 0;
+  const date = new Date(`${promisedBy.slice(0, 10)}T12:00:00`);
+  const label = isNaN(date.getTime()) ? promisedBy : date.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+  return { tone: d <= 0 ? 'red' : d <= 3 ? 'amber' : 'accent', when: `Promised by ${label}`, late: d <= 0 };
+}
+
 function proposalItems(i: MyDayInput): AttentionItem[] {
   const out: AttentionItem[] = [];
   for (const p of i.proposals) {
@@ -117,11 +127,17 @@ function proposalItems(i: MyDayInput): AttentionItem[] {
         reason: `Waiting for ${i.reviewerName(p)}'s review${services}`, when: days(d), action: { kind: 'open', label: 'Open' } });
     } else if (p.status === PS.REQUEST) {
       const d = daysBetween(p.dateAdded, i.today) ?? 0;
-      out.push({ ...base, key: `proposal:${p.id}:request`, kind: 'proposal', score: 70 + Math.min(d, 20), tone: d > 3 ? 'red' : 'amber',
-        reason: `Proposal requested — not started${services}`, when: d ? days(d) : 'Today', action: { kind: 'start_drafting', label: 'Start drafting' } });
+      const score = 70 + Math.min(d, 20);
+      const promised = promisedRank(p.promisedBy, i.today);
+      out.push({ ...base, key: `proposal:${p.id}:request`, kind: 'proposal', score: score + (promised?.late ? 20 : 0), tone: promised?.tone ?? (d > 3 ? 'red' : 'amber'),
+        reason: `Proposal requested — not started${services}`, when: promised?.when ?? (d ? days(d) : 'Today'), action: { kind: 'start_drafting', label: 'Start drafting' } });
     } else if (p.status === PS.DRAFTING) {
       const d = daysBetween(p.dateAdded, i.today) ?? 0;
-      if (d > 7) out.push({ ...base, key: `proposal:${p.id}:drafting`, kind: 'proposal', score: 46 + Math.min(d, 30) / 3, tone: 'amber',
+      const promised = promisedRank(p.promisedBy, i.today);
+      const score = 46 + Math.min(d, 30) / 3;
+      if (promised) out.push({ ...base, key: `proposal:${p.id}:drafting`, kind: 'proposal', score: score + (promised.late ? 20 : 0), tone: promised.tone,
+        reason: `Still drafting${services}`, when: promised.when, action: { kind: 'open', label: 'Open' } });
+      else if (d > 7) out.push({ ...base, key: `proposal:${p.id}:drafting`, kind: 'proposal', score, tone: 'amber',
         reason: `Still drafting${services}`, when: days(d), action: { kind: 'open', label: 'Open' } });
     } else if (p.status === PS.SENT) {
       const sent = p.dateSentToClient || p.sentDate;
@@ -300,6 +316,20 @@ const GROUPS: GroupRule[] = [
       reason: 'Decide the next step for each, or close it', action: { kind: 'open_cleanup', label: 'Clean up', queue: 'opportunity-incomplete' } }) },
 ];
 
+const REQUEST_GROUP_STAGE: Record<string, [string, string]> = {
+  [PS.REQUEST]: ['proposal request received', 'proposal requests received'],
+  [PS.DRAFTING]: ['proposal in drafting', 'proposals in drafting'],
+  [PS.REVIEW]: ['proposal in internal review', 'proposals in internal review'],
+  [PS.SENT]: ['proposal sent to the client', 'proposals sent to the client'],
+  [PS.CLIENT_SIGNED]: ['proposal signed by the client', 'proposals signed by the client'],
+};
+/** "3 proposal requests received" when they share a stage, else "3 proposals". */
+export function requestGroupReason(statuses: string[]): string {
+  const n = statuses.length;
+  const shared = statuses.every((s) => s === statuses[0]) ? REQUEST_GROUP_STAGE[statuses[0]] : undefined;
+  return shared ? `${n} ${n === 1 ? shared[0] : shared[1]}` : `${n} proposals`;
+}
+
 const snoozedNow = (i: MyDayInput, key: string) => !!i.snoozed[key] && i.snoozed[key] > i.today;
 
 /** Everything that needs attention, most urgent first. */
@@ -311,6 +341,29 @@ export function buildAttention(i: MyDayInput): AttentionItem[] {
   items = items.filter((x) => !snoozedNow(i, x.key));
 
   const groups: AttentionItem[] = [];
+  // Proposals requested together are one row: the client, the shared stage, the most urgent one's tone.
+  const groupOf = new Map(i.proposals.filter((p) => p.requestGroup).map((p) => [p.id, p]));
+  const byGroup = new Map<string, AttentionItem[]>();
+  for (const x of items) {
+    const p = x.record?.kind === 'proposal' ? groupOf.get(x.record.id) : undefined;
+    if (p?.requestGroup) byGroup.set(p.requestGroup, [...(byGroup.get(p.requestGroup) || []), x]);
+  }
+  for (const [group, folded] of byGroup) {
+    if (folded.length < 2) continue;
+    folded.sort((a, b) => b.score - a.score);
+    const keys = new Set(folded.map((x) => x.key));
+    items = items.filter((x) => !keys.has(x.key));
+    const members = folded.map((x) => groupOf.get(x.record!.id)!);
+    const lead = members[0];
+    const row: AttentionItem = {
+      key: `group:request:${group}`, kind: 'proposal', tone: folded[0].tone, score: folded[0].score,
+      title: lead.client, companyId: lead.companyId ?? null, companyName: lead.client,
+      record: lead.companyId != null ? { kind: 'company', id: lead.companyId } : folded[0].record,
+      reason: requestGroupReason(members.map((p) => p.status)), when: folded[0].when,
+      action: { kind: 'open', label: 'Open' }, children: folded,
+    };
+    if (!snoozedNow(i, row.key)) groups.push(row);
+  }
   for (const rule of GROUPS) {
     const folded = items.filter(rule.folds);
     if (folded.length <= (rule.over ?? GROUP_WHEN_OVER)) continue;
@@ -429,6 +482,10 @@ export function buildComingUp(i: Pick<MyDayInput, 'today' | 'meetings' | 'todos'
   for (const p of i.projects) {
     if (p.archived || p.status === 'Completed' || p.status === 'Cancelled' || !inRange(p.targetDate)) continue;
     entries.push({ date: p.targetDate, sort: '4', kind: 'project', title: p.name, detail: `Project due · ${p.computedProgress ?? 0}% done`, record: { kind: 'project', id: p.id }, companyId: p.companyId ?? null, companyName: p.companyName });
+  }
+  for (const p of i.proposals) {
+    if (p.archived || (p.status !== PS.REQUEST && p.status !== PS.DRAFTING) || !inRange(p.promisedBy)) continue;
+    entries.push({ date: p.promisedBy, sort: '5', kind: 'proposal', title: 'Proposal promised', detail: p.client, record: { kind: 'proposal', id: p.id }, companyId: p.companyId ?? null, companyName: p.client });
   }
   for (const p of i.proposals) {
     if (p.archived || p.status !== PS.SENT || !inRange(p.validUntil)) continue;

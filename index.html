@@ -1885,6 +1885,9 @@
       </section>
       <section class="sec prb-section">
         <div class="prb-section-hd"><span class="prb-step">2</span><h2>Services</h2></div>
+        <!-- Several proposals in one go: the other proposals as one line each (lib/proposalBlocks.ts). -->
+        <div class="prb-blocks" id="prb-blocks-before"></div>
+        <div class="prb-block-hd" id="prb-block-hd" hidden></div>
         <div class="prb-service-search">
           <input class="finp" id="prb-service-q" placeholder="Add a service…" role="combobox" aria-expanded="false" aria-controls="prb-service-menu" aria-autocomplete="list" oninput="prbServiceSearch()" onkeydown="prbServiceKey(event)" onblur="window.setTimeout(prbServiceMenuClose, 150)">
           <div class="prb-service-menu" id="prb-service-menu" role="listbox" hidden></div>
@@ -1892,6 +1895,8 @@
         <div class="prb-top" id="prb-top"></div>
         <div class="prb-service-picker" id="prb-service-picker" hidden></div>
         <div id="prb-lines"></div>
+        <div class="prb-blocks" id="prb-blocks-after"></div>
+        <button type="button" class="rlink prb-add-block" onclick="prbAddBlock()">Add another proposal</button>
       </section>
       <section class="sec prb-section">
         <div class="prb-section-hd"><span class="prb-step">3</span><h2>Terms</h2></div>
@@ -1916,6 +1921,7 @@
             <option value="Sent to Client">Already sent to the client</option>
           </select></div>
           <div class="fgrp"><label class="flbl" for="prb-received">Request received on</label><input class="finp" type="date" id="prb-received"></div>
+          <div class="fgrp"><label class="flbl" for="prb-promised">Promised by</label><input class="finp" type="date" id="prb-promised" onchange="prbStatusChanged()"></div>
           <div class="fgrp" id="prb-sent-grp" hidden><label class="flbl" for="prb-sent">Sent to client on</label><input class="finp" type="date" id="prb-sent"></div>
           <div class="fgrp"><label class="flbl" for="prb-owner">Owner</label><select class="finp" id="prb-owner"></select></div>
           <div class="fgrp"><label class="flbl" for="prb-reviewer">Reviewer</label><select class="finp" id="prb-reviewer"></select></div>

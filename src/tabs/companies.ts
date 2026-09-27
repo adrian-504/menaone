@@ -7,7 +7,7 @@ import { STATUSES, ST, AGR_ST } from '../lib/constants';
 import { renderCompanyCommitments } from './commitments';
 import { collapseEmptySections } from '../lib/sectionLayout';
 import { COMPANIES_VIEW_KEY, initialCompaniesView } from '../lib/companiesView';
-import { companyNavItems, layoutCompanyRecords, type RecordCounts } from '../lib/companyRecords';
+import { companyNavItems, groupRequestedTogether, layoutCompanyRecords, type RecordCounts } from '../lib/companyRecords';
 import { today, fmtDate, escHtml, expose, showConfirm, statusDot, showTextPrompt, getClients, companyRef, inCompany, daysSince, daysUntil, strColor, type CompanyRef } from '../lib/utils';
 import { shownColumns, sortState, setSort, sortRows, headerCells, openColumnPicker, agoLabel, type Column, type SortState } from '../lib/tableColumns';
 import { companyLists, companyNamesInList, contactsInCompanyList, contactsAtCompanies, createSavedList, renameSavedList, removeSavedList, updateSmartListFilters, addCompaniesToList, removeCompaniesFromList, addToCompanyListChoices, exportToActiveCampaign, listById, sameFilters, cleanFilters, listChipLabel, listsForCompany } from '../core/lists';
@@ -1491,8 +1491,9 @@ export function renderCoProposals(d: CompanyData): void {
   const tbody = document.getElementById('co-proposals-tbody');
   if (!tbody) return;
   if (d.proposals.length === 0) { tbody.innerHTML = `<tr><td colspan="8">${emptyState({ icon: 'database', title: 'No proposals yet', compact: true, action: { label: 'New proposal', onclick: 'createProposalForCurrentCompany()' } })}</td></tr>`; return; }
-  const sorted = [...d.proposals].sort((a, b) => (b.sentDate || b.dateAdded || '').localeCompare(a.sentDate || a.dateAdded || ''));
-  tbody.innerHTML = sorted.map((p) => {
+  // Proposals requested together stay side by side under one quiet line.
+  const runs = groupRequestedTogether(d.proposals, (p) => p.sentDate || p.dateAdded || '');
+  const row = (p: Proposal) => {
     const cfg = ST[p.status] || { c: 'var(--muted)', ch: 'var(--muted)' };
     const nc = (p.notes || []).length;
     return `<tr class="rec-tr" onclick="openRecord('proposal', ${p.id})">
@@ -1505,7 +1506,10 @@ export function renderCoProposals(d: CompanyData): void {
       <td><button class="btn-secondary btn-sm" onclick="event.stopPropagation();openNotesModal(${p.id})" title="Activity log">${nc > 0 ? `${nc} note${nc === 1 ? '' : 's'}` : 'Log'}</button></td>
       <td>${p.docLink ? `<a href="#" onclick="event.stopPropagation();event.preventDefault();openExternalUrl('${escHtml(p.docLink)}')" class="doc-link-btn">Open</a>` : ''}</td>
     </tr>`;
-  }).join('');
+  };
+  tbody.innerHTML = runs.map((r) => (r.group
+    ? `<tr class="co-group-tr"><td colspan="8" class="co-group-hd">Requested together · ${escHtml(fmtDate(r.items.map((p) => p.dateAdded || '').sort().pop() || r.date))}</td></tr>`
+    : '') + r.items.map(row).join('')).join('');
 }
 
 export function renderCoAgreements(d: CompanyData): void {

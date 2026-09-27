@@ -564,14 +564,31 @@ export async function installDevMockIfNeeded(): Promise<void> {
         case 'commitments_add': {
           // Same rules as commitments.rs: a line already read from the same source is skipped; ours gets a task.
           const items = ((_payload as any)?.items ?? []) as any[];
-          const out = { commitments: [] as any[], tasks: [] as any[] };
+          const out = { commitments: [] as any[], tasks: [] as any[], proposals: [] as any[] };
           const list = (SAMPLE.commitments ||= []);
           for (const n of items) {
             if (n.sourceType !== 'manual' && n.sourceType !== 'capture' && list.some((c) => c.sourceType === n.sourceType && c.sourceId === (n.sourceId ?? null) && c.sourceKey === n.sourceKey)) continue;
             const id = Math.max(0, ...list.map((c) => c.id)) + 1;
             const c: any = { id, direction: n.direction, text: n.text, contactId: n.contactId ?? null, dueDate: n.dueDate ?? null, status: n.kept ? 'kept' : 'open',
               closedAt: null, dropReason: null, companyId: n.companyId ?? null, opportunityId: n.opportunityId ?? null, projectId: n.projectId ?? null,
-              sourceType: n.sourceType, sourceId: n.sourceId ?? null, sourceKey: n.sourceKey ?? null, todoId: null, createdAt: new Date().toISOString(), updatedAt: null };
+              sourceType: n.sourceType, sourceId: n.sourceId ?? null, sourceKey: n.sourceKey ?? null, todoId: null, proposalId: null, createdAt: new Date().toISOString(), updatedAt: null };
+            const company = n.companyId != null ? companiesStore.find((x: any) => x.id === n.companyId) : undefined;
+            if (n.proposal && n.direction === 'ours' && !n.kept && company) {
+              // A promise to send a proposal, with a company: a proposal request instead of a task (as commitments.rs).
+              const pid = Math.max(0, ...SAMPLE.proposals.map((p) => p.id)) + 1;
+              const types = (COMMERCIAL.services || []).filter((s: any) => s.active && new RegExp(`(^|[^\\p{L}\\p{N}])${s.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}($|[^\\p{L}\\p{N}])`, 'iu').test(n.text)).map((s: any) => s.name);
+              const p: any = { id: pid, client: company.name, companyId: company.id, type: types.length ? types.join(', ') : null, status: 'Proposal Request Received',
+                sentDate: null, dblSignedDate: null, kickoffDate: null, finance: null, hubspot: null, owner: null, remarks: `From the promise: ${n.text}`,
+                dateAdded: new Date().toISOString().slice(0, 10), monthlyFee: null, contractMonths: null, winLossReason: null, docLink: null, archived: false, archivedAt: null,
+                snoozedUntil: null, dateSentToHassan: null, dateSentToClient: null, dateSigned: null, notes: [], currency: 'SAR', promisedBy: n.dueDate ?? null,
+                requestGroup: null, lines: [], documents: [] };
+              SAMPLE.proposals.push(p);
+              c.proposalId = pid;
+              out.proposals.push(p);
+              list.push(c);
+              out.commitments.push(c);
+              continue;
+            }
             if (n.direction === 'ours' && !n.kept) {
               const tid = Math.max(0, ...SAMPLE.todos.map((t) => t.id)) + 1;
               const client = n.companyId === 1 ? 'Acme Holdings' : null;

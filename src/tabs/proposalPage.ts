@@ -6,6 +6,7 @@
 // to, notes and activity.
 
 import { statusBadge } from '../lib/statusTone';
+import { blockSummary, blocksToSave, emptyBlock, proposalsFromBlocks, type ProposalBlock, type SharedProposalFields } from '../lib/proposalBlocks';
 import { proposalDeckRows } from '../lib/proposalDocuments';
 import { companyFromForm, contextFromOpportunity } from '../lib/workGraph';
 import { S } from '../lib/state';
@@ -86,6 +87,14 @@ function commit(p: Proposal, rerender = true): void {
 }
 
 
+/** "Promised by 2 Oct" while it's a request or a draft; red once the day has come. */
+function promisedByFact(p: Proposal): string {
+  if (!p.promisedBy || (p.status !== PS.REQUEST && p.status !== PS.DRAFTING)) return '';
+  const d = new Date(`${p.promisedBy.slice(0, 10)}T12:00:00`);
+  const label = isNaN(d.getTime()) ? p.promisedBy : d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  return `<span class="rec-meta${p.promisedBy.slice(0, 10) <= today() ? ' t-red' : ''}">Promised by ${escHtml(label)}</span>`;
+}
+
 export function renderProposalPage(): void {
   const p = currentProposal();
   if (!p) return;
@@ -104,6 +113,7 @@ export function renderProposalPage(): void {
     isSnoozed(p) ? `<span class="rec-badge tone-amber">Snoozed until ${fmtDate(p.snoozedUntil)}</span>` : '',
     entity ? `<span class="rec-meta">${escHtml(entity.name)} · ${escHtml(currencyOf(p))}</span>` : `<span class="rec-meta">${escHtml(currencyOf(p))}</span>`,
     owner ? `<span class="rec-meta">${icon('people', 12)} ${escHtml(owner)}</span>` : '',
+    promisedByFact(p),
     p.winLossReason && isClosed(p) ? `<span class="rec-meta">${escHtml(p.winLossReason)}</span>` : '',
   ].filter(Boolean).join('');
 
@@ -363,6 +373,8 @@ function renderProps(p: Proposal): void {
     { key: 'businessEntityId', label: 'Entity', display: txt(entity?.name), control: sel('businessEntityId', p.businessEntityId != null ? String(p.businessEntityId) : '', [['', 'Not set'], ...S.businessEntities.filter((e) => e.active || e.id === p.businessEntityId).map((e) => [String(e.id), e.name] as [string, string])]) },
     { key: 'currency', label: 'Currency', display: entity && entity.currency === currencyOf(p) ? '' : txt(currencyOf(p)), control: sel('currency', currencyOf(p), CURRENCIES().map((c) => [c, c] as [string, string])) },
     { key: 'dateAdded', label: 'Received', display: onRail ? '' : date(p.dateAdded), control: inp('dateAdded', 'date', p.dateAdded || '') },
+    // Shown in the header while it's a request or a draft; edited here.
+    { key: 'promisedBy', label: 'Promised by', display: '', control: inp('promisedBy', 'date', p.promisedBy || '') },
     { key: 'sentDate', label: 'Sent', display: '', control: inp('sentDate', 'date', p.dateSentToClient || p.sentDate || '') },
     { key: 'dblSignedDate', label: 'Signed', display: '', control: inp('dblSignedDate', 'date', p.dblSignedDate || '') },
     { key: 'kickoffDate', label: 'Kickoff', display: p.kickoffDate && isWon(p) ? date(p.kickoffDate) : '', control: inp('kickoffDate', 'date', p.kickoffDate || '') },
@@ -427,7 +439,7 @@ export async function proposalFieldChanged(key: string, value: string): Promise<
     case 'currency': p.currency = v || null; break;
     case 'sentDate': p.sentDate = v || null; p.dateSentToClient = v || null; break;
     case 'contractMonths': p.contractMonths = v ? Number(v) : null; break;
-    case 'dateAdded': case 'dblSignedDate': case 'kickoffDate': case 'validUntil': case 'leadSource': case 'hubspot': case 'finance': case 'remarks':
+    case 'dateAdded': case 'promisedBy': case 'dblSignedDate': case 'kickoffDate': case 'validUntil': case 'leadSource': case 'hubspot': case 'finance': case 'remarks':
       (p as any)[key] = v || null;
       break;
     default: return;
@@ -734,6 +746,10 @@ interface BuilderPrefill {
 
 let draftLines: CommercialLine[] = [];
 let builderFolder: ProposalFolder | null = null;
+// Several proposals in one go: `draftLines` and the term select are the active
+// block's; the other blocks wait here as one line each (lib/proposalBlocks.ts).
+let blocks: ProposalBlock[] = [emptyBlock()];
+let activeBlock = 0;
 
 const val = (id: string) => ((document.getElementById(id) as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | null)?.value || '').trim();
 const setVal = (id: string, v: string) => { const el = document.getElementById(id) as HTMLInputElement | HTMLSelectElement | null; if (el) el.value = v; };
@@ -751,6 +767,8 @@ export function openProposalBuilder(prefill: BuilderPrefill = {}): void {
   const form = document.getElementById('prb-form') as HTMLFormElement | null;
   form?.reset();
   draftLines = (prefill.lines || []).map((l, i) => ({ ...l, sortOrder: i }));
+  blocks = [emptyBlock(prefill.contractMonths ?? null)];
+  activeBlock = 0;
   builderFolder = null;
 
   const entity = entityById(prefill.businessEntityId) || defaultEntity();
@@ -773,9 +791,11 @@ export function openProposalBuilder(prefill: BuilderPrefill = {}): void {
   if (client) attachCompanySelector(client, { onSelect: (name) => { client.value = name; prbClientChanged(); } });
   prbClientChanged(prefill.opportunityId, prefill.contactId);
   setVal('prb-service-q', '');
+  setVal('prb-promised', '');
   renderServicePicker();
   prbRefreshLines();
   renderDefaultsLines();
+  renderBlocks();
   const page = document.getElementById('pr-builder'); if (page) renderIcons(page);
   notifyNavigated();
   if (!prefill.client) window.setTimeout(() => client?.focus(), 50);
@@ -1006,6 +1026,7 @@ function renderDefaultsLines(): void {
     const status = (document.getElementById('prb-status') as HTMLSelectElement | null)?.selectedOptions[0]?.textContent || '';
     wfLine.innerHTML = `<span>${escHtml([
       val('prb-status') === PS.REQUEST ? `Request received ${received === today() ? 'today' : fmtDate(received)}` : status,
+      val('prb-promised') ? `Promised by ${fmtDate(val('prb-promised'))}` : '',
       owner ? `Owner ${owner.name}` : '', reviewer ? `Reviewer ${reviewer.name}` : '',
     ].filter(Boolean).join(' · '))}</span><button type="button" class="rlink" onclick="prbShowDefaults('workflow')">Change</button>`;
   }
@@ -1039,6 +1060,65 @@ export function prbRefreshLines(): void {
 }
 expose('prbRefreshLines', prbRefreshLines);
 
+// ── Several proposals in one go ─────────────────────────────────────────────
+
+/** The active block, as the form shows it now. */
+function syncActiveBlock(): void {
+  blocks[activeBlock] = { lines: draftLines, contractMonths: val('prb-months') ? Number(val('prb-months')) : null };
+}
+
+function loadBlock(i: number): void {
+  activeBlock = Math.max(0, Math.min(i, blocks.length - 1));
+  draftLines = blocks[activeBlock].lines;
+  setVal('prb-months', blocks[activeBlock].contractMonths != null ? String(blocks[activeBlock].contractMonths) : '');
+  setVal('prb-service-q', '');
+  prbServiceMenuClose();
+  renderServicePicker();
+  prbRefreshLines();
+  renderBlocks();
+}
+
+/** The other proposals as one line each; the active one's number when there are several. */
+function renderBlocks(): void {
+  const before = document.getElementById('prb-blocks-before');
+  const after = document.getElementById('prb-blocks-after');
+  const hd = document.getElementById('prb-block-hd');
+  if (!before || !after || !hd) return;
+  syncActiveBlock();
+  const currency = val('prb-currency') || 'SAR';
+  const line = (b: ProposalBlock, i: number) => `<div class="prb-block-line">
+    <button type="button" class="rlink prb-block-open" onclick="prbActivateBlock(${i})">${escHtml(blockSummary(b, i, currency))}</button>
+    <button type="button" class="rlink prb-block-remove" onclick="prbRemoveBlock(${i})">Remove</button></div>`;
+  before.innerHTML = blocks.slice(0, activeBlock).map((b, i) => line(b, i)).join('');
+  after.innerHTML = blocks.slice(activeBlock + 1).map((b, i) => line(b, activeBlock + 1 + i)).join('');
+  hd.hidden = blocks.length < 2;
+  hd.innerHTML = blocks.length < 2 ? '' : `<span>Proposal ${activeBlock + 1}</span><button type="button" class="rlink prb-block-remove" onclick="prbRemoveBlock(${activeBlock})">Remove</button>`;
+}
+
+export function prbAddBlock(): void {
+  syncActiveBlock();
+  // A new proposal starts with the same contract term; its services are its own.
+  blocks.push(emptyBlock(blocks[activeBlock].contractMonths));
+  loadBlock(blocks.length - 1);
+  document.getElementById('prb-service-q')?.focus();
+}
+expose('prbAddBlock', prbAddBlock);
+
+export function prbActivateBlock(i: number): void {
+  if (i === activeBlock) return;
+  syncActiveBlock();
+  loadBlock(i);
+}
+expose('prbActivateBlock', prbActivateBlock);
+
+export function prbRemoveBlock(i: number): void {
+  syncActiveBlock();
+  if (blocks.length < 2) return;
+  blocks.splice(i, 1);
+  loadBlock(i < activeBlock ? activeBlock - 1 : Math.min(activeBlock, blocks.length - 1));
+}
+expose('prbRemoveBlock', prbRemoveBlock);
+
 /** The running summary: only once there's a client or a service, and only what's known. */
 function renderBuilderSummary(): void {
   const el = document.getElementById('prb-summary');
@@ -1050,6 +1130,15 @@ function renderBuilderSummary(): void {
   const months = val('prb-months') ? Number(val('prb-months')) : null;
   const t = lineTotals(draftLines, months);
   const row = (label: string, value: string | null, cls = '') => (value ? `<div${cls ? ` class="${cls}"` : ''}><dt>${label}</dt><dd>${value}</dd></div>` : '');
+  if (blocks.length > 1) {
+    syncActiveBlock();
+    el.innerHTML = `<div class="rec-section-hd"><h2>Summary</h2></div>
+      <dl class="prb-sum">
+        ${row('Client', client ? escHtml(client) : null)}
+        ${blocks.map((b, i) => row(`Proposal ${i + 1}`, escHtml(blockSummary(b, i, currency).replace(/^Proposal \d+ · /, '')))).join('')}
+      </dl>`;
+    return;
+  }
   el.innerHTML = `<div class="rec-section-hd"><h2>Summary</h2></div>
     <dl class="prb-sum">
       ${row('Client', client ? escHtml(client) : null)}
@@ -1079,9 +1168,10 @@ export async function submitProposalBuilder(e: Event): Promise<void> {
   const client = val('prb-client');
   if (!client) { toast('Choose the client', { tone: 'error' }); document.getElementById('prb-client')?.focus(); return; }
   const status = val('prb-status') || PS.REQUEST;
-  const lines = draftLines.filter((l) => l.serviceName.trim());
-  if (draftLines.some((l) => !l.serviceName.trim())) { toast('Choose a service for every line, or remove the empty line', { tone: 'error' }); return; }
-  if (status !== PS.REQUEST && lines.length === 0) { toast('Add at least one service', { tone: 'error', detail: 'Only a request that hasn’t been started can be saved without services.' }); return; }
+  syncActiveBlock();
+  if (blocks.some((b) => b.lines.some((l) => !l.serviceName.trim()))) { toast('Choose a service for every line, or remove the empty line', { tone: 'error' }); return; }
+  const toSave = blocksToSave(blocks);
+  if (status !== PS.REQUEST && toSave.some((b) => b.lines.length === 0)) { toast('Add at least one service', { tone: 'error', detail: 'Only a request that hasn’t been started can be saved without services.' }); return; }
 
   // From an opportunity: the proposal keeps the opportunity's company by id
   // while the client field still shows that company.
@@ -1103,23 +1193,23 @@ export async function submitProposalBuilder(e: Event): Promise<void> {
   const ownerId = val('prb-owner') ? Number(val('prb-owner')) : null;
   const reviewerId = val('prb-reviewer') ? Number(val('prb-reviewer')) : null;
   const sent = status === PS.SENT ? val('prb-sent') || td : null;
-  const p: Proposal = {
-    id: nextId(), client, companyId, type: null, status,
+  const shared: SharedProposalFields = {
+    client, companyId, status,
     sentDate: sent, dblSignedDate: null, kickoffDate: null, finance: null, hubspot: null,
     owner: teamMember(ownerId)?.name ?? null, remarks: val('prb-remarks') || null, dateAdded: received,
-    monthlyFee: null, contractMonths: val('prb-months') ? Number(val('prb-months')) : null, winLossReason: null, docLink: null,
+    monthlyFee: null, winLossReason: null, docLink: null,
     archived: false, archivedAt: null, snoozedUntil: null,
-    dateSentToHassan: status === PS.REVIEW ? td : null, dateSentToClient: sent, dateSigned: null, notes: [],
+    dateSentToHassan: status === PS.REVIEW ? td : null, dateSentToClient: sent, dateSigned: null,
     businessEntityId: val('prb-entity') ? Number(val('prb-entity')) : null, currency: val('prb-currency') || 'SAR',
     primaryContactId, ownerId, reviewerId,
     reviewStatus: status === PS.REVIEW ? 'pending' : null, reviewRequestedAt: status === PS.REVIEW ? td : null,
     reviewedAt: null, reviewNote: null, validUntil: val('prb-valid') || null,
     folderPath: builderFolder?.exists ? builderFolder.path : null, leadSource: val('prb-source') || null,
-    lines: lines.map((l, i) => ({ ...l, sortOrder: i })), documents: [],
+    promisedBy: val('prb-promised') || null,
   };
-  if (lines.length === 0) p.type = '—';
-  syncProposalTotals(p);
-  S.proposals.push(p);
+  const created = proposalsFromBlocks(shared, blocks, nextId(), () => crypto.randomUUID());
+  for (const p of created) { syncProposalTotals(p); S.proposals.push(p); }
+  const p = created[0];
   persistProposals();
 
   if (opp) {
@@ -1134,7 +1224,7 @@ export async function submitProposalBuilder(e: Event): Promise<void> {
   if (createFolder) {
     try {
       const info = await proposalFolderCreate(client);
-      p.folderPath = info.path;
+      for (const x of created) x.folderPath = info.path;
       persistProposals();
     } catch (err) {
       toast('Proposal saved, but the folder could not be created', { tone: 'error', detail: String(err) });
@@ -1142,10 +1232,18 @@ export async function submitProposalBuilder(e: Event): Promise<void> {
   }
 
   draftLines = [];
+  blocks = [emptyBlock()];
+  activeBlock = 0;
   S.proposalBuilderOpen = false;
   w.populateAllSelects?.();
   refreshAll();
-  openProposalPage(p.id);
-  toast(`Proposal SL# ${p.id} created`, { tone: 'success' });
+  if (created.length === 1) {
+    openProposalPage(p.id);
+    toast(`Proposal SL# ${p.id} created`, { tone: 'success' });
+  } else {
+    // Several: the company page shows them together.
+    w.openRecord('company', p.companyId ?? client);
+    toast(`${created.length} proposals created (SL# ${created.map((x) => x.id).join(', ')})`, { tone: 'success' });
+  }
 }
 expose('submitProposalBuilder', submitProposalBuilder);

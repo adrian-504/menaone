@@ -90,6 +90,12 @@ pub struct Proposal {
     pub folder_path: Option<String>,
     #[serde(default)]
     pub lead_source: Option<String>,
+    /// The date we told the client they'd have it (ISO date).
+    #[serde(default)]
+    pub promised_by: Option<String>,
+    /// Shared by the proposals created together from one request (a uuid).
+    #[serde(default)]
+    pub request_group: Option<String>,
     #[serde(default)]
     pub lines: Vec<CommercialLine>,
     #[serde(default)]

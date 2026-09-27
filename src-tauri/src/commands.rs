@@ -62,14 +62,14 @@ pub fn read_all_data(conn: &Connection) -> rusqlite::Result<AppData> {
     })
 }
 
-fn read_proposals(conn: &Connection) -> rusqlite::Result<Vec<Proposal>> {
+pub(crate) fn read_proposals(conn: &Connection) -> rusqlite::Result<Vec<Proposal>> {
     let mut stmt = conn.prepare(
         "SELECT id, client, type, status, sent_date, dbl_signed_date, kickoff_date, finance,
                 hubspot, owner, remarks, date_added, monthly_fee, contract_months, win_loss_reason,
                 doc_link, archived, archived_at, snoozed_until, date_sent_to_hassan,
                 date_sent_to_client, date_signed, company_id, business_entity_id, currency, one_time_fee,
                 primary_contact_id, owner_id, reviewer_id, review_status, review_requested_at, reviewed_at,
-                review_note, valid_until, folder_path, lead_source
+                review_note, valid_until, folder_path, lead_source, promised_by, request_group
          FROM proposals ORDER BY id",
     )?;
     let rows = stmt.query_map([], |r| {
@@ -111,6 +111,8 @@ fn read_proposals(conn: &Connection) -> rusqlite::Result<Vec<Proposal>> {
             valid_until: r.get(33)?,
             folder_path: r.get(34)?,
             lead_source: r.get(35)?,
+            promised_by: r.get(36)?,
+            request_group: r.get(37)?,
             lines: Vec::new(),
             documents: Vec::new(),
         })
@@ -361,8 +363,8 @@ pub fn write_proposals(conn: &mut Connection, items: &[Proposal]) -> rusqlite::R
                 finance, hubspot, owner, remarks, date_added, monthly_fee, contract_months, win_loss_reason,
                 doc_link, archived, archived_at, snoozed_until, date_sent_to_hassan, date_sent_to_client, date_signed, company_id,
                 business_entity_id, currency, one_time_fee, primary_contact_id, owner_id, reviewer_id, review_status,
-                review_requested_at, reviewed_at, review_note, valid_until, folder_path, lead_source)
-             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,?22,?23,?24,?25,?26,?27,?28,?29,?30,?31,?32,?33,?34,?35,?36)",
+                review_requested_at, reviewed_at, review_note, valid_until, folder_path, lead_source, promised_by, request_group)
+             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,?22,?23,?24,?25,?26,?27,?28,?29,?30,?31,?32,?33,?34,?35,?36,?37,?38)",
         )?;
         let mut nstmt = tx.prepare(
             "INSERT INTO proposal_activity_notes (id, proposal_id, note_date, text) VALUES (?1,?2,?3,?4)",
@@ -380,6 +382,7 @@ pub fn write_proposals(conn: &mut Connection, items: &[Proposal]) -> rusqlite::R
                 p.date_sent_to_hassan, p.date_sent_to_client, p.date_signed, company_id,
                 p.business_entity_id, p.currency, p.one_time_fee, p.primary_contact_id, p.owner_id, p.reviewer_id,
                 p.review_status, p.review_requested_at, p.reviewed_at, p.review_note, p.valid_until, p.folder_path, p.lead_source,
+                p.promised_by, p.request_group,
             ])?;
             for n in &p.notes {
                 nstmt.execute(params![n.id, p.id, n.date, n.text])?;
@@ -623,6 +626,7 @@ const PROPOSAL_COLS: &[&str] = &[
     "archived", "archived_at", "snoozed_until", "date_sent_to_hassan", "date_sent_to_client", "date_signed", "company_id",
     "business_entity_id", "currency", "one_time_fee", "primary_contact_id", "owner_id", "reviewer_id", "review_status",
     "review_requested_at", "reviewed_at", "review_note", "valid_until", "folder_path", "lead_source",
+    "promised_by", "request_group",
 ];
 const ACTIVITY_NOTE_COLS: &[&str] = &["id", "proposal_id", "note_date", "text"];
 const CONTACT_COLS: &[&str] = &["id", "client_name", "name", "role", "email", "phone", "whatsapp", "service", "company_id", "is_decision_maker"];
@@ -651,6 +655,7 @@ pub fn upsert_proposal_rows_in(tx: &Connection, items: &[Proposal]) -> rusqlite:
             p.date_sent_to_hassan, p.date_sent_to_client, p.date_signed, company_id,
             p.business_entity_id, p.currency, p.one_time_fee, p.primary_contact_id, p.owner_id, p.reviewer_id,
             p.review_status, p.review_requested_at, p.reviewed_at, p.review_note, p.valid_until, p.folder_path, p.lead_source,
+            p.promised_by, p.request_group,
         ])?;
         let note_ids: Vec<i64> = p.notes.iter().map(|n| n.id).collect();
         tx.execute(
