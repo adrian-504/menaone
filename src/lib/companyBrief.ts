@@ -127,7 +127,8 @@ export interface CompanyThread {
 export function threadStand(t: EngagementThread): string {
   const last = t.nodes[t.nodes.length - 1];
   const status = last.status ? lowerStatus(last.status) : '';
-  return `${last.kind} ${status && !/^(in|sent|signed|on)\b/.test(status) ? 'at ' : ''}${status}`.trim();
+  const promised = last.promisedBy ? `, promised by ${new Date(`${last.promisedBy.slice(0, 10)}T12:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' })}` : '';
+  return `${last.kind} ${status && !/^(in|sent|signed|on)\b/.test(status) ? 'at ' : ''}${status}`.trim() + promised;
 }
 
 function cleanupQueueFor(t: EngagementThread, i: CompanyBriefInput): string | null {
@@ -255,18 +256,47 @@ function relationshipClause(i: CompanyBriefInput, r: Records): BriefClause {
 
 /** Short (Company 360, whose Open threads list follows): the count and what
  * needs attention — with us, or late. Long (the meeting brief): each one. */
-function inFlightClause(all: CompanyThread[], form: 'short' | 'long'): BriefClause | null {
-  const threads = all.filter((t) => !t.dormant);
+/** One "in flight" item: a thread, or the proposals requested together as one. */
+interface InFlightItem { label: string; late: boolean; after: CompanyThread['thread']['after']; phrase: string; link: Omit<BriefLink, 'label'> }
+
+/** Threads as in-flight items; proposals sharing a request group (two or more)
+ * become one, named "A, B and C (requested together)", pointing at Proposals. */
+function inFlightItems(threads: CompanyThread[], proposals: CompanyBriefInput['proposals']): InFlightItem[] {
+  const groupOf = (t: CompanyThread) => {
+    const node = t.thread.nodes.find((n) => n.kind === 'proposal');
+    return node ? proposals.find((p) => p.id === node.id)?.requestGroup || null : null;
+  };
+  const members = new Map<string, CompanyThread[]>();
+  for (const t of threads) { const g = groupOf(t); if (g) members.set(g, [...(members.get(g) || []), t]); }
+  const out: InFlightItem[] = [];
+  const done = new Set<string>();
+  for (const t of threads) {
+    const g = groupOf(t);
+    const group = g ? members.get(g)! : [];
+    if (!g || group.length < 2) { out.push({ label: t.label || 'Engagement', late: t.late, after: t.thread.after, phrase: t.phrase, link: { kind: t.record.kind, id: t.record.id } }); continue; }
+    if (done.has(g)) continue;
+    done.add(g);
+    const labels = group.map((x) => x.label || 'Proposal');
+    const named = labels.length > 1 ? `${labels.slice(0, -1).join(', ')} and ${labels[labels.length - 1]}` : labels[0];
+    // The one waiting longest speaks for the request.
+    const lead = [...group].sort((a, b) => (b.thread.after?.days ?? -1) - (a.thread.after?.days ?? -1))[0];
+    out.push({ label: `${named} (requested together)`, late: group.some((x) => x.late), after: lead.thread.after, phrase: lead.phrase, link: { kind: 'section', id: 'proposals' } });
+  }
+  return out;
+}
+
+function inFlightClause(all: CompanyThread[], form: 'short' | 'long', proposals: CompanyBriefInput['proposals'] = []): BriefClause | null {
+  const threads = inFlightItems(all.filter((t) => !t.dormant), proposals);
   if (!threads.length) return null;
   const tone: Tone | null = threads.some((t) => t.late) ? 'amber' : null;
   if (form === 'short') {
-    const heads = threads.filter((t) => t.late || t.thread.after?.waitingOn === 'us');
+    const heads = threads.filter((t) => t.late || t.after?.waitingOn === 'us');
     const count = threads.length === 1 ? 'One in flight' : `${threads.length} in flight`;
     if (!heads.length) return { key: 'inflight', text: `${count}.`, links: [], tone };
     const shownHeads = heads.slice(0, IN_FLIGHT_SHOWN);
-    const links: BriefLink[] = shownHeads.map((t) => ({ kind: t.record.kind, id: t.record.id, label: t.label || 'Engagement' }));
+    const links: BriefLink[] = shownHeads.map((t) => ({ ...t.link, label: t.label }));
     const parts = shownHeads.map((t, n) => {
-      const a = t.thread.after!;
+      const a = t.after!;
       const who = a.waitingOn === 'us' ? 'with us' : a.waitingOn === 'them' ? 'with the client' : 'waiting';
       return `{${n}} ${who}${a.days != null ? ` ${plural(a.days, 'day')}` : ''}`;
     });
@@ -274,7 +304,7 @@ function inFlightClause(all: CompanyThread[], form: 'short' | 'long'): BriefClau
     return { key: 'inflight', text: `${count} — ${parts.join('; ')}${more > 0 ? `; and ${more} more` : ''}.`, links, tone };
   }
   const shown = threads.slice(0, IN_FLIGHT_SHOWN);
-  const links: BriefLink[] = shown.map((t) => ({ kind: t.record.kind, id: t.record.id, label: t.label || 'Engagement' }));
+  const links: BriefLink[] = shown.map((t) => ({ ...t.link, label: t.label }));
   const parts = shown.map((t, n) => `{${n}}: ${t.phrase}`);
   const more = threads.length - shown.length;
   const text = `${threads.length === 1 ? 'In flight' : `${threads.length} in flight`} — ${parts.join('; ')}${more > 0 ? `; and ${more} more` : ''}.`;
@@ -342,7 +372,7 @@ export function buildCompanyState(i: CompanyBriefInput, opts: { inFlight?: 'shor
   const r = companyRecords(i);
   return [
     relationshipClause(i, r),
-    inFlightClause(liveThreads(i, r), opts.inFlight ?? 'short'),
+    inFlightClause(liveThreads(i, r), opts.inFlight ?? 'short', i.proposals),
     rhythmClause(i, r, r.clientAgreements.length > 0),
     commitmentsClause(i, r),
     pinnedClause(i),

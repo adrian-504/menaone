@@ -33,6 +33,8 @@ Client 360 and contact pages · proposals with lines, versions and an internal r
 
 ## Open, and small
 
+0. **Proposal requests (built 27 Sep, branch `proposal-requests`, awaiting review and install):** a request is a proposal, nothing else — several proposals from one create form (one per block, sharing a request group), `>> Proposal for …` lines that become requests instead of tasks, and a promised-by date on My Day, Coming up and the proposal header.
+
 1. **Owners are empty.** No company, opportunity or project has an owner, so "Mine" shows nothing. A bulk assign fixes it.
 2. **Five questions in `docs/data-classification.md`** — what is personal, what is shared. Shapes the database before the cloud, cheap now and expensive later.
 3. **Code signing** — Apple Developer ID, about $99/year. Removes the Keychain compromise (SECURITY_AUDIT S1) and lets colleagues install without warnings.

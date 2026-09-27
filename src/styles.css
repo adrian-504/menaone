@@ -2630,3 +2630,19 @@ tr:hover .td-status .row-more,tr:focus-within .td-status .row-more{opacity:1}
 /* Tasks → Promises (owner, 24-Sep-2026): You owe / Owed to you, then kept or dropped folded. */
 #todo-list > .pm-sec:first-child{border-top:none;padding-top:12px}
 .pm-closed{margin-top:16px;padding-top:12px;border-top:1px solid var(--hairline)}
+
+/* Create proposal, several at once: the other proposals as one quiet line each. */
+.prb-blocks:empty{display:none}
+.prb-block-open,.prb-block-remove,.prb-add-block{background:none;border:none;padding:0;font:inherit;cursor:pointer}
+.prb-block-line{display:flex;align-items:baseline;gap:12px;padding:8px 0;border-top:1px solid var(--hairline)}
+.prb-blocks .prb-block-line:last-child{border-bottom:1px solid var(--hairline)}
+.prb-block-open{flex:1;min-width:0;text-align:left;color:var(--text);text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.prb-block-open:hover{text-decoration:underline}
+.prb-block-remove,.prb-add-block{color:var(--muted);text-decoration:none;font-size:var(--type-secondary)}
+.prb-block-remove:hover,.prb-add-block:hover{color:var(--text);text-decoration:underline}
+.prb-add-block{display:inline-block;margin-top:12px}
+.prb-block-hd{display:flex;align-items:baseline;gap:12px;margin:12px 0 8px;font-size:var(--type-caption);font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.prb-block-hd .prb-block-remove{text-transform:none;letter-spacing:0;font-weight:400;margin-left:auto}
+/* Company 360: proposals requested together, one quiet line above them. */
+.co-group-tr:hover{background:none}
+.co-group-hd{padding:12px 8px 4px !important;font-size:var(--type-caption);font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);border-bottom:none !important;cursor:default}

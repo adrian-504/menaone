@@ -47,6 +47,8 @@ How MENA One's records connect, how new work inherits context, and what was chec
 | Commitment → company / opportunity / project | `commitments.company_id` / `opportunity_id` / `project_id` |
 | Commitment → where it came from | `commitments.source_type` + `source_id` (meeting, note; capture and manual have none) |
 | Commitment → its task (ours only) | `commitments.todo_id` |
+| Commitment → its proposal (a promise to send one) | `commitments.proposal_id` (instead of a task) |
+| Proposals requested together | `proposals.request_group` (a uuid shared by the proposals saved from one create form) |
 | Commitment → person | `commitments.contact_id` (who promised it, or who we promised it to) |
 | Opportunity → who it waits on | `opportunities.waiting_on` (`us` / `them`), `waiting_since`, `waiting_note` |
 
@@ -70,6 +72,7 @@ Context is a default, never a lock: dialogs are prefilled and every field can be
 - Filing meeting notes adds links to the meeting's project and opportunity and fills the note's company only when empty. It asks before replacing note text it didn't write.
 - Action items: unchecked `- [ ]` lines; an item that already has a task with the same title (linked to the note or from its meeting) is skipped, so converting twice creates nothing. A `- [ ] >> …` line is a commitment, not an action item: one commitment, one task.
 - Commitments (`src/lib/commitments.ts`, `src-tauri/src/commitments.rs`): a line starting `>>` (we owe it) or `<<` (the client owes it), after optional list or checkbox markers, inherits the context of where it was written — a meeting: company, opportunity, project, meeting; a note: as for tasks from the note; quick capture: the "@Company" or company named in the text. Lines are read when the text box loses focus, never mid-typing. The same line read again creates nothing (source + normalised text); an edited line is a new commitment and the old one stays open; removing a line never deletes one. An `ours` commitment gets one task with the same context; done ⇄ kept, reopened ⇄ open and the due date move together (triggers in the database, the same in memory). Deleting the task leaves the commitment open; deleting its opportunity, project, meeting, note, contact or company unlinks it.
+- A promise to send a proposal (`isProposalCommitment`: an `ours` line starting "Proposal for…", "Send / Prepare / Draft (a / the) proposal…" or "Proposals for…") written where there is a company becomes a **proposal request** instead of a task, in the same transaction (`commitments_add` with `proposal: true`): the company as client, status Request, received today, `promised_by` = the line's due date, the catalogue services the line names as its type, this device's user as owner, the first reviewer, the KSA entity, linked to its meeting (`entity_links` meeting → proposal). The promise points at it (`proposal_id`, no task). It follows the proposal (triggers, the same in memory in `persist.ts`): a change to sent or signed keeps it; to lost or withdrawn drops it with the status as the reason; deleting the proposal unlinks it. Without a company it is a task, as before. Re-reading the line creates nothing.
 
 ## 3a. The engagement thread and record timeline (Slice 3)
 

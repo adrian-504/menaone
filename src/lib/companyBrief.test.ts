@@ -171,3 +171,17 @@ describe('the meeting brief', () => {
     expect(brief.agenda).toContain('Contoso recruitment: Agree the headcount');
   });
 });
+
+describe('proposals requested together', () => {
+  it('are one item in flight, named together, linking to the Proposals section', () => {
+    const req = { status: 'Proposal Request Received', dateAdded: today, dateSentToHassan: null };
+    const inflight = buildCompanyState(input({ proposals: [
+      prop({ id: 11, type: 'Payroll, PRO', requestGroup: 'g', ...req }),
+      prop({ id: 12, type: 'Recruitment', requestGroup: 'g', ...req }),
+      prop({ id: 13, type: 'Accountancy', ...req }),
+    ] })).find((c) => c.key === 'inflight')!;
+    expect(clauseText(inflight)).toMatch(/^2 in flight — /);
+    expect(clauseText(inflight)).toContain('Payroll, PRO and Recruitment (requested together) with us 0 days');
+    expect(inflight.links).toContainEqual({ kind: 'section', id: 'proposals', label: 'Payroll, PRO and Recruitment (requested together)' });
+  });
+});

@@ -3,6 +3,7 @@
 // with quick capture, the pipeline, watch items and recent activity.
 // The rules live in lib/myday.ts; this file renders and handles actions.
 
+import { stripCompanyToken } from '../lib/commitments';
 import { setCommitmentKept, readCommitmentsFrom } from './commitments';
 import { parseTaskInput } from '../lib/taskParse';
 import { EMPTY_CONTEXT } from '../lib/workGraph';
@@ -507,11 +508,13 @@ export async function captureCommitment(raw: string): Promise<boolean> {
   const body = raw.replace(/^(>>|<<)\s*/, '');
   const parsed = parseTaskInput(body, { today: new Date(), projects: [], companies: S.companies.filter((c) => !c.archived).map((c) => ({ id: c.id, name: c.name })) });
   const co = parsed.companyName ? S.companies.find((c) => c.name === parsed.companyName) : undefined;
-  const explicit = parsed.tokens.find((t) => t.kind === 'company' && t.text.startsWith('@'));
-  const text = explicit ? raw.replace(explicit.text, ' ') : raw;
-  const n = await readCommitmentsFrom('capture', null, [text], { ...EMPTY_CONTEXT, companyId: co?.id ?? null, companyName: co?.name ?? null });
-  if (!n) { toast('Nothing to add — write what was promised after >> or <<'); return false; }
-  toast(raw.startsWith('>>') ? `Commitment added${co ? ` for ${co.name}` : ''}, with a task` : `Noted: ${co ? co.name : 'the client'} owes you this`);
+  const explicit = parsed.tokens.find((t) => t.kind === 'company' && /^[@＠]/.test(t.text));
+  const text = explicit ? stripCompanyToken(raw, parsed.companyName, explicit.text) : raw;
+  const added = await readCommitmentsFrom('capture', null, [text], { ...EMPTY_CONTEXT, companyId: co?.id ?? null, companyName: co?.name ?? null });
+  if (!added.commitments.length) { toast('Nothing to add — write what was promised after >> or <<'); return false; }
+  const request = added.proposals[0];
+  toast(request ? `Promise added for ${request.client} — proposal request SL# ${request.id}`
+    : raw.startsWith('>>') ? `Commitment added${co ? ` for ${co.name}` : ''}, with a task` : `Noted: ${co ? co.name : 'the client'} owes you this`);
   return true;
 }
 

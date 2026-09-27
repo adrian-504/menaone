@@ -152,3 +152,56 @@ describe('a commitment and its task move together in memory', () => {
     expect(S.commitments[0].status).toBe('dropped');
   });
 });
+
+describe('a promise to send a proposal follows the proposal in memory', () => {
+  const promise = (over: Partial<Commitment> = {}): Commitment => ({ id: 1, direction: 'ours', text: 'Proposal for Payroll', contactId: null, dueDate: '2026-10-02', status: 'open', closedAt: null,
+    dropReason: null, companyId: 7, opportunityId: null, projectId: null, sourceType: 'meeting', sourceId: 3, sourceKey: 'proposal for payroll', todoId: null, proposalId: 9,
+    createdAt: null, updatedAt: null, ...over });
+
+  beforeEach(() => {
+    S.todos = [];
+    S.proposals = [proposal(9, 'Proposal Request Received')];
+    S.commitments = [promise()];
+    markLoadedAsSaved();
+    vi.clearAllMocks();
+  });
+
+  it('sent → kept; the other statuses that keep it too', () => {
+    for (const status of ['Sent to Client', 'Signed by Client', 'Signed by Both Parties']) {
+      S.proposals = [proposal(9, 'Proposal Request Received')];
+      S.commitments = [promise()];
+      markLoadedAsSaved();
+      S.proposals[0].status = status;
+      persistProposals();
+      expect(S.commitments[0].status).toBe('kept');
+      expect(S.commitments[0].closedAt).not.toBeNull();
+    }
+  });
+
+  it('lost or withdrawn → dropped, with the status as the reason', () => {
+    for (const status of ['Lost', 'Withdrawn']) {
+      S.proposals = [proposal(9, 'Drafting')];
+      S.commitments = [promise()];
+      markLoadedAsSaved();
+      S.proposals[0].status = status;
+      persistProposals();
+      expect(S.commitments[0]).toMatchObject({ status: 'dropped', dropReason: status });
+    }
+  });
+
+  it('only a change of status counts: a promise reopened by hand stays open', () => {
+    S.proposals = [proposal(9, 'Sent to Client')];
+    S.commitments = [promise()];
+    markLoadedAsSaved();
+    S.proposals[0].remarks = 'chased';
+    persistProposals();
+    expect(S.commitments[0].status).toBe('open');
+  });
+
+  it('deleting the proposal unlinks the promise, never deletes it', () => {
+    S.proposals = [];
+    persistProposals();
+    expect(S.commitments).toHaveLength(1);
+    expect(S.commitments[0]).toMatchObject({ status: 'open', proposalId: null });
+  });
+});
