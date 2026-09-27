@@ -64,13 +64,12 @@ export function renderPending(): void {
   (window as any).renderProposalViews?.();
   const search = ((document.getElementById('wq-search') as HTMLInputElement).value || '').toLowerCase();
   const filterStatus = (document.getElementById('wq-filter-status') as HTMLSelectElement).value;
-  const filterOwner = (document.getElementById('wq-filter-owner') as HTMLSelectElement).value;
   const sort = (document.getElementById('wq-sort') as HTMLSelectElement).value;
 
   let data = getPendingProposals().filter((p) => {
     if (filterStatus && p.status !== filterStatus) return false;
-    if (filterOwner && ownerName(p) !== filterOwner) return false;
-    if (search && !p.client.toLowerCase().includes(search) && !(p.type || '').toLowerCase().includes(search) && !(p.owner || '').toLowerCase().includes(search)) return false;
+    // Search covers the owner (as the row shows it), so there's no separate owner filter.
+    if (search && ![p.client, p.type, p.owner, ownerName(p)].some((v) => (v || '').toLowerCase().includes(search))) return false;
     return true;
   });
 
@@ -120,7 +119,7 @@ export function renderPending(): void {
     container.innerHTML += archHtml;
   }
 }
-registerTabRenderer('pending', () => { populateWqOwnerFilter(); renderPending(); });
+registerTabRenderer('pending', () => { renderPending(); });
 expose('renderPending', renderPending);
 
 /** "promised by 2 Oct", red once the day has come. Meta only: it changes neither the order nor the age. */
@@ -195,19 +194,10 @@ export async function wqAdvance(id: number, newStatus: string): Promise<void> {
 expose('wqAdvance', wqAdvance);
 
 export function wqClear(): void {
-  ['wq-search', 'wq-filter-status', 'wq-filter-owner', 'wq-sort'].forEach((id) => {
+  ['wq-search', 'wq-filter-status', 'wq-sort'].forEach((id) => {
     const el = document.getElementById(id) as HTMLInputElement | HTMLSelectElement | null;
     if (el) { if (el.tagName === 'SELECT') (el as HTMLSelectElement).selectedIndex = 0; else el.value = ''; }
   });
   renderPending();
 }
 expose('wqClear', wqClear);
-
-export function populateWqOwnerFilter(): void {
-  const sel = document.getElementById('wq-filter-owner') as HTMLSelectElement | null;
-  if (!sel) return;
-  const cur = sel.value;
-  const owners = [...new Set(getPendingProposals().map((p) => p.owner).filter(Boolean))].sort() as string[];
-  sel.innerHTML = `<option value="">All Owners</option>` + owners.map((o) => `<option value="${escHtml(o)}" ${o === cur ? 'selected' : ''}>${escHtml(o)}</option>`).join('');
-}
-expose('populateWqOwnerFilter', populateWqOwnerFilter);

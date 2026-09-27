@@ -57,9 +57,12 @@ export function touchLabel(t: LastTouch, sentLabel: string): string {
   return what ? `Sent ${sentLabel} · ${what}` : `Sent ${sentLabel}`;
 }
 
-/** "Back in N days" from the notes dialog: the date the proposal returns (N kept within 1–60). */
+/** "Wait longer — back in N days": the default, beyond the ten days a note gives anyway. */
+export const WAIT_LONGER_DAYS = 30;
+
+/** "Wait longer" from the notes dialog: the date the proposal returns (N kept within 1–90). */
 export function backInDays(today: string, days: number): string {
-  const n = Math.min(60, Math.max(1, Math.round(Number.isFinite(days) ? days : 7)));
+  const n = Math.min(90, Math.max(1, Math.round(Number.isFinite(days) ? days : WAIT_LONGER_DAYS)));
   const d = new Date(`${today}T12:00:00Z`);
   d.setUTCDate(d.getUTCDate() + n);
   return d.toISOString().slice(0, 10);

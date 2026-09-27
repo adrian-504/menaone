@@ -1335,9 +1335,6 @@
       <option value="Drafting">Drafting</option>
       <option value="In Internal Review">In internal review</option>
     </select>
-    <select class="fsel" id="wq-filter-owner" onchange="renderPending()">
-      <option value="">All Owners</option>
-    </select>
     <select class="fsel" id="wq-sort" onchange="renderPending()">
       <option value="age">Sort: Oldest First</option>
       <option value="age-desc">Sort: Newest First</option>
@@ -1355,7 +1352,7 @@
   <div class="page-header">
     <div>
       <div class="page-title">Proposals</div>
-      <div class="page-subtitle">Sent to a client with no answer for over 10 days — mark them won or lost, or snooze them.</div>
+      <div class="page-subtitle">Sent to a client, and no contact for over 10 days — log your follow-up, or mark them won or lost.</div>
     </div>
     <div class="page-header-actions"><select class="fsel period-sel" onchange="setGlobalPeriod(this.value)" title="Period" aria-label="Period">
       <option value="all">All time</option>
@@ -2202,8 +2199,8 @@
     <div class="fgrp">
       <label class="flbl">Add New Note</label>
       <textarea class="finp" id="notes-input" rows="2" placeholder="Log a call, email, meeting outcome…"></textarea>
-      <!-- From Follow-up, for a sent proposal: it leaves the list and comes back by itself. -->
-      <label class="check-label notes-back" id="notes-back-row" hidden><input type="checkbox" id="notes-back" checked> Back in <input class="finp notes-back-days" type="number" id="notes-back-days" min="1" max="60" value="7" aria-label="Days"> days</label>
+      <!-- From Follow-up, for a sent proposal: a note is contact (back in 10 days by itself); tick to wait longer. -->
+      <label class="check-label notes-back" id="notes-back-row" hidden><input type="checkbox" id="notes-back"> Wait longer — back in <input class="finp notes-back-days" type="number" id="notes-back-days" min="1" max="90" value="30" aria-label="Days"> days</label>
     </div>
     <div class="fact">
       <button class="btn-secondary" onclick="closeNotesModal()">Close</button>

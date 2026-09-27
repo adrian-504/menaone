@@ -47,13 +47,14 @@ describe('lastTouch', () => {
   });
 });
 
-describe('Back in N days', () => {
-  it('is today plus N, across months, with N kept within 1–60', () => {
-    expect(backInDays('2026-09-27', 7)).toBe('2026-10-04');
+describe('Wait longer — back in N days', () => {
+  it('is today plus N, across months and years, with N kept within 1–90 (30 when unreadable)', () => {
+    expect(backInDays('2026-09-27', 30)).toBe('2026-10-27');
     expect(backInDays('2026-12-28', 7)).toBe('2027-01-04');
     expect(backInDays('2026-09-27', 0)).toBe('2026-09-28');
-    expect(backInDays('2026-09-27', 90)).toBe('2026-11-26');
-    expect(backInDays('2026-09-27', Number.NaN)).toBe('2026-10-04');
+    expect(backInDays('2026-09-27', 90)).toBe('2026-12-26');
+    expect(backInDays('2026-09-27', 120)).toBe('2026-12-26');
+    expect(backInDays('2026-09-27', Number.NaN)).toBe('2026-10-27');
   });
 });
 

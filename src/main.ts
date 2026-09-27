@@ -41,7 +41,6 @@ import { populateCtListFilter, populateCtTypeFilter } from './core/contacts';
 // Tabs (each registers its renderer with the registry on import)
 import './tabs/dashboard';
 import './tabs/followup';
-import { populateWqOwnerFilter } from './tabs/pending';
 import './tabs/database';
 import './tabs/reports';
 import './tabs/analytics';
@@ -125,7 +124,6 @@ function populateAllSelects(): void {
   populateCtListFilter();
   populateCtTypeFilter();
   populateAgrFilters();
-  populateWqOwnerFilter();
 }
 registerPopulateAllSelects(populateAllSelects);
 
@@ -243,7 +241,7 @@ async function init(): Promise<void> {
   rememberFilters({ ids: ['ct-client', 'ct-list-filter', 'ct-type-filter'] });
   rememberFilters({ ids: ['agr-status', 'agr-service', 'agr-type', 'agr-prep'], clear: 'agrClear' });
   rememberFilters({ ids: ['db-status', 'db-type', 'db-owner', 'db-entity'], clear: 'dbClear' });
-  rememberFilters({ ids: ['wq-filter-status', 'wq-filter-owner', 'wq-sort'], clear: 'wqClear' });
+  rememberFilters({ ids: ['wq-filter-status', 'wq-sort'], clear: 'wqClear' });
   rememberFilters({ ids: ['opp-stage-filter', 'opp-owner-filter'] });
   rememberFilters({ ids: ['proj-status-filter', 'proj-owner-filter', 'proj-sort'] });
   // Focus: search and the two filters used most stay; the rest go behind "Filters".
