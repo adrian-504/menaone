@@ -11,7 +11,7 @@ One page on what happens when you press **Generate**, the rules the templates fo
 
 1. **Lines → services.** Each proposal line's service maps to a module (Administration & PRO, Payroll & GOSI, Business Setup, Business Setup & Maintenance package, Company Maintenance, Employer of Record, Recruitment Advisory, Labor Law Consultancy, …).
 2. **Lead deck.** The template of the **first line's** service leads: its cover, letter, agenda and **general terms** are the proposal's.
-3. **Other services** bring in their own scope and fee slides from their template. The Business Setup and Maintenance package also shows Company Maintenance's detailed approach; its pricing stays the package's.
+3. **Other services** bring in their own scope and fee slides from their template. The Business Setup and Maintenance package brings its own Business Setup Scope and Company Maintenance Scope slides (an older package deck without a maintenance scope slide borrowed Company Maintenance's detailed approach instead); its pricing stays the package's.
 4. **Terms once.** The general terms come from the lead deck. Other services' clauses that aren't already there (compared sentence by sentence; clauses the decks word differently count as one) are gathered on labelled service-terms slides ("Recruitment Advisory · Early Termination"). One acceptance slide.
 5. **Order and numbering.** Service sections follow the order of the lines; "PART n" dividers are renumbered; agenda page numbers are recounted.
 6. **Cover and letter** name every service when there is more than one.
@@ -29,7 +29,9 @@ The 2026 design follows the same rules with tags instead of templates: slides ar
 - **Contract length** is written "Unless previously terminated, this Agreement will initially to complete duration of 1 year minimum." so the term rewrite finds it.
 - **Fixed template figures** — the Employer of Record visa-recovery amount, the Business Setup early-termination penalties, and the figures on the Constitution / Maintenance fee slides — are owner-confirmed standards (22-Sep-2026), not placeholders. The fee on the Company Liquidation template is a sample: it is replaced by the proposal's line price, and flagged when no price is set.
 - **Recruitment** is proposed separately; Employer of Record decks carry no recruitment slides.
-- **Business Setup package** is free setup with a 12-month term. A package under 12 months warns, charges the setup and drops the free-setup slide (the owner's rule of 14-Sep-2026).
+- **Business Setup and Maintenance package** (`Business Setup and Maintenance Proposal Template.pptx`, 27-Sep-2026) offers two options on its Fee Options slide: **A** the one-time setup (Business Setup price: a Business Setup line's, else the rate card standard; 35/35/15/15 milestones) and **B** the package's monthly price for 12 months, with the setup's value shown struck through because it isn't billed. The word "free" is not used. Under 12 months the setup is charged (the owner's rule of 14-Sep-2026): the strikethrough goes, the total and wording follow the term, and a check asks how the setup is paid.
+- **Page references** such as "Business Setup Scope (p. 6)" are recounted to wherever the slide subtitled with that name ends up, so the package can follow other services.
+- **Card-style terms** are one shape per card named "Terms Card n", heading first, every clause bulleted; the line above them is named "LeadIn Bar". A combined proposal then takes only the clauses a card adds, on labelled service-terms slides.
 
 ## What the tests guarantee
 

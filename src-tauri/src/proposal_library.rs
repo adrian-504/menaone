@@ -134,6 +134,8 @@ pub fn classify(inspection: &TemplateInspection) -> Vec<ClassifiedSlide> {
     let mut zone = Zone::Front;
     let mut current: Vec<&'static str> = Vec::new();
     let mut out = Vec::new();
+    // Approach slides subtitled "Company Maintenance Scope" and the like (by index into `out`).
+    let mut maintenance_scope: Vec<usize> = Vec::new();
     for s in &inspection.slides {
         // The whole slide: a terms slide's service subtitle can sit past the first 400 characters.
         let l = lines(if s.full_text.is_empty() { &s.text } else { &s.full_text });
@@ -182,6 +184,9 @@ pub fn classify(inspection: &TemplateInspection) -> Vec<ClassifiedSlide> {
             let subtitle = l.get(1).cloned().unwrap_or_default();
             // "Recruitment Process" inside the Workforce module belongs to Workforce.
             let found = if subtitle.to_lowercase().contains("process") { vec![] } else { modules_in(&subtitle) };
+            if first.starts_with("Detailed Approach") && found == ["maintenance"] {
+                maintenance_scope.push(out.len());
+            }
             (Role::Approach, if found.is_empty() { current.clone() } else { found })
         } else if matches!(first.as_str(), "Value Based" | "Project Fees" | "Package Deal") {
             let subtitle = l.iter().position(|x| x == "Project Fees").and_then(|i| l.get(i + 1)).cloned().filter(|x| x != "Fees and Payment Terms");
@@ -199,6 +204,11 @@ pub fn classify(inspection: &TemplateInspection) -> Vec<ClassifiedSlide> {
     if cover_services(inspection).map(|c| modules_in(&c) == vec!["business_setup"]).unwrap_or(false) {
         for s in out.iter_mut().filter(|s| s.is_module()) {
             s.modules = vec!["business_setup"];
+        }
+        // Its own Company Maintenance Scope slide (the 27-Sep-2026 template) also covers
+        // maintenance, so the package no longer borrows the Company Maintenance deck's approach.
+        for &i in &maintenance_scope {
+            out[i].modules = vec!["business_setup", "maintenance"];
         }
     }
     out
@@ -297,21 +307,8 @@ pub fn plan(library: &[LibraryTemplate], wanted: &[&'static str]) -> Result<Plan
         })
         .map(|(_, s)| s.index)
         .collect();
-    let mut imports = Vec::new();
+    let mut imports: Vec<Import> = Vec::new();
     let mut missing = Vec::new();
-    // The Business Setup and Maintenance Package also shows Company Maintenance's detailed
-    // approach (its main tasks) beside its own scope; the package's pricing stays its own.
-    if wanted.contains(&"business_setup") && !wanted.contains(&"maintenance") && !base_cov.contains("maintenance") {
-        let source = (0..library.len())
-            .filter(|&i| i != base && covered(&library[i].slides) == BTreeSet::from(["maintenance"]))
-            .min_by_key(|&i| (library[i].client_on_cover.is_some(), library[i].slides.len()));
-        if let Some(src) = source {
-            let approach: Vec<usize> = library[src].slides.iter().filter(|s| s.role == Role::Approach && s.modules == ["maintenance"]).map(|s| s.index).collect();
-            if !approach.is_empty() {
-                imports.push(Import { template: src, positions: approach, terms: false, module: "business_setup" });
-            }
-        }
-    }
     for &key in wanted {
         if base_cov.contains(key) || imports.iter().any(|x: &Import| x.module == key) {
             continue;
@@ -339,6 +336,25 @@ pub fn plan(library: &[LibraryTemplate], wanted: &[&'static str]) -> Result<Plan
         }
         if !terms.is_empty() {
             imports.push(Import { template: src, positions: terms, terms: true, module: key });
+        }
+    }
+    // A Business Setup and Maintenance Package deck without its own maintenance scope (the
+    // pre-27-Sep-2026 template) also shows Company Maintenance's detailed approach (its main
+    // tasks) beside its own scope; the package's pricing stays its own. The deck used for the
+    // package — the base, or the one imported — decides; its own slides are always used.
+    if wanted.contains(&"business_setup") && !wanted.contains(&"maintenance") {
+        let package_deck = if base_cov.contains("business_setup") { Some(base) } else { imports.iter().find(|x| x.module == "business_setup" && !x.terms).map(|x| x.template) };
+        let has_scope = package_deck.map(|d| covered(&library[d].slides).contains("maintenance")).unwrap_or(false);
+        let source = (0..library.len())
+            .filter(|&i| i != base && covered(&library[i].slides) == BTreeSet::from(["maintenance"]))
+            .min_by_key(|&i| (library[i].client_on_cover.is_some(), library[i].slides.len()));
+        if let (false, Some(src)) = (has_scope, source) {
+            let approach: Vec<usize> = library[src].slides.iter().filter(|s| s.role == Role::Approach && s.modules == ["maintenance"]).map(|s| s.index).collect();
+            if !approach.is_empty() {
+                // Ahead of the package's imported slides, as it always was.
+                let at = imports.iter().position(|x| x.module == "business_setup").unwrap_or(0);
+                imports.insert(at, Import { template: src, positions: approach, terms: false, module: "business_setup" });
+            }
         }
     }
     Ok(Plan { base, keep, imports, missing })
