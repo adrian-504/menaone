@@ -310,9 +310,11 @@ export function latestVersion(fileNames: string[]): number {
 
 /** `<Client>_<Service> Proposal_<DD.MM.YYYY>[_V<n>].pptx`, matching the
  * naming already used in the client folders. */
+/** A name made safe for a file name: no path or reserved characters, single spaces. */
+export const cleanFileName = (s: string) => s.replace(/[\\/:*?"<>|]/g, ' ').replace(/\s+/g, ' ').trim();
+
 export function suggestedFileName(client: string, serviceLabel: string, isoDate: string, existing: string[]): string {
-  const clean = (s: string) => s.replace(/[\\/:*?"<>|]/g, ' ').replace(/\s+/g, ' ').trim();
-  const stem = `${clean(client)}_${clean(serviceLabel) || 'Services'} Proposal`;
+  const stem = `${cleanFileName(client)}_${cleanFileName(serviceLabel) || 'Services'} Proposal`;
   // Versions count per proposal deck: only files for the same client and services.
   const next = latestVersion(existing.filter((n) => n.toLowerCase().startsWith(stem.toLowerCase()))) + 1;
   const base = `${stem}_${fileDate(isoDate)}`;

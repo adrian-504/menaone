@@ -437,6 +437,8 @@ export async function installDevMockIfNeeded(): Promise<void> {
               { path: `${path}/Acme Holdings_Payroll & PRO Proposal_08.01.2026.pptx`, name: 'Acme Holdings_Payroll & PRO Proposal_08.01.2026.pptx', isFolder: false, size: 4200000, modifiedAt: '2026-01-08T10:00:00Z', exists: true },
               { path: `${path}/Acme Holdings_Payroll & PRO Proposal_08.01.2026_V2.pptx`, name: 'Acme Holdings_Payroll & PRO Proposal_08.01.2026_V2.pptx', isFolder: false, size: 4300000, modifiedAt: '2026-01-09T10:00:00Z', exists: true },
               { path: `${path}/Commercials.xlsx`, name: 'Commercials.xlsx', isFolder: false, size: 40000, modifiedAt: '2026-01-09T09:00:00Z', exists: true },
+              // Made by hand for SL# 2 (Recruitment): offered as its deck.
+              { path: `${path}/Acme Holdings_Recruitment Proposal_12.09.2026.pptx`, name: 'Acme Holdings_Recruitment Proposal_12.09.2026.pptx', isFolder: false, size: 3900000, modifiedAt: '2026-09-12T15:00:00Z', exists: true },
             ] : [],
           };
         }
