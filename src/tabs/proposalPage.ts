@@ -25,7 +25,7 @@ import { endPropsEdit, mountPropsList, propsEditButton, propsListHtml, resetProp
 import { renderIcons } from '../core/chrome';
 import { ST, LEAD_SOURCES } from '../lib/constants';
 import { renderLinesEditor, lineForService } from '../lib/linesEditor';
-import { changeProposalStatus, recordReview, openWlModal, updateStatus, archiveProposal, unarchiveProposal, snoozeProposal, isSnoozed } from '../core/proposals';
+import { changeProposalStatus, recordReview, undoReview, openWlModal, updateStatus, archiveProposal, unarchiveProposal, snoozeProposal, isSnoozed } from '../core/proposals';
 import {
   PS, PROPOSAL_STAGES, stageIndex, isWon, isLost, isWithdrawn, isClosed, lineTotals, syncProposalTotals, fmtMoney, currencyOf,
   teamMember, reviewers, defaultReviewer, activeTeam, ownerName, entityById, defaultEntity, activeServices, newLine,
@@ -457,14 +457,17 @@ function renderReview(p: Proposal): void {
   const name = reviewer?.name || 'the reviewer';
   const at = stageIndex(p.status);
   let body = '';
+  // Recorded by mistake: undo while it still counts (approved, not yet sent;
+  // changes requested, still drafting because of it).
+  const undo = `<a href="#" class="rlink pr-review-undo" onclick="event.preventDefault();proposalUndoReview()">Undo</a>`;
   if (p.reviewStatus === 'approved') {
-    body = `<div class="pr-review-state tone-green">${icon('check', 14)} Approved by ${escHtml(name)}${p.reviewedAt ? ` on ${fmtDate(p.reviewedAt)}` : ''}</div>${p.reviewNote ? `<p class="pr-review-note">${escHtml(p.reviewNote)}</p>` : ''}`;
+    body = `<div class="pr-review-state tone-green">${icon('check', 14)} Approved by ${escHtml(name)}${p.reviewedAt ? ` on ${fmtDate(p.reviewedAt)}` : ''}${p.status === PS.REVIEW ? `<span class="pr-review-undo-sep">·</span>${undo}` : ''}</div>${p.reviewNote ? `<p class="pr-review-note">${escHtml(p.reviewNote)}</p>` : ''}`;
   } else if (p.reviewStatus === 'changes_requested') {
     // "Submit for review" is the header's main action while drafting.
-    body = `<div class="pr-review-state tone-amber">${icon('edit', 14)} ${escHtml(name)} asked for changes${p.reviewedAt ? ` on ${fmtDate(p.reviewedAt)}` : ''}</div>${p.reviewNote ? `<p class="pr-review-note">${escHtml(p.reviewNote)}</p>` : ''}`;
+    body = `<div class="pr-review-state tone-amber">${icon('edit', 14)} ${escHtml(name)} asked for changes${p.reviewedAt ? ` on ${fmtDate(p.reviewedAt)}` : ''}${p.status === PS.DRAFTING ? `<span class="pr-review-undo-sep">·</span>${undo}` : ''}</div>${p.reviewNote ? `<p class="pr-review-note">${escHtml(p.reviewNote)}</p>` : ''}`;
   } else if (p.status === PS.REVIEW) {
     body = `<div class="pr-review-state tone-accent">${icon('clock', 14)} With ${escHtml(name)} since ${fmtDate(p.reviewRequestedAt || p.dateSentToHassan)}</div>
-      <textarea class="finp pr-review-input" id="prd-review-note" data-typing rows="2" placeholder="Comments from the review (optional)"></textarea>
+      <textarea class="finp pr-review-input" id="prd-review-note" data-typing rows="2" placeholder="Comments from the review (optional)">${escHtml(p.reviewNote || '')}</textarea>
       <div class="btn-row">
         <button class="btn-secondary is-positive" onclick="proposalRecordReview('approved')">${icon('check', 13)} Approved</button>
         <button class="btn-secondary" onclick="proposalRecordReview('changes_requested')">Changes requested</button>
@@ -487,6 +490,14 @@ export function proposalRecordReview(outcome: 'approved' | 'changes_requested'):
   toast(outcome === 'approved' ? 'Review recorded — ready to send' : 'Changes requested — back to drafting', { tone: outcome === 'approved' ? 'success' : 'neutral' });
 }
 expose('proposalRecordReview', proposalRecordReview);
+
+export function proposalUndoReview(): void {
+  const p = currentProposal();
+  if (!p) return;
+  undoReview(p.id);
+  renderProposalPage();
+}
+expose('proposalUndoReview', proposalUndoReview);
 
 // ── Commercials ──
 

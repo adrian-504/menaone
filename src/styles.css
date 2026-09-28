@@ -1667,6 +1667,7 @@ body.dnd-active .opp-board .board-column.stage-hidden{display:flex}
 .pr-props > dd > .rlink{padding-left:8px;font-size:var(--type-body)}
 .pr-remarks{resize:vertical;min-height:52px;line-height:1.45}
 .pr-review-state{display:flex;align-items:center;gap:7px;font-weight:600;font-size:var(--type-body)}
+.pr-review-undo-sep{color:var(--muted);font-weight:400}.pr-review-undo{color:var(--sub);font-weight:400;font-size:var(--type-meta)}
 .pr-review-state.tone-green{color:var(--green)}.pr-review-state.tone-amber{color:var(--amber)}.pr-review-state.tone-accent{color:var(--accent)}
 .pr-review-note{font-size:var(--type-secondary);color:var(--sub);margin:8px 0 0;line-height:1.5;white-space:pre-wrap}
 .pr-review-input{margin:10px 0}
