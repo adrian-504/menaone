@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-// GOSI on Payroll and VAT on Accountancy are options on the line, not separate
-// services: switching one changes the name the client reads on the proposal.
+// GOSI on Payroll is an option on the line, not a separate service: switching it
+// changes the name the client reads. Accountancy has none since 28-Sep (VAT is in both packages).
 import { describe, it, expect, beforeEach } from 'vitest';
 import { S } from './state';
 import { renderLinesEditor, linesEdit } from './linesEditor';
@@ -29,8 +29,8 @@ describe('service options on a proposal line', () => {
   it('offers the option only on the services that have one', () => {
     const html = document.getElementById('lines-host')!.innerHTML;
     expect(html).toContain('Includes GOSI');
-    expect(html).toContain('Includes VAT');
-    expect(html.match(/Includes (GOSI|VAT)/g)).toHaveLength(2); // not on Recruitment
+    expect(html).not.toContain('Includes VAT'); // Accountancy: VAT is in both packages
+    expect(html.match(/Includes (GOSI|VAT)/g)).toHaveLength(1); // not on Recruitment either
   });
 
   it('is on by default when the line was written with it', () => {
@@ -46,8 +46,8 @@ describe('service options on a proposal line', () => {
     expect(lines.find((l) => l.id === 1)!.serviceName).toBe('Payroll and GOSI');
   });
 
-  it('switching VAT on renames Accountancy the same way', () => {
+  it('leaves an Accountancy line as it is', () => {
     linesEdit('test', 2, 'serviceOption', '1');
-    expect(lines.find((l) => l.id === 2)!.serviceName).toBe('Accountancy and VAT');
+    expect(lines.find((l) => l.id === 2)!.serviceName).toBe('Accountancy');
   });
 });
