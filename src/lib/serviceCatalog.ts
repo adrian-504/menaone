@@ -29,7 +29,7 @@ export const CATALOGUE_DECISIONS: CatalogueDecision[] = [
   { action: 'merge', from: 'PRO', to: 'Administration and PRO', why: 'Same service under a shorter name.' },
   { action: 'merge', from: 'Company Constitution & Maintenance Package', to: 'Business Setup and Maintenance Package', why: 'Two names for the same package.' },
   { action: 'merge', from: 'Payroll and GOSI', to: 'Payroll', why: 'GOSI becomes an option on the proposal line, on by default.' },
-  { action: 'merge', from: 'Accountancy and VAT', to: 'Accountancy', why: 'VAT becomes an option on the proposal line.' },
+  { action: 'merge', from: 'Accountancy and VAT', to: 'Accountancy', why: 'VAT is included in both Accountancy packages (Startup and Active).' },
   { action: 'review', from: 'Admin PRO and Payroll', to: 'Administration and PRO + Payroll', why: 'Not a package: each proposal using it should become two lines. Needs a decision per proposal.' },
 ];
 

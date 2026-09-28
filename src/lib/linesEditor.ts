@@ -48,14 +48,13 @@ function cardFor(line: CommercialLine): PricingService | null {
 const n = (v: number) => v.toLocaleString();
 
 /**
- * Two services are really one service with a part switched off (owner session,
- * 16 September): Payroll is normally sold with GOSI, and Accountancy with VAT.
- * The option lives on the line and decides the name the client reads, rather
- * than being a second entry in the catalogue.
+ * A service that is really one service with a part switched off (owner session,
+ * 16 September): Payroll is normally sold with GOSI. The option lives on the line
+ * and decides the name the client reads, rather than being a second catalogue entry.
+ * Accountancy had a VAT option until 28 September; VAT is now in both of its packages.
  */
 const LINE_OPTIONS: { match: RegExp; label: string; withName: string; withoutName: string }[] = [
   { match: /^payroll( and gosi)?$/i, label: 'Includes GOSI', withName: 'Payroll and GOSI', withoutName: 'Payroll' },
-  { match: /^accountancy( and vat)?$/i, label: 'Includes VAT', withName: 'Accountancy and VAT', withoutName: 'Accountancy' },
 ];
 
 function lineOption(line: CommercialLine) {

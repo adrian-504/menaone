@@ -718,6 +718,9 @@ const CODE_MIGRATIONS: &[(i64, fn(&Connection) -> rusqlite::Result<()>)] = &[
     (38, migrate_workforce_categories),
     // Proposal requests: promised-by date, proposals requested together, a promise's proposal.
     (39, crate::commitments::migrate_proposal_requests),
+    // Accountancy as two all-inclusive packages (owner, 27-Sep): Startup and Active replace the
+    // No Projects / Projects / VAT / optional auditing rows on the rate card.
+    (40, migrate_accountancy_packages),
 ];
 
 /// Old Workforce category label → the name the proposal templates now use.
@@ -738,6 +741,32 @@ fn migrate_workforce_categories(conn: &Connection) -> rusqlite::Result<()> {
         if column_exists(conn, "proposal_lines", "rates_json")? {
             conn.execute("UPDATE proposal_lines SET rates_json = replace(rates_json, ?1, ?2) WHERE instr(rates_json, ?1) > 0", rusqlite::params![old_json, new_json])?;
         }
+    }
+    Ok(())
+}
+
+/// The Accountancy & VAT rate card's rows since 27-Sep-2026: Startup (up to 30 transactions a
+/// month, quarterly VAT, WHT, audit follow-up, e-invoicing up to 10) and Active (over 30, monthly
+/// VAT, e-invoicing up to 15), each all-inclusive; ranges from the pricing workbook. Startup is
+/// the client's status by default. Saved proposal lines keep the rows they were priced with.
+pub const ACCOUNTANCY_PACKAGE_ROWS: &str = r#"[{"label":"Startup (up to 30 transactions per month)","min":3500,"standard":3500,"max":4000,"counts":true},{"label":"Active (more than 30 transactions per month)","min":6500,"standard":6500,"max":7000}]"#;
+
+fn migrate_accountancy_packages(conn: &Connection) -> rusqlite::Result<()> {
+    if !column_exists(conn, "rate_cards", "pricing_json")? {
+        return Ok(());
+    }
+    let cards: Vec<(i64, String)> = conn
+        .prepare("SELECT id, pricing_json FROM rate_cards WHERE name = 'Accountancy & VAT'")?
+        .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?
+        .collect::<rusqlite::Result<_>>()?;
+    for (id, json) in cards {
+        let Ok(mut v) = serde_json::from_str::<serde_json::Value>(&json) else { continue };
+        // Only the card as it was before (its No Projects row still there); a card someone already
+        // changed by hand is left alone.
+        let old = v.get("rows").and_then(|r| r.as_array()).map(|rows| rows.iter().any(|r| r.get("label").and_then(|l| l.as_str()) == Some("Accountancy (No Projects)"))).unwrap_or(false);
+        if !old { continue; }
+        v["rows"] = serde_json::from_str(ACCOUNTANCY_PACKAGE_ROWS).expect("package rows");
+        conn.execute("UPDATE rate_cards SET pricing_json = ?1 WHERE id = ?2", rusqlite::params![v.to_string(), id])?;
     }
     Ok(())
 }
