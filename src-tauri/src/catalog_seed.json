@@ -544,35 +544,17 @@
     ],
     "rows": [
      {
-      "label": "Accountancy (No Projects)",
-      "min": 2250,
-      "standard": 2250,
-      "max": 2750,
+      "label": "Startup (up to 30 transactions per month)",
+      "min": 3500,
+      "standard": 3500,
+      "max": 4000,
       "counts": true
      },
      {
-      "label": "Accountancy (Projects)",
-      "min": 4750,
-      "standard": 4750,
-      "max": 6250
-     },
-     {
-      "label": "VAT Return – Monthly Preparation & Declaration",
-      "min": 900,
-      "standard": 900,
-      "max": 1050
-     },
-     {
-      "label": "VAT Return – Quarterly Preparation & Declaration",
-      "min": 2150,
-      "standard": 2150,
-      "max": 2150
-     },
-     {
-      "label": "“Optional” Auditing and Management Consultancy",
-      "min": 750,
-      "standard": 750,
-      "max": 1000
+      "label": "Active (more than 30 transactions per month)",
+      "min": 6500,
+      "standard": 6500,
+      "max": 7000
      }
     ]
    },

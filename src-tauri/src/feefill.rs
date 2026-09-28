@@ -680,6 +680,35 @@ pub fn price_sentences(xml: &str, position: usize, input: &SentenceInput) -> (St
         }
     }
 
+    // Accountancy, VAT & Tax as two all-inclusive packages (owner, 27-Sep-2026): each package
+    // card ("STARTUP" / "ACTIVE") shows the price of the line's row for it.
+    if x.contains("STARTUP") && x.contains("ACTIVE") && x.contains("SAR / month") {
+        if let Some(acc) = line_where(input.lines, |l| l.modules.contains(&"accountancy")) {
+            let price_for = |key: &str| acc.rates.iter().find(|r| r.label.to_lowercase().starts_with(key)).and_then(|r| r.price);
+            let (startup, active) = (price_for("startup"), price_for("active"));
+            static PRICE: OnceLock<Regex> = OnceLock::new();
+            let price = re(r"(?i)^(\s*)([\d.,]+\s*SAR)(\s*/\s*month\s*)$", &PRICE);
+            let mut current: Option<f64> = None;
+            let (y, n) = rewrite_paragraphs(&x, |_, t| {
+                match t.trim() {
+                    "STARTUP" => { current = startup; None }
+                    "ACTIVE" => { current = active; None }
+                    _ => {
+                        let p = current?;
+                        let filled = money_in(t, p, input.currency, price)?;
+                        current = None;
+                        Some(filled)
+                    }
+                }
+            });
+            x = y;
+            if n > 0 { out.filled.push(format!("Slide {position}: Startup and Active package prices filled")); }
+            if startup.is_none() || active.is_none() {
+                out.checks.push(format!("Slide {position}: the proposal has no {} row — that package keeps the template's price", if startup.is_none() { "Startup" } else { "Active" }));
+            }
+        }
+    }
+
     // Recruitment: "Fees are only for professional staff and not for Labors or Skilled Employees"
     if let Some(rec) = line_where(input.lines, |l| l.kind == Some(RowKind::Percent)) {
         let blue = rec.rates.iter().any(|r| { let l = r.label.to_lowercase(); l.contains("blue") || l.contains("labo") || l.contains("skilled") || l.contains("worker") });
@@ -1055,6 +1084,23 @@ mod tests {
         assert!(texts.contains(&"Business Setup:  50,000 SAR".to_string()) && texts.contains(&"50,000 SAR   one time".to_string()), "{texts:?}");
         assert!(!out.contains("sngStrike"), "charged, so not struck through");
         assert!(o.checks.iter().any(|c| c.contains("setup is charged")), "{:?}", o.checks);
+    }
+
+    #[test]
+    fn fills_the_accountancy_package_prices() {
+        let p = |t: &str, sz: &str| format!(r#"<p:sp><p:txBody><a:p><a:r><a:rPr lang="en-US" sz="{sz}" b="1"/><a:t>{t}</a:t></a:r></a:p></p:txBody></p:sp>"#);
+        let xml = [p("STARTUP", "1000"), p("Startup Company", "1500"), p("3,500 SAR / month", "2400"), p("Up to 30 transactions per month", "1100"),
+                   p("ACTIVE", "1000"), p("Active Company", "1500"), p("6,500 SAR / month", "2400")].concat();
+        let acc = SmartLine { service: "Accountancy".into(), kind: Some(RowKind::Row), modules: vec!["accountancy"],
+            rates: vec![rate("Startup (up to 30 transactions per month)", Some(3750.0)), rate("Active (more than 30 transactions per month)", Some(7000.0))], ..Default::default() };
+        let (out, o) = price_sentences(&xml, 8, &SentenceInput { lines: &[acc], standards: &Standards::default(), months: 12, currency: "SAR" });
+        let texts = paragraph_texts(&out);
+        assert!(texts.contains(&"3,750 SAR / month".to_string()) && texts.contains(&"7,000 SAR / month".to_string()), "{texts:?}");
+        assert!(o.checks.is_empty(), "{:?}", o.checks);
+        // Only one package priced: the other keeps its figure and a check says so.
+        let only = SmartLine { service: "Accountancy".into(), kind: Some(RowKind::Row), modules: vec!["accountancy"], rates: vec![rate("Startup (up to 30 transactions per month)", Some(3600.0))], ..Default::default() };
+        let (out, o) = price_sentences(&xml, 8, &SentenceInput { lines: &[only], standards: &Standards::default(), months: 12, currency: "SAR" });
+        assert!(paragraph_texts(&out).contains(&"6,500 SAR / month".to_string()) && o.checks.iter().any(|c| c.contains("no Active row")), "{:?}", o.checks);
     }
 
     #[test]
