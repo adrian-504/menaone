@@ -164,6 +164,22 @@ export function recordReview(id: number, outcome: 'approved' | 'changes_requeste
 }
 expose('recordReview', recordReview);
 
+/** A review recorded by mistake: back to pending with the reviewer. The note
+ * stays (the comment may still help), and a proposal that "changes requested"
+ * sent back to Drafting returns to In Internal Review. */
+export function undoReview(id: number): void {
+  const p = S.proposals.find((x) => x.id === id);
+  if (!p || (p.reviewStatus !== 'approved' && p.reviewStatus !== 'changes_requested')) return;
+  if (p.reviewStatus === 'changes_requested' && p.status === PS.DRAFTING) p.status = PS.REVIEW;
+  p.reviewStatus = 'pending';
+  p.reviewedAt = null;
+  persistProposals();
+  refreshAll();
+  const reviewer = teamMember(p.reviewerId)?.name || defaultReviewer()?.name || 'the reviewer';
+  toast(`Review undone — back with ${reviewer}`);
+}
+expose('undoReview', undoReview);
+
 export async function deleteProposal(id: number): Promise<void> {
   const p = S.proposals.find((x) => x.id === id);
   if (!p) return;

@@ -8,6 +8,7 @@
 import { statusBadge } from '../lib/statusTone';
 import { blockSummary, blocksToSave, emptyBlock, proposalsFromBlocks, type ProposalBlock, type SharedProposalFields } from '../lib/proposalBlocks';
 import { proposalDeckRows } from '../lib/proposalDocuments';
+import { deckVersion, matchDecks } from '../lib/deckMatch';
 import { companyFromForm, contextFromOpportunity } from '../lib/workGraph';
 import { S } from '../lib/state';
 import { escHtml, expose, fmtDate, today, nextId, nextCtId, showConfirm, showTextPrompt, debounce, strColor } from '../lib/utils';
@@ -25,7 +26,7 @@ import { endPropsEdit, mountPropsList, propsEditButton, propsListHtml, resetProp
 import { renderIcons } from '../core/chrome';
 import { ST, LEAD_SOURCES } from '../lib/constants';
 import { renderLinesEditor, lineForService } from '../lib/linesEditor';
-import { changeProposalStatus, recordReview, openWlModal, updateStatus, archiveProposal, unarchiveProposal, snoozeProposal, isSnoozed } from '../core/proposals';
+import { changeProposalStatus, recordReview, undoReview, openWlModal, updateStatus, archiveProposal, unarchiveProposal, snoozeProposal, isSnoozed } from '../core/proposals';
 import {
   PS, PROPOSAL_STAGES, stageIndex, isWon, isLost, isWithdrawn, isClosed, lineTotals, syncProposalTotals, fmtMoney, currencyOf,
   teamMember, reviewers, defaultReviewer, activeTeam, ownerName, entityById, defaultEntity, activeServices, newLine,
@@ -457,14 +458,17 @@ function renderReview(p: Proposal): void {
   const name = reviewer?.name || 'the reviewer';
   const at = stageIndex(p.status);
   let body = '';
+  // Recorded by mistake: undo while it still counts (approved, not yet sent;
+  // changes requested, still drafting because of it).
+  const undo = `<a href="#" class="rlink pr-review-undo" onclick="event.preventDefault();proposalUndoReview()">Undo</a>`;
   if (p.reviewStatus === 'approved') {
-    body = `<div class="pr-review-state tone-green">${icon('check', 14)} Approved by ${escHtml(name)}${p.reviewedAt ? ` on ${fmtDate(p.reviewedAt)}` : ''}</div>${p.reviewNote ? `<p class="pr-review-note">${escHtml(p.reviewNote)}</p>` : ''}`;
+    body = `<div class="pr-review-state tone-green">${icon('check', 14)} Approved by ${escHtml(name)}${p.reviewedAt ? ` on ${fmtDate(p.reviewedAt)}` : ''}${p.status === PS.REVIEW ? `<span class="pr-review-undo-sep">·</span>${undo}` : ''}</div>${p.reviewNote ? `<p class="pr-review-note">${escHtml(p.reviewNote)}</p>` : ''}`;
   } else if (p.reviewStatus === 'changes_requested') {
     // "Submit for review" is the header's main action while drafting.
-    body = `<div class="pr-review-state tone-amber">${icon('edit', 14)} ${escHtml(name)} asked for changes${p.reviewedAt ? ` on ${fmtDate(p.reviewedAt)}` : ''}</div>${p.reviewNote ? `<p class="pr-review-note">${escHtml(p.reviewNote)}</p>` : ''}`;
+    body = `<div class="pr-review-state tone-amber">${icon('edit', 14)} ${escHtml(name)} asked for changes${p.reviewedAt ? ` on ${fmtDate(p.reviewedAt)}` : ''}${p.status === PS.DRAFTING ? `<span class="pr-review-undo-sep">·</span>${undo}` : ''}</div>${p.reviewNote ? `<p class="pr-review-note">${escHtml(p.reviewNote)}</p>` : ''}`;
   } else if (p.status === PS.REVIEW) {
     body = `<div class="pr-review-state tone-accent">${icon('clock', 14)} With ${escHtml(name)} since ${fmtDate(p.reviewRequestedAt || p.dateSentToHassan)}</div>
-      <textarea class="finp pr-review-input" id="prd-review-note" data-typing rows="2" placeholder="Comments from the review (optional)"></textarea>
+      <textarea class="finp pr-review-input" id="prd-review-note" data-typing rows="2" placeholder="Comments from the review (optional)">${escHtml(p.reviewNote || '')}</textarea>
       <div class="btn-row">
         <button class="btn-secondary is-positive" onclick="proposalRecordReview('approved')">${icon('check', 13)} Approved</button>
         <button class="btn-secondary" onclick="proposalRecordReview('changes_requested')">Changes requested</button>
@@ -487,6 +491,14 @@ export function proposalRecordReview(outcome: 'approved' | 'changes_requested'):
   toast(outcome === 'approved' ? 'Review recorded — ready to send' : 'Changes requested — back to drafting', { tone: outcome === 'approved' ? 'success' : 'neutral' });
 }
 expose('proposalRecordReview', proposalRecordReview);
+
+export function proposalUndoReview(): void {
+  const p = currentProposal();
+  if (!p) return;
+  undoReview(p.id);
+  renderProposalPage();
+}
+expose('proposalUndoReview', proposalUndoReview);
 
 // ── Commercials ──
 
@@ -575,7 +587,10 @@ async function renderDocuments(p: Proposal): Promise<void> {
   renderDeckHistory(p);
   const recorded = (p.documents || []).filter((d) => d.kind !== 'proposal');
   const recordedPaths = new Set((p.documents || []).map((d) => d.path).filter(Boolean));
-  const files = info.files.filter((f) => !f.isFolder && DOC_EXT.test(f.name) && !recordedPaths.has(f.path))
+  // A deck made by hand in the client folder: offered first, not again in the list.
+  const matches = matchDecks(p, info.files, S.proposals).slice(0, 3);
+  const matched = new Set(matches.map((f) => f.path));
+  const files = info.files.filter((f) => !f.isFolder && DOC_EXT.test(f.name) && !recordedPaths.has(f.path) && !matched.has(f.path))
     .sort((a, b) => (b.modifiedAt || '').localeCompare(a.modifiedAt || ''));
   const kindLabel = { proposal: 'Proposal', commercials: 'Commercials', supporting: 'Supporting' } as const;
   const rows: string[] = [];
@@ -590,6 +605,7 @@ async function renderDocuments(p: Proposal): Promise<void> {
   if (p.docLink) {
     rows.push(`<div class="rec-row" onclick="openExternalUrl('${escHtml(p.docLink)}')"><span class="rec-row-icon">${icon('link', 15)}</span><div class="rec-row-main"><div class="rec-row-title">Document link</div><div class="rec-row-sub">${escHtml(p.docLink)}</div></div></div>`);
   }
+  if (matches.length) rows.push(deckMatchBlock(p, matches));
   for (const f of files.slice(0, 12)) rows.push(folderFileRow(f));
   const count = document.getElementById('prd-docs-count'); if (count) count.textContent = recorded.length ? String(recorded.length) : '';
   docsEl.innerHTML = rows.length ? rows.join('') : emptyState({ icon: 'document', title: 'No supporting documents', body: info.exists ? 'Other files saved in the client folder show up here.' : 'Create the client folder to keep commercials and supporting files with the proposal.', compact: true });
@@ -638,6 +654,18 @@ function folderFileRow(f: LocalFileItem): string {
   </div>`;
 }
 
+function deckMatchBlock(p: Proposal, matches: LocalFileItem[]): string {
+  const taken = (p.documents || []).filter((d) => d.kind === 'proposal').map((d) => d.version ?? 0);
+  return `<div class="pr-deck-match"><div class="rec-eyebrow">Looks like this proposal's deck</div>${matches.map((f) => {
+    const path = escHtml(f.path.replace(/'/g, "\\'"));
+    return `<div class="rec-row" tabindex="0" onkeydown="if(event.key==='Enter'&&event.target===this)this.click()" onclick="proposalOpenFile('${path}')">
+      <span class="rec-row-icon">${icon('document', 15)}</span>
+      <div class="rec-row-main"><div class="rec-row-title" title="${escHtml(f.name)}">${escHtml(f.name)}</div><div class="rec-row-sub">${f.modifiedAt ? `Modified ${fmtDate(f.modifiedAt.slice(0, 10))}` : 'In the client folder'}</div></div>
+      <div class="rec-row-actions"><button class="btn-secondary btn-sm" onclick="event.stopPropagation();proposalAttachFile('${path}')">Add as V${deckVersion(f.name, taken)}</button></div>
+    </div>`;
+  }).join('')}</div>`;
+}
+
 export async function proposalCreateFolder(): Promise<void> {
   const p = currentProposal();
   if (!p) return;
@@ -660,17 +688,16 @@ export function proposalAttachFile(path: string): void {
   if (!p || !file) return;
   const isDeck = /\.(pptx|ppt|key|pdf)$/i.test(file.name) && /proposal/i.test(file.name);
   const isCommercials = /\.(xlsx|xls)$/i.test(file.name) || /commercial|pricing|quotation/i.test(file.name);
-  const named = file.name.match(/_V(\d+)\./i);
   const docs = p.documents || [];
   // A deck keeps the version in its name unless that number is already taken; otherwise it is the next one.
   const taken = docs.filter((d) => d.kind === 'proposal').map((d) => d.version ?? 0);
-  const wanted = named ? Number(named[1]) : 1;
-  const version = taken.includes(wanted) ? Math.max(0, ...taken) + 1 : wanted;
   docs.push({
     id: nextDocumentId(), kind: isDeck ? 'proposal' : isCommercials ? 'commercials' : 'supporting',
-    version: isDeck ? version : null, fileName: file.name, path: file.path, url: null, notes: null, createdAt: today(),
+    version: isDeck ? deckVersion(file.name, taken) : null, fileName: file.name, path: file.path, url: null, notes: null, createdAt: today(),
   });
   p.documents = docs;
+  // As with a generated deck: a first deck means drafting has started (never moves back).
+  if (isDeck && p.status === PS.REQUEST) updateStatus(p.id, PS.DRAFTING);
   commit(p);
 }
 expose('proposalAttachFile', proposalAttachFile);

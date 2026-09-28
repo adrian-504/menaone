@@ -1666,7 +1666,9 @@ body.dnd-active .opp-board .board-column.stage-hidden{display:flex}
 .pr-props .rec-add-link{margin-left:8px}
 .pr-props > dd > .rlink{padding-left:8px;font-size:var(--type-body)}
 .pr-remarks{resize:vertical;min-height:52px;line-height:1.45}
+.pr-deck-match{background:var(--surface-flat);border-radius:var(--radius-sm);padding:10px 12px 4px;margin:4px 0 10px}.pr-deck-match .rec-eyebrow{margin-bottom:2px}
 .pr-review-state{display:flex;align-items:center;gap:7px;font-weight:600;font-size:var(--type-body)}
+.pr-review-undo-sep{color:var(--muted);font-weight:400}.pr-review-undo{color:var(--sub);font-weight:400;font-size:var(--type-meta)}
 .pr-review-state.tone-green{color:var(--green)}.pr-review-state.tone-amber{color:var(--amber)}.pr-review-state.tone-accent{color:var(--accent)}
 .pr-review-note{font-size:var(--type-secondary);color:var(--sub);margin:8px 0 0;line-height:1.5;white-space:pre-wrap}
 .pr-review-input{margin:10px 0}
@@ -2568,6 +2570,8 @@ details[open] > summary .svc-group-names{visibility:hidden}
    row's main action visible; only its "…" waits. */
 .rec-row .rec-row-actions{opacity:0;transition:opacity var(--dur-fast) var(--ease-out)}
 .rec-row:hover .rec-row-actions,.rec-row:focus-within .rec-row-actions,.rec-row:focus-visible .rec-row-actions{opacity:1}
+/* A deck that looks like this proposal's: its one action is the point, always shown. */
+.pr-deck-match .rec-row .rec-row-actions{opacity:1}
 .mdy-att-actions .rec-icon-btn{opacity:0;transition:opacity var(--dur-fast) var(--ease-out)}
 .mdy-att:hover .mdy-att-actions .rec-icon-btn,.mdy-att:focus-within .mdy-att-actions .rec-icon-btn{opacity:1}
 .co-thread-next{visibility:visible;opacity:0}
