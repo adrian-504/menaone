@@ -8,7 +8,7 @@ import type {
   IntelligenceItem, IntelligenceKind, Attachment, Company, Opportunity, OpportunityActivity, ProjectActivity,
   CompanyMigrationReport, ReviewQueueEntry, RecordCompanyLink, LocalBackup, ActivityEntry, ActivityFilter,
   CommercialSetup, Service, RateCard, BusinessEntity, TeamMember, ProposalFolder,
-  PipelineFact, ProposalTemplate, TemplateDetail, TemplateInspection, TokenInfo, GenerateResult, ProposalLibraryInfo, SavedList, Commitment, Touch, TouchKind } from './types';
+  PipelineFact, ProposalTemplate, TemplateDetail, TemplateInspection, TokenInfo, GenerateResult, ProposalLibraryInfo, SavedList, Commitment, Touch, TouchKind, EmailTemplate } from './types';
 
 // Thin wrappers around the Rust/SQLite command layer (src-tauri/src/commands.rs).
 // Proposals, contacts, agreements, tasks and notes are written per record:
@@ -52,6 +52,11 @@ export interface NewTouch { companyId?: number | null; proposalId?: number | nul
 export async function getTouches(): Promise<Touch[]> { return invoke<Touch[]>('get_touches'); }
 export async function touchesAdd(touch: NewTouch): Promise<Touch> { return invoke<Touch>('touches_add', { touch }); }
 export async function touchesDelete(id: number): Promise<void> { await invoke('touches_delete', { id }); }
+
+// Template emails (email_templates.rs).
+export async function getEmailTemplates(): Promise<EmailTemplate[]> { return (await invoke<EmailTemplate[] | null>('get_email_templates')) ?? []; }
+export async function saveEmailTemplate(template: Pick<EmailTemplate, 'id' | 'name' | 'subject' | 'body'>): Promise<EmailTemplate> { return invoke<EmailTemplate>('save_email_template', { template }); }
+export async function deleteEmailTemplate(id: number): Promise<void> { await invoke('delete_email_template', { id }); }
 export async function deleteTodos(ids: number[]): Promise<void> { await invoke('delete_todos', { ids }); }
 export async function upsertNotes(items: Note[]): Promise<RecordCompanyLink[]> { return (await invoke<RecordCompanyLink[] | null>('upsert_notes', { items })) ?? []; }
 export async function deleteNotes(ids: number[]): Promise<void> { await invoke('delete_notes', { ids }); }

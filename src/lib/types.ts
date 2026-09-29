@@ -83,6 +83,16 @@ export interface Touch {
   createdAt: string;
 }
 
+/** A template email (email_templates.rs); the row named `_signature` is the signature. */
+export interface EmailTemplate {
+  id: number;
+  name: string;
+  subject: string;
+  body: string;
+  sortOrder: number;
+  updatedAt: string;
+}
+
 /** A client's request for changes to a sent proposal. */
 export interface ProposalRevision {
   id: number;

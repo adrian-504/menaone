@@ -8,6 +8,7 @@ import { applyMs365SidebarVisibility } from '../core/chrome';
 import { renderTab } from '../lib/registry';
 import { loadReviewQueue } from './companies';
 import { renderCommercialSettings } from './settingsCommercial';
+import { renderTemplatesSettings } from './settingsTemplates';
 
 async function loadStatus(): Promise<void> {
   S.ms365Status = await ms365Status();
@@ -58,6 +59,7 @@ async function renderSettingsTab(): Promise<void> {
   (window as any).renderOfficeStripSettings?.();
   renderThemePicker();
   renderCommercialSettings();
+  void renderTemplatesSettings();
   await loadStatus();
   const clientIdInput = document.getElementById('ms365-client-id-input') as HTMLInputElement | null;
   if (clientIdInput && !clientIdInput.value) {

@@ -1327,6 +1327,25 @@ body.dnd-active .board-column.drop-target{background:var(--accent-bg)!important}
 .pr-contact-list{list-style:none;margin:0;padding:8px 0 0;border-top:1px solid var(--hairline);color:var(--muted);font-size:var(--type-secondary);display:flex;flex-direction:column;gap:4px}
 .pr-contact-all{display:inline-block;margin-top:6px;font-size:var(--type-secondary)}
 .le-was{color:var(--muted);font-size:var(--type-secondary)}
+/* Template emails on the company page: quiet links, who it goes to, then the filled email. */
+.co-tpl{padding:4px 0 0}
+.co-tpl-body{max-height:48vh;overflow:auto}
+.co-tpl-links{display:flex;flex-wrap:wrap;gap:6px 16px}
+.co-tpl-links .rlink.is-on{color:var(--accent);text-decoration-color:var(--accent)}
+.co-tpl-to{margin-top:8px;color:var(--muted);font-size:var(--type-secondary);display:flex;gap:6px;align-items:center}
+.co-tpl-contact{max-width:260px}
+.co-tpl-mail{margin-top:12px;padding-top:12px;border-top:1px solid var(--hairline)}
+.co-tpl-subject{font-weight:600;margin-bottom:8px}
+.co-tpl-body{white-space:pre-wrap;font:inherit;font-size:var(--type-body);line-height:1.55;color:var(--text)}
+.co-tpl-left{margin:8px 0 0;color:var(--muted);font-size:var(--type-secondary)}
+.tpl-hole{color:var(--accent);font-weight:600}
+.co-tpl-mail .btn-row{margin-top:12px}
+.tpl-edit{display:flex;flex-direction:column;gap:6px;padding:12px 0;border-bottom:1px solid var(--hairline)}
+.tpl-body-input{font:inherit;line-height:1.5;resize:vertical}
+.tpl-add{margin-top:10px}
+.tpl-sig-hd{margin:18px 0 6px;font-size:var(--type-body);font-weight:600}
+.tpl-sig-preview{color:var(--sub)}
+.tpl-legend{margin-top:12px}
 .row-excerpt{color:var(--muted);font-size:var(--type-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;min-width:0}
 .meeting-marks{display:inline-flex;gap:10px;margin-left:12px}
 .meeting-mark{display:inline-flex;align-items:center;gap:3px;color:var(--sub);font-weight:600}

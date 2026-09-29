@@ -6,6 +6,7 @@ pub mod commercial;
 pub mod commitments;
 pub mod company_migration;
 pub mod db;
+pub mod email_templates;
 pub mod full_backup;
 pub mod insights;
 pub mod integrity;
@@ -278,6 +279,9 @@ pub fn run() {
             touches::touches_add,
             touches::touches_for_proposal,
             touches::touches_delete,
+            email_templates::get_email_templates,
+            email_templates::save_email_template,
+            email_templates::delete_email_template,
             commands::delete_todos,
             commands::upsert_notes,
             commands::delete_notes,

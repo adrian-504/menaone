@@ -5,7 +5,7 @@
 // is a Vite compile-time constant, so `vite build` dead-code-eliminates this
 // entire branch and the real Tauri IPC bridge is untouched in the shipped app.
 import catalogSeed from '../../src-tauri/src/catalog_seed.json';
-import type { CommercialSetup, AppData, Project, Area, Meeting, InboxItem, NoteTemplate, Milestone, NoteRef, EmailRecord, EmailCompletedRecord, IntelligenceItem, Company, Opportunity, OpportunityActivity, ProjectActivity, EntityLink, ReviewQueueEntry, SavedList , Touch } from './types';
+import type { CommercialSetup, AppData, Project, Area, Meeting, InboxItem, NoteTemplate, Milestone, NoteRef, EmailRecord, EmailCompletedRecord, IntelligenceItem, Company, Opportunity, OpportunityActivity, ProjectActivity, EntityLink, ReviewQueueEntry, SavedList , Touch, EmailTemplate } from './types';
 
 const SAMPLE: AppData = {
   proposals: [
@@ -133,6 +133,17 @@ const mockMeeting = (id: number, title: string, date: string, emails: { email: s
   location: null, isOnlineMeeting: true, onlineMeetingUrl: null, isCancelled: false, source: 'outlook', organizerEmail: 'ahmad@menabig.test',
   attendeeEmails: emails.map((e) => e.email),
 });
+const INTRO = "MENA Business Investment Group is a Spanish-founded consultancy with its own licensed entity in Riyadh. For eight years we have been the local team for international companies entering and operating in Saudi Arabia.\n\nIf it would be useful, I would suggest a twenty-minute call to understand {company}'s plans. Would {day_1} or {day_2} suit you?\n\nKind regards,\n{signature}";
+let emailTemplatesStore: EmailTemplate[] = [
+  ['Sending a proposal', '{company} — {services} Proposal', 'Dear {first_name},\n\nI trust this email finds you well.\n\nPlease find attached the {services} proposal for your kind review and consideration.\n\nPlease do not hesitate to contact us at any time if you have any questions.\n\nLooking forward to hearing back from you.\n\n{signature}'],
+  ['Following up on a proposal', 'Re: {company} — {services} Proposal', 'Dear {first_name},\n\nI trust this email finds you well.\n\nI just wanted to follow up on the {services} proposal sent on {proposal_date}, and to see whether you have had the chance to review it, or whether a short call would help.\n\nPlease let me know what suits you.\n\n{signature}'],
+  ['After a call — next steps', '{company} — next steps', "Dear {first_name},\n\nThank you for your time on today's call.\n\nAs discussed, please note the following next steps:\n\n1. \n2. \n3. \n\n{signature}"],
+  ['Sending the NDA', 'MENA BIG — Non-Disclosure Agreement', "Dear {first_name},\n\nFurther to our discussion, please find attached MENA BIG's Non-Disclosure Agreement for your review and signature.\n\n{signature}"],
+  ['Thank you for the information', 'Re: {company}', 'Dear {first_name},\n\nThank you for your email and for the information and documents provided.\n\n{signature}'],
+  ['Introduction · after meeting', 'Following our conversation at {where} — MENA BIG in Saudi Arabia', `Dear {first_name},\n\nIt was a pleasure meeting you at {where}. You mentioned {what_they_said}, and I wanted to follow up while it is fresh.\n\n${INTRO}`],
+  ['Introduction · first contact', 'MENA BIG — supporting {company} in Saudi Arabia', `Dear {first_name},\n\nI am writing because {company} {reason_for_writing}.\n\n${INTRO}`],
+  ['_signature', '', '{my_name}\n{my_title}\nMENA Business Investment Group\n{email} · {phone}\nwww.mena-big.com'],
+].map(([name, subject, body], i) => ({ id: i + 1, name, subject, body, sortOrder: i + 1, updatedAt: '2026-09-29T00:00:00Z' }));
 let touchesStore: Touch[] = [
   { id: 1, companyId: null, proposalId: 3, kind: 'email_out', direction: 'out', at: '2026-09-15', subject: 'Re: Payroll proposal', contactId: null, source: 'manual', sourceId: null, createdAt: '2026-09-15T09:00:00Z' },
 ];
@@ -630,6 +641,21 @@ export async function installDevMockIfNeeded(): Promise<void> {
           return [] as Area[];
         case 'get_meetings':
           return meetingsStore;
+        // Template emails: the seeds as the migration writes them (email_templates.rs); edits kept for the session.
+        case 'get_email_templates':
+          return emailTemplatesStore.map((t) => ({ ...t }));
+        case 'save_email_template': {
+          const t = (_payload as any)?.template;
+          if (t.id) { emailTemplatesStore = emailTemplatesStore.map((x) => (x.id === t.id ? { ...x, ...t, updatedAt: new Date().toISOString() } : x)); return emailTemplatesStore.find((x) => x.id === t.id); }
+          const row = { ...t, id: Math.max(0, ...emailTemplatesStore.map((x) => x.id)) + 1, sortOrder: emailTemplatesStore.length + 1, updatedAt: new Date().toISOString() };
+          emailTemplatesStore.push(row);
+          return row;
+        }
+        case 'delete_email_template': {
+          const id = (_payload as any)?.id;
+          emailTemplatesStore = emailTemplatesStore.filter((t) => t.id !== id || t.name === '_signature');
+          return null;
+        }
         // Follow-up touches: a sample email follow-up on the Northwind proposal; new ones kept for the session.
         case 'get_touches':
           return touchesStore.map((t) => ({ ...t }));

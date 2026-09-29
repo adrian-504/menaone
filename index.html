@@ -726,7 +726,7 @@
     </div>
   </div>
   <div class="settings-layout">
-    <nav class="settings-nav" aria-label="Settings sections"><button class="settings-nav-item" data-pane="general" onclick="setSettingsPane('general')"><span data-icon="gear" data-icon-size="15"></span>General</button><button class="settings-nav-item" data-pane="team" onclick="setSettingsPane('team')"><span data-icon="people" data-icon-size="15"></span>Team</button><button class="settings-nav-item" data-pane="business" onclick="setSettingsPane('business')"><span data-icon="dollar" data-icon-size="15"></span>Business</button><button class="settings-nav-item" data-pane="connections" onclick="setSettingsPane('connections')"><span data-icon="link" data-icon-size="15"></span>Connections</button><button class="settings-nav-item" data-pane="data" onclick="setSettingsPane('data')"><span data-icon="archive" data-icon-size="15"></span>Data</button></nav>
+    <nav class="settings-nav" aria-label="Settings sections"><button class="settings-nav-item" data-pane="general" onclick="setSettingsPane('general')"><span data-icon="gear" data-icon-size="15"></span>General</button><button class="settings-nav-item" data-pane="team" onclick="setSettingsPane('team')"><span data-icon="people" data-icon-size="15"></span>Team</button><button class="settings-nav-item" data-pane="business" onclick="setSettingsPane('business')"><span data-icon="dollar" data-icon-size="15"></span>Business</button><button class="settings-nav-item" data-pane="templates" onclick="setSettingsPane('templates')"><span data-icon="mail" data-icon-size="15"></span>Templates</button><button class="settings-nav-item" data-pane="connections" onclick="setSettingsPane('connections')"><span data-icon="link" data-icon-size="15"></span>Connections</button><button class="settings-nav-item" data-pane="data" onclick="setSettingsPane('data')"><span data-icon="archive" data-icon-size="15"></span>Data</button></nav>
     <div class="settings-panes">
     <section class="settings-pane" data-pane="general" hidden>
       <h2 class="settings-pane-title">General</h2>
@@ -769,6 +769,17 @@
     </div>
     <p class="settings-card-desc">Where client proposal folders live in OneDrive, and a one-time tidy-up of the old free-text "owner" field.</p>
     <div id="proposal-settings"></div>
+  </div>
+    </section>
+    <section class="settings-pane" data-pane="templates" hidden>
+      <h2 class="settings-pane-title">Templates</h2>
+  <div class="sec settings-card">
+    <div class="settings-card-hd">
+      <span data-icon="mail"></span>
+      <div class="card-hd">Template emails</div>
+    </div>
+    <p class="settings-card-desc">Offered on every company page, filled in with the company, the contact and its proposal, ready to copy or open in Outlook.</p>
+    <div id="templates-settings"></div>
   </div>
     </section>
     <section class="settings-pane" data-pane="connections" hidden>
@@ -1519,6 +1530,7 @@
       <div class="rec-actions">
         <button class="btn-primary" onclick="companyNewMenu(event)" aria-haspopup="menu"><span data-icon="plus" data-icon-size="13"></span> New</button>
         <button class="btn-secondary" onclick="openCompanyBrief()" title="A one-page brief to read or print">Brief</button>
+        <button class="btn-secondary" onclick="openCompanyTemplates()" title="A template email to this company, ready to copy or open in Outlook">Email</button>
         <button class="btn-secondary" onclick="openEditCompanyModal()">Edit</button>
         <button class="loc-nav rec-more" onclick="companyMoreMenu(event)" title="More" aria-label="More"><span data-icon="more" data-icon-size="16"></span></button>
       </div>
@@ -2104,6 +2116,15 @@
       <button class="btn-secondary" onclick="closeWebsiteSuggestions()">Cancel</button>
       <button class="btn-primary" id="websites-apply" onclick="applyWebsiteSuggestions()">Fill selected websites</button>
     </div>
+  </div>
+</div>
+
+<!-- TEMPLATE EMAILS (company page → Email) -->
+<div class="modal-ov" id="modal-co-templates" onclick="if(event.target===this)closeCompanyTemplates()">
+  <div class="modal modal-md">
+    <div class="modal-hd"><div class="modal-title">Template email</div><button class="modal-close" onclick="closeCompanyTemplates()">×</button></div>
+    <div class="modal-sub" id="co-templates-sub"></div>
+    <div class="co-tpl" id="co-templates"></div>
   </div>
 </div>
 

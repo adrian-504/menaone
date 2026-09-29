@@ -15,6 +15,7 @@ import { emptyState } from '../lib/ui';
 import { recordLink } from '../lib/links';
 import { type FeedItem } from '../lib/activityFeed';
 import { renderRecordTimeline } from './recordThread';
+import { renderCompanyTemplates } from './companyTemplates';
 import { liveThreads, lastContactByPerson, orderPeople, threadStand, relationshipStatus as briefRelationship } from '../lib/companyBrief';
 import { briefInputFor, clausesHtml, companyStateFor, ensurePinnedNotes, setCompanyNotesCache } from './companyState';
 import { renderIcons } from '../core/chrome';
@@ -1032,6 +1033,7 @@ function renderCompanyDetail(): void {
     tasks: tasks.filter((t) => t.status !== 'Done').length, files: null, emails: d.companyId == null ? 0 : null,
   });
   renderCoContacts(d);
+  renderCompanyTemplates(d);
   renderCoOpportunities(d, opps);
   renderCoProposals(d);
   renderCoAgreements(d);
