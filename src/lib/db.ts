@@ -342,6 +342,7 @@ function showSaveErrorToast(label: string) {
 // ── Company notes (dated entries) ────────────────────────────────────────────
 export interface CompanyNoteEntry { id: number; companyId: number | null; companyName: string | null; body: string; isLegacy: boolean; createdAt: string; updatedAt: string | null; pinned?: boolean; }
 export async function companyNoteEntries(companyId: number | null, companyName: string | null): Promise<CompanyNoteEntry[]> { return invoke<CompanyNoteEntry[]>('company_note_entries', { companyId, companyName }); }
+export async function allCompanyNoteEntries(): Promise<CompanyNoteEntry[]> { return (await invoke<CompanyNoteEntry[] | null>('all_company_note_entries')) ?? []; }
 export async function addCompanyNoteEntryDb(companyId: number | null, companyName: string | null, body: string): Promise<CompanyNoteEntry> { return invoke<CompanyNoteEntry>('add_company_note_entry', { companyId, companyName, body }); }
 export async function updateCompanyNoteEntryDb(id: number, body: string): Promise<CompanyNoteEntry> { return invoke<CompanyNoteEntry>('update_company_note_entry', { id, body }); }
 export async function deleteCompanyNoteEntryDb(id: number): Promise<void> { await invoke('delete_company_note_entry', { id }); }

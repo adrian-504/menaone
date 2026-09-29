@@ -293,6 +293,7 @@ pub fn run() {
             ms365::commands::ms365_get_emails_by_address,
             activity::rename_company,
             activity::company_note_entries,
+            activity::all_company_note_entries,
             activity::add_company_note_entry,
             activity::update_company_note_entry,
             activity::delete_company_note_entry,

@@ -1182,6 +1182,10 @@
         <div class="ws-side-group notes-side-meetings">
           <button class="ws-side-item notes-folder-item" data-folder="meetings" onclick="setNoteFolder('meetings')"><span class="ws-side-icon" data-icon="meeting" data-icon-size="15"></span><span class="ws-side-label">From meetings</span><span class="ws-side-count" id="nf-meetings"></span></button>
         </div>
+        <div class="ws-side-section" id="notes-clients-section" hidden>
+          <div class="ws-side-section-hd notes-section-hd"><button class="notes-clients-toggle" onclick="toggleNotesClients()" aria-expanded="true"><span class="notes-folder-toggle" id="notes-clients-chevron" data-icon="chevronDown" data-icon-size="11"></span><span>Clients</span></button></div>
+          <div id="notes-client-items"></div>
+        </div>
         <div class="ws-side-section" id="notes-tags-section">
           <div class="ws-side-section-hd notes-section-hd"><span>Tags</span></div>
           <div id="notes-tag-items"></div>

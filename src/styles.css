@@ -1346,6 +1346,8 @@ body.dnd-active .board-column.drop-target{background:var(--accent-bg)!important}
 .tpl-sig-hd{margin:18px 0 6px;font-size:var(--type-body);font-weight:600}
 .tpl-sig-preview{color:var(--sub)}
 .tpl-legend{margin-top:12px}
+.notes-clients-toggle{display:flex;align-items:center;gap:4px;background:none;border:0;padding:0;font:inherit;color:inherit;letter-spacing:inherit;text-transform:inherit;cursor:pointer}
+.note-item-source{color:var(--muted)}
 .row-excerpt{color:var(--muted);font-size:var(--type-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;min-width:0}
 .meeting-marks{display:inline-flex;gap:10px;margin-left:12px}
 .meeting-mark{display:inline-flex;align-items:center;gap:3px;color:var(--sub);font-weight:600}

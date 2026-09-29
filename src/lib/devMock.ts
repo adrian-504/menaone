@@ -965,6 +965,8 @@ export async function installDevMockIfNeeded(): Promise<void> {
             { name: 'Argaam', kind: 'business', lastRunAt: new Date().toISOString(), added: 0, considered: 30, error: null },
             { name: 'GOSI & payroll', kind: 'regulatory', lastRunAt: new Date().toISOString(), added: 0, considered: 0, error: 'Could not reach this source: timed out' },
           ];
+        case 'all_company_note_entries':
+          return companyNoteEntriesStore.map((n) => ({ ...n }));
         case 'company_note_entries': {
           const p = _payload as any;
           return companyNoteEntriesStore.filter((n) => (p?.companyId != null && n.companyId === p.companyId) || (p?.companyName && n.companyName === p.companyName));
