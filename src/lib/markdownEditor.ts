@@ -285,15 +285,16 @@ function wrapSelectionCommand(marker: string) {
   };
 }
 
+/** Each editor's configuration, so loading another note can start a fresh state with it. */
+const editorExtensions = new WeakMap<EditorView, Extension[]>();
+
 export function createNoteEditor(container: HTMLElement, opts: NoteEditorOptions): EditorView {
   const updateListener = EditorView.updateListener.of((update) => {
     if (update.docChanged) opts.onChange(update.state.doc.toString());
     if (update.docChanged || update.selectionSet) opts.onCursorActivity?.(update.view);
   });
 
-  const state = EditorState.create({
-    doc: opts.doc,
-    extensions: [
+  const extensions: Extension[] = [
       history(),
       drawSelection(),
       placeholder(opts.placeholder || 'Start writing…'),
@@ -312,10 +313,10 @@ export function createNoteEditor(container: HTMLElement, opts: NoteEditorOptions
       updateListener,
       EditorView.lineWrapping,
       EditorView.contentAttributes.of({ spellcheck: 'true' }),
-    ],
-  });
-
-  return new EditorView({ state, parent: container });
+  ];
+  const view = new EditorView({ state: EditorState.create({ doc: opts.doc, extensions }), parent: container });
+  editorExtensions.set(view, extensions);
+  return view;
 }
 
 /** Enter at the end of a ">>" / "<<" line starts a plain line: Markdown would
@@ -353,8 +354,12 @@ export function insertDivider(view: EditorView): void {
   view.focus();
 }
 
+/** Loads another document: a fresh state, so it is not an edit (no onChange, no
+ * autosave) and undo cannot reach back into the previous note. */
 export function setEditorDoc(view: EditorView, doc: string): void {
-  view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: doc } });
+  const extensions = editorExtensions.get(view);
+  if (extensions) view.setState(EditorState.create({ doc, extensions }));
+  else view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: doc } });
 }
 
 export function insertAtCursor(view: EditorView, text: string): void {

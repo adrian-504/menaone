@@ -309,6 +309,7 @@ input[type=text]:focus,input[type=date]:focus,input[type=number]:focus,select.fs
 .ctx-menu.open{opacity:1;pointer-events:auto;transform:scale(1) translateY(0)}
 .ctx-menu-item{display:flex;align-items:center;gap:8px;padding:7px 9px;border-radius:6px;font-size:var(--type-body);font-weight:500;color:var(--text);cursor:pointer;transition:background var(--dur-fast) var(--ease-out),color var(--dur-fast) var(--ease-out)}
 .ctx-menu-item:hover{background:var(--accent-bg);color:var(--accent)}
+.ctx-menu-hd{padding:6px 9px 3px;font-size:var(--type-caption);font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
 .ctx-menu-item.danger{color:var(--red)}
 .ctx-menu-item.danger:hover{background:var(--red-bg)}
 .company-selector-popover{position:fixed;overscroll-behavior:contain;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-md);padding:5px;z-index:2500;min-width:220px;max-width:420px;max-height:min(320px,50vh);overflow-y:auto;opacity:0;pointer-events:none;transform:scale(.94) translateY(-4px);transform-origin:top left;transition:opacity var(--dur-base) var(--ease-out),transform var(--dur-base) var(--ease-out)}
@@ -1322,7 +1323,31 @@ body.dnd-active .board-column.drop-target{background:var(--accent-bg)!important}
 /* The first sentence of a meeting's notes, wherever it is listed. */
 .notes-side-meetings{margin-top:8px}
 /* A revision's "was …" under a changed service. */
+/* The proposal page's follow-up log: one muted line per contact, hairline above. */
+.pr-contact-list{list-style:none;margin:0;padding:8px 0 0;border-top:1px solid var(--hairline);color:var(--muted);font-size:var(--type-secondary);display:flex;flex-direction:column;gap:4px}
+.pr-contact-all{display:inline-block;margin-top:6px;font-size:var(--type-secondary)}
 .le-was{color:var(--muted);font-size:var(--type-secondary)}
+/* Template emails on the company page: quiet links, who it goes to, then the filled email. */
+.co-tpl{padding:4px 0 0}
+.co-tpl-body{max-height:48vh;overflow:auto}
+.co-tpl-links{display:flex;flex-wrap:wrap;gap:6px 16px}
+.co-tpl-links .rlink.is-on{color:var(--accent);text-decoration-color:var(--accent)}
+.co-tpl-to{margin-top:8px;color:var(--muted);font-size:var(--type-secondary);display:flex;gap:6px;align-items:center}
+.co-tpl-contact{max-width:260px}
+.co-tpl-mail{margin-top:12px;padding-top:12px;border-top:1px solid var(--hairline)}
+.co-tpl-subject{font-weight:600;margin-bottom:8px}
+.co-tpl-body{white-space:pre-wrap;font:inherit;font-size:var(--type-body);line-height:1.55;color:var(--text)}
+.co-tpl-left{margin:8px 0 0;color:var(--muted);font-size:var(--type-secondary)}
+.tpl-hole{color:var(--accent);font-weight:600}
+.co-tpl-mail .btn-row{margin-top:12px}
+.tpl-edit{display:flex;flex-direction:column;gap:6px;padding:12px 0;border-bottom:1px solid var(--hairline)}
+.tpl-body-input{font:inherit;line-height:1.5;resize:vertical}
+.tpl-add{margin-top:10px}
+.tpl-sig-hd{margin:18px 0 6px;font-size:var(--type-body);font-weight:600}
+.tpl-sig-preview{color:var(--sub)}
+.tpl-legend{margin-top:12px}
+.notes-clients-toggle{display:flex;align-items:center;gap:4px;background:none;border:0;padding:0;font:inherit;color:inherit;letter-spacing:inherit;text-transform:inherit;cursor:pointer}
+.note-item-source{color:var(--muted)}
 .row-excerpt{color:var(--muted);font-size:var(--type-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;min-width:0}
 .meeting-marks{display:inline-flex;gap:10px;margin-left:12px}
 .meeting-mark{display:inline-flex;align-items:center;gap:3px;color:var(--sub);font-weight:600}

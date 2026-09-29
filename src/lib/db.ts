@@ -8,7 +8,7 @@ import type {
   IntelligenceItem, IntelligenceKind, Attachment, Company, Opportunity, OpportunityActivity, ProjectActivity,
   CompanyMigrationReport, ReviewQueueEntry, RecordCompanyLink, LocalBackup, ActivityEntry, ActivityFilter,
   CommercialSetup, Service, RateCard, BusinessEntity, TeamMember, ProposalFolder,
-  PipelineFact, ProposalTemplate, TemplateDetail, TemplateInspection, TokenInfo, GenerateResult, ProposalLibraryInfo, SavedList, Commitment } from './types';
+  PipelineFact, ProposalTemplate, TemplateDetail, TemplateInspection, TokenInfo, GenerateResult, ProposalLibraryInfo, SavedList, Commitment, Touch, TouchKind, EmailTemplate } from './types';
 
 // Thin wrappers around the Rust/SQLite command layer (src-tauri/src/commands.rs).
 // Proposals, contacts, agreements, tasks and notes are written per record:
@@ -41,11 +41,22 @@ export interface NewCommitment {
   liveKeys?: string[];
 }
 export async function commitmentsAdd(items: NewCommitment[]): Promise<{ commitments: Commitment[]; tasks: Todo[]; proposals: Proposal[] }> {
+
   const r = await invoke<{ commitments: Commitment[]; tasks: Todo[]; proposals?: Proposal[] } | null>('commitments_add', { items });
   return { commitments: r?.commitments ?? [], tasks: r?.tasks ?? [], proposals: r?.proposals ?? [] };
 }
 export async function upsertCommitments(items: Commitment[]): Promise<RecordCompanyLink[]> { return (await invoke<RecordCompanyLink[] | null>('upsert_commitments', { items })) ?? []; }
 export async function deleteCommitments(ids: number[]): Promise<void> { await invoke('delete_commitments', { ids }); }
+// Follow-up touches (touches.rs): logged one at a time, read all at start-up.
+export interface NewTouch { companyId?: number | null; proposalId?: number | null; kind: TouchKind; direction?: 'out' | 'in'; at: string; subject?: string | null; contactId?: number | null }
+export async function getTouches(): Promise<Touch[]> { return invoke<Touch[]>('get_touches'); }
+export async function touchesAdd(touch: NewTouch): Promise<Touch> { return invoke<Touch>('touches_add', { touch }); }
+export async function touchesDelete(id: number): Promise<void> { await invoke('touches_delete', { id }); }
+
+// Template emails (email_templates.rs).
+export async function getEmailTemplates(): Promise<EmailTemplate[]> { return (await invoke<EmailTemplate[] | null>('get_email_templates')) ?? []; }
+export async function saveEmailTemplate(template: Pick<EmailTemplate, 'id' | 'name' | 'subject' | 'body'>): Promise<EmailTemplate> { return invoke<EmailTemplate>('save_email_template', { template }); }
+export async function deleteEmailTemplate(id: number): Promise<void> { await invoke('delete_email_template', { id }); }
 export async function deleteTodos(ids: number[]): Promise<void> { await invoke('delete_todos', { ids }); }
 export async function upsertNotes(items: Note[]): Promise<RecordCompanyLink[]> { return (await invoke<RecordCompanyLink[] | null>('upsert_notes', { items })) ?? []; }
 export async function deleteNotes(ids: number[]): Promise<void> { await invoke('delete_notes', { ids }); }
@@ -331,6 +342,7 @@ function showSaveErrorToast(label: string) {
 // ── Company notes (dated entries) ────────────────────────────────────────────
 export interface CompanyNoteEntry { id: number; companyId: number | null; companyName: string | null; body: string; isLegacy: boolean; createdAt: string; updatedAt: string | null; pinned?: boolean; }
 export async function companyNoteEntries(companyId: number | null, companyName: string | null): Promise<CompanyNoteEntry[]> { return invoke<CompanyNoteEntry[]>('company_note_entries', { companyId, companyName }); }
+export async function allCompanyNoteEntries(): Promise<CompanyNoteEntry[]> { return (await invoke<CompanyNoteEntry[] | null>('all_company_note_entries')) ?? []; }
 export async function addCompanyNoteEntryDb(companyId: number | null, companyName: string | null, body: string): Promise<CompanyNoteEntry> { return invoke<CompanyNoteEntry>('add_company_note_entry', { companyId, companyName, body }); }
 export async function updateCompanyNoteEntryDb(id: number, body: string): Promise<CompanyNoteEntry> { return invoke<CompanyNoteEntry>('update_company_note_entry', { id, body }); }
 export async function deleteCompanyNoteEntryDb(id: number): Promise<void> { await invoke('delete_company_note_entry', { id }); }

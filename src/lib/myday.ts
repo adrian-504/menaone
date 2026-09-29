@@ -10,8 +10,9 @@
 
 import { PS, proposalSentDate } from './commercial';
 import { draftingSince, openRevision } from './revisions';
+import { lastTouch, touchWhat } from './followup';
 import { daysBetween, isOpenOpportunity, opportunityHealth } from './pipeline';
-import type { Agreement, Commitment, EmailRecord, Meeting, Opportunity, PipelineFact, Project, Proposal, Todo } from './types';
+import type { Agreement, Commitment, EmailRecord, Meeting, Opportunity, PipelineFact, Project, Proposal, Todo, Touch } from './types';
 import type { RecordKind } from './navHistory';
 import { localIsoDate } from './outlookTime';
 
@@ -31,6 +32,9 @@ export interface MyDayInput {
   commitments?: Commitment[];
   /** Company names, for commitment rows. */
   companies?: { id: number; name: string }[];
+  /** Follow-ups logged against proposals: a sent proposal waits from the last contact, not from the send. */
+  touches?: Touch[];
+  contactName?: (id: number) => string | null;
   emails: EmailRecord[];
   inboxCount: number;
   /** Reviewer name for "waiting for …" wording. */
@@ -144,13 +148,14 @@ function proposalItems(i: MyDayInput): AttentionItem[] {
       else if (d > 7) out.push({ ...base, key: `proposal:${p.id}:drafting`, kind: 'proposal', score, tone: 'amber',
         reason: `${what}${services}`, when: days(d), action: { kind: 'open', label: 'Open' } });
     } else if (p.status === PS.SENT) {
-      const sent = proposalSentDate(p);
-      const d = daysBetween(sent, i.today);
+      // Waiting since the last contact (notes, the client's emails, meetings, logged follow-ups), as Follow-up counts it.
+      const touch = lastTouch(p, { emails: i.emails, meetings: i.meetings, today: i.today, ownDomains: i.ownDomains, touches: i.touches, contactName: i.contactName });
+      const d = touch?.days ?? daysBetween(proposalSentDate(p), i.today);
       if (d == null || d <= 10) continue;
       if (p.snoozedUntil && p.snoozedUntil >= i.today) continue;
       const validPassed = p.validUntil && p.validUntil < i.today;
       out.push({ ...base, key: `proposal:${p.id}:followup`, kind: 'followup', score: d <= 45 ? 62 + Math.min(d, 45) / 5 : 18, tone: d <= 45 ? 'amber' : 'accent',
-        reason: validPassed ? `No answer, and the offer expired on ${shortDate(p.validUntil!)}${services}` : `Sent ${days(d)} ago, no answer${services}`,
+        reason: validPassed ? `No answer, and the offer expired on ${shortDate(p.validUntil!)}${services}` : touch && touch.kind !== 'sent' ? `No answer — ${touchWhat(touch)}${services}` : `Sent ${days(d)} ago, no answer${services}`,
         when: days(d), action: { kind: 'follow_up', label: 'Follow up' } });
     }
   }

@@ -6,6 +6,7 @@ pub mod commercial;
 pub mod commitments;
 pub mod company_migration;
 pub mod db;
+pub mod email_templates;
 pub mod full_backup;
 pub mod insights;
 pub mod integrity;
@@ -21,6 +22,7 @@ pub mod proposal_library;
 pub mod smartfill;
 pub mod pricing;
 pub mod revisions;
+pub mod touches;
 pub mod feefill;
 pub mod master;
 pub mod generator;
@@ -273,6 +275,13 @@ pub fn run() {
             commitments::commitments_add,
             commitments::upsert_commitments,
             commitments::delete_commitments,
+            touches::get_touches,
+            touches::touches_add,
+            touches::touches_for_proposal,
+            touches::touches_delete,
+            email_templates::get_email_templates,
+            email_templates::save_email_template,
+            email_templates::delete_email_template,
             commands::delete_todos,
             commands::upsert_notes,
             commands::delete_notes,
@@ -284,6 +293,7 @@ pub fn run() {
             ms365::commands::ms365_get_emails_by_address,
             activity::rename_company,
             activity::company_note_entries,
+            activity::all_company_note_entries,
             activity::add_company_note_entry,
             activity::update_company_note_entry,
             activity::delete_company_note_entry,

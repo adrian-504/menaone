@@ -18,7 +18,7 @@ import { onChange } from '../lib/changes';
 import { showContextMenu, type ContextMenuItem } from '../lib/contextMenu';
 import { toast, undoToast } from '../lib/ui';
 import { renderIcons } from '../core/chrome';
-import { changeProposalStatus, snoozeProposal } from '../core/proposals';
+import { changeProposalStatus, contactFirstName, snoozeProposal } from '../core/proposals';
 import { addTaskFromText, deleteTodo, openDatePopover, quickAddTokensHtml, setTasksDue, toggleTodoDone } from './todo';
 import { unprocessedInboxItems } from './inbox';
 import { getActivity, getAppMeta, getIntelligenceItems, getPipelineFacts, ms365GetCachedEmails, setAppMeta } from '../lib/db';
@@ -57,7 +57,7 @@ function input(): MyDayInput {
     today: today(), now: new Date(),
     proposals: S.proposals, opportunities: S.opportunities, pipelineFacts: S.pipelineFacts, agreements: S.agreements,
     meetings: S.meetings, todos: S.todos, projects: S.projects, emails: S.emails, inboxCount: unprocessedInboxItems().length,
-    commitments: S.commitments, companies: S.companies,
+    commitments: S.commitments, companies: S.companies, touches: S.touches, contactName: contactFirstName,
     reviewerName: (p) => teamMember(p.reviewerId)?.name || reviewer,
     ownDomains: ownDomains(), snoozed,
   };

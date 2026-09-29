@@ -367,6 +367,16 @@ pub fn company_note_entries(state: State<DbState>, company_id: Option<i64>, comp
     rows.collect::<rusqlite::Result<_>>().map_err(err)
 }
 
+/// Every company's notes, newest first — for Notes' per-client list, which
+/// needs to know which companies have notes without asking one by one.
+#[tauri::command]
+pub fn all_company_note_entries(state: State<DbState>) -> CmdResult<Vec<CompanyNoteEntry>> {
+    let conn = state.0.lock().map_err(err)?;
+    let mut stmt = conn.prepare(&format!("{ENTRY_SELECT} ORDER BY created_at DESC, id DESC")).map_err(err)?;
+    let rows = stmt.query_map([], |r| row_to_entry(r)).map_err(err)?;
+    rows.collect::<rusqlite::Result<_>>().map_err(err)
+}
+
 #[tauri::command]
 pub fn add_company_note_entry(state: State<DbState>, company_id: Option<i64>, company_name: Option<String>, body: String) -> CmdResult<CompanyNoteEntry> {
     let body = body.trim().to_string();

@@ -9,7 +9,7 @@ import { agreementRenewal } from './myday';
 import { engagementThread, type EngagementThread, type GraphData, type ThreadKind } from './workGraph';
 import type { Tone } from './statusTone';
 import type { RecordKind } from './navHistory';
-import type { Agreement, Commitment, Contact, EmailRecord, Meeting } from './types';
+import type { Agreement, Commitment, Contact, EmailRecord, Meeting, Touch } from './types';
 
 /** An active client with no meeting or email for longer than this is flagged. */
 export const NEGLECT_DAYS = 45;
@@ -32,7 +32,18 @@ export interface CompanyBriefInput extends GraphData {
   emails: EmailRecord[];
   /** The company's note entries (only the pinned ones are used). */
   notes: PinnedNote[];
+  /** Follow-ups logged against proposals: an email we sent or a call counts as contact too. */
+  touches?: Touch[];
 }
+
+/** A logged follow-up as one person's last contact ("You called", "Emailed you"). */
+const PERSON_TOUCH: Record<string, string> = {
+  'email_out:out': 'You emailed', 'email_in:in': 'Emailed you', 'call:out': 'You called', 'call:in': 'Called you',
+  'whatsapp:out': 'WhatsApp from you', 'whatsapp:in': 'WhatsApp to you', 'meeting:out': 'Met',
+};
+
+/** The company's logged follow-ups. */
+const companyTouches = (i: CompanyBriefInput): Touch[] => (i.company.id == null ? [] : (i.touches || []).filter((t) => t.companyId === i.company.id));
 
 export type BriefLink = { kind: RecordKind | 'section'; id: number | string; label: string };
 
@@ -322,8 +333,11 @@ function rhythmClause(i: CompanyBriefInput, r: Records, isClient: boolean): Brie
   const past = r.meetings.filter((m) => m.meetingDate && happened(m, i.today, now)).sort((a, b) => (b.startAt || b.meetingDate!).localeCompare(a.startAt || a.meetingDate!));
   const next = r.meetings.filter((m) => m.meetingDate && m.meetingDate >= i.today && !happened(m, i.today, now)).sort((a, b) => (a.startAt || a.meetingDate!).localeCompare(b.startAt || b.meetingDate!))[0];
   const lastMeeting = past[0];
-  const lastEmail = maxDate(r.emails.map((e) => e.receivedAt));
-  const lastContact = maxDate([lastMeeting?.meetingDate, lastEmail]);
+  // An email we sent or a call logged as a follow-up is contact too, not only the client's emails.
+  const touches = companyTouches(i).filter((t) => t.at.slice(0, 10) <= i.today);
+  const lastEmail = maxDate([...r.emails.map((e) => e.receivedAt), ...touches.filter((t) => t.kind === 'email_out' || t.kind === 'email_in').map((t) => t.at)]);
+  const lastCall = maxDate(touches.filter((t) => t.kind === 'call' || t.kind === 'whatsapp').map((t) => t.at));
+  const lastContact = maxDate([lastMeeting?.meetingDate, lastEmail, lastCall]);
   const gap = lastContact ? daysBetween(lastContact, i.today) : null;
   const neglected = isClient && (gap == null || gap > NEGLECT_DAYS);
   const links: BriefLink[] = [];
@@ -331,9 +345,9 @@ function rhythmClause(i: CompanyBriefInput, r: Records, isClient: boolean): Brie
   if (neglected) bits.push(gap == null ? 'No meeting or email on record.' : `No meeting or email for ${gap} days.`);
   if (lastMeeting) {
     links.push({ kind: 'meeting', id: lastMeeting.id, label: lastMeeting.title });
-    bits.push(`Last meeting ${fmtDate(lastMeeting.meetingDate)}, {${links.length - 1}}${lastEmail && lastEmail > lastMeeting.meetingDate! ? `; last email ${fmtDate(lastEmail)}` : ''}.`);
-  } else if (lastEmail) {
-    bits.push(`Last email ${fmtDate(lastEmail)}.`);
+    bits.push(`Last meeting ${fmtDate(lastMeeting.meetingDate)}, {${links.length - 1}}${lastEmail && lastEmail > lastMeeting.meetingDate! ? `; last email ${fmtDate(lastEmail)}` : ''}${lastCall && lastCall > lastMeeting.meetingDate! ? `; last call ${fmtDate(lastCall)}` : ''}.`);
+  } else if (lastEmail || lastCall) {
+    bits.push([lastEmail ? `Last email ${fmtDate(lastEmail)}` : '', lastCall ? `${lastEmail ? 'last' : 'Last'} call ${fmtDate(lastCall)}` : ''].filter(Boolean).join('; ') + '.');
   }
   if (next) {
     links.push({ kind: 'meeting', id: next.id, label: next.title });
@@ -387,9 +401,9 @@ export function buildCompanyState(i: CompanyBriefInput, opts: { inFlight?: 'shor
 
 // ── People ──────────────────────────────────────────────────────────────────
 
-export interface LastContact { date: string; label: string; kind: 'meeting' | 'email'; id: number }
+export interface LastContact { date: string; label: string; kind: 'meeting' | 'email' | 'touch'; id: number }
 
-/** Each contact's most recent meeting attended or email from them. */
+/** Each contact's most recent meeting attended, email from them, or follow-up logged with them. */
 export function lastContactByPerson(i: CompanyBriefInput, r: Records = companyRecords(i)): Map<number, LastContact> {
   const now = i.now || `${i.today}T12:00:00`;
   const out = new Map<number, LastContact>();
@@ -404,6 +418,10 @@ export function lastContactByPerson(i: CompanyBriefInput, r: Records = companyRe
     for (const e of i.emails) {
       if ((e.senderEmail || '').toLowerCase() === email && e.receivedAt) offer(c.id, { date: e.receivedAt.slice(0, 10), label: e.subject || 'Email', kind: 'email', id: e.id });
     }
+  }
+  for (const t of companyTouches(i)) {
+    if (t.contactId == null || t.at.slice(0, 10) > i.today) continue;
+    offer(t.contactId, { date: t.at.slice(0, 10), label: t.subject || PERSON_TOUCH[`${t.kind}:${t.direction}`] || 'Contact', kind: 'touch', id: t.id });
   }
   return out;
 }

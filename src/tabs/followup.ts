@@ -6,7 +6,7 @@ import { today, fmtDate, daysSince, daysUntil, escHtml, expose, showConfirm } fr
 import { registerTabRenderer, refreshAll } from '../lib/registry';
 import { persistProposals } from '../lib/persist';
 import { getFollowups, getSnoozed, proposalLastTouch } from '../core/proposals';
-import { touchLabel } from '../lib/followup';
+import { followUpCount, touchLabel } from '../lib/followup';
 import { fmtMoney, currencyOf } from '../lib/commercial';
 import { icon } from '../lib/icons';
 import type { Proposal } from '../lib/types';
@@ -77,7 +77,9 @@ export function renderFollowup(): void {
 registerTabRenderer('followup', renderFollowup);
 
 /** A sent proposal waiting for an answer: days since the last contact and what it
- * was, the last note, and one action — Log follow-up (Won and Lost are in "…"). */
+ * was, how many times we followed up, the last note, and two actions — Followed
+ * up ▾ (one click: email, call, WhatsApp, met, or the client's reply) and Log
+ * follow-up (to write what was said). Won and Lost are in "…". */
 export function fuCard(p: Proposal, isArchived: boolean): string {
   const sent = proposalSentDate(p);
   const touch = proposalLastTouch(p);
@@ -85,7 +87,7 @@ export function fuCard(p: Proposal, isArchived: boolean): string {
   const tone = days > 30 ? 'age-urgent' : days > 20 ? 'age-late' : 'age-warn';
   const notes = p.notes || [];
   const latest = notes[notes.length - 1];
-  const contact = touch ? escHtml(touchLabel(touch, fmtDate(sent))).replace(' · ', '<span class="pq-sep">·</span>') : `Sent ${fmtDate(sent)}`;
+  const contact = touch ? escHtml(touchLabel(touch, fmtDate(sent), followUpCount(p, S.touches))).split(' · ').join('<span class="pq-sep">·</span>') : `Sent ${fmtDate(sent)}`;
   const rev = Math.max(1, p.revision ?? 1);
   const meta = [contact, rev > 1 ? `Revision ${rev}` : '', `SL# ${p.id}`, p.owner ? escHtml(p.owner) : '', p.winLossReason ? `previously: ${escHtml(p.winLossReason)}` : ''].filter(Boolean).join('<span class="pq-sep">·</span>');
   return `<div class="pq-row${isArchived ? ' is-archived' : ''}" onclick="if(!event.target.closest('a,button'))openRecord('proposal', ${p.id})" oncontextmenu="pqMenu(event, ${p.id})">
@@ -98,7 +100,8 @@ export function fuCard(p: Proposal, isArchived: boolean): string {
     ${p.monthlyFee ? `<span class="pq-fee">${fmtMoney(p.monthlyFee, currencyOf(p))}<small>/mo</small></span>` : '<span class="pq-fee"></span>'}
     <div class="pq-actions">
       ${isArchived ? `<button class="btn-secondary btn-sm" onclick="unarchiveProposal(${p.id});renderFollowup()">Unarchive</button>`
-        : `<button class="btn-secondary btn-sm" onclick="openNotesModal(${p.id}, 'followup')" title="Log what the client said">Log follow-up</button>`}
+        : `<button class="btn-secondary btn-sm" onclick="followUpMenu(event, ${p.id})" title="Log an email, call, WhatsApp or meeting in one click" aria-haspopup="menu">Followed up ${icon('chevronDown', 11)}</button>
+      <button class="btn-secondary btn-sm" onclick="openNotesModal(${p.id}, 'followup')" title="Log what the client said">Log follow-up</button>`}
       <button class="rec-icon-btn" onclick="pqMenu(event, ${p.id})" title="More" aria-label="More">${icon('more', 14)}</button>
     </div>
   </div>`;

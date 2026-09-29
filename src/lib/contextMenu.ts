@@ -8,13 +8,15 @@ export interface ContextMenuItem {
   iconName?: string;
   /** Renders a divider line instead of an item. */
   separator?: boolean;
+  /** Renders the label as a group heading (not clickable). */
+  heading?: boolean;
 }
 
 let activeMenuItems: ContextMenuItem[] = [];
 
 function renderMenuItems(items: ContextMenuItem[]): string {
   return items
-    .map((item, i) => item.separator ? '<div class="ctx-menu-sep" role="separator"></div>' : `<div class="ctx-menu-item${item.danger ? ' danger' : ''}" onclick="activateContextMenuItem(${i})">${item.iconName ? `<span>${icon(item.iconName, 14)}</span>` : ''}<span>${escHtml(item.label)}</span></div>`)
+    .map((item, i) => item.separator ? '<div class="ctx-menu-sep" role="separator"></div>' : item.heading ? `<div class="ctx-menu-hd">${escHtml(item.label)}</div>` : `<div class="ctx-menu-item${item.danger ? ' danger' : ''}" onclick="activateContextMenuItem(${i})">${item.iconName ? `<span>${icon(item.iconName, 14)}</span>` : ''}<span>${escHtml(item.label)}</span></div>`)
     .join('');
 }
 

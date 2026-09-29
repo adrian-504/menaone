@@ -8,6 +8,8 @@ import { S } from '../lib/state';
 import { toast, emptyState } from '../lib/ui';
 import { companyLink, recordLink } from '../lib/links';
 import { meetingNotesList, type MeetingNoteRow } from '../lib/meetingNotesList';
+import { clientFolder, clientNotesList, clientsWithNotes, parseClientFolder, SOURCE_LABEL, type CompanyEntry } from '../lib/clientNotes';
+import { allCompanyNoteEntries } from '../lib/db';
 import { today, fmtDate, escHtml, nextNoteId, expose, positionFloatingPopup, showTextPrompt, showConfirm, debounce, inCompany } from '../lib/utils';
 import { showContextMenu, showMenuAt, type ContextMenuItem } from '../lib/contextMenu';
 import { persistNotes, persistNoteFolders, persistTodos, saveNotesNow, saveTodosNow } from '../lib/persist';
@@ -181,6 +183,7 @@ function renderNotesSidebar(): void {
   set('nf-recent', S.notes.filter(isRecent).length);
   set('nf-client', S.notes.filter((n) => n.clientName).length);
   set('nf-meetings', meetingNotesList(S.meetings).length);
+  renderClientsGroup();
   document.querySelectorAll<HTMLElement>('.notes-side .ws-side-group .notes-folder-item').forEach((el) => el.classList.toggle('active', el.dataset.folder === S.currentNoteFolder));
   const fi = document.getElementById('notes-folder-items');
   if (fi) {
@@ -197,7 +200,68 @@ function renderNotesSidebar(): void {
   }
 }
 
+// ── Clients: every company with notes anywhere, and all of them in one list ──
+
+/** The company pages' notes, read when Notes opens (they live outside the Notes module). */
+let companyEntries: CompanyEntry[] = [];
+const CLIENTS_KEY = 'menaone.notesClientsCollapsed';
+let clientsCollapsed = (() => { try { return localStorage.getItem(CLIENTS_KEY) === '1'; } catch { return false; } })();
+
+function loadCompanyEntries(): void {
+  void allCompanyNoteEntries().then((list) => {
+    companyEntries = list;
+    renderClientsGroup();
+    if (S.currentNoteFolder.startsWith('co:')) renderNotesList();
+  }).catch(() => undefined);
+}
+
+function renderClientsGroup(): void {
+  const section = document.getElementById('notes-clients-section');
+  const el = document.getElementById('notes-client-items');
+  if (!section || !el) return;
+  const clients = clientsWithNotes(S.notes, companyEntries, S.meetings, S.companies);
+  section.hidden = clients.length === 0;
+  const chevron = document.getElementById('notes-clients-chevron');
+  chevron?.classList.toggle('collapsed', clientsCollapsed);
+  section.querySelector('.notes-clients-toggle')?.setAttribute('aria-expanded', String(!clientsCollapsed));
+  el.hidden = clientsCollapsed;
+  el.innerHTML = clients.map((c) => {
+    const folder = clientFolder(c.key);
+    return `<button class="ws-side-item notes-folder-item${S.currentNoteFolder === folder ? ' active' : ''}" data-folder="${escHtml(folder)}" onclick="setNoteFolder('${jsArg(folder)}')"><span class="ws-side-icon">${icon('building', 13)}</span><span class="ws-side-label">${escHtml(c.key.name)}</span><span class="ws-side-count">${c.count}</span></button>`;
+  }).join('');
+}
+
+export function toggleNotesClients(): void {
+  clientsCollapsed = !clientsCollapsed;
+  try { localStorage.setItem(CLIENTS_KEY, clientsCollapsed ? '1' : '0'); } catch { /* this visit only */ }
+  renderClientsGroup();
+}
+expose('toggleNotesClients', toggleNotesClients);
+
+/** One client's notes from every source; each row opens where it lives (Notes rows behave as today). */
+function renderClientNotes(folder: string, search: string): void {
+  const key = parseClientFolder(folder, S.companies);
+  const list = document.getElementById('notes-list');
+  const title = document.getElementById('notes-list-title'); if (title) title.textContent = key?.name || 'Client';
+  const rows = key ? clientNotesList(key, S.notes, companyEntries, S.meetings, search) : [];
+  const count = document.getElementById('notes-list-count'); if (count) count.textContent = `${rows.length} note${rows.length === 1 ? '' : 's'}`;
+  if (!list) return;
+  listRowsHtml = '';
+  if (!rows.length) {
+    list.innerHTML = emptyState({ icon: search ? 'search' : 'note', title: search ? 'No matching notes' : 'No notes for this client', compact: true });
+    renderIcons(list);
+    return;
+  }
+  const open = (r: (typeof rows)[number]) => r.source === 'note' ? `openNote(${r.id})` : r.source === 'meeting' ? `openRecord('meeting', ${r.id})` : `companyJump(${key!.id ?? 'null'}, '${jsArg(key!.name)}', 'notes-log')`;
+  list.innerHTML = rows.map((r) => `<div class="note-item${r.source === 'note' && r.id === S.currentNoteId ? ' active' : ''}"${r.source === 'note' ? ` data-note-id="${r.id}"` : ''} tabindex="0" onkeydown="if(event.key==='Enter')this.click()" onclick="${open(r)}">
+      <div class="note-item-title">${r.pinned ? `<span class="note-pin">${icon('pin', 11)}</span>` : ''}${escHtml(r.title)}</div>
+      ${r.excerpt ? `<div class="note-item-preview">${escHtml(r.excerpt)}</div>` : r.source === 'note' ? '<div class="note-item-preview"><span class="note-item-empty">No additional text</span></div>' : ''}
+      <div class="note-item-meta">${r.date ? `<span>${fmtDate(r.date)}</span>` : ''}<span class="note-item-source">${SOURCE_LABEL[r.source]}</span></div>
+    </div>`).join('');
+}
+
 export function renderNotesTab(): void {
+  loadCompanyEntries();
   renderNotesSidebar();
   renderNotesList();
   applyNotesLayout();
@@ -226,14 +290,25 @@ function folderLabel(folder: string): string {
   if (folder === 'recent') return 'Recent';
   if (folder === 'client') return 'Linked to clients';
   if (folder === 'meetings') return 'From meetings';
+  if (folder.startsWith('co:')) return parseClientFolder(folder, S.companies)?.name || 'Client';
   if (folder.startsWith('tag:')) return `#${folder.slice(4)}`;
   return folder.split('/').pop() || folder;
+}
+
+/** The rows last written to the list: rebuilt only when they change, so a
+ * save or a refresh never swaps the rows under the pointer mid-navigation. */
+let listRowsHtml = '';
+
+/** Selection is state, not DOM: S.currentNoteId marks the active row wherever the list stands. */
+function syncActiveNote(): void {
+  document.querySelectorAll<HTMLElement>('#notes-list .note-item[data-note-id]').forEach((el) => el.classList.toggle('active', Number(el.dataset.noteId) === S.currentNoteId));
 }
 
 export function renderNotesList(): void {
   const search = ((document.getElementById('notes-search') as HTMLInputElement | null)?.value || '').trim().toLowerCase();
   const folder = S.currentNoteFolder;
-  if (folder === 'meetings') { renderMeetingNotes(search); return; }
+  if (folder === 'meetings') { listRowsHtml = ''; renderMeetingNotes(search); return; }
+  if (folder.startsWith('co:')) { renderClientNotes(folder, search); return; }
   let filtered = S.notes.filter((n) => {
     if (folder === 'pinned') return n.pinned;
     if (folder === 'recent') return isRecent(n);
@@ -252,25 +327,28 @@ export function renderNotesList(): void {
   const list = document.getElementById('notes-list');
   if (!list) return;
   if (filtered.length === 0) {
+    listRowsHtml = '';
     list.innerHTML = search
       ? emptyState({ icon: 'search', title: 'No matching notes', body: `Nothing in ${folderLabel(folder)} mentions “${search}”.`, compact: true })
       : emptyState({ icon: 'note', title: folder === 'all' ? 'No notes yet' : `Nothing in ${folderLabel(folder)}`, compact: true, action: { label: 'New note', onclick: 'createNewNote(null)' } });
     renderIcons(list);
     return;
   }
-  list.innerHTML = filtered.map((n) => {
+  const html = filtered.map((n) => {
     const preview = previewText(n.content || '');
     const meta = [
       `<span>${fmtDate(n.updatedAt || n.createdAt)}</span>`,
       n.clientName ? companyLink(n.companyId, n.clientName, { className: 'note-item-client' }) : '',
       ...(n.tags || []).slice(0, 2).map((t) => `<span class="note-item-tag">#${escHtml(t)}</span>`),
     ].filter(Boolean).join('');
-    return `<div class="note-item${n.id === S.currentNoteId ? ' active' : ''}" data-note-id="${n.id}" data-drag-kind="note" data-drag-id="${n.id}" onclick="openNote(${n.id})" oncontextmenu="noteContextMenu(event,${n.id})">
+    return `<div class="note-item" data-note-id="${n.id}" data-drag-kind="note" data-drag-id="${n.id}" onclick="openNote(${n.id})" oncontextmenu="noteContextMenu(event,${n.id})">
       <div class="note-item-title">${n.pinned ? `<span class="note-pin">${icon('pin', 11)}</span>` : ''}${escHtml(n.title || 'Untitled')}</div>
       <div class="note-item-preview">${preview ? escHtml(preview) : '<span class="note-item-empty">No additional text</span>'}</div>
       <div class="note-item-meta">${meta}</div>
     </div>`;
   }).join('');
+  if (html !== listRowsHtml || !list.querySelector('.note-item[data-note-id]')) { list.innerHTML = html; listRowsHtml = html; }
+  syncActiveNote();
 }
 expose('renderNotesList', renderNotesList);
 
@@ -366,7 +444,29 @@ document.addEventListener('keydown', (e) => {
   if (mod && e.shiftKey && e.key.toLowerCase() === 'f') { e.preventDefault(); if (focusMode) toggleNotesFocus(); (document.getElementById('notes-search') as HTMLInputElement | null)?.focus(); return; }
   if (mod && !e.shiftKey && e.key.toLowerCase() === 'n') { e.preventDefault(); createNewNote(null); return; }
   if (e.key === 'Escape' && focusMode) { e.preventDefault(); toggleNotesFocus(); }
+  // ↑/↓ outside the editor and inputs: the highlight moves at once; the note loads a moment later, the last one asked for.
+  const t = e.target as HTMLElement | null;
+  const typing = !!t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable);
+  if (!mod && !typing && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+    const rows = [...document.querySelectorAll<HTMLElement>('#notes-list .note-item[data-note-id]')];
+    if (!rows.length) return;
+    e.preventDefault();
+    const at = rows.findIndex((r) => Number(r.dataset.noteId) === (pendingNoteId ?? S.currentNoteId));
+    const next = rows[Math.min(rows.length - 1, Math.max(0, at + (e.key === 'ArrowDown' ? 1 : -1)))];
+    const id = Number(next.dataset.noteId);
+    rows.forEach((r) => r.classList.toggle('active', r === next));
+    next.scrollIntoView({ block: 'nearest' });
+    requestNote(id);
+  }
 });
+
+/** The note the arrow keys last asked for, not loaded yet: only the latest one is opened. */
+let pendingNoteId: number | null = null;
+function requestNote(id: number): void {
+  const first = pendingNoteId == null;
+  pendingNoteId = id;
+  if (first) window.setTimeout(() => { const want = pendingNoteId; pendingNoteId = null; if (want != null && want !== S.currentNoteId) openNote(want); }, 16);
+}
 
 // ── Editor lifecycle: one CodeMirror instance reused across notes ───────────
 
@@ -442,8 +542,11 @@ function currentNote(): Note | undefined {
 export function openNote(id: number): void {
   const n = S.notes.find((x) => x.id === id);
   if (!n) return;
-  if (S.noteChanged && S.currentNoteId) saveCurrentNote();
+  // The note being left: its pending edit is saved now, and its timer can no longer land on this one.
+  if (S.noteAutoSaveTimer) { window.clearTimeout(S.noteAutoSaveTimer); S.noteAutoSaveTimer = null; }
+  if (S.noteChanged && S.currentNoteId && S.currentNoteId !== id) saveCurrentNote();
   S.currentNoteId = id;
+  syncActiveNote();
   notifyNavigated();
   const emptyEl = document.getElementById('notes-empty'); if (emptyEl) emptyEl.style.display = 'none';
   const panel = document.getElementById('notes-editor-panel');
@@ -699,8 +802,17 @@ expose('autoSaveNote', autoSaveNote);
 export function saveCurrentNote(): void {
   const n = currentNote();
   if (!n) return;
-  n.title = (document.getElementById('notes-title-inp') as HTMLTextAreaElement | null)?.value.replace(/\n/g, ' ').trim() || 'Untitled';
-  n.content = noteEditorView?.state.doc.toString() || '';
+  if (S.noteAutoSaveTimer) { window.clearTimeout(S.noteAutoSaveTimer); S.noteAutoSaveTimer = null; }
+  const title = (document.getElementById('notes-title-inp') as HTMLTextAreaElement | null)?.value.replace(/\n/g, ' ').trim() || 'Untitled';
+  const content = noteEditorView?.state.doc.toString() || '';
+  // Nothing changed (e.g. only opened): no save, no new "edited" date, the list stays as it is.
+  if (title === (n.title || 'Untitled') && content === (n.content || '')) {
+    S.noteChanged = false;
+    const st = document.getElementById('notes-save-status'); if (st?.textContent === 'Editing…') st.textContent = '';
+    return;
+  }
+  n.title = title;
+  n.content = content;
   n.updatedAt = today();
   persistNotes();
   // A checklist line added or removed changes the "Create tasks" offer.
