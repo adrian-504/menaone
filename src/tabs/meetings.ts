@@ -510,7 +510,7 @@ export function renderCoMeetingsSection(d: { name: string; companyId: number | n
     }
     container.innerHTML = `<div class="rec-list">${companyMeetings.map((m) => `<div class="rec-row" onclick="openRecord('meeting', ${m.id})">
       <span class="rec-row-icon">${icon('meeting', 15)}</span>
-      <div class="rec-row-main"><div class="rec-row-title">${escHtml(m.title)}</div><div class="rec-row-sub">${escHtml([fmtTimeRange(m.startAt, m.endAt), (m.attendees || []).length ? `${m.attendees.length} attendee${m.attendees.length === 1 ? '' : 's'}` : ''].filter(Boolean).join(' · '))}</div>${m.isCancelled ? '' : excerptLine(meetingExcerpt(m))}</div>
+      <div class="rec-row-main"><div class="rec-row-title">${escHtml(m.title)}</div><div class="rec-row-sub">${escHtml(fmtTimeRange(m.startAt, m.endAt))}</div>${m.isCancelled ? '' : excerptLine(meetingExcerpt(m))}</div>
       <span class="rec-row-date">${m.meetingDate ? fmtDate(m.meetingDate) : ''}</span>
     </div>`).join('')}</div>`;
   });

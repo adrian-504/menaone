@@ -1,5 +1,5 @@
 import { suggestWebsites } from '../lib/clientMatch';
-import { isAgreementActive, isOpenProposal, isLost, isWon, activeMrr as computeActiveMrr, fmtMoney, fmtMoneyByCurrency, toReporting, currencyOf, agreementMonthly, activeTeam, matchesOwnerFilter, ownerFilterOptions, type MoneyByCurrency } from '../lib/commercial';
+import { proposalSentDate, isAgreementActive, isOpenProposal, isLost, isWon, activeMrr as computeActiveMrr, fmtMoney, fmtMoneyByCurrency, toReporting, currencyOf, agreementMonthly, activeTeam, matchesOwnerFilter, ownerFilterOptions, type MoneyByCurrency } from '../lib/commercial';
 import { S } from '../lib/state';
 import { toast, undoToast } from '../lib/ui';
 import { renderBulkBar } from '../lib/bulkBar';
@@ -15,6 +15,7 @@ import { recordLink } from '../lib/links';
 import { type FeedItem } from '../lib/activityFeed';
 import { renderRecordTimeline } from './recordThread';
 import { renderCompanyTemplates } from './companyTemplates';
+import { clientNotesList } from '../lib/clientNotes';
 import { capCompanyRecords, renderDossierDetails, renderDossierNextRecent, renderDossierState, resetDossierFolds, watchCompanyRecords } from './companyDossier';
 import { liveThreads, lastContactByPerson, orderPeople, relationshipStatus as briefRelationship } from '../lib/companyBrief';
 import { briefInputFor, ensurePinnedNotes, setCompanyNotesCache } from './companyState';
@@ -27,7 +28,7 @@ import { renderTagChips } from '../lib/tagChips';
 import { openContactModal } from '../core/contacts';
 import { openAgrModal } from '../core/agreements';
 import { openNotesModal } from '../core/proposals';
-import { renderCoNotesSection, createNoteForCompany } from './notes';
+import { createNoteForCompany } from './notes';
 import { renderCoTodosSection, createTodoForCompany } from './todo';
 import { renderLinkedEmailsForCompany } from '../core/emailLinks';
 import { getLinksFor, filesGetByIds, getCompanies, mergeCompanyLinks, saveMeeting, saveProject, saveCompany, getReviewQueue, resolveReviewQueueEntry, renameCompany, getAppMeta, setAppMeta, setCompanyNotePinned, companyNoteEntries, addCompanyNoteEntryDb, updateCompanyNoteEntryDb, deleteCompanyNoteEntryDb, moveCompanyNoteEntries, type CompanyNoteEntry} from '../lib/db';
@@ -1013,7 +1014,7 @@ function renderCompanyDetail(): void {
   (document.getElementById('co-detail-meta') as HTMLElement).innerHTML = badges.join('');
 
   const key = { id: d.companyId, name: d.name };
-  if (lastDetailName !== d.name) { lastDetailName = d.name; resetDossierFolds(); }
+  if (lastDetailName !== d.name) { lastDetailName = d.name; notesAll = false; resetDossierFolds(); }
   renderCompanyState(key);
   renderCompanyFacts(d);
   renderDossierDetails(co, d, listsForCompany(d.name).map((l) => `<span class="ct-list-tag" title="${l.filters ? 'Smart list' : 'Hand-picked list'}">${escHtml(l.name)}</span>`).join(' '));
@@ -1039,7 +1040,6 @@ function renderCompanyDetail(): void {
   renderCoOpportunities(d, opps);
   renderCoProposals(d);
   renderCoAgreements(d);
-  renderCoNotesSection(d);
   renderCoTodosSection(d);
   // Projects and meetings render through window to avoid an import cycle.
   (window as any).renderCoProjectsSection?.(d);
@@ -1131,6 +1131,8 @@ export function expandCompanySection(id: string): void {
 expose('expandCompanySection', expandCompanySection);
 
 export function scrollToCompanySection(id: string): void {
+  // Promises have no section of their own on the dossier: they are in Next.
+  if (id === 'commitments') id = 'next';
   const el = document.getElementById(`co-sec-${id}`);
   if (!el) return;
   el.classList.remove('is-empty');
@@ -1193,16 +1195,44 @@ export async function loadCompanyNoteEntries(): Promise<void> {
   if (name && S.currentCompany === name) renderCompanyState({ id, name });
 }
 
+/** Notes shows every note in full on this visit (else the newest three). */
+let notesAll = false;
+
+export function toggleCompanyNotesAll(): void {
+  notesAll = !notesAll;
+  renderCompanyNoteLog();
+}
+expose('toggleCompanyNotesAll', toggleCompanyNotesAll);
+
+/** Notes: the company page's own notes and the Notes-module notes linked to the
+ * company, newest first, each saying where it lives; three until "All N". */
 function renderCompanyNoteLog(): void {
   const log = document.getElementById('co-notes-log');
   if (!log) return;
+  const { id: cid, name } = noteTarget();
+  const linked = name ? clientNotesList({ id: cid, name }, S.notes, [], []) : [];
+  type Item = { at: string; html: string };
+  const items: Item[] = [
+    ...noteEntries.map((n) => ({ at: n.isLegacy ? '' : n.createdAt, html: entryHtml(n) })),
+    ...linked.map((r) => ({ at: r.date || '', html: `<div class="conote-entry is-linked" role="link" tabindex="0" onclick="openNoteFromCompany(${r.id})" onkeydown="if(event.key==='Enter')this.click()">
+      <div class="conote-meta"><span>${r.date ? escHtml(fmtDate(r.date)) : ''} · <span class="note-item-source">Note</span></span></div>
+      <div class="conote-body"><strong>${escHtml(r.title)}</strong>${r.excerpt ? ` — ${escHtml(r.excerpt)}` : ''}</div>
+    </div>` })),
+  ].sort((a, b) => b.at.localeCompare(a.at));
   const count = document.getElementById('co-notes-entry-count');
-  if (count) count.textContent = noteEntries.length ? String(noteEntries.length) : '';
-  if (noteEntries.length === 0) {
+  if (count) count.textContent = items.length ? String(items.length) : '';
+  const all = document.getElementById('co-notes-all');
+  if (all) { all.hidden = items.length <= 3; all.textContent = notesAll ? 'Fewer' : `All ${items.length}`; }
+  if (items.length === 0) {
     log.innerHTML = `<div class="conote-none">No notes yet. The first one you write is kept with today's date.</div>`;
     return;
   }
-  log.innerHTML = noteEntries.map((n) => {
+  log.innerHTML = (notesAll ? items : items.slice(0, 3)).map((i) => i.html).join('');
+  renderIcons(log);
+}
+
+function entryHtml(n: CompanyNoteEntry): string {
+  {
     const when = n.isLegacy ? 'Written before notes were dated' : fmtDate(n.createdAt.slice(0, 10));
     const edited = n.updatedAt && !n.isLegacy ? ` · edited ${fmtDate(n.updatedAt.slice(0, 10))}` : '';
     if (editingEntryId === n.id) {
@@ -1215,7 +1245,7 @@ function renderCompanyNoteLog(): void {
       </div>`;
     }
     return `<div class="conote-entry">
-      <div class="conote-meta"><span>${escHtml(when)}${escHtml(edited)}</span>
+      <div class="conote-meta"><span>${escHtml(when)}${escHtml(edited)} · <span class="note-item-source">Company page</span></span>
         <span class="conote-entry-actions">
           <button class="rec-icon-btn conote-pin${n.pinned ? ' is-pinned' : ''}" title="${n.pinned ? 'Unpin' : 'Pin to the top of the page'}" aria-label="${n.pinned ? 'Unpin note' : 'Pin note'}" aria-pressed="${n.pinned ? 'true' : 'false'}" onclick="toggleCompanyNotePin(${n.id})">${icon('pin', 13)}</button>
           <button class="rec-icon-btn" title="Edit" aria-label="Edit note" onclick="editCompanyNoteEntry(${n.id})">${icon('edit', 13)}</button>
@@ -1224,8 +1254,7 @@ function renderCompanyNoteLog(): void {
       </div>
       <div class="conote-body">${escHtml(n.body)}</div>
     </div>`;
-  }).join('');
-  renderIcons(log);
+  }
 }
 
 /** Pinned notes are quoted at the top of the page and in the Brief. */
@@ -1462,25 +1491,24 @@ export function renderCoProposals(d: CompanyData): void {
   const cntEl = document.getElementById('co-proposals-count'); if (cntEl) cntEl.textContent = d.proposals.length ? String(d.proposals.length) : '';
   const tbody = document.getElementById('co-proposals-tbody');
   if (!tbody) return;
-  if (d.proposals.length === 0) { tbody.innerHTML = `<tr><td colspan="8">${emptyState({ icon: 'database', title: 'No proposals yet', compact: true, action: { label: 'New proposal', onclick: 'createProposalForCurrentCompany()' } })}</td></tr>`; return; }
+  if (d.proposals.length === 0) { tbody.innerHTML = `<tr><td colspan="5">${emptyState({ icon: 'database', title: 'No proposals yet', compact: true, action: { label: 'New proposal', onclick: 'createProposalForCurrentCompany()' } })}</td></tr>`; return; }
   // Proposals requested together stay side by side under one quiet line.
   const runs = groupRequestedTogether(d.proposals, (p) => p.sentDate || p.dateAdded || '');
   const row = (p: Proposal) => {
+    // The dossier's short table: the row opens the proposal (log, deck and signing dates are there).
     const cfg = ST[p.status] || { c: 'var(--muted)', ch: 'var(--muted)' };
-    const nc = (p.notes || []).length;
-    return `<tr class="rec-tr" onclick="openRecord('proposal', ${p.id})">
+    const sent = proposalSentDate(p);
+    // In a narrow page the date column folds away; the row still says it on hover.
+    return `<tr class="rec-tr" onclick="openRecord('proposal', ${p.id})"${sent ? ` title="Sent ${escHtml(fmtDate(sent))}"` : ''}>
       <td class="td-id">${p.id}</td>
       <td class="td-t" title="${escHtml(p.type)}">${escHtml(p.type)}</td>
       <td>${statusDot(cfg, p.status)}${(p.revision ?? 1) > 1 ? `<span class="t-muted"> · Rev ${p.revision}</span>` : ''}</td>
-      <td class="td-d">${fmtDate(p.sentDate)}</td>
-      <td class="td-d">${fmtDate(p.dblSignedDate)}</td>
+      <td class="td-d co-col-date">${fmtDate(sent)}</td>
       <td class="td-fee">${p.monthlyFee ? money(Number(p.monthlyFee), currencyOf(p)) : '—'}</td>
-      <td><button class="btn-secondary btn-sm" onclick="event.stopPropagation();openNotesModal(${p.id})" title="Activity log">${nc > 0 ? `${nc} note${nc === 1 ? '' : 's'}` : 'Log'}</button></td>
-      <td>${p.docLink ? `<a href="#" onclick="event.stopPropagation();event.preventDefault();openExternalUrl('${escHtml(p.docLink)}')" class="doc-link-btn">Open</a>` : ''}</td>
     </tr>`;
   };
   tbody.innerHTML = runs.map((r) => (r.group
-    ? `<tr class="co-group-tr"><td colspan="8" class="co-group-hd">Requested together · ${escHtml(fmtDate(r.items.map((p) => p.dateAdded || '').sort().pop() || r.date))}</td></tr>`
+    ? `<tr class="co-group-tr"><td colspan="5" class="co-group-hd">Requested together · ${escHtml(fmtDate(r.items.map((p) => p.dateAdded || '').sort().pop() || r.date))}</td></tr>`
     : '') + r.items.map(row).join('')).join('');
 }
 
@@ -1488,19 +1516,16 @@ export function renderCoAgreements(d: CompanyData): void {
   const cntEl = document.getElementById('co-agreements-count'); if (cntEl) cntEl.textContent = d.agreements.length ? String(d.agreements.length) : '';
   const tbody = document.getElementById('co-agreements-tbody');
   if (!tbody) return;
-  if (d.agreements.length === 0) { tbody.innerHTML = `<tr><td colspan="8">${emptyState({ icon: 'document', title: 'No agreements yet', compact: true, action: { label: 'New agreement', onclick: 'openAgrForCompany()' } })}</td></tr>`; return; }
+  if (d.agreements.length === 0) { tbody.innerHTML = `<tr><td colspan="5">${emptyState({ icon: 'document', title: 'No agreements yet', compact: true, action: { label: 'New agreement', onclick: 'openAgrForCompany()' } })}</td></tr>`; return; }
   tbody.innerHTML = d.agreements.map((a) => {
+    // The dossier's short table: when it ends matters more than the signing dates (on the agreement).
     const sc = AGR_ST[a.status || ''] || { c: 'var(--muted)', ch: 'var(--muted)' };
-    const pending = '<span class="rec-muted">Pending</span>';
-    return `<tr class="rec-tr" onclick="openRecord('agreement', ${a.id})">
+    return `<tr class="rec-tr" onclick="openRecord('agreement', ${a.id})"${a.endDate ? ` title="Ends ${escHtml(fmtDate(a.endDate))}"` : ''}>
       <td class="fw-600">${escHtml(a.agrRef || '—')}</td>
       <td class="td-t">${escHtml(a.type || '—')}</td>
       <td>${statusDot(sc, a.status || '')}</td>
-      <td class="td-d">${a.dateSentToClient ? fmtDate(a.dateSentToClient) : '<span class="rec-muted">Not sent</span>'}</td>
-      <td class="td-d">${a.dateClientSigned ? fmtDate(a.dateClientSigned) : pending}</td>
-      <td class="td-d">${a.dateMenaSigned ? fmtDate(a.dateMenaSigned) : pending}</td>
+      <td class="td-d co-col-date">${a.endDate ? fmtDate(a.endDate) : '<span class="rec-muted">—</span>'}</td>
       <td class="td-fee">${agreementMonthly(a) ? money(Number(agreementMonthly(a)), currencyOf(a)) : '—'}</td>
-      <td>${a.docLink ? `<a href="#" onclick="event.stopPropagation();event.preventDefault();openExternalUrl('${escHtml(a.docLink)}')" class="doc-link-btn">Open</a>` : ''}</td>
     </tr>`;
   }).join('');
 }

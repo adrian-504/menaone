@@ -50,7 +50,11 @@ export function clientNotesList(key: ClientKey, notes: NoteLike[], entries: Comp
   const rows: ClientNoteRow[] = [];
   for (const n of notes) {
     if (!belongs(key, n.companyId, n.clientName)) continue;
-    rows.push({ source: 'note', id: n.id, title: n.title || 'Untitled', excerpt: clip(plain(n.content || ''), 160), date: day(n.updatedAt || n.createdAt), pinned: !!n.pinned });
+    // A note usually opens with its own title as a heading: the excerpt starts after it.
+    const title = n.title || 'Untitled';
+    const text = plain(n.content || '');
+    const body = text.toLowerCase().startsWith(title.toLowerCase()) ? text.slice(title.length).trim() : text;
+    rows.push({ source: 'note', id: n.id, title, excerpt: clip(body, 160), date: day(n.updatedAt || n.createdAt), pinned: !!n.pinned });
   }
   for (const e of entries) {
     if (!belongs(key, e.companyId, e.companyName)) continue;

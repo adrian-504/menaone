@@ -1624,7 +1624,7 @@
       <section class="rec-section sec co-activity-fold" id="co-sec-activity" data-section="activity" hidden></section>
     </section>
     <section class="rec-section sec" id="co-sec-notes-log" data-section="notes-log">
-      <div class="rec-section-hd"><h2>Notes</h2><span class="rec-count" id="co-notes-entry-count"></span><div class="rec-section-actions"><a href="#" class="rlink" id="co-notes-add" onclick="event.preventDefault();openCompanyNoteComposer()">Add note</a></div></div>
+      <div class="rec-section-hd"><h2>Notes</h2><span class="rec-count" id="co-notes-entry-count"></span><a href="#" class="rlink co-rec-all" id="co-notes-all" hidden onclick="event.preventDefault();toggleCompanyNotesAll()"></a><div class="rec-section-actions"><a href="#" class="rlink" id="co-notes-add" onclick="event.preventDefault();openCompanyNoteComposer()">Add note</a></div></div>
       <div class="conote-composer" id="co-notes-composer" hidden>
         <textarea class="rec-notes conote-input" id="co-notes-text" rows="2" placeholder="What's new with this client? Enter to save, Shift+Enter for a new line." oninput="companyNoteComposerInput(this)" onkeydown="companyNoteComposerKey(event)"></textarea>
         <div class="conote-composer-actions"><button class="btn-secondary btn-sm" onclick="closeCompanyNoteComposer()">Cancel</button><button class="btn-secondary btn-sm" onclick="addCompanyNoteEntry()">Add note</button></div>
@@ -1637,11 +1637,11 @@
     <div class="co-records" id="co-records">
     <section class="rec-section sec" id="co-sec-proposals" data-section="proposals">
       <div class="rec-section-hd"><h2>Proposals</h2><span class="rec-count" id="co-proposals-count"></span><div class="rec-section-actions"><button class="btn-secondary btn-sm" onclick="createProposalForCurrentCompany()">+ New</button></div></div>
-      <div class="tbl-wrap rec-table"><table><thead><tr><th>SL#</th><th>Service</th><th>Status</th><th>Sent</th><th>Signed</th><th>MRR</th><th>Log</th><th></th></tr></thead><tbody id="co-proposals-tbody"></tbody></table></div>
+      <div class="tbl-wrap rec-table"><table><thead><tr><th>SL#</th><th>Service</th><th>Status</th><th class="co-col-date">Sent</th><th>MRR</th></tr></thead><tbody id="co-proposals-tbody"></tbody></table></div>
     </section>
     <section class="rec-section sec" id="co-sec-agreements" data-section="agreements">
       <div class="rec-section-hd"><h2>Agreements</h2><span class="rec-count" id="co-agreements-count"></span><div class="rec-section-actions"><button class="btn-secondary btn-sm" onclick="openAgrForCompany()">+ New</button></div></div>
-      <div class="tbl-wrap rec-table"><table><thead><tr><th>Ref</th><th>Type</th><th>Status</th><th>Sent</th><th>Client signed</th><th>MENA signed</th><th>MRR</th><th></th></tr></thead><tbody id="co-agreements-tbody"></tbody></table></div>
+      <div class="tbl-wrap rec-table"><table><thead><tr><th>Ref</th><th>Type</th><th>Status</th><th class="co-col-date">Ends</th><th>MRR</th></tr></thead><tbody id="co-agreements-tbody"></tbody></table></div>
     </section>
     <section class="rec-section sec" id="co-sec-opportunities" data-section="opportunities">
       <div class="rec-section-hd"><h2>Opportunities</h2><span class="rec-count" id="co-opps-count"></span><div class="rec-section-actions"><button class="btn-secondary btn-sm" onclick="createOpportunityForCurrentCompany()">+ New</button></div></div>
@@ -1658,14 +1658,6 @@
     <section class="rec-section sec" id="co-sec-tasks" data-section="tasks">
       <div class="rec-section-hd"><h2>Tasks</h2><span class="rec-count" id="co-todos-tab-count"></span><div class="rec-section-actions"><button class="btn-secondary btn-sm" onclick="createTodoForCurrentCompany()">+ New</button></div></div>
       <div id="cosub-todos-inner"></div>
-    </section>
-    <section class="rec-section sec" id="co-sec-commitments" data-section="commitments">
-      <div class="rec-section-hd"><h2>Commitments</h2><span class="rec-count" id="co-commitments-count"></span><div class="rec-section-actions"><button class="btn-secondary btn-sm" onclick="createCommitmentForCurrentCompany()">+ New</button></div></div>
-      <div id="co-commitments-list"></div>
-    </section>
-    <section class="rec-section sec" id="co-sec-notes" data-section="notes">
-      <div class="rec-section-hd"><h2>Linked notes</h2><span class="rec-count" id="co-notes-tab-count"></span><div class="rec-section-actions"><button class="btn-secondary btn-sm" onclick="createNoteForCurrentCompany()">+ New</button></div></div>
-      <div id="cosub-notes-inner"></div>
     </section>
     <section class="rec-section sec" id="co-sec-files" data-section="files">
       <div class="rec-section-hd"><h2>Files</h2><span class="rec-count" id="co-files-tab-count"></span><div class="rec-section-actions"><button class="btn-secondary btn-sm" onclick="switchTab('files');msFilesOpenSetupWizard()">Match a folder…</button></div></div>
