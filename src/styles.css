@@ -1429,6 +1429,28 @@ body.dnd-active .board-column.drop-target{background:var(--accent-bg)!important}
 .mt-stand-label{font-size:var(--type-caption);font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-right:8px}
 .mt-avs{display:flex;gap:4px;margin-top:8px}
 .mt-av{width:22px;height:22px;border-radius:50%;background:var(--accent-bg);color:var(--accent);display:grid;place-items:center;font-size:9px;font-weight:700}
+/* Meeting page: the client beside the notes (owner, 29-Sep, Concept B). */
+#meeting-detail{container-type:inline-size;container-name:mdetail}
+#meeting-detail .rec-layout{grid-template-columns:minmax(0,1fr) 320px}
+#meeting-detail .rec-side{order:0}
+@media (max-width:1100px){#meeting-detail .rec-layout{grid-template-columns:minmax(0,1fr) 320px}#meeting-detail .rec-side{order:0;border-left:1px solid var(--hairline);padding-left:24px}}
+@container mdetail (max-width:760px){#meeting-detail .rec-layout{grid-template-columns:1fr}#meeting-detail .rec-side{border-left:none;padding-left:0}}
+.md-context{display:flex;flex-direction:column;gap:10px;margin-bottom:16px}
+.md-ctx-panel{background:var(--surface-flat);border-radius:var(--radius);padding:12px 14px}
+.md-ctx-hd{display:flex;align-items:baseline;gap:6px;margin-bottom:6px}
+.md-ctx-act{margin-left:auto;font-size:var(--type-secondary)}
+.md-ctx-text{margin:0 0 4px;font-size:var(--type-secondary);line-height:1.5}
+.md-ctx-sub{display:block;color:var(--muted);font-size:var(--type-meta)}
+p.md-ctx-sub{margin:0 0 4px}
+.md-ctx-sub.is-late{color:var(--red)}
+.md-ctx-owed{color:var(--red)}
+.md-ctx-person,.md-ctx-promise{display:flex;gap:8px;align-items:flex-start;padding:6px 0;border-top:1px solid var(--hairline);font-size:var(--type-secondary)}
+.md-ctx-person:first-of-type,.md-ctx-promise:first-of-type{border-top:0}
+.md-ctx-person.is-internal{opacity:.75}
+.md-ctx-av{width:24px;height:24px;border-radius:50%;background:var(--accent-bg);color:var(--accent);display:grid;place-items:center;font-size:9px;font-weight:700;flex:none}
+.md-ctx-main{min-width:0}
+.md-ctx-box{width:13px;height:13px;flex:none;margin-top:3px;border:1.5px solid var(--border);border-radius:50%;background:none;padding:0;cursor:pointer}
+.md-ctx-box:hover{border-color:var(--green)}
 .row-excerpt{color:var(--muted);font-size:var(--type-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;min-width:0}
 .meeting-marks{display:inline-flex;gap:10px;margin-left:12px}
 .meeting-mark{display:inline-flex;align-items:center;gap:3px;color:var(--sub);font-weight:600}
