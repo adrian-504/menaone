@@ -1168,6 +1168,9 @@
           <div class="ws-side-section-hd notes-section-hd"><span>Folders</span><button class="notes-section-add" onclick="addNoteFolder()" title="New folder" aria-label="New folder"><span data-icon="plus" data-icon-size="12"></span></button></div>
           <div id="notes-folder-items"></div>
         </div>
+        <div class="ws-side-group notes-side-meetings">
+          <button class="ws-side-item notes-folder-item" data-folder="meetings" onclick="setNoteFolder('meetings')"><span class="ws-side-icon" data-icon="meeting" data-icon-size="15"></span><span class="ws-side-label">From meetings</span><span class="ws-side-count" id="nf-meetings"></span></button>
+        </div>
         <div class="ws-side-section" id="notes-tags-section">
           <div class="ws-side-section-hd notes-section-hd"><span>Tags</span></div>
           <div id="notes-tag-items"></div>

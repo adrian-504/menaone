@@ -549,7 +549,10 @@ main{padding:22px 26px;max-width:1440px;margin:0 auto}
 .cmdk-item:hover,.cmdk-item.sel{background:var(--accent);color:var(--on-accent)}
 .cmdk-item:hover .icon,.cmdk-item.sel .icon,.cmdk-item:hover .cmdk-sub,.cmdk-item.sel .cmdk-sub{color:var(--on-accent)}
 .cmdk-item .icon{color:var(--sub);flex-shrink:0}
-.cmdk-sub{color:var(--muted);font-size:var(--type-meta);margin-left:auto;flex-shrink:0}
+.cmdk-text{display:flex;flex-direction:column;min-width:0;flex:1}
+.cmdk-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* A search hit's second line: where the words matched. */
+.cmdk-sub{color:var(--muted);font-size:var(--type-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cmdk-empty{padding:30px 16px;text-align:center;color:var(--muted);font-size:var(--type-body)}
 
 /* ═══ My Day ═══ */
@@ -1316,6 +1319,9 @@ body.dnd-active .board-column.drop-target{background:var(--accent-bg)!important}
 .md-invite-text.is-clamped{max-height:9em;overflow:hidden;-webkit-mask-image:linear-gradient(black 65%,transparent)}
 .md-invite-more{margin-top:6px;font-size:var(--type-secondary)}
 /* Meetings list: what was written up. */
+/* The first sentence of a meeting's notes, wherever it is listed. */
+.notes-side-meetings{margin-top:8px}
+.row-excerpt{color:var(--muted);font-size:var(--type-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;min-width:0}
 .meeting-marks{display:inline-flex;gap:10px;margin-left:12px}
 .meeting-mark{display:inline-flex;align-items:center;gap:3px;color:var(--sub);font-weight:600}
 .meeting-mark.is-todo{color:var(--amber)}

@@ -109,6 +109,22 @@ fn search_index_finds_project_by_partial_name() {
 }
 
 #[test]
+fn search_index_finds_a_meeting_by_its_action_items() {
+    let (path, conn) = fresh_db();
+    conn.execute(
+        "INSERT INTO meetings (id, title, meeting_date, action_items, created_at, updated_at)
+         VALUES (1, 'Quarterly check-in', '2026-09-20', '- Send the Zanzibar headcount sheet', '2026-09-20', '2026-09-20')",
+        [],
+    ).unwrap();
+    rebuild_all(&conn).expect("rebuild search index");
+    let mut stmt = conn.prepare("SELECT entity_type, entity_id FROM search_index WHERE search_index MATCH '\"zanzibar\"*'").unwrap();
+    let rows: Vec<(String, i64)> = stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?))).unwrap().collect::<rusqlite::Result<_>>().unwrap();
+    assert_eq!(rows, vec![("meeting".to_string(), 1)], "a word only in the action items must find the meeting");
+
+    let _ = std::fs::remove_file(&path);
+}
+
+#[test]
 fn rebuild_note_links_is_idempotent_and_does_not_duplicate() {
     let (path, mut conn) = fresh_db();
     let notes = vec![

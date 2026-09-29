@@ -858,7 +858,17 @@ export async function installDevMockIfNeeded(): Promise<void> {
             { entityType: 'project', entityId: 1, title: 'Acme Holdings — Retainer Delivery', snippet: 'Client project' },
             { entityType: 'company', entityId: 0, title: 'Acme Holdings', snippet: 'Company' },
           ];
-          return pool.filter((r) => r.title.toLowerCase().includes(q));
+          // Meetings are found by what was written in them, as the FTS index does;
+          // the snippet is the words around the match.
+          const meetingHits = meetingsStore.flatMap((m) => {
+            const body = [m.agenda, m.decisions, m.followUp, m.actionItems, m.discussion].filter(Boolean).join(' ');
+            const at = body.toLowerCase().indexOf(q);
+            if (at < 0 && !m.title.toLowerCase().includes(q)) return [];
+            const from = Math.max(0, at - 40);
+            const snippet = at < 0 ? body.slice(0, 80) : `${from ? '…' : ''}${body.slice(from, at + q.length + 60)}…`;
+            return [{ entityType: 'meeting', entityId: m.id, title: m.title, snippet }];
+          });
+          return [...pool.filter((r) => r.title.toLowerCase().includes(q)), ...meetingHits];
         }
         case 'ms365_get_client_id':
         case 'ms365_get_tenant_id':

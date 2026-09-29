@@ -21,6 +21,7 @@ import { renderCommitmentSection } from './commitments';
 import { contextFromMeeting, companyFromForm, contextFromCompany, contextFromOpportunity, contextFromProject, inheritCompany, EMPTY_CONTEXT, type WorkContext } from '../lib/workGraph';
 import { icon } from '../lib/icons';
 import { isMeetingOver, writeUpState } from '../lib/meetingRecap';
+import { meetingExcerpt } from '../lib/meetingExcerpt';
 import { flushMeetingNotes, isOver, renderEarlierMeetings, renderMeetingInvite, renderMeetingNotes } from './meetingNotes';
 import { renderMeetingClientSection, meetingSuggestionsBanner, meetingSuggestionChip } from './meetingClient';
 
@@ -96,7 +97,7 @@ function renderMeetingList(): void {
       companyLink(m.companyId, m.companyName),
       (m.attendees || []).length ? `${m.attendees.length} attendee${m.attendees.length !== 1 ? 's' : ''}` : '',
       meetingSuggestionChip(m),
-    ].filter(Boolean).join(' · ')}${marks(state.get(m.id))}</div>
+    ].filter(Boolean).join(' · ')}${marks(state.get(m.id))}</div>${excerptLine(state.get(m.id)?.hasNotes ? meetingExcerpt(m) : null)}
   </div>`;
   // In "All" the two groups are separated, so a meeting tomorrow can't end up
   // below one next month.
@@ -105,12 +106,16 @@ function renderMeetingList(): void {
   renderIcons(el);
 }
 
-/** What the list shows about a meeting's write-up. */
+/** What was noted, as one muted line under a meeting (the list, the company page). */
+function excerptLine(excerpt: string | null): string {
+  return excerpt ? `<div class="row-excerpt" title="${escHtml(excerpt)}">${escHtml(excerpt)}</div>` : '';
+}
+
+/** What the list shows about a meeting's write-up (the notes themselves show as the excerpt line). */
 function marks(w: ReturnType<typeof writeUpState> | undefined): string {
   if (!w) return '';
   const out: string[] = [];
   if (w.openActions) out.push(`<span class="meeting-mark">${icon('check', 11)}${w.openActions} open action${w.openActions === 1 ? '' : 's'}</span>`);
-  if (w.hasNotes) out.push(`<span class="meeting-mark" title="Has notes">${icon('note', 11)}Notes</span>`);
   if (w.needsWriteUp) out.push('<span class="meeting-mark is-todo">Not written up</span>');
   return out.length ? `<span class="meeting-marks">${out.join('')}</span>` : '';
 }
@@ -443,7 +448,7 @@ export function renderCoMeetingsSection(d: { name: string; companyId: number | n
     }
     container.innerHTML = `<div class="rec-list">${companyMeetings.map((m) => `<div class="rec-row" onclick="openRecord('meeting', ${m.id})">
       <span class="rec-row-icon">${icon('meeting', 15)}</span>
-      <div class="rec-row-main"><div class="rec-row-title">${escHtml(m.title)}</div><div class="rec-row-sub">${escHtml([fmtTimeRange(m.startAt, m.endAt), (m.attendees || []).length ? `${m.attendees.length} attendee${m.attendees.length === 1 ? '' : 's'}` : ''].filter(Boolean).join(' · '))}</div></div>
+      <div class="rec-row-main"><div class="rec-row-title">${escHtml(m.title)}</div><div class="rec-row-sub">${escHtml([fmtTimeRange(m.startAt, m.endAt), (m.attendees || []).length ? `${m.attendees.length} attendee${m.attendees.length === 1 ? '' : 's'}` : ''].filter(Boolean).join(' · '))}</div>${m.isCancelled ? '' : excerptLine(meetingExcerpt(m))}</div>
       <span class="rec-row-date">${m.meetingDate ? fmtDate(m.meetingDate) : ''}</span>
     </div>`).join('')}</div>`;
   });
