@@ -106,7 +106,7 @@ const showAll = new Set<string>();
 const PAST_LIMIT = 15;
 
 /** Every opportunity, proposal, agreement and project of a company. */
-function companyTimelineRecords(co: { id: number | null; name: string }): Rec[] {
+export function companyTimelineRecords(co: { id: number | null; name: string }): Rec[] {
   const of = (id: number | null | undefined, name: string | null | undefined) => (id != null && co.id != null ? id === co.id : !!name && name === co.name);
   return [
     ...S.opportunities.filter((o) => !o.archived && of(o.companyId, o.companyName)).map((o) => ({ kind: 'opportunity' as const, id: o.id })),

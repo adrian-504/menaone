@@ -4,7 +4,8 @@
 // rules. Also fills company websites from their contacts' email domains.
 
 import { meetingBrief } from '../lib/companyBrief';
-import { briefInputFor, clausesHtml, ensurePinnedNotes } from './companyState';
+import { briefInputFor, ensurePinnedNotes } from './companyState';
+import { renderMeetingContext } from './meetingContext';
 import { S } from '../lib/state';
 import { escHtml, expose, fmtDate, today, nextCtId, inCompany, daysSince, daysUntil, showConfirm } from '../lib/utils';
 import { icon } from '../lib/icons';
@@ -111,15 +112,18 @@ export function renderMeetingClientSection(m: Meeting): void {
         </div>`).join('')}</div>
         <div class="btn-row md-client-actions"><button class="btn-secondary btn-sm" onclick="dismissMeetingLink(${m.id})">None of these</button></div>`
       : emptyState({ icon: 'building', title: meetingEmails(m).length ? 'No client matched the attendees' : 'No attendee emails', body: meetingPeople(m).some((p) => p.status === 'new' && p.guess) ? 'Add the attendees as contacts — the meeting links to their company, and future meetings link by themselves.' : 'Pick the client above, or add attendees\' email addresses to their contacts so future meetings link by themselves.', compact: true }));
+    el.hidden = false;
     renderIcons(el);
     renderMeetingPeople(m);
+    renderMeetingContext(m);
     return;
   }
-  el.innerHTML = `<div class="rec-section-hd"><h2>Client brief</h2><span class="rec-count">${companyLink(company.id, company.name)}</span>
-    <div class="rec-section-actions"><button class="btn-secondary btn-sm" onclick="addSuggestedAgenda(${m.id})">${icon('plus', 12)} Add suggested agenda</button></div></div>
-    ${briefHtml(m, company)}`;
-  renderIcons(el);
+  // Linked: the client's context is the side column now (tabs/meetingContext.ts); this section only helps link.
+  ensurePinnedNotes({ id: company.id, name: company.name }, () => { if (S.meetingEditId === m.id) renderMeetingContext(m); });
+  el.hidden = true;
+  el.innerHTML = '';
   renderMeetingPeople(m);
+  renderMeetingContext(m);
 }
 expose('renderMeetingClientSection', renderMeetingClientSection);
 
@@ -132,18 +136,6 @@ function briefFor(m: Meeting, company: Company) {
   return meetingBrief(m, briefInputFor(key));
 }
 
-function briefHtml(m: Meeting, company: Company): string {
-  const { clauses, agenda } = briefFor(m, company);
-  const ref = { id: company.id, name: company.name };
-  const date = m.meetingDate || today();
-  const previous = S.meetings
-    .filter((x) => x.id !== m.id && !x.isCancelled && inCompany(ref, x.companyId, x.companyName) && (x.meetingDate || '') < date)
-    .sort((a, b) => (b.meetingDate || '').localeCompare(a.meetingDate || ''))[0];
-  const prev = previous
-    ? `<div class="md-brief-row">${icon('meeting', 13)}<div><strong>Last time</strong> ${recordLink('meeting', previous.id, previous.title)} · ${escHtml(fmtDate(previous.meetingDate))}${previous.followUp?.trim() ? `<div class="rec-muted">Follow-up: ${escHtml(previous.followUp.trim().split('\n')[0])}</div>` : ''}</div></div>`
-    : '';
-  return `${clausesHtml(clauses, ref)}${prev ? `<div class="md-brief">${prev}</div>` : ''}${agenda.length ? `<details class="md-agenda-preview"><summary>Suggested agenda (${agenda.length})</summary><ol>${agenda.map((x) => `<li>${escHtml(x)}</li>`).join('')}</ol></details>` : ''}`;
-}
 
 export function addSuggestedAgenda(meetingId: number): void {
   const m = S.meetings.find((x) => x.id === meetingId);
@@ -298,10 +290,13 @@ export function renderMeetingPeople(m: Meeting): void {
   const people = meetingPeople(m).filter((p) => !(p.status === 'new' && skip.has(p.email) && !peopleEditing.has(personKey(m.id, p.email))));
   el.hidden = people.length === 0;
   if (!people.length) { el.innerHTML = ''; return; }
+  // Everyone in the room is in the side column's In the room; here only who isn't a contact yet, to add them.
   const fresh = people.filter((p) => p.status === 'new');
+  el.hidden = fresh.length === 0;
+  if (!fresh.length) { el.innerHTML = ''; return; }
   const addable = fresh.filter((p) => p.guess);
-  const groups: [string, MeetingPerson[]][] = [['Not in contacts yet', fresh], ['Contacts', people.filter((p) => p.status === 'contact')], ['MENA BIG', people.filter((p) => p.status === 'internal')]];
-  el.innerHTML = `<div class="rec-section-hd"><h2>People</h2><span class="rec-count">${people.length}</span>
+  const groups: [string, MeetingPerson[]][] = [['Not in contacts yet', fresh]];
+  el.innerHTML = `<div class="rec-section-hd"><h2>People to add</h2><span class="rec-count">${fresh.length}</span>
       ${addable.length > 1 ? `<div class="rec-section-actions"><button class="btn-secondary btn-sm" onclick="addAllMeetingPeople(${m.id})">${icon('plus', 12)} Add all ${addable.length} to contacts</button></div>` : ''}</div>
     <datalist id="md-people-companies">${S.companies.filter((c) => !c.archived).map((c) => `<option value="${attr(c.name)}">`).join('')}</datalist>
     ${groups.filter(([, list]) => list.length).map(([label, list]) => `<div class="md-people-group"><div class="md-people-label">${escHtml(label)}</div>${list.map((p) => personRow(m, p)).join('')}</div>`).join('')}`;

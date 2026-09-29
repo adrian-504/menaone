@@ -38,9 +38,11 @@ describe('meeting notes in the palette and the Meetings list', () => {
     S.todos = [];
     document.body.innerHTML = '<div id="meeting-list"></div><input id="meeting-search"><span id="meeting-count"></span>';
     (window as any).renderMeetingsTab();
-    const rows = document.querySelectorAll('#meeting-list .meeting-row');
-    expect(rows[0].querySelector('.row-excerpt')?.textContent).toBe('Invoice monthly from October.');
-    expect(rows[0].textContent).not.toMatch(/\bNotes\b/);
-    expect(rows[1].querySelector('.row-excerpt')).toBeNull();
+    // Grouped by day now (meetings-by-day): after the meeting, the purpose line is what was noted.
+    const rows = [...document.querySelectorAll('#meeting-list .mt-row')];
+    const row = (title: string) => rows.find((r) => r.querySelector('.mt-title')?.textContent?.includes(title))!;
+    expect(row('Renewal call').querySelector('.mt-purpose')?.textContent).toBe('Invoice monthly from October.');
+    expect(row('Renewal call').textContent).not.toMatch(/\bNotes\b/);
+    expect(row('Empty one').querySelector('.mt-purpose')).toBeNull();
   });
 });

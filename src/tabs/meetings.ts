@@ -20,8 +20,11 @@ import type { Meeting } from '../lib/types';
 import { renderCommitmentSection } from './commitments';
 import { contextFromMeeting, companyFromForm, contextFromCompany, contextFromOpportunity, contextFromProject, inheritCompany, EMPTY_CONTEXT, type WorkContext } from '../lib/workGraph';
 import { icon } from '../lib/icons';
-import { isMeetingOver, writeUpState } from '../lib/meetingRecap';
+import { isMeetingOver, previewLines, writeUpState } from '../lib/meetingRecap';
 import { meetingExcerpt } from '../lib/meetingExcerpt';
+import { durationLabel, groupMeetingsByDay, meetingOutcomes, nextMeeting, placeLabel } from '../lib/meetingsList';
+import { buildCompanyState, clauseText } from '../lib/companyBrief';
+import { briefInputFor } from './companyState';
 import { flushMeetingNotes, isOver, renderEarlierMeetings, renderMeetingInvite, renderMeetingNotes } from './meetingNotes';
 import { renderMeetingClientSection, meetingSuggestionsBanner, meetingSuggestionChip } from './meetingClient';
 
@@ -87,38 +90,97 @@ function renderMeetingList(): void {
     renderIcons(el);
     return;
   }
-  const row = (m: Meeting) => `<div class="meeting-row${m.isCancelled ? ' is-cancelled' : ''}" onclick="openMeetingDetail(${m.id})">
-    <div class="meeting-row-top">
-      <div class="meeting-title">${m.source === 'outlook' ? icon('calendar', 13) + ' ' : ''}${escHtml(m.title)}${m.isCancelled ? ' (Cancelled)' : ''}</div>
-      <div class="meeting-date">${m.meetingDate ? fmtDate(m.meetingDate) : 'No date'}</div>
-    </div>
-    <div class="meeting-meta">${[
-      escHtml(fmtTimeRange(m.startAt, m.endAt)),
-      companyLink(m.companyId, m.companyName),
-      (m.attendees || []).length ? `${m.attendees.length} attendee${m.attendees.length !== 1 ? 's' : ''}` : '',
-      meetingSuggestionChip(m),
-    ].filter(Boolean).join(' · ')}${marks(state.get(m.id))}</div>${excerptLine(state.get(m.id)?.hasNotes ? meetingExcerpt(m) : null)}
-  </div>`;
-  // In "All" the two groups are separated, so a meeting tomorrow can't end up
-  // below one next month.
-  const divider = upcoming.length && past.length ? `<div class="list-divider">Earlier</div>` : '';
-  el.innerHTML = meetingSuggestionsBanner() + upcoming.map(row).join('') + divider + past.map(row).join('');
+  // By day (owner, 29-Sep, Concept A): Today, Tomorrow, each coming day, then Earlier by month.
+  const next = meetingWhen === 'writeup' ? null : nextMeeting(sorted, now);
+  const groups = groupMeetingsByDay(sorted, now);
+  el.innerHTML = meetingSuggestionsBanner() + groups.map((g) => `<section class="mt-day">
+      <div class="mt-day-hd"><span class="mt-day-label">${escHtml(g.label)}</span>${g.sub ? `<span>${escHtml(g.sub)}</span>` : ''}</div>
+      ${g.meetings.map((m) => (m.id === next?.id ? nextMeetingHtml(m) : meetingRowHtml(m, g.earlier, state.get(m.id), now, todayIso))).join('')}
+    </section>`).join('');
   renderIcons(el);
 }
+
+const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1).trimEnd()}…` : s);
+
+/** "Acme Holdings · Jane Doe, Omar Haddad"; internal meetings say so. */
+function meetingPeopleLine(m: Meeting): string {
+  const people = (m.attendees || []).filter(Boolean);
+  const names = people.slice(0, 3).join(', ') + (people.length > 3 ? ` +${people.length - 3}` : '');
+  const company = m.companyName ? companyLink(m.companyId, m.companyName) : 'Internal';
+  return [company, names ? escHtml(names) : ''].filter(Boolean).join(' · ');
+}
+
+/** The time column: today onward the time (with duration and place); earlier the date, then the time. */
+function timeCell(m: Meeting, earlier: boolean): string {
+  const time = m.startAt ? fmtTimeOnly(m.startAt) : '';
+  if (earlier) return `<b>${m.meetingDate ? escHtml(new Date(`${m.meetingDate}T12:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })) : '—'}</b>${escHtml(time)}`;
+  const extra = [durationLabel(m.startAt, m.endAt), placeLabel(m)].filter(Boolean).join(' · ');
+  return `<b>${escHtml(time || 'All day')}</b>${escHtml(extra)}`;
+}
+
+/** Before the meeting its agenda's first line; after it, what was noted. */
+function purposeLine(m: Meeting, over: boolean): string {
+  if (over) { const x = meetingExcerpt(m); return x ? escHtml(x) : ''; }
+  const agenda = previewLines(m.agenda, 1)[0];
+  return agenda ? `Agenda: ${escHtml(clip(agenda, 140))}` : '';
+}
+
+function meetingRowHtml(m: Meeting, earlier: boolean, w: ReturnType<typeof writeUpState> | undefined, now: Date, todayIso: string): string {
+  const over = isMeetingOver(m, now, todayIso);
+  const purpose = purposeLine(m, over);
+  const tasks = S.todos.filter((t) => t.meetingId === m.id && t.parentId == null);
+  const o = over && !m.isCancelled ? meetingOutcomes(m, S.commitments, tasks, over) : null;
+  const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+  const outcomes = o ? [
+    o.decisions ? plural(o.decisions, 'decision') : '',
+    o.promisesMade ? `${plural(o.promisesMade, 'promise')} made` : '',
+    o.owedToUs ? `${o.owedToUs} owed to us` : '',
+    o.openActions ? plural(o.openActions, 'open action') : '',
+    o.writtenUp ? '<span class="t-positive">Written up</span>' : o.needsWriteUp ? '<span class="is-amber">Not written up</span>' : '',
+  ].filter(Boolean) : [];
+  const writeUp = o?.needsWriteUp ? `<button class="btn-secondary btn-sm" onclick="event.stopPropagation();writeUpMeeting(${m.id})">Write up</button>` : '';
+  return `<div class="mt-row${m.isCancelled ? ' is-cancelled' : ''}" onclick="openMeetingDetail(${m.id})">
+    <div class="mt-time">${timeCell(m, earlier)}</div>
+    <div class="mt-main">
+      <div class="mt-title">${m.source === 'outlook' ? icon('calendar', 12) + ' ' : ''}${escHtml(m.title)}${m.isCancelled ? ' (Cancelled)' : ''}</div>
+      <div class="mt-line">${meetingPeopleLine(m)}${meetingSuggestionChip(m) ? ` · ${meetingSuggestionChip(m)}` : ''}</div>
+      ${purpose ? `<div class="mt-line mt-purpose">${purpose}</div>` : ''}
+      ${outcomes.length ? `<div class="mt-out">${outcomes.map((x) => `<span>${x}</span>`).join('')}</div>` : ''}
+    </div>
+    <div class="mt-act">${writeUp}</div>
+  </div>`;
+}
+
+/** The next meeting, opened up: when and where, who, where we stand with the client, and Prepare
+ * (secondary: "+ New meeting" is the page's one primary). */
+function nextMeetingHtml(m: Meeting): string {
+  const key = m.companyName ? { id: m.companyId ?? null, name: m.companyName } : null;
+  const stand = key ? buildCompanyState(briefInputFor(key)).filter((c) => c.key === 'relationship' || c.key === 'inflight' || c.key === 'commitments').map(clauseText).join(' · ') : '';
+  const initials = (m.attendees || []).slice(0, 5).map((a) => `<span class="mt-av" title="${escHtml(a)}">${escHtml(a.split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((w) => w[0] || '').join('').toUpperCase() || '?')}</span>`).join('');
+  return `<div class="mt-row mt-next" onclick="openMeetingDetail(${m.id})">
+    <div class="mt-time">${timeCell(m, false)}</div>
+    <div class="mt-main">
+      <div class="mt-title">${escHtml(m.title)}</div>
+      <div class="mt-line">${meetingPeopleLine(m)}</div>
+      ${stand ? `<div class="mt-stand"><span class="mt-stand-label">Where we stand</span>${escHtml(stand)}</div>` : ''}
+      ${initials ? `<div class="mt-avs">${initials}</div>` : ''}
+    </div>
+    <div class="mt-act"><button class="btn-secondary btn-sm" onclick="event.stopPropagation();openRecord('meeting', ${m.id})">Prepare</button></div>
+  </div>`;
+}
+
+/** Write up: the meeting, with the cursor in Discussion. */
+export function writeUpMeeting(id: number): void {
+  openMeetingDetail(id);
+  setTimeout(() => (window as any).openMeetingSection?.('discussion'), 120);
+}
+expose('writeUpMeeting', writeUpMeeting);
 
 /** What was noted, as one muted line under a meeting (the list, the company page). */
 function excerptLine(excerpt: string | null): string {
   return excerpt ? `<div class="row-excerpt" title="${escHtml(excerpt)}">${escHtml(excerpt)}</div>` : '';
 }
 
-/** What the list shows about a meeting's write-up (the notes themselves show as the excerpt line). */
-function marks(w: ReturnType<typeof writeUpState> | undefined): string {
-  if (!w) return '';
-  const out: string[] = [];
-  if (w.openActions) out.push(`<span class="meeting-mark">${icon('check', 11)}${w.openActions} open action${w.openActions === 1 ? '' : 's'}</span>`);
-  if (w.needsWriteUp) out.push('<span class="meeting-mark is-todo">Not written up</span>');
-  return out.length ? `<span class="meeting-marks">${out.join('')}</span>` : '';
-}
 
 export function openMeetingDetail(id: number): void {
   const m = S.meetings.find((x) => x.id === id);

@@ -14,7 +14,8 @@ export const COMPANY_RECORD_SECTIONS: [string, string][] = [
 ];
 
 /** The fixed part of the section bar. */
-export const COMPANY_NAV_FIXED: [string, string][] = [['overview', 'Overview'], ['contacts', 'People'], ['activity', 'Timeline'], ['notes-log', 'Notes']];
+// People and the timeline are no longer in the page's flow (the left column, and "All activity").
+export const COMPANY_NAV_FIXED: [string, string][] = [['overview', 'Overview'], ['notes-log', 'Notes']];
 
 /** A count of null means "not known yet" (files and emails load later): the
  * section stays where it is, open, until the count arrives. */

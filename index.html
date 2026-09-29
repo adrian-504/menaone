@@ -551,12 +551,13 @@
     <section class="sec rec-section md-people" id="md-people" hidden></section>
     </div>
     <aside class="rec-side">
+      <!-- The client beside the notes (tabs/meetingContext.ts): where we stand, who is in the room, last time, open promises. -->
+      <div class="md-context" id="md-context" hidden></div>
       <section class="sec rec-side-card">
         <div class="rec-section-hd"><h2>Details</h2><div class="rec-section-actions" id="md-props-act"></div></div>
         <dl class="rec-props" id="md-props"></dl>
         <div class="rec-side-extra" id="md-outlook-card" style="display:none"><div id="md-outlook-info"></div></div>
       </section>
-      <section class="sec rec-side-card md-earlier" id="md-earlier" hidden></section>
       <section class="sec rec-side-card md-invite" id="md-invite" hidden></section>
     </aside>
     </div>
@@ -1595,22 +1596,38 @@
   </div>
     </section>
 
-    <!-- Where we stand: up to five clauses (tabs/companyState.ts). -->
+    <!-- The dossier (owner, 29-Sep, Concept B): a left column that stays while
+         you scroll (details, people, what to remember), the story on the right. -->
+    <div class="co-dossier">
+    <aside class="co-dossier-side" aria-label="Company at a glance">
+      <section class="co-panel" id="co-panel-details">
+        <div class="co-panel-hd"><span class="rec-eyebrow">Details</span></div>
+        <dl class="co-details" id="co-details"></dl>
+      </section>
+      <section class="co-panel" id="co-sec-contacts" data-section="contacts">
+        <div class="co-panel-hd"><span class="rec-eyebrow">People</span><span class="rec-count" id="co-contacts-count"></span><a href="#" class="rlink co-panel-act" onclick="event.preventDefault();openContactForCompany()">+ Add</a></div>
+        <div class="rec-list co-people" id="co-contacts-list"></div>
+      </section>
+      <section class="co-panel" id="co-panel-remember" hidden>
+        <div class="co-panel-hd"><span class="rec-eyebrow">Remember</span></div>
+        <div class="co-remember" id="co-remember"></div>
+      </section>
+    </aside>
+    <div class="co-dossier-main">
+    <!-- Where we stand, as labelled lines (tabs/companyState.ts, lib/companyDossier.ts). -->
     <section class="rec-section co-standing" id="co-sec-overview" data-section="overview"><div id="co-state"></div></section>
-    <section class="rec-section sec" id="co-sec-threads" data-section="threads">
-      <div class="rec-section-hd"><h2>Open threads</h2><span class="rec-count" id="co-threads-count"></span></div>
-      <div class="co-threads" id="co-threads"></div>
+    <section class="rec-section co-nextrecent" id="co-sec-next" data-section="next">
+      <div class="co-nr-grid">
+        <div class="co-nr-col"><div class="co-nr-hd"><span class="rec-eyebrow">Next</span></div><div id="co-next"></div></div>
+        <div class="co-nr-col"><div class="co-nr-hd"><span class="rec-eyebrow">Recent</span><a href="#" class="rlink co-nr-all" id="co-activity-toggle" onclick="event.preventDefault();toggleCompanyActivity()">All activity</a></div><div id="co-recent"></div></div>
+      </div>
+      <section class="rec-section sec co-activity-fold" id="co-sec-activity" data-section="activity" hidden></section>
     </section>
-    <section class="rec-section sec" id="co-sec-contacts" data-section="contacts">
-      <div class="rec-section-hd"><h2>People</h2><span class="rec-count" id="co-contacts-count"></span><div class="rec-section-actions"><button class="btn-secondary btn-sm" onclick="openContactForCompany()">+ Add</button></div></div>
-      <div class="rec-list" id="co-contacts-list"></div>
-    </section>
-    <section class="rec-section sec" id="co-sec-activity" data-section="activity"></section>
     <section class="rec-section sec" id="co-sec-notes-log" data-section="notes-log">
-      <div class="rec-section-hd"><h2>Company notes</h2><span class="rec-count" id="co-notes-entry-count"></span></div>
-      <div class="conote-composer">
+      <div class="rec-section-hd"><h2>Notes</h2><span class="rec-count" id="co-notes-entry-count"></span><div class="rec-section-actions"><a href="#" class="rlink" id="co-notes-add" onclick="event.preventDefault();openCompanyNoteComposer()">Add note</a></div></div>
+      <div class="conote-composer" id="co-notes-composer" hidden>
         <textarea class="rec-notes conote-input" id="co-notes-text" rows="2" placeholder="What's new with this client? Enter to save, Shift+Enter for a new line." oninput="companyNoteComposerInput(this)" onkeydown="companyNoteComposerKey(event)"></textarea>
-        <div class="conote-composer-actions"><button class="btn-secondary btn-sm" onclick="addCompanyNoteEntry()">Add note</button></div>
+        <div class="conote-composer-actions"><button class="btn-secondary btn-sm" onclick="closeCompanyNoteComposer()">Cancel</button><button class="btn-secondary btn-sm" onclick="addCompanyNoteEntry()">Add note</button></div>
       </div>
       <div class="conote-log" id="co-notes-log"></div>
     </section>
@@ -1658,6 +1675,8 @@
       <div class="rec-section-hd"><h2>Linked emails</h2><span class="rec-count" id="co-emails-count"></span></div>
       <div id="co-emails"></div>
     </section>
+    </div>
+    </div>
     </div>
   </div>
 </div>

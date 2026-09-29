@@ -43,6 +43,22 @@ export function companyStateFor(c: CompanyKey): BriefClause[] {
   return buildCompanyState(briefInputFor(c));
 }
 
+/** A clause's sentence with its links, without the dot and quotes around it. */
+export function clauseBodyHtml(c: BriefClause, company: CompanyKey): string {
+  const link = (i: number) => {
+    const l = c.links[i];
+    if (!l) return '';
+    if (l.kind === 'section') {
+      return `<a href="#" class="rlink" onclick="event.preventDefault();companyJump(${company.id ?? 'null'}, '${jsString(company.name)}', '${l.id}')">${escHtml(l.label)}</a>`;
+    }
+    return recordLink(l.kind, l.id as number, l.label);
+  };
+  return c.text.split(/(\{\d+\})/).map((part) => {
+    const m = /^\{(\d+)\}$/.exec(part);
+    return m ? link(+m[1]) : escHtml(part);
+  }).join('');
+}
+
 /** A clause with its links: records open, sections jump to Company 360. */
 export function clauseHtml(c: BriefClause, company: CompanyKey): string {
   const link = (i: number) => {

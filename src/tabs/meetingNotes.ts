@@ -5,6 +5,7 @@
 
 import type { EditorView } from '@codemirror/view';
 import { S } from '../lib/state';
+import { renderMeetingContext } from './meetingContext';
 import { renderIcons } from '../core/chrome';
 import { toast } from '../lib/ui';
 import { recordLink, companyLink } from '../lib/links';
@@ -264,34 +265,9 @@ function clientOf(m: Meeting) {
   return m.companyName ? { id: null, name: m.companyName } : null;
 }
 
+/** The earlier-meetings card became the context column's Last time (tabs/meetingContext.ts): refresh that. */
 export function renderEarlierMeetings(m: Meeting): void {
-  const el = document.getElementById('md-earlier');
-  if (!el) return;
-  const client = clientOf(m);
-  const earlier = client ? earlierMeetings(m, S.meetings, (x) => inCompany({ id: client.id ?? null, name: client.name }, x.companyId, x.companyName)) : [];
-  el.hidden = earlier.length === 0;
-  if (!earlier.length || !client) { el.innerHTML = ''; return; }
-  el.innerHTML = `<div class="rec-section-hd"><h2>Earlier with ${escHtml(client.name)}</h2></div>
-    <div class="md-earlier-list">${earlier.map((e) => {
-      const decisions = previewLines(e.decisions, 3);
-      const notes = decisions.length ? [] : previewLines(e.discussion, 2);
-      const open = S.todos.filter((t) => t.meetingId === e.id && t.status !== 'Done' && !S.commitments.some((c) => c.todoId === t.id));
-      const promises = S.commitments.filter((c) => c.sourceType === 'meeting' && c.sourceId === e.id && c.status === 'open');
-      return `<div class="md-earlier-item">
-        <div class="md-earlier-hd">${recordLink('meeting', e.id, e.title)}<span class="md-earlier-date">${escHtml(fmtDate(e.meetingDate))}</span></div>
-        ${decisions.length ? `<div class="md-earlier-label">Decided</div><ul class="md-earlier-points">${decisions.map((d) => `<li>${escHtml(d)}</li>`).join('')}</ul>` : ''}
-        ${notes.length ? `<ul class="md-earlier-points is-notes">${notes.map((d) => `<li>${escHtml(d)}</li>`).join('')}</ul>` : ''}
-        ${open.length ? `<div class="md-earlier-label">Still open</div>${open.slice(0, 4).map((t) => `<div class="md-earlier-task">
-            <button class="task-check" onclick="completeEarlierAction(${t.id})" aria-label="Complete" title="Complete"></button>
-            <span>${escHtml(t.title)}${t.owner ? ` <span class="md-earlier-owner">· ${escHtml(t.owner)}</span>` : ''}</span></div>`).join('')}${open.length > 4 ? `<div class="md-earlier-more">and ${open.length - 4} more</div>` : ''}` : ''}
-        ${promises.length ? `<div class="md-earlier-label">Promised</div>${promises.slice(0, 4).map((c) => `<div class="md-earlier-task">
-            <button class="task-check" onclick="toggleEarlierCommitment(${c.id})" aria-label="Mark kept" title="Mark kept"></button>
-            <span><span class="cm-dir${c.direction === 'theirs' ? ' is-theirs' : ''}" aria-label="${c.direction === 'ours' ? 'We owe it' : 'They owe it'}">${c.direction === 'ours' ? '→' : '←'}</span> ${escHtml(c.text)}${c.dueDate ? ` <span class="md-earlier-owner">· ${escHtml(fmtDate(c.dueDate))}</span>` : ''}</span></div>`).join('')}` : ''}
-        ${!decisions.length && !notes.length && !open.length && !promises.length ? '<div class="md-earlier-empty">Nothing written up</div>' : ''}
-      </div>`;
-    }).join('')}</div>
-    <div class="md-earlier-foot">${companyLink(client.id, client.name, { className: 'rlink' }).replace(`>${escHtml(client.name)}<`, `>All meetings with ${escHtml(client.name)}<`)}</div>`;
-  renderIcons(el);
+  renderMeetingContext(m);
 }
 
 export function toggleEarlierCommitment(id: number): void {
