@@ -2170,6 +2170,25 @@
   </div>
 </div>
 
+<div class="modal-ov" id="modal-revision" onclick="if(event.target===this)closeRevisionDialog()">
+  <div class="modal modal-sm">
+    <div class="modal-hd"><div class="modal-title">Client asked for changes</div><button class="modal-close" onclick="closeRevisionDialog()">×</button></div>
+    <div class="modal-sub" id="rev-sub"></div>
+    <div class="fgrp">
+      <label class="flbl" for="rev-reason">What did they ask for?</label>
+      <textarea class="finp" id="rev-reason" rows="2" data-typing placeholder="e.g. Price on three people instead of four"></textarea>
+    </div>
+    <div class="fgrp" id="rev-contact-grp">
+      <label class="flbl" for="rev-contact">Asked by (optional)</label>
+      <select class="finp" id="rev-contact"></select>
+    </div>
+    <div class="fact">
+      <button class="btn-secondary" onclick="closeRevisionDialog()">Cancel</button>
+      <button class="btn-primary" onclick="confirmRevision()">Start revision</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-ov" id="modal-wl" onclick="if(event.target===this)closeWlModal()">
   <div class="modal modal-sm">
     <div class="modal-hd"><div class="modal-title" id="wl-title">Close Proposal</div><button class="modal-close" onclick="closeWlModal()">×</button></div>

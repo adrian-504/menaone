@@ -48,6 +48,9 @@ export function activityItem(a: ActivityEntry): FeedItem {
       return { ...base, tone: 'accent', html: `${noun} ${verb} · ${s}`, detail: a.entityType === 'proposal' || a.entityType === 'agreement' ? a.detail : a.entityType === 'contact' ? a.detail : null };
     }
     case 'status_changed': return { ...base, tone: 'amber', html: `${noun} status changed · ${s}`, detail: a.detail };
+    // Proposal revisions: the detail is "Revision 2: <what they asked for>" / "Revision 2 sent".
+    case 'revision_requested': return { ...base, tone: 'amber', iconName: 'edit', html: `Client asked for changes · ${s}`, detail: a.detail };
+    case 'revision_sent': return { ...base, tone: 'accent', html: `${escHtml(a.detail || 'Revision sent')} · ${s}` };
     case 'stage_changed': return { ...base, tone: 'amber', html: `Opportunity moved · ${s}`, detail: a.detail };
     case 'completed': return { ...base, tone: 'green', iconName: 'check', html: `Task completed · ${s}` };
     case 'note_added': return { ...base, tone: 'accent', iconName: 'note', html: `Note logged on ${s}`, detail: a.detail };

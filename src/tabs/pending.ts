@@ -6,7 +6,7 @@ import { today, fmtDate, daysSince, escHtml, expose, kpiCard, statusDot, showCon
 import { matchesProposalPeriod } from '../lib/period';
 import { registerTabRenderer, registerBadgeUpdater, refreshAll, getActiveTabId } from '../lib/registry';
 import { persistProposals } from '../lib/persist';
-import { changeProposalStatus, snoozeProposal, snoozeCustom, archiveProposal, openNotesModal, openWlModal } from '../core/proposals';
+import { changeProposalStatus, snoozeProposal, snoozeCustom, archiveProposal, openNotesModal, openRevisionDialog, openWlModal } from '../core/proposals';
 import { showContextMenu } from '../lib/contextMenu';
 import { icon } from '../lib/icons';
 import { PS, teamMember, defaultReviewer, ownerName, fmtMoney, currencyOf } from '../lib/commercial';
@@ -148,6 +148,7 @@ export function wqCard(p: Proposal): string {
     `SL# ${p.id}`,
     refDate ? `added ${fmtDate(refDate)}` : '',
     promisedMeta(p),
+    (p.revision ?? 1) > 1 ? `Revision ${p.revision}` : '',
     nc ? `<a href="#" class="rlink" onclick="event.preventDefault();openNotesModal(${p.id})">${nc} note${nc === 1 ? '' : 's'}</a>` : '',
   ].filter(Boolean).join('<span class="pq-sep">·</span>');
   return `<div class="pq-row" onclick="if(!event.target.closest('a,button'))openRecord('proposal', ${p.id})" oncontextmenu="pqMenu(event, ${p.id})">
@@ -170,6 +171,9 @@ export function pqMenu(e: MouseEvent, id: number): void {
   showContextMenu(e, [
     { label: 'Open', iconName: 'edit', run: () => (window as any).openRecord('proposal', id) },
     { label: `Notes${(p.notes || []).length ? ` (${p.notes.length})` : ''}`, iconName: 'note', run: () => openNotesModal(id) },
+    ...(p.status === PS.SENT || p.status === PS.CLIENT_SIGNED ? [
+      { label: 'Client asked for changes…', iconName: 'edit', run: () => openRevisionDialog(id) },
+    ] : []),
     ...(p.status === PS.SENT ? [
       { label: 'Signed by both parties…', iconName: 'check', run: () => openWlModal(id, 'won') },
       { label: 'Mark lost…', iconName: 'close', run: () => openWlModal(id, 'lost') },

@@ -9,6 +9,7 @@ import { statusBadge } from '../lib/statusTone';
 import { blockSummary, blocksToSave, emptyBlock, proposalsFromBlocks, type ProposalBlock, type SharedProposalFields } from '../lib/proposalBlocks';
 import { proposalDeckRows } from '../lib/proposalDocuments';
 import { deckVersion, matchDecks } from '../lib/deckMatch';
+import { latestRevision, lineWasNote, parseSnapshot, removedServices, revisionFact, revisionOf } from '../lib/revisions';
 import { companyFromForm, contextFromOpportunity } from '../lib/workGraph';
 import { S } from '../lib/state';
 import { escHtml, expose, fmtDate, today, nextId, nextCtId, showConfirm, showTextPrompt, debounce, strColor } from '../lib/utils';
@@ -26,7 +27,7 @@ import { endPropsEdit, mountPropsList, propsEditButton, propsListHtml, resetProp
 import { renderIcons } from '../core/chrome';
 import { ST, LEAD_SOURCES } from '../lib/constants';
 import { renderLinesEditor, lineForService } from '../lib/linesEditor';
-import { changeProposalStatus, recordReview, undoReview, openWlModal, updateStatus, archiveProposal, unarchiveProposal, snoozeProposal, isSnoozed } from '../core/proposals';
+import { changeProposalStatus, recordReview, undoReview, openRevisionDialog, openWlModal, updateStatus, archiveProposal, unarchiveProposal, snoozeProposal, isSnoozed } from '../core/proposals';
 import {
   PS, PROPOSAL_STAGES, stageIndex, isWon, isLost, isWithdrawn, isClosed, lineTotals, syncProposalTotals, fmtMoney, currencyOf,
   teamMember, reviewers, defaultReviewer, activeTeam, ownerName, entityById, defaultEntity, activeServices, newLine,
@@ -115,6 +116,7 @@ export function renderProposalPage(): void {
     entity ? `<span class="rec-meta">${escHtml(entity.name)} · ${escHtml(currencyOf(p))}</span>` : `<span class="rec-meta">${escHtml(currencyOf(p))}</span>`,
     owner ? `<span class="rec-meta">${icon('people', 12)} ${escHtml(owner)}</span>` : '',
     promisedByFact(p),
+    revisionFact(p) ? `<span class="rec-meta">${escHtml(revisionFact(p)!)}</span>` : '',
     p.winLossReason && isClosed(p) ? `<span class="rec-meta">${escHtml(p.winLossReason)}</span>` : '',
   ].filter(Boolean).join('');
 
@@ -188,6 +190,7 @@ export function proposalSignatureMenu(e: MouseEvent): void {
   if (!p) return;
   showMenuAt(e.currentTarget as HTMLElement, [
     { label: 'Client signed', iconName: 'edit', run: () => void proposalStep(PS.CLIENT_SIGNED) },
+    { label: 'Client asked for changes…', iconName: 'edit', run: () => openRevisionDialog(p.id) },
     { label: 'Signed by both parties', iconName: 'check', run: () => openWlModal(p.id, 'won') },
     { label: '', run: () => {}, separator: true },
     { label: 'Mark as lost', iconName: 'close', danger: true, run: () => openWlModal(p.id, 'lost') },
@@ -217,6 +220,7 @@ export function proposalMoreMenu(e: MouseEvent): void {
   if (folder?.exists) items.push({ label: 'Open proposal folder', iconName: 'folder', run: () => void proposalOpenFolder() });
   items.push({ label: '', run: () => {}, separator: true });
   if (!isClosed(p)) {
+    if (p.status === PS.CLIENT_SIGNED) items.push({ label: 'Client asked for changes…', iconName: 'edit', run: () => openRevisionDialog(p.id) });
     if (p.status === PS.SENT) items.push({ label: 'Snooze follow-up 7 days', iconName: 'clock', run: () => { snoozeProposal(p.id, 7); renderProposalPage(); } });
     items.push({ label: 'Mark as lost', iconName: 'close', run: () => openWlModal(p.id, 'lost') });
     items.push({ label: 'Withdraw', iconName: 'archive', run: () => void withdrawProposal(p.id) });
@@ -520,6 +524,8 @@ function linesOpen(p: Proposal): boolean {
 }
 
 function renderCommercials(p: Proposal): void {
+  // A revision: each changed service says what it was; removed ones and a new term once, below.
+  const before = revisionOf(p) > 1 ? parseSnapshot(latestRevision(p)?.linesBeforeJson) : null;
   const count = document.getElementById('prd-lines-count'); if (count) count.textContent = (p.lines || []).length ? String(p.lines!.length) : '';
   const open = linesOpen(p);
   const act = document.getElementById('prd-lines-act');
@@ -530,6 +536,7 @@ function renderCommercials(p: Proposal): void {
     currency: () => currencyOf(p),
     contractMonths: () => p.contractMonths,
     editable: open,
+    lineNote: (l) => (before ? lineWasNote(l, before, currencyOf(p)) : null),
     onChange: () => {
       syncProposalTotals(p);
       persistProposals();
@@ -540,6 +547,12 @@ function renderCommercials(p: Proposal): void {
       refreshCompanyViewIfOpen();
     },
   });
+  if (before) {
+    const removed = removedServices(before, p.lines || []);
+    const term = (before.contractMonths ?? null) !== (p.contractMonths ?? null) ? `Term was ${before.contractMonths ? `${before.contractMonths} months` : 'not set'}` : '';
+    const notes = [removed.length ? `Removed: ${removed.join(', ')}` : '', term].filter(Boolean);
+    if (notes.length) document.getElementById('prd-lines')?.insertAdjacentHTML('beforeend', `<p class="form-hint le-was">${escHtml(notes.join(' · '))}</p>`);
+  }
   if (isWon(p) && (p.lines || []).length) {
     document.getElementById('prd-lines')?.insertAdjacentHTML('beforeend', `<p class="form-hint">Signed proposals keep the commercials that were agreed. Changes to the running service belong on the agreement.</p>`);
   }

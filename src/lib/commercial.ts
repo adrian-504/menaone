@@ -33,6 +33,11 @@ export const isOpenProposal = (p: HasStatus): boolean => !isClosed(p);
 export const isInPreparation = (p: HasStatus): boolean => p.status === PS.REQUEST || p.status === PS.DRAFTING || p.status === PS.REVIEW;
 export const isAwaitingClient = (p: HasStatus): boolean => p.status === PS.SENT || p.status === PS.CLIENT_SIGNED;
 
+/** When the client last got it: the latest revision's send, else the first send. */
+export function proposalSentDate(p: Pick<Proposal, 'lastSentAt' | 'dateSentToClient' | 'sentDate'>): string | null {
+  return p.lastSentAt || p.dateSentToClient || p.sentDate || null;
+}
+
 export function stageIndex(status: string): number {
   return (PROPOSAL_STAGES as readonly string[]).indexOf(status);
 }

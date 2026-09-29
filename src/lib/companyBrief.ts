@@ -4,7 +4,7 @@
 // out when it has nothing to say. Pure (rules only), so Company 360, the
 // meeting page's Client brief and the printable Brief all say the same thing.
 
-import { PS, addMoney, agreementMonthly, currencyOf, fmtMoney, fmtMoneyByCurrency, isAgreementActive, isLost, isOpenProposal, isWon, lineTotals, type MoneyByCurrency } from './commercial';
+import { PS, proposalSentDate, addMoney, agreementMonthly, currencyOf, fmtMoney, fmtMoneyByCurrency, isAgreementActive, isLost, isOpenProposal, isWon, lineTotals, type MoneyByCurrency } from './commercial';
 import { agreementRenewal } from './myday';
 import { engagementThread, type EngagementThread, type GraphData, type ThreadKind } from './workGraph';
 import type { Tone } from './statusTone';
@@ -123,12 +123,18 @@ export interface CompanyThread {
   cleanupQueue: string | null;
 }
 
-/** Where a thread stands, its waiting and next step, for one line on Company 360. */
-export function threadStand(t: EngagementThread): string {
+/** Where a thread stands, its waiting and next step, for one line on Company 360.
+ * A revised proposal says so: "proposal revision 2 sent 3 days ago". */
+export function threadStand(t: EngagementThread, today?: string): string {
   const last = t.nodes[t.nodes.length - 1];
+  const rev = last.kind === 'proposal' && (last.revision ?? 1) > 1 ? last.revision! : null;
+  if (rev && last.status === PS.SENT && last.dateLabel.startsWith('Rev')) {
+    const d = today && last.date ? daysBetween(last.date, today) : null;
+    return `proposal revision ${rev} sent${d == null ? '' : d === 0 ? ' today' : d === 1 ? ' yesterday' : ` ${d} days ago`}`;
+  }
   const status = last.status ? lowerStatus(last.status) : '';
   const promised = last.promisedBy ? `, promised by ${new Date(`${last.promisedBy.slice(0, 10)}T12:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' })}` : '';
-  return `${last.kind} ${status && !/^(in|sent|signed|on)\b/.test(status) ? 'at ' : ''}${status}`.trim() + promised;
+  return `${last.kind} ${status && !/^(in|sent|signed|on)\b/.test(status) ? 'at ' : ''}${status}`.trim() + (rev ? `, revision ${rev}` : '') + promised;
 }
 
 function cleanupQueueFor(t: EngagementThread, i: CompanyBriefInput): string | null {
@@ -161,7 +167,7 @@ function threadLabel(t: EngagementThread, i: CompanyBriefInput): string {
 
 function threadPhrase(t: EngagementThread, i: CompanyBriefInput): string {
   const last = t.nodes[t.nodes.length - 1];
-  const stand = threadStand(t);
+  const stand = threadStand(t, i.today);
   let value = '';
   const opp = t.nodes.find((n) => n.kind === 'opportunity');
   const prop = t.nodes.find((n) => n.kind === 'proposal');
@@ -442,8 +448,9 @@ export function meetingBrief(m: Meeting, i: CompanyBriefInput): { clauses: Brief
   }
   for (const p of r.proposals.filter((x) => !x.archived && isOpenProposal(x)).slice(0, 3)) {
     const services = lineTotals(p.lines, p.contractMonths).serviceNames.join(', ') || p.type || 'Proposal';
-    const sent = p.dateSentToClient || p.sentDate;
-    if (p.status === PS.SENT) agenda.push(`Proposal for ${services}: sent ${sent ? `${daysBetween(sent, i.today)} days ago` : 'earlier'} — agree next steps or a decision`);
+    const sent = proposalSentDate(p);
+    const rev = (p.revision ?? 1) > 1 && p.lastSentAt ? `revision ${p.revision} ` : '';
+    if (p.status === PS.SENT) agenda.push(`Proposal for ${services}: ${rev}sent ${sent ? `${daysBetween(sent, i.today)} days ago` : 'earlier'} — agree next steps or a decision`);
     else if (p.status === PS.CLIENT_SIGNED) agenda.push(`Proposal for ${services}: signed by the client — confirm countersignature and kickoff`);
     else if (p.status === PS.REQUEST || p.status === PS.DRAFTING) agenda.push(`Requirements for the ${services} proposal`);
   }

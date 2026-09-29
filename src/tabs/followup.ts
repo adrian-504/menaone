@@ -1,4 +1,4 @@
-import { PS } from '../lib/commercial';
+import { PS, proposalSentDate } from '../lib/commercial';
 import { S } from '../lib/state';
 import { emptyState } from '../lib/ui';
 import { companyLink } from '../lib/links';
@@ -54,7 +54,7 @@ export function renderFollowup(): void {
         return `<div class="pq-row" onclick="if(!event.target.closest('a,button'))openRecord('proposal', ${p.id})">
           <span class="pq-age is-snoozed" title="Snoozed">${icon('clock', 13)}</span>
           <div class="pq-main"><div class="pq-title">${companyLink(p.companyId, p.client)}<span class="pq-services">${escHtml(p.type || '')}</span></div>
-          <div class="pq-meta">Sent ${fmtDate(p.dateSentToClient || p.sentDate)}<span class="pq-sep">·</span>back ${du === 0 ? 'tomorrow' : `in ${du} day${du === 1 ? '' : 's'}`} (${fmtDate(p.snoozedUntil)})</div></div>
+          <div class="pq-meta">Sent ${fmtDate(proposalSentDate(p))}<span class="pq-sep">·</span>back ${du === 0 ? 'tomorrow' : `in ${du} day${du === 1 ? '' : 's'}`} (${fmtDate(p.snoozedUntil)})</div></div>
           <div class="pq-actions"><button class="btn-secondary btn-sm" onclick="unsnoozeProposal(${p.id})">Wake up</button></div>
         </div>`;
       }).join('')}</div>
@@ -79,14 +79,15 @@ registerTabRenderer('followup', renderFollowup);
 /** A sent proposal waiting for an answer: days since the last contact and what it
  * was, the last note, and one action — Log follow-up (Won and Lost are in "…"). */
 export function fuCard(p: Proposal, isArchived: boolean): string {
-  const sent = p.dateSentToClient || p.sentDate;
+  const sent = proposalSentDate(p);
   const touch = proposalLastTouch(p);
   const days = touch?.days ?? (daysSince(sent) || 0);
   const tone = days > 30 ? 'age-urgent' : days > 20 ? 'age-late' : 'age-warn';
   const notes = p.notes || [];
   const latest = notes[notes.length - 1];
   const contact = touch ? escHtml(touchLabel(touch, fmtDate(sent))).replace(' · ', '<span class="pq-sep">·</span>') : `Sent ${fmtDate(sent)}`;
-  const meta = [contact, `SL# ${p.id}`, p.owner ? escHtml(p.owner) : '', p.winLossReason ? `previously: ${escHtml(p.winLossReason)}` : ''].filter(Boolean).join('<span class="pq-sep">·</span>');
+  const rev = Math.max(1, p.revision ?? 1);
+  const meta = [contact, rev > 1 ? `Revision ${rev}` : '', `SL# ${p.id}`, p.owner ? escHtml(p.owner) : '', p.winLossReason ? `previously: ${escHtml(p.winLossReason)}` : ''].filter(Boolean).join('<span class="pq-sep">·</span>');
   return `<div class="pq-row${isArchived ? ' is-archived' : ''}" onclick="if(!event.target.closest('a,button'))openRecord('proposal', ${p.id})" oncontextmenu="pqMenu(event, ${p.id})">
     <span class="pq-age ${isArchived ? '' : tone}" title="${days} days since the last contact">${days}<small>d</small></span>
     <div class="pq-main">

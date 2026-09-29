@@ -69,7 +69,7 @@ pub(crate) fn read_proposals(conn: &Connection) -> rusqlite::Result<Vec<Proposal
                 doc_link, archived, archived_at, snoozed_until, date_sent_to_hassan,
                 date_sent_to_client, date_signed, company_id, business_entity_id, currency, one_time_fee,
                 primary_contact_id, owner_id, reviewer_id, review_status, review_requested_at, reviewed_at,
-                review_note, valid_until, folder_path, lead_source, promised_by, request_group
+                review_note, valid_until, folder_path, lead_source, promised_by, request_group, revision, last_sent_at
          FROM proposals ORDER BY id",
     )?;
     let rows = stmt.query_map([], |r| {
@@ -115,6 +115,9 @@ pub(crate) fn read_proposals(conn: &Connection) -> rusqlite::Result<Vec<Proposal
             request_group: r.get(37)?,
             lines: Vec::new(),
             documents: Vec::new(),
+            revision: r.get(38)?,
+            last_sent_at: r.get(39)?,
+            revisions: Vec::new(),
         })
     })?;
     let mut proposals: Vec<Proposal> = rows.collect::<rusqlite::Result<_>>()?;
@@ -140,7 +143,9 @@ pub(crate) fn read_proposals(conn: &Connection) -> rusqlite::Result<Vec<Proposal
     }
     let mut lines = crate::commercial::read_lines(conn, "proposal_lines", "proposal_id")?;
     let mut documents = crate::commercial::read_documents(conn)?;
+    let mut revisions = crate::revisions::read_revisions(conn)?;
     for p in proposals.iter_mut() {
+        p.revisions = revisions.remove(&p.id).unwrap_or_default();
         if let Some(notes) = by_proposal.remove(&p.id) {
             p.notes = notes;
         }
@@ -626,7 +631,7 @@ const PROPOSAL_COLS: &[&str] = &[
     "archived", "archived_at", "snoozed_until", "date_sent_to_hassan", "date_sent_to_client", "date_signed", "company_id",
     "business_entity_id", "currency", "one_time_fee", "primary_contact_id", "owner_id", "reviewer_id", "review_status",
     "review_requested_at", "reviewed_at", "review_note", "valid_until", "folder_path", "lead_source",
-    "promised_by", "request_group",
+    "promised_by", "request_group", "revision", "last_sent_at",
 ];
 const ACTIVITY_NOTE_COLS: &[&str] = &["id", "proposal_id", "note_date", "text"];
 const CONTACT_COLS: &[&str] = &["id", "client_name", "name", "role", "email", "phone", "whatsapp", "service", "company_id", "is_decision_maker"];
@@ -655,7 +660,7 @@ pub fn upsert_proposal_rows_in(tx: &Connection, items: &[Proposal]) -> rusqlite:
             p.date_sent_to_hassan, p.date_sent_to_client, p.date_signed, company_id,
             p.business_entity_id, p.currency, p.one_time_fee, p.primary_contact_id, p.owner_id, p.reviewer_id,
             p.review_status, p.review_requested_at, p.reviewed_at, p.review_note, p.valid_until, p.folder_path, p.lead_source,
-            p.promised_by, p.request_group,
+            p.promised_by, p.request_group, p.revision.max(1), p.last_sent_at,
         ])?;
         let note_ids: Vec<i64> = p.notes.iter().map(|n| n.id).collect();
         tx.execute(
@@ -669,6 +674,7 @@ pub fn upsert_proposal_rows_in(tx: &Connection, items: &[Proposal]) -> rusqlite:
         drop(nstmt);
         crate::commercial::save_lines(tx, "proposal_lines", "proposal_id", p.id, &p.lines)?;
         crate::commercial::save_documents(tx, p.id, &p.documents)?;
+        crate::revisions::save_revisions(tx, p.id, &p.revisions)?;
         crate::commercial::apply_derived_proposal_totals(tx, p.id, &p.lines)?;
         crate::v2_search::reindex_proposal(tx, p.id)?;
         crate::v2_search::reindex_company(tx, &p.client)?;

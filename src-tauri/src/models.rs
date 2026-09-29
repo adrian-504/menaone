@@ -100,6 +100,35 @@ pub struct Proposal {
     pub lines: Vec<CommercialLine>,
     #[serde(default)]
     pub documents: Vec<ProposalDocument>,
+    /// 1 until the client asks for changes; each revision adds one (written as at least 1).
+    #[serde(default = "first_revision")]
+    pub revision: i64,
+    /// When the latest revision was sent; `date_sent_to_client` stays the first send.
+    #[serde(default)]
+    pub last_sent_at: Option<String>,
+    #[serde(default)]
+    pub revisions: Vec<ProposalRevision>,
+}
+
+fn first_revision() -> i64 {
+    1
+}
+
+/// A client's request for changes to a sent proposal (revisions.rs).
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct ProposalRevision {
+    pub id: i64,
+    pub number: i64,
+    pub requested_at: String,
+    #[serde(default)]
+    pub requested_by_contact_id: Option<i64>,
+    #[serde(default)]
+    pub reason: Option<String>,
+    /// The lines, contract months and totals before the change, as JSON.
+    pub lines_before_json: String,
+    #[serde(default)]
+    pub sent_at: Option<String>,
 }
 
 /// One service on a proposal or agreement.
