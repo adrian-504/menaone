@@ -255,7 +255,7 @@ function renderClientNotes(folder: string, search: string): void {
   const open = (r: (typeof rows)[number]) => r.source === 'note' ? `openNote(${r.id})` : r.source === 'meeting' ? `openRecord('meeting', ${r.id})` : `companyJump(${key!.id ?? 'null'}, '${jsArg(key!.name)}', 'notes-log')`;
   list.innerHTML = rows.map((r) => `<div class="note-item${r.source === 'note' && r.id === S.currentNoteId ? ' active' : ''}"${r.source === 'note' ? ` data-note-id="${r.id}"` : ''} tabindex="0" onkeydown="if(event.key==='Enter')this.click()" onclick="${open(r)}">
       <div class="note-item-title">${r.pinned ? `<span class="note-pin">${icon('pin', 11)}</span>` : ''}${escHtml(r.title)}</div>
-      <div class="note-item-preview">${r.excerpt ? escHtml(r.excerpt) : '<span class="note-item-empty">No additional text</span>'}</div>
+      ${r.excerpt ? `<div class="note-item-preview">${escHtml(r.excerpt)}</div>` : r.source === 'note' ? '<div class="note-item-preview"><span class="note-item-empty">No additional text</span></div>' : ''}
       <div class="note-item-meta">${r.date ? `<span>${fmtDate(r.date)}</span>` : ''}<span class="note-item-source">${SOURCE_LABEL[r.source]}</span></div>
     </div>`).join('');
 }
