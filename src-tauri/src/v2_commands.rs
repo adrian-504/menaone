@@ -591,7 +591,7 @@ pub fn search_workspace(state: State<DbState>, query: String) -> CmdResult<Vec<S
         return Ok(Vec::new());
     }
     let mut stmt = conn.prepare(
-        "SELECT entity_type, entity_id, title, snippet(search_index, 3, '', '', '…', 12)
+        "SELECT entity_type, entity_id, title, snippet(search_index, 3, '', '', '…', 20)
          FROM search_index WHERE search_index MATCH ?1 ORDER BY rank LIMIT 40",
     ).map_err(err)?;
     let rows = stmt.query_map(params![match_expr], |r| {

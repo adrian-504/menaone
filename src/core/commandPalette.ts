@@ -4,6 +4,7 @@ import { escHtml, expose } from '../lib/utils';
 import { icon } from '../lib/icons';
 import { searchWorkspace } from '../lib/db';
 import { latestOnly } from '../lib/latest';
+import { hitSubtitle } from '../lib/searchHit';
 import { switchTab } from './nav';
 import { openRecord, recentRecords, currentPlace, recordTitle } from './router';
 import type { RecordKind } from '../lib/navHistory';
@@ -233,7 +234,7 @@ function renderPalette(results: SearchResult[]): void {
   }
   for (const g of resultGroups) {
     html += `<div class="cmdk-group-label">${escHtml(g.label)}</div>`;
-    html += g.items.map((r) => cmdkItemHtml(idx++, entityIcon(r.entityType), r.title, '')).join('');
+    html += g.items.map((r) => cmdkItemHtml(idx++, entityIcon(r.entityType), r.title, hitSubtitle(r, S.meetings, S.searchQuery))).join('');
   }
   list.innerHTML = html;
   list.querySelectorAll<HTMLElement>('[data-icon]').forEach((el) => {
@@ -244,7 +245,7 @@ function renderPalette(results: SearchResult[]): void {
 
 function cmdkItemHtml(idx: number, iconName: string, label: string, sub: string): string {
   return `<div class="cmdk-item${idx === selIndex ? ' sel' : ''}" data-idx="${idx}" onmouseenter="setPaletteSel(${idx})" onclick="activatePaletteItem(${idx})">
-    <span data-icon="${iconName}"></span><span>${escHtml(label)}</span>${sub ? `<span class="cmdk-sub">${escHtml(sub)}</span>` : ''}
+    <span data-icon="${iconName}"></span><span class="cmdk-text"><span class="cmdk-label">${escHtml(label)}</span>${sub ? `<span class="cmdk-sub" title="${escHtml(sub)}">${escHtml(sub)}</span>` : ''}</span>
   </div>`;
 }
 

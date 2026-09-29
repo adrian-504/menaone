@@ -7,6 +7,7 @@
 import { S } from '../lib/state';
 import { toast, emptyState } from '../lib/ui';
 import { companyLink, recordLink } from '../lib/links';
+import { meetingNotesList, type MeetingNoteRow } from '../lib/meetingNotesList';
 import { today, fmtDate, escHtml, nextNoteId, expose, positionFloatingPopup, showTextPrompt, showConfirm, debounce, inCompany } from '../lib/utils';
 import { showContextMenu, showMenuAt, type ContextMenuItem } from '../lib/contextMenu';
 import { persistNotes, persistNoteFolders, persistTodos, saveNotesNow, saveTodosNow } from '../lib/persist';
@@ -179,6 +180,7 @@ function renderNotesSidebar(): void {
   set('nf-pinned', S.notes.filter((n) => n.pinned).length);
   set('nf-recent', S.notes.filter(isRecent).length);
   set('nf-client', S.notes.filter((n) => n.clientName).length);
+  set('nf-meetings', meetingNotesList(S.meetings).length);
   document.querySelectorAll<HTMLElement>('.notes-side .ws-side-group .notes-folder-item').forEach((el) => el.classList.toggle('active', el.dataset.folder === S.currentNoteFolder));
   const fi = document.getElementById('notes-folder-items');
   if (fi) {
@@ -223,6 +225,7 @@ function folderLabel(folder: string): string {
   if (folder === 'pinned') return 'Pinned';
   if (folder === 'recent') return 'Recent';
   if (folder === 'client') return 'Linked to clients';
+  if (folder === 'meetings') return 'From meetings';
   if (folder.startsWith('tag:')) return `#${folder.slice(4)}`;
   return folder.split('/').pop() || folder;
 }
@@ -230,6 +233,7 @@ function folderLabel(folder: string): string {
 export function renderNotesList(): void {
   const search = ((document.getElementById('notes-search') as HTMLInputElement | null)?.value || '').trim().toLowerCase();
   const folder = S.currentNoteFolder;
+  if (folder === 'meetings') { renderMeetingNotes(search); return; }
   let filtered = S.notes.filter((n) => {
     if (folder === 'pinned') return n.pinned;
     if (folder === 'recent') return isRecent(n);
@@ -269,6 +273,35 @@ export function renderNotesList(): void {
   }).join('');
 }
 expose('renderNotesList', renderNotesList);
+
+const monthOf = (iso: string | null) => (iso ? new Date(`${iso.slice(0, 10)}T12:00:00`).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }) : 'No date');
+
+/** "From meetings": what was written in meetings, read-only here; a row opens its meeting. */
+function renderMeetingNotes(search: string): void {
+  const rows = meetingNotesList(S.meetings, search);
+  const title = document.getElementById('notes-list-title'); if (title) title.textContent = folderLabel('meetings');
+  const count = document.getElementById('notes-list-count'); if (count) count.textContent = `${rows.length} meeting${rows.length === 1 ? '' : 's'}`;
+  const list = document.getElementById('notes-list');
+  if (!list) return;
+  if (!rows.length) {
+    list.innerHTML = search
+      ? emptyState({ icon: 'search', title: 'No matching meetings', body: `No meeting notes mention “${search}”.`, compact: true })
+      : emptyState({ icon: 'meeting', title: 'No meeting notes yet', body: 'What you write in a meeting’s discussion, decisions or follow-up shows up here.', compact: true });
+    renderIcons(list);
+    return;
+  }
+  let month = '';
+  list.innerHTML = rows.map((r: MeetingNoteRow) => {
+    const m = monthOf(r.date);
+    const divider = m !== month ? `<div class="list-divider">${escHtml((month = m))}</div>` : '';
+    const meta = [r.date ? `<span>${fmtDate(r.date)}</span>` : '', r.company ? `<span class="note-item-client">${escHtml(r.company)}</span>` : ''].filter(Boolean).join('');
+    return `${divider}<div class="note-item" tabindex="0" onkeydown="if(event.key==='Enter')this.click()" onclick="openRecord('meeting', ${r.id})">
+      <div class="note-item-title">${escHtml(r.title)}</div>
+      <div class="note-item-preview">${escHtml(r.excerpt)}</div>
+      <div class="note-item-meta">${meta}</div>
+    </div>`;
+  }).join('');
+}
 
 const debouncedNotesSearch = debounce(renderNotesList, 150);
 export function notesSearchChanged(): void { debouncedNotesSearch(); }
