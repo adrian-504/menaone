@@ -3,7 +3,8 @@
 // no value). Pure — tabs/cleanup.ts renders a queue one record at a time and
 // applies the fixes.
 
-import { PS } from './commercial';
+import { PS, proposalSentDate } from './commercial';
+import { draftingSince } from './revisions';
 import { daysBetween, isOpenOpportunity } from './pipeline';
 import type { Agreement, Company, Opportunity, Proposal, Todo, Commitment, Contact } from './types';
 import type { RecordKind } from './navHistory';
@@ -123,15 +124,15 @@ export function buildCleanupQueues(i: CleanupInput): CleanupQueue[] {
     id: 'stale-sent', group: 'Proposals', title: 'Sent with no answer',
     why: `Sent to the client over ${STALE_SENT_DAYS} days ago and still waiting. Close the ones that are gone; keep the ones still in play.`,
     actions: ['lost', 'snooze_followup', 'won', 'withdrawn'], bulk: ['lost', 'withdrawn', 'snooze_followup'],
-    items: live.filter((p) => p.status === PS.SENT && (daysBetween(p.dateSentToClient || p.sentDate, i.today) ?? 0) > STALE_SENT_DAYS && !(p.snoozedUntil && p.snoozedUntil >= i.today))
-      .map((p) => proposalItem(p, p.dateSentToClient || p.sentDate, i.today, 'Sent')),
+    items: live.filter((p) => p.status === PS.SENT && (daysBetween(proposalSentDate(p), i.today) ?? 0) > STALE_SENT_DAYS && !(p.snoozedUntil && p.snoozedUntil >= i.today))
+      .map((p) => proposalItem(p, proposalSentDate(p), i.today, 'Sent')),
   });
   queues.push({
     id: 'client-signed', group: 'Proposals', title: 'Signed by the client, not by us',
     why: `Marked "Signed by Client" for over ${CLIENT_SIGNED_DAYS} days. Usually it was countersigned and the status was never updated.`,
     actions: ['won', 'lost', 'withdrawn'], bulk: ['withdrawn'],
-    items: live.filter((p) => p.status === PS.CLIENT_SIGNED && (daysBetween(p.dateSigned || p.dateSentToClient, i.today) ?? 0) > CLIENT_SIGNED_DAYS)
-      .map((p) => proposalItem(p, p.dateSigned || p.dateSentToClient, i.today, 'Client signed')),
+    items: live.filter((p) => p.status === PS.CLIENT_SIGNED && (daysBetween(p.dateSigned || proposalSentDate(p), i.today) ?? 0) > CLIENT_SIGNED_DAYS)
+      .map((p) => proposalItem(p, p.dateSigned || proposalSentDate(p), i.today, 'Client signed')),
   });
   queues.push({
     id: 'long-review', group: 'Proposals', title: 'Stuck in internal review',
@@ -144,7 +145,7 @@ export function buildCleanupQueues(i: CleanupInput): CleanupQueue[] {
     id: 'stale-drafting', group: 'Proposals', title: 'Requests and drafts going nowhere',
     why: `Requested or in drafting for over ${STALE_DRAFT_DAYS} days.`,
     actions: ['keep', 'withdrawn', 'lost'], bulk: ['withdrawn', 'keep'],
-    items: live.filter((p) => (p.status === PS.REQUEST || p.status === PS.DRAFTING) && (daysBetween(p.dateAdded, i.today) ?? 0) > STALE_DRAFT_DAYS)
+    items: live.filter((p) => (p.status === PS.REQUEST || p.status === PS.DRAFTING) && (daysBetween(draftingSince(p), i.today) ?? 0) > STALE_DRAFT_DAYS)
       .map((p) => ({ ...proposalItem(p, p.dateAdded, i.today, 'Requested'), subtitle: `${p.status} · ${p.type || 'Proposal'} · SL# ${p.id}` })),
   });
 

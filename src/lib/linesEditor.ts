@@ -20,6 +20,8 @@ export interface LinesEditorContext {
   editable: boolean;
   /** Called after every change, with the lines already set. */
   onChange: () => void;
+  /** A muted line under a service, e.g. what a revision changed ("was SAR 7,000 / month"). */
+  lineNote?: (l: CommercialLine) => string | null;
 }
 
 const editors = new Map<string, { containerId: string; ctx: LinesEditorContext }>();
@@ -159,9 +161,11 @@ export function renderLinesEditor(key: string, containerId: string, ctx: LinesEd
   const totals = lineTotals(lines, ctx.contractMonths());
   const rows = lines.map((l) => {
     const amount = lineAmount(l);
+    const note = ctx.lineNote?.(l);
+    const noteHtml = note ? `<div class="le-desc-text le-was">${escHtml(note)}</div>` : '';
     if (!ctx.editable) {
       return `<tr>
-        <td><div class="le-service">${escHtml(l.serviceName || '—')}</div>${l.description ? `<div class="le-desc-text">${escHtml(l.description)}</div>` : ''}${readOnlyRates(l, currency)}</td>
+        <td><div class="le-service">${escHtml(l.serviceName || '—')}</div>${l.description ? `<div class="le-desc-text">${escHtml(l.description)}</div>` : ''}${noteHtml}${readOnlyRates(l, currency)}</td>
         <td class="le-billing">${l.billing === 'one_time' ? 'One-time' : 'Monthly'}</td>
         <td class="num">${l.quantity}</td>
         <td class="num">${l.unitPrice != null ? fmtMoney(l.unitPrice, currency) : '—'}</td>
@@ -178,7 +182,7 @@ export function renderLinesEditor(key: string, containerId: string, ctx: LinesEd
         ${!byRows && kind ? `<div class="le-pricing-row"><button type="button" class="le-use" onclick="linesEdit('${k}', ${l.id}, 'useRows', '')">Price by ${kind === 'category' ? 'categories' : kind === 'percent' ? 'staff type' : kind === 'country' ? 'country' : ROW_NOUN[kind] + 's'}</button></div>` : ''}
         ${!byRows && hasCommissionPrices(card) ? `<div class="le-pricing-row"><label class="le-comm"><input type="checkbox"${l.commission ? ' checked' : ''} onchange="linesEdit('${k}', ${l.id}, 'commission', this.checked ? '1' : '')"> With commission</label></div>` : ''}
         ${lineOption(l) ? `<div class="le-pricing-row"><label class="le-comm" title="What the client reads on the proposal"><input type="checkbox"${optionOn(l, lineOption(l)!) ? ' checked' : ''} onchange="linesEdit('${k}', ${l.id}, 'serviceOption', this.checked ? '1' : '')"> ${escHtml(lineOption(l)!.label)}</label></div>` : ''}
-        <input class="td-input le-desc" value="${escHtml(l.description || '')}" placeholder="Scope or notes (optional)" aria-label="Description" onchange="linesEdit('${k}', ${l.id}, 'description', this.value)">
+        <input class="td-input le-desc" value="${escHtml(l.description || '')}" placeholder="Scope or notes (optional)" aria-label="Description" onchange="linesEdit('${k}', ${l.id}, 'description', this.value)">${noteHtml}
       </td>
       <td><select class="td-select le-billing-sel" aria-label="Billing" onchange="linesEdit('${k}', ${l.id}, 'billing', this.value)">
         <option value="monthly"${l.billing === 'monthly' ? ' selected' : ''}>Monthly</option>

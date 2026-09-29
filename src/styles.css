@@ -1321,6 +1321,8 @@ body.dnd-active .board-column.drop-target{background:var(--accent-bg)!important}
 /* Meetings list: what was written up. */
 /* The first sentence of a meeting's notes, wherever it is listed. */
 .notes-side-meetings{margin-top:8px}
+/* A revision's "was …" under a changed service. */
+.le-was{color:var(--muted);font-size:var(--type-secondary)}
 .row-excerpt{color:var(--muted);font-size:var(--type-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;min-width:0}
 .meeting-marks{display:inline-flex;gap:10px;margin-left:12px}
 .meeting-mark{display:inline-flex;align-items:center;gap:3px;color:var(--sub);font-weight:600}

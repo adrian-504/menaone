@@ -57,6 +57,23 @@ export interface Proposal {
   requestGroup?: string | null;
   lines?: CommercialLine[];
   documents?: ProposalDocument[];
+  /** 1 until the client asks for changes; each revision adds one (lib/revisions.ts). */
+  revision?: number;
+  /** When the latest revision was sent; `dateSentToClient` stays the first send. */
+  lastSentAt?: string | null;
+  revisions?: ProposalRevision[];
+}
+
+/** A client's request for changes to a sent proposal. */
+export interface ProposalRevision {
+  id: number;
+  number: number;
+  requestedAt: string;
+  requestedByContactId: number | null;
+  reason: string | null;
+  /** The commercials before the change (lib/revisions.ts LinesSnapshot). */
+  linesBeforeJson: string;
+  sentAt: string | null;
 }
 
 export type ReviewStatus = 'pending' | 'approved' | 'changes_requested';

@@ -721,6 +721,8 @@ const CODE_MIGRATIONS: &[(i64, fn(&Connection) -> rusqlite::Result<()>)] = &[
     // Accountancy as two all-inclusive packages (owner, 27-Sep): Startup and Active replace the
     // No Projects / Projects / VAT / optional auditing rows on the rate card.
     (40, migrate_accountancy_packages),
+    // Proposal revisions (owner, 29-Sep): the client asks for changes, the same proposal goes round again.
+    (41, crate::revisions::migrate_proposal_revisions),
 ];
 
 /// Old Workforce category label → the name the proposal templates now use.

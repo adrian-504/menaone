@@ -9,7 +9,7 @@
 import type { Agreement, Company, Contact, EntityKind, EntityLink, Meeting, Note, Opportunity, Project, Proposal, Todo } from './types';
 import { statusTone, type Tone } from './statusTone';
 import { proposalWaitingOn, type WaitingOn } from './commitments';
-import { isAgreementActive } from './commercial';
+import { isAgreementActive, proposalSentDate } from './commercial';
 
 /** The records a new record belongs to. */
 export interface WorkContext {
@@ -208,6 +208,8 @@ export interface ThreadNode {
   others?: { id: number; label: string }[];
   /** A proposal request or draft: the date we promised it. */
   promisedBy?: string | null;
+  /** A proposal's revision (1 until the client asks for changes). */
+  revision?: number;
 }
 
 export interface ThreadGap {
@@ -266,9 +268,11 @@ function opportunityNode(o: Opportunity): ThreadNode {
   return { kind: 'opportunity', id: o.id, label: o.name, status: o.stage, tone: statusTone('opportunity', o.status), date: o.createdAt?.slice(0, 10) || null, dateLabel: 'Created' };
 }
 function proposalNode(p: Proposal): ThreadNode {
-  const sent = p.dateSentToClient || p.sentDate;
+  const sent = proposalSentDate(p);
+  const revision = Math.max(1, p.revision ?? 1);
   return { kind: 'proposal', id: p.id, label: `${p.type || 'Proposal'} (SL# ${p.id})`, status: p.status, tone: statusTone('proposal', p.status),
-    date: (sent || p.dateAdded || null)?.slice(0, 10) || null, dateLabel: sent ? 'Sent' : 'Created',
+    date: (sent || p.dateAdded || null)?.slice(0, 10) || null, dateLabel: sent ? (revision > 1 && p.lastSentAt ? `Rev ${revision} sent` : 'Sent') : 'Created',
+    revision,
     promisedBy: p.status === 'Proposal Request Received' || p.status === 'Drafting' ? p.promisedBy ?? null : null };
 }
 function agreementNode(a: Agreement, others: Agreement[]): ThreadNode {

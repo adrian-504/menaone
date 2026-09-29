@@ -3,6 +3,7 @@
 // the latest of the proposal's own notes, an email from the client and a
 // meeting with the client since it was sent; else the send date. Pure.
 
+import { proposalSentDate } from './commercial';
 import type { EmailRecord, Meeting, Proposal } from './types';
 
 export const FOLLOW_UP_AFTER_DAYS = 10;
@@ -26,9 +27,10 @@ const day = (s: string | null | undefined) => (s ? s.slice(0, 10) : '');
 const daysBetween = (a: string, b: string) => Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86_400_000);
 const domain = (email: string | null | undefined) => (email || '').split('@')[1]?.trim().toLowerCase() || '';
 
-/** The latest contact on a sent proposal. Null when it has no send date. */
-export function lastTouch(p: Pick<Proposal, 'dateSentToClient' | 'sentDate' | 'notes' | 'companyId'>, ctx: TouchContext): LastTouch | null {
-  const sent = day(p.dateSentToClient || p.sentDate);
+/** The latest contact on a sent proposal, counted from its latest send (a
+ * revision's, else the first). Null when it has no send date. */
+export function lastTouch(p: Pick<Proposal, 'lastSentAt' | 'dateSentToClient' | 'sentDate' | 'notes' | 'companyId'>, ctx: TouchContext): LastTouch | null {
+  const sent = day(proposalSentDate(p));
   if (!sent) return null;
   let best: { date: string; kind: LastTouch['kind'] } = { date: sent, kind: 'sent' };
   // Later wins; on the same day contact beats the send itself.

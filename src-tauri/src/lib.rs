@@ -20,6 +20,7 @@ pub mod pptx_import;
 pub mod proposal_library;
 pub mod smartfill;
 pub mod pricing;
+pub mod revisions;
 pub mod feefill;
 pub mod master;
 pub mod generator;

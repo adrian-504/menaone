@@ -8,7 +8,8 @@
 //   untimed tasks around them.
 // - Coming up: the next seven days, grouped by day.
 
-import { PS } from './commercial';
+import { PS, proposalSentDate } from './commercial';
+import { draftingSince, openRevision } from './revisions';
 import { daysBetween, isOpenOpportunity, opportunityHealth } from './pipeline';
 import type { Agreement, Commitment, EmailRecord, Meeting, Opportunity, PipelineFact, Project, Proposal, Todo } from './types';
 import type { RecordKind } from './navHistory';
@@ -109,7 +110,7 @@ function proposalItems(i: MyDayInput): AttentionItem[] {
     const base = { record: { kind: 'proposal' as RecordKind, id: p.id }, companyId: p.companyId ?? null, companyName: p.client, title: p.client };
     const services = p.type ? ` · ${p.type}` : '';
     if (p.status === PS.CLIENT_SIGNED) {
-      const d = daysBetween(p.dateSigned || p.dateSentToClient, i.today);
+      const d = daysBetween(p.dateSigned || proposalSentDate(p), i.today);
       // A signature from months ago is a record nobody updated, not today's job.
       const stale = d != null && d > 30;
       out.push({ ...base, key: `proposal:${p.id}:countersign`, kind: 'proposal', score: stale ? 44 : 92 + Math.min(d ?? 0, 7), tone: stale ? 'amber' : 'red',
@@ -132,15 +133,18 @@ function proposalItems(i: MyDayInput): AttentionItem[] {
       out.push({ ...base, key: `proposal:${p.id}:request`, kind: 'proposal', score: score + (promised?.late ? 20 : 0), tone: promised?.tone ?? (d > 3 ? 'red' : 'amber'),
         reason: `Proposal requested — not started${services}`, when: promised?.when ?? (d ? days(d) : 'Today'), action: { kind: 'start_drafting', label: 'Start drafting' } });
     } else if (p.status === PS.DRAFTING) {
-      const d = daysBetween(p.dateAdded, i.today) ?? 0;
-      const promised = promisedRank(p.promisedBy, i.today);
+      const d = daysBetween(draftingSince(p), i.today) ?? 0;
+      // A revision counts from the client's request; the first promise-by date no longer applies.
+      const revising = openRevision(p);
+      const what = revising ? `Revision ${revising.number} in drafting` : 'Still drafting';
+      const promised = revising ? null : promisedRank(p.promisedBy, i.today);
       const score = 46 + Math.min(d, 30) / 3;
       if (promised) out.push({ ...base, key: `proposal:${p.id}:drafting`, kind: 'proposal', score: score + (promised.late ? 20 : 0), tone: promised.tone,
-        reason: `Still drafting${services}`, when: promised.when, action: { kind: 'open', label: 'Open' } });
+        reason: `${what}${services}`, when: promised.when, action: { kind: 'open', label: 'Open' } });
       else if (d > 7) out.push({ ...base, key: `proposal:${p.id}:drafting`, kind: 'proposal', score, tone: 'amber',
-        reason: `Still drafting${services}`, when: days(d), action: { kind: 'open', label: 'Open' } });
+        reason: `${what}${services}`, when: days(d), action: { kind: 'open', label: 'Open' } });
     } else if (p.status === PS.SENT) {
-      const sent = p.dateSentToClient || p.sentDate;
+      const sent = proposalSentDate(p);
       const d = daysBetween(sent, i.today);
       if (d == null || d <= 10) continue;
       if (p.snoozedUntil && p.snoozedUntil >= i.today) continue;

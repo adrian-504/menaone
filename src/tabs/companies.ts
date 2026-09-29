@@ -1098,7 +1098,7 @@ function renderCompanyThreads(key: { id: number | null; name: string }): void {
     return `<div class="co-thread" role="link" tabindex="0" onclick="openRecord('${last.kind}', ${last.id})" onkeydown="if(event.key==='Enter'&&event.target===this)openRecord('${last.kind}', ${last.id})">
       <span class="co-thread-dot tone-${last.tone}" aria-hidden="true"></span>
       <span class="co-thread-label">${escHtml(t.label || 'Engagement')}</span>
-      <span class="co-thread-stand">${escHtml(threadStand(t.thread))}</span>
+      <span class="co-thread-stand">${escHtml(threadStand(t.thread, today()))}</span>
       ${wait ? `<span class="co-thread-wait${t.late ? ' is-late' : ''}">${escHtml(wait)}</span>` : ''}
       ${n ? `<button class="btn-ghost btn-sm co-thread-next" onclick="event.stopPropagation();threadNext('${n.action}', '${n.kind}', ${n.id})">${escHtml(n.label)}</button>` : ''}
     </div>`;
@@ -1499,7 +1499,7 @@ export function renderCoProposals(d: CompanyData): void {
     return `<tr class="rec-tr" onclick="openRecord('proposal', ${p.id})">
       <td class="td-id">${p.id}</td>
       <td class="td-t" title="${escHtml(p.type)}">${escHtml(p.type)}</td>
-      <td>${statusDot(cfg, p.status)}</td>
+      <td>${statusDot(cfg, p.status)}${(p.revision ?? 1) > 1 ? `<span class="t-muted"> · Rev ${p.revision}</span>` : ''}</td>
       <td class="td-d">${fmtDate(p.sentDate)}</td>
       <td class="td-d">${fmtDate(p.dblSignedDate)}</td>
       <td class="td-fee">${p.monthlyFee ? money(Number(p.monthlyFee), currencyOf(p)) : '—'}</td>

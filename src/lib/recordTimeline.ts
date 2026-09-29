@@ -5,6 +5,7 @@
 // (several records, deduplicated). Pure, so it can be tested; the renderer
 // is src/lib/timeline.ts.
 
+import { proposalSentDate } from './commercial';
 import type { ActivityEntry, Agreement, Commitment, Meeting, Milestone, Opportunity, Project, Proposal, Todo } from './types';
 import type { ThreadKind } from './workGraph';
 
@@ -102,7 +103,7 @@ export function buildRecordTimeline(records: TimelineRecord[], i: TimelineInput)
     if (r.kind === 'proposal') {
       const p = i.proposals.find((x) => x.id === r.id);
       if (p && !p.archived && p.status === 'Sent to Client') {
-        const sent = p.dateSentToClient || p.sentDate;
+        const sent = proposalSentDate(p);
         const follow = p.snoozedUntil || (sent ? addDays(sent, FOLLOW_UP_AFTER_DAYS) : null);
         if (follow) put({ key: `date:proposal:${p.id}:followup`, kind: 'date', date: follow, label: 'Follow up with the client', sub: `${p.type || 'Proposal'} (SL# ${p.id})`, record: { kind: 'proposal', id: p.id } });
         if (p.validUntil) put({ key: `date:proposal:${p.id}:valid`, kind: 'date', date: p.validUntil, label: 'Offer valid until', sub: `${p.type || 'Proposal'} (SL# ${p.id})`, record: { kind: 'proposal', id: p.id } });

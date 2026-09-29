@@ -6,7 +6,7 @@ import { icon } from '../lib/icons';
 import { showContextMenu, showMenuAt } from '../lib/contextMenu';
 import { emptyState } from '../lib/ui';
 import { needsFollowUp, getFollowups } from '../core/proposals';
-import { PS, isInPreparation, isWon, isLost, lineTotals, fmtMoney, currencyOf, ownerName, entityById, teamMember } from '../lib/commercial';
+import { PS, proposalSentDate, isInPreparation, isWon, isLost, lineTotals, fmtMoney, currencyOf, ownerName, entityById, teamMember } from '../lib/commercial';
 import { applyFilters } from '../lib/filters';
 import { registerTabRenderer, getActiveTabId } from '../lib/registry';
 import { createListNav } from '../lib/listNav';
@@ -82,7 +82,7 @@ export function renderDB(): void {
       <td class="td-status">${statusDot(cfg, p.status)}${review}<button class="rec-icon-btn row-more" onclick="proposalRowMenu(event, ${p.id})" title="Change status…" aria-label="Change status of SL# ${p.id}">${icon('more', 14)}</button></td>
       <td class="t-sub">${escHtml(ownerName(p) || '—')}</td>
       <td class="td-d">${fmtDate(p.dateAdded)}</td>
-      <td class="td-d">${fmtDate(p.dateSentToClient || p.sentDate)}${fu ? ' <span class="db-fu" title="No answer for over 10 days">follow up</span>' : ''}</td>
+      <td class="td-d"${p.lastSentAt && p.dateSentToClient ? ` title="First sent ${fmtDate(p.dateSentToClient)}"` : ''}>${fmtDate(proposalSentDate(p))}${fu ? ' <span class="db-fu" title="No answer for over 10 days">follow up</span>' : ''}</td>
       <td class="td-d">${p.dblSignedDate ? `<span class="t-positive">${fmtDate(p.dblSignedDate)}</span>` : '—'}</td>
       <td class="num">${monthly}</td>
       <td class="t-sub">${p.contractMonths ? `${p.contractMonths} mo` : '—'}</td>

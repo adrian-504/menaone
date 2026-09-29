@@ -9,6 +9,7 @@ import { registerBadgeUpdater, refreshAll, getActiveTabId, renderTab } from '../
 import { toast } from '../lib/ui';
 import { draftAgreementsFromProposals } from './agreements';
 import { PS, stageIndex, isLost, isWithdrawn, defaultReviewer, teamMember, renewalsDue, activeMrr, pipelineMonthly, fmtMoneyByCurrency } from '../lib/commercial';
+import { applyRevisionRequest, applyRevisionSent } from '../lib/revisions';
 import type { Proposal } from '../lib/types';
 
 // ═══════════════ PERSISTENCE / LOAD ═══════════════
@@ -111,6 +112,8 @@ export function updateStatus(id: number, newStatus: string): void {
     p.reviewedAt = null;
     p.reviewNote = null;
   }
+  // Sending a revision: that revision and the latest send are today; the first send stays.
+  const revisionSent = newStatus === PS.SENT ? applyRevisionSent(p, td) : null;
   if (newStatus === PS.SENT && !p.dateSentToClient) { p.dateSentToClient = td; if (!p.sentDate) p.sentDate = td; }
   if ((newStatus === PS.CLIENT_SIGNED || newStatus === PS.WON) && !p.dateSigned) p.dateSigned = td;
   if (newStatus === PS.WON && !p.dblSignedDate) p.dblSignedDate = td;
@@ -119,6 +122,7 @@ export function updateStatus(id: number, newStatus: string): void {
   refreshAll();
   // Marking a proposal won no longer creates its agreement behind the owner's
   // back; it offers to.
+  if (revisionSent) toast(`Revision ${revisionSent.number} sent`, { tone: 'success' });
   if (newStatus === PS.WON) {
     toast('Marked as won', { detail: 'No agreement was created.', action: { label: 'Draft agreement', run: () => { void draftAgreementsFromProposals(); } } });
   }
@@ -149,6 +153,62 @@ export async function statusSelectChanged(id: number, el: HTMLSelectElement): Pr
   if (!changed && p) el.value = p.status;
 }
 expose('statusSelectChanged', statusSelectChanged);
+
+/** The client asked for changes to a sent proposal: the same proposal goes
+ * back to Drafting as the next revision (lib/revisions.ts), saved at once. */
+export function startRevision(id: number, reason: string, contactId: number | null): void {
+  const p = S.proposals.find((x) => x.id === id);
+  if (!p || !reason.trim()) return;
+  const nextId = Math.max(0, ...S.proposals.flatMap((x) => (x.revisions || []).map((r) => r.id))) + 1;
+  const row = applyRevisionRequest(p, { id: nextId, reason, contactId, today: today() });
+  persistProposals();
+  updateBadge();
+  refreshAll();
+  if (S.currentProposalId === id) (window as any).renderProposalPage?.();
+  toast(`Revision ${row.number} started — back to drafting`, { tone: 'success' });
+}
+expose('startRevision', startRevision);
+
+let revisionFor: number | null = null;
+
+/** "Client asked for changes": what they asked for (required) and who, then Start revision. */
+export function openRevisionDialog(id: number): void {
+  const p = S.proposals.find((x) => x.id === id);
+  if (!p) return;
+  revisionFor = id;
+  const next = Math.max(1, p.revision ?? 1) + 1;
+  const sub = document.getElementById('rev-sub');
+  if (sub) sub.textContent = `${p.client} · SL# ${p.id} — becomes revision ${next} and goes back to drafting`;
+  const reason = document.getElementById('rev-reason') as HTMLTextAreaElement | null;
+  if (reason) reason.value = '';
+  const contacts = p.companyId != null ? S.contacts.filter((c) => c.companyId === p.companyId) : [];
+  const sel = document.getElementById('rev-contact') as HTMLSelectElement | null;
+  const grp = document.getElementById('rev-contact-grp');
+  if (grp) grp.hidden = !contacts.length;
+  if (sel) {
+    const chosen = contacts.some((c) => c.id === p.primaryContactId) ? p.primaryContactId : null;
+    sel.innerHTML = `<option value="">—</option>` + contacts.map((c) => `<option value="${c.id}"${c.id === chosen ? ' selected' : ''}>${escHtml(c.name || '')}</option>`).join('');
+  }
+  document.getElementById('modal-revision')?.classList.add('open');
+  reason?.focus();
+}
+expose('openRevisionDialog', openRevisionDialog);
+
+export function closeRevisionDialog(): void {
+  revisionFor = null;
+  document.getElementById('modal-revision')?.classList.remove('open');
+}
+expose('closeRevisionDialog', closeRevisionDialog);
+
+export function confirmRevision(): void {
+  const reason = (document.getElementById('rev-reason') as HTMLTextAreaElement | null)?.value.trim() || '';
+  if (!reason) { toast('Add what the client asked for', { tone: 'error' }); document.getElementById('rev-reason')?.focus(); return; }
+  const contact = (document.getElementById('rev-contact') as HTMLSelectElement | null)?.value;
+  const id = revisionFor;
+  closeRevisionDialog();
+  if (id != null) startRevision(id, reason, contact ? Number(contact) : null);
+}
+expose('confirmRevision', confirmRevision);
 
 /** Review outcome recorded on the reviewer's behalf. */
 export function recordReview(id: number, outcome: 'approved' | 'changes_requested', note: string | null): void {
