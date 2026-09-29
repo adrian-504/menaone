@@ -9,7 +9,8 @@ import { collapseEmptySections } from './sectionLayout';
 /** Section ids (co-sec-<id>) and their labels, in page order. */
 export const COMPANY_RECORD_SECTIONS: [string, string][] = [
   ['proposals', 'Proposals'], ['agreements', 'Agreements'], ['opportunities', 'Opportunities'], ['projects', 'Projects'],
-  ['meetings', 'Meetings'], ['tasks', 'Tasks'], ['commitments', 'Commitments'], ['notes', 'Linked notes'],
+  // Commitments are in Next and the Owed line (the Promises view has them all); linked notes are in Notes.
+  ['meetings', 'Meetings'], ['tasks', 'Tasks'],
   ['files', 'Files'], ['emails', 'Linked emails'],
 ];
 

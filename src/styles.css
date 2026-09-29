@@ -1403,6 +1403,21 @@ body.dnd-active .board-column.drop-target{background:var(--accent-bg)!important}
 .co-activity-fold{margin-top:14px}
 /* Records: three rows each until "All N". */
 .co-row-capped{display:none!important}
+/* Records sit closer (28 px apart, eyebrow 8 px from the rule); the 40 px rhythm stays above Where we stand, Next · Recent and Notes. */
+.co-records > .rec-section.sec{padding:8px 0 20px}
+.co-records > .rec-section.sec.is-empty{padding:8px 0 12px}
+/* In the dossier the record lists are short lists: tighter rows, smaller icons, compact project cards, notes to two lines. */
+.co-dossier .co-records .rec-section-hd{margin-bottom:6px}
+.co-dossier .co-records .rec-row{padding:6px 6px;gap:10px}
+.co-dossier .co-records .rec-row-icon{width:26px;height:26px;border-radius:7px}
+.co-dossier .co-records .task-row{padding:4px 6px}
+.co-dossier .co-records .project-grid{grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:8px}
+.co-dossier .co-records .project-card{padding:10px 12px;gap:6px;box-shadow:none}
+.co-dossier .co-records .row-excerpt{margin-top:0}
+.co-dossier .conote-body{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;white-space:normal}
+.co-dossier .conote-entry{padding:7px 0}
+.co-dossier .co-records tbody td{padding-top:6px;padding-bottom:6px}
+.co-dossier .co-records thead th{padding-top:6px;padding-bottom:6px}
 .co-rec-all{margin-left:8px;font-size:var(--type-secondary)}
 @container codetail (max-width:720px){.co-dossier{grid-template-columns:1fr}.co-dossier-side{position:static;max-height:none}}
 @container comain (max-width:560px){.co-nr-grid{grid-template-columns:1fr;gap:6px}}

@@ -62,6 +62,14 @@ describe('the company page markup', () => {
     expect(doc.getElementById('co-sec-activity')!.hasAttribute('hidden')).toBe(true);
   });
 
+  it('one Notes section (no Linked notes) and no Commitments section; the tables are short', () => {
+    expect(doc.getElementById('co-sec-notes')).toBeNull();
+    expect(doc.getElementById('co-sec-commitments')).toBeNull();
+    const heads = (id: string) => [...doc.getElementById(id)!.closest('table')!.querySelectorAll('th')].map((t) => t.textContent);
+    expect(heads('co-proposals-tbody')).toEqual(['SL#', 'Service', 'Status', 'Sent', 'MRR']);
+    expect(heads('co-agreements-tbody')).toEqual(['Ref', 'Type', 'Status', 'Ends', 'MRR']);
+  });
+
   it('the notes input is hidden at rest, behind Add note', () => {
     const composer = doc.getElementById('co-notes-composer')!;
     expect(composer.hasAttribute('hidden')).toBe(true);

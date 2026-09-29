@@ -21,13 +21,14 @@ const collapsed = (host: HTMLElement) => [...host.children].filter((el) => el.cl
 describe('Company 360 record sections', () => {
   it('a company with N populated kinds shows N open sections in the fixed order, the rest as lines after them', () => {
     const host = page();
-    const counts = { proposals: 3, agreements: 1, opportunities: 0, projects: 0, meetings: 2, tasks: 0, commitments: 1, notes: 0, files: 0, emails: 4 };
+    // Commitments and linked notes are no longer record sections (the dossier's Next and Notes carry them).
+    const counts = { proposals: 3, agreements: 1, opportunities: 0, projects: 0, meetings: 2, tasks: 0, files: 0, emails: 4 };
     const shown = layoutCompanyRecords(host, counts);
-    expect(shown).toEqual(['proposals', 'agreements', 'meetings', 'commitments', 'emails']);
+    expect(shown).toEqual(['proposals', 'agreements', 'meetings', 'emails']);
     expect(open(host)).toEqual(shown);
-    expect(collapsed(host)).toEqual(['opportunities', 'projects', 'tasks', 'notes', 'files']);
+    expect(collapsed(host)).toEqual(['opportunities', 'projects', 'tasks', 'files']);
     // Populated first, then the collapsed lines.
-    expect([...host.children].map((el) => el.id.replace('co-sec-', ''))).toEqual([...shown, 'opportunities', 'projects', 'tasks', 'notes', 'files']);
+    expect([...host.children].map((el) => el.id.replace('co-sec-', ''))).toEqual([...shown, 'opportunities', 'projects', 'tasks', 'files']);
   });
 
   it('there is no group to open: nothing with content is folded away', () => {
