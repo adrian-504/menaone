@@ -1497,11 +1497,13 @@ export function renderCoProposals(d: CompanyData): void {
   const row = (p: Proposal) => {
     // The dossier's short table: the row opens the proposal (log, deck and signing dates are there).
     const cfg = ST[p.status] || { c: 'var(--muted)', ch: 'var(--muted)' };
-    return `<tr class="rec-tr" onclick="openRecord('proposal', ${p.id})">
+    const sent = proposalSentDate(p);
+    // In a narrow page the date column folds away; the row still says it on hover.
+    return `<tr class="rec-tr" onclick="openRecord('proposal', ${p.id})"${sent ? ` title="Sent ${escHtml(fmtDate(sent))}"` : ''}>
       <td class="td-id">${p.id}</td>
       <td class="td-t" title="${escHtml(p.type)}">${escHtml(p.type)}</td>
       <td>${statusDot(cfg, p.status)}${(p.revision ?? 1) > 1 ? `<span class="t-muted"> · Rev ${p.revision}</span>` : ''}</td>
-      <td class="td-d">${fmtDate(proposalSentDate(p))}</td>
+      <td class="td-d co-col-date">${fmtDate(sent)}</td>
       <td class="td-fee">${p.monthlyFee ? money(Number(p.monthlyFee), currencyOf(p)) : '—'}</td>
     </tr>`;
   };
@@ -1518,11 +1520,11 @@ export function renderCoAgreements(d: CompanyData): void {
   tbody.innerHTML = d.agreements.map((a) => {
     // The dossier's short table: when it ends matters more than the signing dates (on the agreement).
     const sc = AGR_ST[a.status || ''] || { c: 'var(--muted)', ch: 'var(--muted)' };
-    return `<tr class="rec-tr" onclick="openRecord('agreement', ${a.id})">
+    return `<tr class="rec-tr" onclick="openRecord('agreement', ${a.id})"${a.endDate ? ` title="Ends ${escHtml(fmtDate(a.endDate))}"` : ''}>
       <td class="fw-600">${escHtml(a.agrRef || '—')}</td>
       <td class="td-t">${escHtml(a.type || '—')}</td>
       <td>${statusDot(sc, a.status || '')}</td>
-      <td class="td-d">${a.endDate ? fmtDate(a.endDate) : '<span class="rec-muted">—</span>'}</td>
+      <td class="td-d co-col-date">${a.endDate ? fmtDate(a.endDate) : '<span class="rec-muted">—</span>'}</td>
       <td class="td-fee">${agreementMonthly(a) ? money(Number(agreementMonthly(a)), currencyOf(a)) : '—'}</td>
     </tr>`;
   }).join('');

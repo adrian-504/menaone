@@ -1419,6 +1419,9 @@ body.dnd-active .board-column.drop-target{background:var(--accent-bg)!important}
 .co-dossier .co-records tbody td{padding-top:6px;padding-bottom:6px}
 .co-dossier .co-records thead th{padding-top:6px;padding-bottom:6px}
 .co-rec-all{margin-left:8px;font-size:var(--type-secondary)}
+.co-dossier .co-col-date{white-space:nowrap}
+/* Ahmad's usual window (~1,080 px): a narrower left column, and the tables fold their date column. */
+@container codetail (max-width:900px){.co-dossier{grid-template-columns:240px minmax(0,1fr);gap:22px}.co-dossier .co-col-date{display:none}}
 @container codetail (max-width:720px){.co-dossier{grid-template-columns:1fr}.co-dossier-side{position:static;max-height:none}}
 @container comain (max-width:560px){.co-nr-grid{grid-template-columns:1fr;gap:6px}}
 .row-excerpt{color:var(--muted);font-size:var(--type-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;min-width:0}
