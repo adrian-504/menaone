@@ -65,6 +65,10 @@ pub fn migrate_proposal_revisions(conn: &Connection) -> rusqlite::Result<()> {
         conn.execute("ALTER TABLE proposals ADD COLUMN last_sent_at TEXT", [])?;
     }
     conn.execute_batch(REVISIONS_MIGRATION)?;
+    // Safe to run again (an older backup restored over this schema re-runs it).
+    if crate::db::column_exists(conn, "proposal_revisions", "uuid")? {
+        return Ok(());
+    }
     crate::db::add_sync_columns_to(conn, &["proposal_revisions"])
 }
 
