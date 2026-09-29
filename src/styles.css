@@ -1348,6 +1348,64 @@ body.dnd-active .board-column.drop-target{background:var(--accent-bg)!important}
 .tpl-legend{margin-top:12px}
 .notes-clients-toggle{display:flex;align-items:center;gap:4px;background:none;border:0;padding:0;font:inherit;color:inherit;letter-spacing:inherit;text-transform:inherit;cursor:pointer}
 .note-item-source{color:var(--muted)}
+/* Company page as a dossier (owner, 29-Sep, Concept B): a left column that stays
+   while you scroll (details, people, what to remember) and the story on the right. */
+.co-detail{container-type:inline-size;container-name:codetail}
+.co-dossier{display:grid;grid-template-columns:280px minmax(0,1fr);gap:28px;align-items:start}
+.co-dossier-side{position:sticky;top:104px;display:flex;flex-direction:column;gap:12px;max-height:calc(100vh - 120px);overflow:auto;scrollbar-width:none}
+.co-dossier-main{min-width:0;container-type:inline-size;container-name:comain}
+.co-nr-col{min-width:0}
+.co-panel{background:var(--surface-flat);border-radius:var(--radius);padding:12px 14px}
+.co-panel-hd{display:flex;align-items:baseline;gap:6px;margin-bottom:8px}
+.co-panel-hd .rec-count{font-size:var(--type-meta);color:var(--muted)}
+.co-panel-act{margin-left:auto;font-size:var(--type-secondary)}
+.co-panel-none{margin:0;color:var(--muted);font-size:var(--type-secondary)}
+.co-details{margin:0;display:flex;flex-direction:column;gap:4px;font-size:var(--type-secondary)}
+.co-details div{display:grid;grid-template-columns:64px minmax(0,1fr);gap:8px}
+.co-details dt{color:var(--muted)}
+.co-details dd{margin:0;min-width:0;overflow-wrap:anywhere}
+.co-remember p{margin:0 0 8px;font-style:italic;color:var(--muted);font-size:var(--type-secondary);line-height:1.5}
+.co-remember p:last-child{margin-bottom:0}
+/* People in the side panel: compact, call and mail on hover only. */
+.co-people .rec-row{padding:6px 0;border:0;border-top:1px solid var(--hairline);border-radius:0;background:none}
+.co-people .rec-row:first-child{border-top:0}
+.co-people .rec-row-avatar{width:26px;height:26px;font-size:10px}
+.co-people .rec-row-title{font-size:var(--type-secondary);white-space:normal}
+.co-people .rec-row-sub{font-size:var(--type-meta);white-space:normal}
+.co-people .co-dm{font-size:10px}
+.co-people .rec-row-actions{visibility:hidden}
+.co-people .rec-row:hover .rec-row-actions,.co-people .rec-row:focus-within .rec-row-actions{visibility:visible;opacity:1}
+/* Where we stand: one labelled line per clause. */
+.co-stand{display:flex;flex-direction:column}
+.co-stand-line{display:grid;grid-template-columns:110px minmax(0,1fr);gap:12px;padding:8px 0;line-height:1.5}
+.co-stand-line + .co-stand-line{border-top:1px solid var(--hairline)}
+.co-stand-label{font-size:var(--type-caption);font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding-top:3px}
+.co-stand-line.is-amber .co-stand-label{color:var(--amber)}
+.co-stand-line.is-red .co-stand-label{color:var(--red)}
+.co-stand-line.is-green .co-stand-label{color:var(--green)}
+.co-stand-dormant{background:none;border:0;padding:0;font:inherit;color:var(--muted);cursor:pointer;text-decoration:underline;text-decoration-color:var(--hairline)}
+/* Next · Recent. */
+.co-nextrecent{margin:6px 0 18px}
+.co-nr-grid{display:grid;grid-template-columns:1fr 1fr;gap:28px}
+.co-nr-hd{display:flex;align-items:baseline;gap:8px;padding-top:10px;border-top:1px solid var(--hairline);margin-bottom:6px}
+.co-nr-all{margin-left:auto;font-size:var(--type-secondary)}
+.co-nr-row{display:flex;gap:10px;align-items:baseline;padding:6px 0;border-top:1px solid var(--hairline);font-size:var(--type-secondary)}
+.co-nr-row:first-child{border-top:0}
+.co-nr-when{width:74px;flex:none;color:var(--muted);font-variant-numeric:tabular-nums}
+.co-nr-when.is-late{color:var(--red)}
+.co-nr-dot{width:7px;height:7px;border-radius:50%;flex:none;background:var(--muted);transform:translateY(-1px)}
+.co-nr-dot.tone-green{background:var(--green)}.co-nr-dot.tone-accent{background:var(--accent)}.co-nr-dot.tone-amber{background:var(--amber)}
+.co-nr-box{width:13px;height:13px;flex:none;border:1.5px solid var(--border);border-radius:50%;background:none;padding:0;cursor:pointer;transform:translateY(1px)}
+.co-nr-box:hover{border-color:var(--green)}
+.co-nr-main{min-width:0}
+.co-nr-sub{display:block;color:var(--muted);font-size:var(--type-meta);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.co-nr-none{margin:4px 0;color:var(--muted);font-size:var(--type-secondary)}
+.co-activity-fold{margin-top:14px}
+/* Records: three rows each until "All N". */
+.co-row-capped{display:none!important}
+.co-rec-all{margin-left:8px;font-size:var(--type-secondary)}
+@container codetail (max-width:720px){.co-dossier{grid-template-columns:1fr}.co-dossier-side{position:static;max-height:none}}
+@container comain (max-width:560px){.co-nr-grid{grid-template-columns:1fr;gap:6px}}
 .row-excerpt{color:var(--muted);font-size:var(--type-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;min-width:0}
 .meeting-marks{display:inline-flex;gap:10px;margin-left:12px}
 .meeting-mark{display:inline-flex;align-items:center;gap:3px;color:var(--sub);font-weight:600}

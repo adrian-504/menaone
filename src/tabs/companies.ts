@@ -5,7 +5,6 @@ import { toast, undoToast } from '../lib/ui';
 import { renderBulkBar } from '../lib/bulkBar';
 import { STATUSES, ST, AGR_ST } from '../lib/constants';
 import { renderCompanyCommitments } from './commitments';
-import { collapseEmptySections } from '../lib/sectionLayout';
 import { COMPANIES_VIEW_KEY, initialCompaniesView } from '../lib/companiesView';
 import { companyNavItems, groupRequestedTogether, layoutCompanyRecords, type RecordCounts } from '../lib/companyRecords';
 import { today, fmtDate, escHtml, expose, showConfirm, statusDot, showTextPrompt, getClients, companyRef, inCompany, daysSince, daysUntil, strColor, type CompanyRef } from '../lib/utils';
@@ -16,8 +15,9 @@ import { recordLink } from '../lib/links';
 import { type FeedItem } from '../lib/activityFeed';
 import { renderRecordTimeline } from './recordThread';
 import { renderCompanyTemplates } from './companyTemplates';
-import { liveThreads, lastContactByPerson, orderPeople, threadStand, relationshipStatus as briefRelationship } from '../lib/companyBrief';
-import { briefInputFor, clausesHtml, companyStateFor, ensurePinnedNotes, setCompanyNotesCache } from './companyState';
+import { capCompanyRecords, renderDossierDetails, renderDossierNextRecent, renderDossierState, resetDossierFolds, watchCompanyRecords } from './companyDossier';
+import { liveThreads, lastContactByPerson, orderPeople, relationshipStatus as briefRelationship } from '../lib/companyBrief';
+import { briefInputFor, ensurePinnedNotes, setCompanyNotesCache } from './companyState';
 import { renderIcons } from '../core/chrome';
 import { icon } from '../lib/icons';
 import { persistProposals, persistContacts, persistAgreements, persistTodos, persistNotes, persistCompanyNotes, persistCreateCompany } from '../lib/persist';
@@ -1013,9 +1013,11 @@ function renderCompanyDetail(): void {
   (document.getElementById('co-detail-meta') as HTMLElement).innerHTML = badges.join('');
 
   const key = { id: d.companyId, name: d.name };
+  if (lastDetailName !== d.name) { lastDetailName = d.name; resetDossierFolds(); }
   renderCompanyState(key);
-  renderCompanyThreads(key);
   renderCompanyFacts(d);
+  renderDossierDetails(co, d, listsForCompany(d.name).map((l) => `<span class="ct-list-tag" title="${l.filters ? 'Smart list' : 'Hand-picked list'}">${escHtml(l.name)}</span>`).join(' '));
+  void renderDossierNextRecent(key);
   void loadCompanyNoteEntries();
   if (d.companyId != null) {
     void renderLinkedEmailsForCompany(d.companyId, 'co-emails').then((n) => {
@@ -1043,9 +1045,25 @@ function renderCompanyDetail(): void {
   (window as any).renderCoProjectsSection?.(d);
   (window as any).renderCoMeetingsSection?.(d);
   void renderCoFiles(d);
-  void renderCoActivity(d);
+  if (!document.getElementById('co-sec-activity')?.hidden) void renderCoActivity(d);
+  watchCompanyRecords();
+  capCompanyRecords(d.name);
   renderIcons(document.getElementById('co-detail') || document);
 }
+
+/** The company the page last showed, so opening another one starts with its folds closed. */
+let lastDetailName: string | null = null;
+
+/** "All activity": the full timeline, folded under Next · Recent. */
+export function toggleCompanyActivity(): void {
+  const sec = document.getElementById('co-sec-activity');
+  const link = document.getElementById('co-activity-toggle');
+  if (!sec || !S.currentCompany) return;
+  sec.hidden = !sec.hidden;
+  if (link) link.textContent = sec.hidden ? 'All activity' : 'Hide activity';
+  if (!sec.hidden) void renderCoActivity(buildCompanyData(S.currentCompany));
+}
+expose('toggleCompanyActivity', toggleCompanyActivity);
 registerCompanyViewRefresher(() => {
   if (S.currentCompany && document.getElementById('co-detail')?.classList.contains('open')) renderCompanyDetail();
   else renderCompanyList();
@@ -1068,57 +1086,12 @@ function renderCompanyFacts(d: CompanyData): void {
 
 // ── Where we stand, and what's in flight ────────────────────────────────────
 
+/** Where we stand, as labelled lines, and the pinned notes in the Remember panel (tabs/companyDossier.ts). */
 function renderCompanyState(key: { id: number | null; name: string }): void {
-  const el = document.getElementById('co-state');
-  if (!el) return;
-  el.innerHTML = clausesHtml(companyStateFor(key), key);
-  renderIcons(el);
+  renderDossierState(key);
   ensurePinnedNotes(key, () => { if (S.currentCompany === key.name) renderCompanyState(key); });
 }
 
-const THREADS_SHOWN = 5;
-let showAllThreads = false;
-
-/** One line per live engagement — where it stands, who it's waiting on, its
- * next step on hover; the full strip is on the record. Dormant ones fold
- * into one line pointing at Clean-up. */
-function renderCompanyThreads(key: { id: number | null; name: string }): void {
-  const el = document.getElementById('co-threads');
-  const sec = document.getElementById('co-sec-threads');
-  if (!el || !sec) return;
-  const all = liveThreads(briefInputFor(key));
-  const threads = all.filter((t) => !t.dormant);
-  const dormant = all.filter((t) => t.dormant);
-  sec.hidden = all.length === 0;
-  const cnt = document.getElementById('co-threads-count'); if (cnt) cnt.textContent = threads.length ? String(threads.length) : '';
-  const shown = showAllThreads ? threads : threads.slice(0, THREADS_SHOWN);
-  const row = (t: typeof threads[number]) => {
-    const last = t.thread.nodes[t.thread.nodes.length - 1];
-    const a = t.thread.after;
-    const wait = a?.waitingOn && a.days != null ? `${a.waitingOn === 'us' ? 'with us' : 'with client'} ${a.days}d` : '';
-    const n = t.thread.next;
-    return `<div class="co-thread" role="link" tabindex="0" onclick="openRecord('${last.kind}', ${last.id})" onkeydown="if(event.key==='Enter'&&event.target===this)openRecord('${last.kind}', ${last.id})">
-      <span class="co-thread-dot tone-${last.tone}" aria-hidden="true"></span>
-      <span class="co-thread-label">${escHtml(t.label || 'Engagement')}</span>
-      <span class="co-thread-stand">${escHtml(threadStand(t.thread, today()))}</span>
-      ${wait ? `<span class="co-thread-wait${t.late ? ' is-late' : ''}">${escHtml(wait)}</span>` : ''}
-      ${n ? `<button class="btn-ghost btn-sm co-thread-next" onclick="event.stopPropagation();threadNext('${n.action}', '${n.kind}', ${n.id})">${escHtml(n.label)}</button>` : ''}
-    </div>`;
-  };
-  const queues = [...new Set(dormant.map((t) => t.cleanupQueue))];
-  const dormantLine = dormant.length
-    ? `<button class="co-thread-dormant" onclick="openCleanup(${queues.length === 1 && queues[0] ? `'${queues[0]}'` : ''})">${dormant.length} dormant — review in Clean-up</button>`
-    : '';
-  el.innerHTML = shown.map(row).join('')
-    + (threads.length > shown.length ? `<button class="mdy-more" onclick="showAllCompanyThreads()">Show all ${threads.length}</button>` : '')
-    + dormantLine;
-}
-
-export function showAllCompanyThreads(): void {
-  showAllThreads = true;
-  if (S.currentCompany) { const co = currentCompanyRecord(); renderCompanyThreads({ id: co?.id ?? null, name: S.currentCompany }); }
-}
-expose('showAllCompanyThreads', showAllCompanyThreads);
 
 // ── Record sections: open when they have content (lib/companyRecords.ts) ────
 
@@ -1422,11 +1395,8 @@ export function renderCoContacts(d: CompanyData): void {
   const cntEl = document.getElementById('co-contacts-count'); if (cntEl) cntEl.textContent = d.contacts.length ? String(d.contacts.length) : '';
   const list = document.getElementById('co-contacts-list');
   if (!list) return;
-  const sec = document.getElementById('co-sec-contacts');
-  const host = sec?.parentElement;
-  // No people yet: one quiet line (its "+ Add" stays), at the bottom with the empty record lines.
-  if (sec && host) collapseEmptySections(host, [{ el: sec, empty: d.contacts.length === 0 }], d.contacts.length ? document.getElementById('co-sec-activity') : null);
-  if (d.contacts.length === 0) { list.innerHTML = ''; return; }
+  // No people yet: one quiet line; "+ Add" is in the panel's heading.
+  if (d.contacts.length === 0) { list.innerHTML = '<p class="co-panel-none">No people yet.</p>'; return; }
   const input = briefInputFor({ id: d.companyId, name: d.name });
   const last = lastContactByPerson(input);
   list.innerHTML = orderPeople(d.contacts, last).map((c) => {

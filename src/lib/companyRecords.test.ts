@@ -57,9 +57,9 @@ describe('Company 360 record sections', () => {
   });
 
   it('the section bar lists the fixed items, then only the populated record sections with counts', () => {
+    // People sit in the dossier's left column and the timeline behind "All activity": neither is in the bar.
     const items = companyNavItems({ contacts: 2, proposals: 3, agreements: 0, meetings: 1, emails: null });
-    expect(items.map((i) => i.label)).toEqual(['Overview', 'People', 'Timeline', 'Notes', 'Proposals', 'Meetings']);
+    expect(items.map((i) => i.label)).toEqual(['Overview', 'Notes', 'Proposals', 'Meetings']);
     expect(items.find((i) => i.id === 'proposals')?.count).toBe(3);
-    expect(items.find((i) => i.id === 'contacts')?.count).toBe(2);
   });
 });
