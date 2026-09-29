@@ -17,7 +17,7 @@ import { foldFilterBar } from './lib/filterBar';
 import { S } from './lib/state';
 import { STATUSES } from './lib/constants';
 import { escHtml, getClients, expose } from './lib/utils';
-import { loadAllData, getCommercialSetup, getProjects, getAreas, getNoteTemplates, getAllTags, getInboxItems, getMeetings, getCompanies, getOpportunities, ms365Status, getSavedLists, identityCurrentUser } from './lib/db';
+import { loadAllData, getCommercialSetup, getProjects, getAreas, getNoteTemplates, getAllTags, getInboxItems, getMeetings, getCompanies, getOpportunities, ms365Status, getSavedLists, getTouches, identityCurrentUser } from './lib/db';
 import { registerPeriodChangeHandler, populatePeriodSelector } from './lib/period';
 import { refreshAll, refreshBadges, getActiveTabId, renderTab } from './lib/registry';
 import { markLoadedAsSaved } from './lib/persist';
@@ -203,8 +203,8 @@ async function init(): Promise<void> {
   S.companyNotes = data.companyNotes;
   markLoadedAsSaved();
   applyCommercialSetup(await getCommercialSetup());
-  [S.projects, S.areas, S.noteTemplates, S.allTags, S.inboxItems, S.meetings, S.companies, S.opportunities, S.ms365Status, S.savedLists] = await Promise.all([
-    getProjects(true), getAreas(), getNoteTemplates(), getAllTags(), getInboxItems(), getMeetings(), getCompanies(), getOpportunities(), ms365Status(), getSavedLists(),
+  [S.projects, S.areas, S.noteTemplates, S.allTags, S.inboxItems, S.meetings, S.companies, S.opportunities, S.ms365Status, S.savedLists, S.touches] = await Promise.all([
+    getProjects(true), getAreas(), getNoteTemplates(), getAllTags(), getInboxItems(), getMeetings(), getCompanies(), getOpportunities(), ms365Status(), getSavedLists(), getTouches(),
   ]);
   // Calendar/Action Required/the Settings shortcut are gated behind an active
   // Microsoft 365 connection (data-ms365-gated in index.html) — previously

@@ -21,6 +21,7 @@ pub mod proposal_library;
 pub mod smartfill;
 pub mod pricing;
 pub mod revisions;
+pub mod touches;
 pub mod feefill;
 pub mod master;
 pub mod generator;
@@ -273,6 +274,10 @@ pub fn run() {
             commitments::commitments_add,
             commitments::upsert_commitments,
             commitments::delete_commitments,
+            touches::get_touches,
+            touches::touches_add,
+            touches::touches_for_proposal,
+            touches::touches_delete,
             commands::delete_todos,
             commands::upsert_notes,
             commands::delete_notes,

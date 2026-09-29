@@ -12,6 +12,7 @@ import { deckVersion, matchDecks } from '../lib/deckMatch';
 import { latestRevision, lineWasNote, parseSnapshot, removedServices, revisionFact, revisionOf } from '../lib/revisions';
 import { companyFromForm, contextFromOpportunity } from '../lib/workGraph';
 import { S } from '../lib/state';
+import { touchDoing, touchesOf } from '../lib/followup';
 import { escHtml, expose, fmtDate, today, nextId, nextCtId, showConfirm, showTextPrompt, debounce, strColor } from '../lib/utils';
 import { icon } from '../lib/icons';
 import { companyLink, recordLink } from '../lib/links';
@@ -27,7 +28,7 @@ import { endPropsEdit, mountPropsList, propsEditButton, propsListHtml, resetProp
 import { renderIcons } from '../core/chrome';
 import { ST, LEAD_SOURCES } from '../lib/constants';
 import { renderLinesEditor, lineForService } from '../lib/linesEditor';
-import { changeProposalStatus, recordReview, undoReview, openRevisionDialog, openWlModal, updateStatus, archiveProposal, unarchiveProposal, snoozeProposal, isSnoozed } from '../core/proposals';
+import { changeProposalStatus, contactFirstName, recordReview, undoReview, openRevisionDialog, openWlModal, updateStatus, archiveProposal, unarchiveProposal, snoozeProposal, isSnoozed } from '../core/proposals';
 import {
   PS, PROPOSAL_STAGES, stageIndex, isWon, isLost, isWithdrawn, isClosed, lineTotals, syncProposalTotals, fmtMoney, currencyOf,
   teamMember, reviewers, defaultReviewer, activeTeam, ownerName, entityById, defaultEntity, activeServices, newLine,
@@ -126,6 +127,7 @@ export function renderProposalPage(): void {
   renderToolbar(p);
   renderProps(p);
   renderReview(p);
+  renderContact(p);
   renderCommercials(p);
   void renderDocuments(p);
   renderRelated(p);
@@ -452,6 +454,34 @@ export async function proposalFieldChanged(key: string, value: string): Promise<
   commit(p);
 }
 expose('proposalFieldChanged', proposalFieldChanged);
+
+// ── Follow-up: contact with the client while it is with them ──
+
+/** Show every touch instead of the latest five (reset when another proposal opens). */
+let contactAll: number | null = null;
+
+function renderContact(p: Proposal): void {
+  const el = document.getElementById('prd-contact');
+  if (!el) return;
+  el.hidden = p.status !== PS.SENT;
+  if (el.hidden) { el.innerHTML = ''; return; }
+  const touches = touchesOf(p, S.touches).slice().sort((a, b) => b.at.localeCompare(a.at) || b.id - a.id);
+  const shown = contactAll === p.id ? touches : touches.slice(0, 5);
+  const rows = shown.map((t) => {
+    const who = t.contactId != null ? contactFirstName(t.contactId) : null;
+    return `<li>${[fmtDate(t.at.slice(0, 10)), touchDoing(t, who), t.subject || ''].filter(Boolean).map(escHtml).join(' · ')}</li>`;
+  }).join('');
+  el.innerHTML = `<div class="rec-section-hd"><h2>Follow-up</h2><div class="rec-section-actions"><button class="btn-secondary btn-sm" onclick="followUpMenu(event, ${p.id})" title="Log an email, call, WhatsApp or meeting in one click" aria-haspopup="menu">Followed up ${icon('chevronDown', 11)}</button></div></div>
+    ${touches.length ? `<ul class="pr-contact-list">${rows}</ul>${touches.length > 5 && contactAll !== p.id ? `<a href="#" class="rlink pr-contact-all" onclick="event.preventDefault();proposalContactAll(${p.id})">Show all ${touches.length}</a>` : ''}` : `<p class="pr-review-note">Nothing logged since it was sent.</p>`}`;
+  renderIcons(el);
+}
+
+export function proposalContactAll(id: number): void {
+  contactAll = id;
+  const p = currentProposal();
+  if (p) renderContact(p);
+}
+expose('proposalContactAll', proposalContactAll);
 
 // ── Internal review ──
 

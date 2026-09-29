@@ -64,6 +64,25 @@ export interface Proposal {
   revisions?: ProposalRevision[];
 }
 
+/** One contact with the client about a proposal: an email, a call, a WhatsApp,
+ * a meeting (touches.rs). Business metadata only — never a message body. */
+export type TouchKind = 'email_out' | 'email_in' | 'call' | 'whatsapp' | 'meeting';
+export interface Touch {
+  id: number;
+  companyId: number | null;
+  proposalId: number | null;
+  kind: TouchKind;
+  /** Who reached out: us or the client (an email says it in its kind). */
+  direction: 'out' | 'in';
+  /** ISO date or date-time. */
+  at: string;
+  subject: string | null;
+  contactId: number | null;
+  source: 'manual' | 'outlook';
+  sourceId: string | null;
+  createdAt: string;
+}
+
 /** A client's request for changes to a sent proposal. */
 export interface ProposalRevision {
   id: number;

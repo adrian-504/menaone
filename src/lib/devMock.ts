@@ -5,7 +5,7 @@
 // is a Vite compile-time constant, so `vite build` dead-code-eliminates this
 // entire branch and the real Tauri IPC bridge is untouched in the shipped app.
 import catalogSeed from '../../src-tauri/src/catalog_seed.json';
-import type { CommercialSetup, AppData, Project, Area, Meeting, InboxItem, NoteTemplate, Milestone, NoteRef, EmailRecord, EmailCompletedRecord, IntelligenceItem, Company, Opportunity, OpportunityActivity, ProjectActivity, EntityLink, ReviewQueueEntry, SavedList } from './types';
+import type { CommercialSetup, AppData, Project, Area, Meeting, InboxItem, NoteTemplate, Milestone, NoteRef, EmailRecord, EmailCompletedRecord, IntelligenceItem, Company, Opportunity, OpportunityActivity, ProjectActivity, EntityLink, ReviewQueueEntry, SavedList , Touch } from './types';
 
 const SAMPLE: AppData = {
   proposals: [
@@ -133,6 +133,10 @@ const mockMeeting = (id: number, title: string, date: string, emails: { email: s
   location: null, isOnlineMeeting: true, onlineMeetingUrl: null, isCancelled: false, source: 'outlook', organizerEmail: 'ahmad@menabig.test',
   attendeeEmails: emails.map((e) => e.email),
 });
+let touchesStore: Touch[] = [
+  { id: 1, companyId: null, proposalId: 3, kind: 'email_out', direction: 'out', at: '2026-09-15', subject: 'Re: Payroll proposal', contactId: null, source: 'manual', sourceId: null, createdAt: '2026-09-15T09:00:00Z' },
+];
+let nextTouchId = 1;
 let meetingsStore: Meeting[] = [
   { ...mockMeeting(1, 'Acme — payroll kickoff', '2026-08-20', [{ email: 'jane@acme.test', name: 'Jane Doe' }]), companyName: 'Acme Holdings', companyId: 1, followUp: 'Send the onboarding checklist\nConfirm GOSI access', decisions: 'Start payroll from October' },
   { ...mockMeeting(2, 'Monthly check-in', '2026-09-15', [{ email: 'jane@acme.test', name: 'Jane Doe' }, { email: 'omar@acme.test', name: 'Omar Haddad' }]), companyName: 'Acme Holdings', companyId: 1, opportunityId: 1,
@@ -626,6 +630,22 @@ export async function installDevMockIfNeeded(): Promise<void> {
           return [] as Area[];
         case 'get_meetings':
           return meetingsStore;
+        // Follow-up touches: a sample email follow-up on the Northwind proposal; new ones kept for the session.
+        case 'get_touches':
+          return touchesStore.map((t) => ({ ...t }));
+        case 'touches_add': {
+          const t = (_payload as any)?.touch;
+          const direction: Touch['direction'] = t.kind === 'email_in' ? 'in' : t.kind === 'email_out' || t.kind === 'meeting' ? 'out' : t.direction === 'in' ? 'in' : 'out';
+          const companyId = t.companyId ?? SAMPLE.proposals.find((p) => p.id === t.proposalId)?.companyId ?? null;
+          const row: Touch = { id: ++nextTouchId, companyId, proposalId: t.proposalId ?? null, kind: t.kind, direction, at: t.at, subject: t.subject ?? null, contactId: t.contactId ?? null, source: 'manual', sourceId: null, createdAt: new Date().toISOString() };
+          touchesStore.push(row);
+          return row;
+        }
+        case 'touches_delete': {
+          const id = (_payload as any)?.id;
+          touchesStore = touchesStore.filter((t) => t.id !== id);
+          return null;
+        }
         case 'save_meeting': {
           const meeting = (_payload as any)?.meeting as Meeting;
           if (meeting.id && meeting.id !== 0) {

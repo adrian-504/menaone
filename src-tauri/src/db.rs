@@ -723,6 +723,8 @@ const CODE_MIGRATIONS: &[(i64, fn(&Connection) -> rusqlite::Result<()>)] = &[
     (40, migrate_accountancy_packages),
     // Proposal revisions (owner, 29-Sep): the client asks for changes, the same proposal goes round again.
     (41, crate::revisions::migrate_proposal_revisions),
+    // Follow-up touches (owner, 29-Sep): an email, call, WhatsApp or meeting logged in one click.
+    (42, crate::touches::migrate_touches),
 ];
 
 /// Old Workforce category label → the name the proposal templates now use.

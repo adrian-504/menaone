@@ -10,7 +10,9 @@ import { toast } from '../lib/ui';
 import { draftAgreementsFromProposals } from './agreements';
 import { PS, stageIndex, isLost, isWithdrawn, defaultReviewer, teamMember, renewalsDue, activeMrr, pipelineMonthly, fmtMoneyByCurrency } from '../lib/commercial';
 import { applyRevisionRequest, applyRevisionSent } from '../lib/revisions';
-import type { Proposal } from '../lib/types';
+import { touchesAdd, touchesDelete } from '../lib/db';
+import { showMenuAt, type ContextMenuItem } from '../lib/contextMenu';
+import type { Proposal, TouchKind } from '../lib/types';
 
 // ═══════════════ PERSISTENCE / LOAD ═══════════════
 
@@ -33,10 +35,66 @@ export function isSnoozed(p: Proposal): boolean {
   return new Date(p.snoozedUntil + 'T23:59:59') > new Date();
 }
 
-/** A sent proposal's latest contact: its notes, the client's emails and meetings since it was sent (lib/followup.ts). */
+/** A contact's first name, for "you emailed Sara". */
+export const contactFirstName = (id: number): string | null => (S.contacts.find((c) => c.id === id)?.name || '').trim().split(/\s+/)[0] || null;
+
+/** A sent proposal's latest contact: its notes, the client's emails and meetings,
+ * and the follow-ups logged on it since it was sent (lib/followup.ts). */
 export function proposalLastTouch(p: Proposal): LastTouch | null {
-  return lastTouch(p, { emails: S.emails, meetings: S.meetings, today: today(), ownDomains: ownDomains() });
+  return lastTouch(p, { emails: S.emails, meetings: S.meetings, today: today(), ownDomains: ownDomains(), touches: S.touches, contactName: contactFirstName });
 }
+
+// ═══════════════ FOLLOW-UP TOUCHES ═══════════════
+
+const TOUCH_WORD: Record<TouchKind, string> = { email_out: 'email', email_in: 'email', call: 'call', whatsapp: 'WhatsApp', meeting: 'meeting' };
+
+/** One click from Follow-up or the proposal page: an email, call, WhatsApp or
+ * meeting with the client today, ours or theirs, with the primary contact.
+ * No dialog; the toast offers Undo. */
+export async function logTouch(proposalId: number, kind: TouchKind, direction: 'out' | 'in' = 'out'): Promise<void> {
+  const p = S.proposals.find((x) => x.id === proposalId);
+  if (!p) return;
+  try {
+    const t = await touchesAdd({ proposalId, companyId: p.companyId ?? null, kind, direction, at: today(), contactId: p.primaryContactId ?? null });
+    S.touches = [...S.touches.filter((x) => x.id !== t.id), t];
+    updateBadge();
+    refreshAll();
+    if (S.currentProposalId === proposalId) (window as any).renderProposalPage?.();
+    const what = direction === 'in' ? `client replied by ${TOUCH_WORD[kind]} today` : `${TOUCH_WORD[kind]} today`;
+    toast(`Logged: ${what}`, { tone: 'success', action: { label: 'Undo', run: () => { void undoTouch(t.id); } } });
+  } catch (err) {
+    toast('Could not log it', { tone: 'error', detail: String(err) });
+  }
+}
+expose('logTouch', logTouch);
+
+async function undoTouch(id: number): Promise<void> {
+  await touchesDelete(id);
+  S.touches = S.touches.filter((t) => t.id !== id);
+  updateBadge();
+  refreshAll();
+  (window as any).renderProposalPage?.();
+}
+
+/** "Followed up ▾": what we did, and below, how the client replied. */
+export function followUpMenu(e: MouseEvent, proposalId: number): void {
+  e.stopPropagation();
+  const log = (kind: TouchKind, direction: 'out' | 'in' = 'out') => () => { void logTouch(proposalId, kind, direction); };
+  const items: ContextMenuItem[] = [
+    { label: 'Followed up', heading: true, run: () => {} },
+    { label: 'Email', run: log('email_out') },
+    { label: 'Call', run: log('call') },
+    { label: 'WhatsApp', run: log('whatsapp') },
+    { label: 'Met', run: log('meeting') },
+    { label: '', run: () => {}, separator: true },
+    { label: 'Client replied', heading: true, run: () => {} },
+    { label: 'Email', run: log('email_in', 'in') },
+    { label: 'Call', run: log('call', 'in') },
+    { label: 'WhatsApp', run: log('whatsapp', 'in') },
+  ];
+  showMenuAt(e.currentTarget as HTMLElement, items);
+}
+expose('followUpMenu', followUpMenu);
 
 /** Sent to the client, and nothing with them for over 10 days. */
 export function needsFollowUp(p: Proposal): boolean {

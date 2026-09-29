@@ -34,7 +34,7 @@ export function briefInputFor(c: CompanyKey): CompanyBriefInput {
   return {
     company: c, today: today(), now: new Date().toISOString(),
     companies: S.companies, opportunities: S.opportunities, projects: S.projects, meetings: S.meetings, proposals: S.proposals,
-    agreements: S.agreements, contacts: S.contacts, todos: S.todos, commitments: S.commitments, emails: S.emails,
+    agreements: S.agreements, contacts: S.contacts, todos: S.todos, commitments: S.commitments, emails: S.emails, touches: S.touches,
     notes: pinnedCache.get(cacheKey(c)) || [],
   };
 }
