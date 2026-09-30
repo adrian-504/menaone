@@ -2147,21 +2147,25 @@
 </div><!-- /app-main -->
 
 <!-- GENERATE PROPOSAL -->
-<div class="modal-ov" id="modal-generate" onclick="if(event.target===this)closeGenerateProposal()">
-  <div class="modal modal-lg">
-    <div class="modal-hd"><div class="modal-title">Generate proposal</div><button class="modal-close" onclick="closeGenerateProposal()">×</button></div>
-    <div class="fg">
-      <div class="fgrp"><label class="flbl" for="gen-template">Template</label><select class="finp" id="gen-template" onchange="refreshGeneratePreview(true)"></select></div>
-      <div class="fgrp"><label class="flbl" for="gen-file-name">File name</label><input class="finp" id="gen-file-name" oninput="updateGenerateVersionNote()"></div>
-      <div class="fgrp fgrp-full"><label class="flbl" for="gen-logo">Client logo</label>
-        <div class="btn-row"><select class="finp" id="gen-logo" onchange="refreshGeneratePreview()"></select><button class="btn-secondary" type="button" onclick="chooseGenerateLogo()">Choose…</button></div>
+<div class="modal-ov studio-ov" id="modal-generate" onclick="if(event.target===this)closeGenerateProposal()">
+  <div class="studio-sheet" role="dialog" aria-modal="true" aria-labelledby="gen-title">
+    <header class="studio-hd">
+      <div class="studio-id">
+        <span class="studio-tile" id="gen-tile" aria-hidden="true"></span>
+        <div class="studio-id-text"><h2 class="studio-title" id="gen-title">Generate proposal</h2><div class="studio-sub" id="gen-sub"></div></div>
+        <button class="rec-icon-btn studio-x" type="button" onclick="closeGenerateProposal()" aria-label="Close"><span data-icon="close" data-icon-size="14"></span></button>
       </div>
-    </div>
-    <div id="gen-preview"></div>
-    <div class="fact">
-      <button class="btn-secondary" onclick="closeGenerateProposal()">Cancel</button>
-      <button class="btn-primary" id="gen-confirm" onclick="confirmGenerateProposal()">Generate</button>
-    </div>
+      <div class="studio-controls" id="gen-controls">
+        <label class="studio-ctl"><span class="studio-ctl-l">Template</span><select class="finp" id="gen-template" onchange="refreshGeneratePreview(true)"></select></label>
+        <div class="studio-ctl"><label class="studio-ctl-l" for="gen-logo">Client logo</label><span class="studio-logo"><select class="finp" id="gen-logo" onchange="refreshGeneratePreview()"></select><button class="btn-secondary btn-sm" type="button" onclick="chooseGenerateLogo()">Choose…</button></span></div>
+        <label class="studio-ctl studio-ctl-wide"><span class="studio-ctl-l">File name</span><input class="finp" id="gen-file-name" oninput="updateGenerateVersionNote()"></label>
+      </div>
+    </header>
+    <div class="studio-body" id="gen-preview"></div>
+    <footer class="studio-ft" id="gen-footer">
+      <div class="studio-progress" id="gen-progress" hidden></div>
+      <div class="studio-ft-actions" id="gen-actions"><button class="btn-secondary" type="button" onclick="closeGenerateProposal()">Cancel</button><button class="btn-primary" id="gen-confirm" type="button" onclick="confirmGenerateProposal()">Generate</button></div>
+    </footer>
   </div>
 </div>
 
