@@ -289,7 +289,7 @@ export async function mydayAct(key: string): Promise<void> {
     case 'open_cleanup': w.openCleanup(a.action.queue); return;
     case 'toggle_group': w.mydayToggleGroup(a.key); return;
     case 'mark_kept':
-      if (a.commitmentId != null) { setCommitmentKept(a.commitmentId, true); toast(`Kept: ${a.title}`); renderMyDay(); }
+      if (a.commitmentId != null) { setCommitmentKept(a.commitmentId, true); renderMyDay(); }
       return;
     default: open();
   }

@@ -61,11 +61,12 @@ Every page tells you where to look. The owner's test: opening any page should ne
 Page = white, panel = reference (owner, 22-Sep-2026: the page stays white; tinted pages were tried and rejected).
 
 - **Page:** `--bg` is white, the same as `--surface`; the tint belongs to the sidebar (`--sidebar-bg`).
-- **Panel:** `--surface-flat` is a quiet panel for reference blocks (My Day's right rail, the Details side panel of a record, the meeting Client brief, the proposal builder summary): no border, no shadow, radius 12, padding 16. Sections inside a panel keep their hairlines, except the first.
+- **Neutrals are warm stone greys, not lavender** (owner, 30-Sep-2026: the lavender tint "cheapens it"; and not "a white page with text"). Sidebar, panels, borders and hairlines share one warm family; blue is kept for actions and selection.
+- **Panel:** `--surface-flat` is a quiet panel for reference blocks (the Details side panel of a record, the meeting Client brief, the proposal builder summary): no border, no shadow, radius 13, padding 16. My Day's rail docks to the window's right edge as a full-height pane with a hairline inner edge. Sections inside a panel keep their hairlines, except the first.
 - **Rhythm:** a section is `.sec`: a hairline above only, about 40px (`--space-7`) from one section to the next, and an uppercase caption heading (`--type-caption`, `--muted`). No box, shadow or radius. Sections side by side sit in columns with a wide gutter.
 - `.card` is only for things that float above the page: popovers, menus, dialogs. The record rail keeps its own floating panel.
 - No card inside a card: figures (record stats, My Day's Business) sit on the page or panel without tiles and highlight with `--hover`.
-- Status dots are 9px.
+- Status dots are 7px.
 - In Dark and Graphite the same roles hold: the panel is one quiet step off the page.
 
 ## Buttons
@@ -113,3 +114,32 @@ Page = white, panel = reference (owner, 22-Sep-2026: the page stays white; tinte
 - `?` (or ⌘/) opens the shortcut sheet. Esc closes the company list first, then the dialog, then leaves a field, then the record.
 - A dialog focuses its first field when it opens (not a company field, so its list doesn't cover the dialog) and returns focus to whatever opened it when it closes (`nav.ts`).
 - Keyboard focus is always visible (`:focus-visible` outline); mouse clicks don't show it.
+
+## Motion
+
+(owner, 30-Sep-2026: "premium apps make every single click feel nicer".) Tokens in `styles.css`; `scripts/motion-check.mjs` fails a build that breaks them (`npm run motion-check`, also run by `npm run build`).
+
+- **Three durations, fixed meaning.** `--dur-fast` 120 ms: a state change on the thing under the pointer (hover, pressed, focus, colour). `--dur-base` 180 ms: something small appearing where it was invoked (menu, popover, toast, row, a tab fading in). `--dur-slow` 260 ms: a large surface (dialog, record page). An exit takes the next duration down (a menu closes in 120, a dialog in 180). Two non-motion tokens: `--dur-loop` for a loading shimmer, `--dur-highlight` for how long a "just added" tint lingers.
+- **One curve in, one out.** Enter `--ease-out`; exit `--ease-in`. Nothing bounces (no spring, no overshoot).
+- **Distance.** Small surfaces move 4 px, large ones 8 px. Scale only on dialogs (.98 → 1), menus (.96 → 1) and pressed buttons (.98); never on rows or text.
+- **Origin.** A surface grows from what opened it: a right-aligned menu from its top-right corner; dialogs from the centre.
+- **Only transform, opacity, colours and box-shadow animate** (and grid rows, for collapsibles). Never width, height, padding, filter or `all`.
+- **Reduced motion:** one switch in `styles.css` takes every duration to 1 ms.
+- **Nothing moves under the pointer.** A background re-render that can reorder a list waits while the pointer is over it or a row is pressed (`deferWhileHovered` in `lib/ui.ts`), then runs on pointer-leave or after 1.5 s still. Your own clicks re-render at once.
+- **Components.** Buttons: hover one step, pressed one step darker and .98, a 2 px `--accent-border` focus ring; disabled at .5 opacity with no hover. Rows: hover one step, pressed one step darker, selected in `--surface-selected`. The sidebar's active fill and every segmented switcher's selection travel to the new item (`lib/motion.ts`). Switching tabs crossfades (the old tab fades out pinned where it was, the new one rises 4 px); a record opens with an 8 px rise and the list fades back in, at the scroll position it was left at. Menus open 180 / close 120 (fade only) and take keyboard focus (arrows, Enter, Escape). Dialogs close in 180 and hand focus back to what opened them. Toasts: three at most, the oldest leaves first, Undo wherever the save can be taken back. A ticked task holds 400 ms, then fades in 180. Folders and groups collapse through grid rows with the chevron turning in 120. A dragged item lifts (the one shadow allowed outside menus, dialogs and toasts).
+- **Proof.** `focus-check` measures layout shift for 1.5 s after each view opens (target 0) and that a list keeps its scroll position; `scripts/motion-frames.mjs` writes timed frames of a sidebar switch, a menu, a dialog and a ticked task to `docs/motion/`.
+
+## Craft
+
+(owner, 30-Sep-2026: "the motion thing extends to how the elements look as well as how they react".)
+
+- **Sizes on a 4 px grid:** buttons 32 (small 26), inputs 32, sidebar items 32, menu items 30, chips 24, badges 18, rows at least 40.
+- **Radii:** 6 (chips, checks, badges), 9 (buttons, inputs, menu items, row hover), 13 (panels, menus), 18 (dialogs). Circles stay 50 %.
+- **Borders:** `--border` for controls, `--hairline` for separators, never a literal grey. Inputs: 1 px border, no inset shadow; on focus the border turns `--accent` and the ring appears.
+- **Shadows:** menus, dialogs and toasts (and a dragged item) only. Never buttons, rows, panels, the sidebar or the proposal's stage strip.
+- **Type:** weights 450 body, 500 buttons and labels, 600 titles and eyebrows. Letter-spacing .06em on uppercase eyebrows, 0 elsewhere. Dates, times, counts and money use tabular numbers.
+- **Icons:** stroke 1.5; 13 inline, 14 in buttons and rows, 16 in headers (larger only as illustrations); inline icons sit 2 px below the baseline and take the text's colour.
+- **State tokens:** `--surface-hover`, `--surface-pressed`, `--surface-selected`, `--accent-hover`, `--accent-pressed`, in every theme (`styleTokens.test.ts`).
+- **Marks:** status dots 7 px; one chip look; badges one height and weight.
+- **Cursor:** pointer only on things that do something; disabled controls use the default cursor.
+

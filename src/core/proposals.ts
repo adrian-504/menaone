@@ -6,7 +6,7 @@ import { today, fmtDate, daysSince, daysUntil, escHtml, expose, showTextPrompt, 
 import { matchesProposalPeriod } from '../lib/period';
 import { persistProposals } from '../lib/persist';
 import { registerBadgeUpdater, refreshAll, getActiveTabId, renderTab } from '../lib/registry';
-import { toast } from '../lib/ui';
+import { toast, undoToast } from '../lib/ui';
 import { draftAgreementsFromProposals } from './agreements';
 import { PS, stageIndex, isLost, isWithdrawn, defaultReviewer, teamMember, renewalsDue, activeMrr, pipelineMonthly, fmtMoneyByCurrency } from '../lib/commercial';
 import { applyRevisionRequest, applyRevisionSent } from '../lib/revisions';
@@ -380,6 +380,7 @@ export function archiveProposal(id: number): void {
   p.archivedAt = today();
   persistProposals();
   refreshAll();
+  undoToast(`Archived ${p.client}`, () => { unarchiveProposal(id); (window as any).renderProposalPage?.(); });
 }
 expose('archiveProposal', archiveProposal);
 

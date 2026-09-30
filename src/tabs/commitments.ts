@@ -6,7 +6,7 @@
 import { foldMoreDetails } from '../lib/moreDetails';
 import { S } from '../lib/state';
 import { renderIcons } from '../core/chrome';
-import { toast } from '../lib/ui';
+import { toast, undoToast } from '../lib/ui';
 import { emitChange } from '../lib/changes';
 import { recordLink, companyLink } from '../lib/links';
 import { escHtml, expose, fmtDate, today, inCompany, showTextPrompt, showConfirm } from '../lib/utils';
@@ -228,11 +228,23 @@ function byId(id: number): Commitment | undefined {
 export function setCommitmentKept(id: number, kept: boolean): void {
   const c = byId(id);
   if (!c || c.status === 'dropped') return;
+  const was = { status: c.status, closedAt: c.closedAt };
   c.status = kept ? 'kept' : 'open';
   c.closedAt = kept ? new Date().toISOString() : null;
   persistCommitments();
   refreshBadges();
   refreshCommitmentViews();
+  // A promise kept can be taken back (owner, 30-Sep-2026: Undo where a save is reversible).
+  if (kept && was.status !== 'kept') {
+    undoToast(`Kept: ${c.text}`, () => {
+      c.status = was.status;
+      c.closedAt = was.closedAt;
+      persistCommitments();
+      refreshBadges();
+      refreshCommitmentViews();
+      (window as any).renderMyDay?.();
+    });
+  }
 }
 
 export function toggleCommitmentKept(id: number): void {
