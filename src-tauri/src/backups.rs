@@ -152,7 +152,7 @@ pub fn spawn_daily_backup_loop(app: AppHandle, dir: PathBuf) {
         let state = app.state::<DbState>();
         let Ok(conn) = state.0.lock() else { continue };
         if let Err(e) = ensure_daily_backup(&conn, &dir, DAILY_KEEP) {
-            eprintln!("[backups] daily snapshot failed: {e}");
+            log::warn!("backups: daily snapshot failed: {e}");
             continue;
         }
         // A new day's snapshot goes to OneDrive too (housekeeping.rs).

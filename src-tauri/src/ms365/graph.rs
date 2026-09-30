@@ -46,9 +46,17 @@ async fn send_with(mut request: reqwest::RequestBuilder, retry_server_busy: bool
     let mut attempt = 0;
     loop {
         let retry = request.try_clone();
-        let resp = request.send().await.map_err(|e| format!("Could not reach Microsoft Graph: {e}"))?;
+        let resp = request.send().await.map_err(|e| {
+            // The kind of failure only: the error text can carry the URL and its query.
+            log::warn!("graph: unreachable ({})", if e.is_timeout() { "timeout" } else if e.is_connect() { "connect" } else { "request" });
+            format!("Could not reach Microsoft Graph: {e}")
+        })?;
         let retry_after = resp.headers().get(reqwest::header::RETRY_AFTER).and_then(|v| v.to_str().ok()).map(str::to_string);
         let status = resp.status().as_u16();
+        if !resp.status().is_success() {
+            // Status and path only — never the query string, a token or a body.
+            log::warn!("graph: {} {} → {}", status, resp.url().path(), if status == 401 { "token refresh" } else { "failed" });
+        }
         let delay = if retry_server_busy || status == 429 { retry_delay(status, retry_after.as_deref(), attempt) } else { None };
         match (retry, delay) {
             (Some(next), Some(wait)) => {

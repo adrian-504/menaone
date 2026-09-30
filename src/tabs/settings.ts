@@ -4,7 +4,7 @@ import { S } from '../lib/state';
 import { toast } from '../lib/ui';
 import { escHtml, expose, showConfirm, fmtDateTime } from '../lib/utils';
 import { registerTabRenderer } from '../lib/registry';
-import { rebuildSearchIndex, ms365GetClientId, ms365SetClientId, ms365GetTenantId, ms365SetTenantId, ms365Status, ms365Connect, ms365Disconnect, runCompanyMigration, getCompanies, listLocalBackups, backupDatabaseNow, revealBackupsFolder } from '../lib/db';
+import { rebuildSearchIndex, revealLogsFolder, ms365GetClientId, ms365SetClientId, ms365GetTenantId, ms365SetTenantId, ms365Status, ms365Connect, ms365Disconnect, runCompanyMigration, getCompanies, listLocalBackups, backupDatabaseNow, revealBackupsFolder } from '../lib/db';
 import { THEMES } from '../core/theme';
 import { applyMs365SidebarVisibility } from '../core/chrome';
 import { renderTab } from '../lib/registry';
@@ -108,6 +108,7 @@ async function backupDatabaseNowFromSettings(): Promise<void> {
 }
 expose('backupDatabaseNowFromSettings', backupDatabaseNowFromSettings);
 expose('revealBackupsFolderFromSettings', () => { void revealBackupsFolder(); });
+expose('revealLogsFolder', () => { void revealLogsFolder().catch((e) => toast("Couldn't open the logs folder", { tone: 'error', detail: String(e) })); });
 
 /** Settings → Data: rebuild search on demand (foundations P1). */
 async function rebuildSearchIndexFromSettings(): Promise<void> {

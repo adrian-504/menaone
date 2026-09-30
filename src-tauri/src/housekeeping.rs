@@ -68,6 +68,7 @@ pub fn run_quick_check(conn: &Connection) -> rusqlite::Result<IntegrityResult> {
     let ok = rows.len() == 1 && rows[0] == "ok";
     let result = IntegrityResult { at: now_iso(), ok, detail: if ok { None } else { rows.first().cloned() } };
     set_meta(conn, "integrity_last", &serde_json::to_string(&result).unwrap_or_default())?;
+    if ok { log::info!("housekeeping: quick_check ok"); } else { log::error!("housekeeping: quick_check failed: {}", result.detail.as_deref().unwrap_or("")); }
     Ok(result)
 }
 
@@ -144,7 +145,8 @@ pub fn sync_daily_to_onedrive(conn: &Connection, backups_dir: &Path, roots: &[Pa
         Some(dir) => copy_snapshot_to_onedrive(&backups_dir.join(format!("daily-{date}.sqlite3")), &dir, &date, ONEDRIVE_KEEP),
     };
     match outcome {
-        Ok(Some(_)) => {
+        Ok(Some(path)) => {
+            log::info!("housekeeping: OneDrive copy {} made and checked", path.file_name().and_then(|n| n.to_str()).unwrap_or("?"));
             let _ = set_meta(conn, "backup_onedrive_last", &now_iso());
             let _ = set_meta(conn, "backup_onedrive_error", "");
         }
@@ -152,7 +154,7 @@ pub fn sync_daily_to_onedrive(conn: &Connection, backups_dir: &Path, roots: &[Pa
             let _ = set_meta(conn, "backup_onedrive_error", "");
         }
         Err(e) => {
-            eprintln!("[backups] OneDrive copy failed: {e}");
+            log::warn!("housekeeping: OneDrive copy failed: {e}");
             let _ = set_meta(conn, "backup_onedrive_error", &e);
         }
     }
@@ -241,7 +243,7 @@ pub fn spawn_launch_checks(app: tauri::AppHandle, app_data_dir: PathBuf, backups
         let state = app.state::<crate::db::DbState>();
         if let Ok(conn) = state.0.lock() {
             if let Err(e) = run_quick_check(&conn) {
-                eprintln!("[integrity] quick_check failed to run: {e}");
+                log::error!("housekeeping: quick_check failed to run: {e}");
             }
             sync_daily_to_onedrive(&conn, &backups_dir, &crate::localfiles::onedrive_dirs());
         }

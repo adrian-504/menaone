@@ -677,6 +677,8 @@ export async function installDevMockIfNeeded(): Promise<void> {
         }
         case 'activity_forget': return 0;
         case 'rebuild_search_index': return null;
+        case 'log_frontend': return null;
+        case 'reveal_logs_folder': return null;
         case 'touches_delete': {
           const id = (_payload as any)?.id;
           touchesStore = touchesStore.filter((t) => t.id !== id);

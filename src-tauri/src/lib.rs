@@ -8,6 +8,7 @@ pub mod company_migration;
 pub mod db;
 pub mod email_templates;
 pub mod housekeeping;
+pub mod logfile;
 
 /// The search-index fingerprint when the app opened (foundations P1).
 pub struct LaunchFingerprint(pub String);
@@ -179,6 +180,7 @@ fn build_menu(app: &tauri::AppHandle) -> tauri::Result<tauri::menu::Menu<tauri::
 
 /// Shows what went wrong before the app has a window, then quits.
 fn startup_failure(message: &str, detail: &str) -> ! {
+    log::error!("startup failed: {message} — {detail}");
     eprintln!("[startup] {message}\n{detail}");
     rfd::MessageDialog::new()
         .set_level(rfd::MessageLevel::Error)
@@ -201,6 +203,9 @@ pub fn run() {
                 .path()
                 .app_data_dir()
                 .expect("failed to resolve app data directory");
+            // The log first, so everything below (migrations included) is recorded (foundations O1).
+            logfile::init(&app_data_dir);
+            log::info!("launch: MENA One {} starting", app.package_info().version);
             let db_file = db::db_path(&app_data_dir);
             let backups_dir = backups::backups_dir(&app_data_dir);
             if let Err(e) = backups::backup_before_migrations(&db_file, &backups_dir) {
@@ -218,7 +223,7 @@ pub fn run() {
                 ),
             };
             if let Err(e) = backups::ensure_daily_backup(&conn, &backups_dir, backups::DAILY_KEEP) {
-                eprintln!("[backups] daily snapshot failed: {e}");
+                log::warn!("backups: daily snapshot failed: {e}");
             }
             // The search index and note-link graph are derived data. Rebuilt at launch
             // only when the data changed outside the app (an edit, a restore, a crash
@@ -304,6 +309,8 @@ pub fn run() {
             commands::save_company_note,
             commands::export_backup_json,
             activity::get_activity,
+            logfile::log_frontend,
+            logfile::reveal_logs_folder,
             activity::activity_forget,
             ms365::commands::ms365_get_emails_by_address,
             activity::rename_company,

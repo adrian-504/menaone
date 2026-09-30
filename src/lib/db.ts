@@ -242,6 +242,9 @@ export async function getNoteBacklinks(noteId: number): Promise<NoteRef[]> {
   return invoke<NoteRef[]>('get_note_backlinks', { noteId });
 }
 export async function rebuildSearchIndex(): Promise<void> { await invoke('rebuild_search_index'); }
+/** A line in the app's log (foundations O1). */
+export async function logFrontend(level: string, message: string): Promise<void> { await invoke('log_frontend', { level, message }); }
+export async function revealLogsFolder(): Promise<void> { await invoke('reveal_logs_folder'); }
 
 // ═══════════════ Microsoft 365 ═══════════════
 

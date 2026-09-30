@@ -1200,6 +1200,7 @@ fn run_steps(conn: &Connection, mut steps: Vec<(i64, MigrationStep)>) -> rusqlit
             )?;
             Ok(())
         })?;
+        log::info!("migration: schema {version} → {target_version}");
         version = *target_version;
     }
     Ok(())

@@ -32,6 +32,9 @@ import { renderIcons, initSidebarCollapsed, applyMs365SidebarVisibility } from '
 import { initTheme } from './core/theme';
 import { startMotion } from './lib/motion';
 import { startTooltips } from './lib/tooltip';
+import { startErrorReporting } from './lib/errors';
+import { logFrontend } from './lib/db';
+import pkg from '../package.json';
 import { startRollingNumbers } from './lib/rollNumber';
 import './core/router';
 import './lib/links';
@@ -85,6 +88,9 @@ initSidebarCollapsed();
 renderIcons();
 startMotion();
 startTooltips();
+// Uncaught errors go to the app's log, with one quiet toast (foundations O1).
+(window as any).__menaLog = (level: string, message: string) => logFrontend(level, message).catch(() => undefined);
+startErrorReporting(pkg.version, () => S.currentTab || 'start', (level, message) => { void logFrontend(level, message).catch(() => undefined); });
 
 /** Populate every filter/select that isn't already refreshed by its own tab's
  * registered render function (Pending/Agreements populate their own filters
