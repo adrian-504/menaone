@@ -4,7 +4,7 @@
 // on selection), links and backlinks at the foot of the note, and a focus
 // mode that hides everything but the writing.
 
-import { settleNew } from '../lib/motion';
+import { collapseRow, collapseRows, settleNew } from '../lib/motion';
 import { S } from '../lib/state';
 import { toast, emptyState } from '../lib/ui';
 import { companyLink, recordLink } from '../lib/links';
@@ -874,6 +874,7 @@ expose('duplicateNote', duplicateNote);
 export async function deleteNote(id: number): Promise<void> {
   const n = S.notes.find((x) => x.id === id);
   if (!(await showConfirm(`"${n?.title || 'Untitled'}" and any images in it will be deleted.`, { title: 'Delete note?', confirmLabel: 'Delete' }))) return;
+  await collapseRow(document.querySelector(`.note-item[data-note-id="${id}"]`));
   S.notes = S.notes.filter((x) => x.id !== id);
   persistNotes();
   if (id === S.currentNoteId) closeNoteEditor();

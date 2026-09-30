@@ -151,7 +151,7 @@ export function wqCard(p: Proposal): string {
     (p.revision ?? 1) > 1 ? `Revision ${p.revision}` : '',
     nc ? `<a href="#" class="rlink" onclick="event.preventDefault();openNotesModal(${p.id})">${nc} note${nc === 1 ? '' : 's'}</a>` : '',
   ].filter(Boolean).join('<span class="pq-sep">·</span>');
-  return `<div class="pq-row" onclick="if(!event.target.closest('a,button'))openRecord('proposal', ${p.id})" oncontextmenu="pqMenu(event, ${p.id})">
+  return `<div class="pq-row" data-row-id="${p.id}" onclick="if(!event.target.closest('a,button'))openRecord('proposal', ${p.id})" oncontextmenu="pqMenu(event, ${p.id})">
     <span class="pq-age ${wqAgeClass(days)}" title="${days ?? '?'} days since it was added">${days ?? '?'}<small>d</small></span>
     <div class="pq-main">
       <div class="pq-title">${companyLink(p.companyId, p.client)}<span class="pq-services">${escHtml(p.type || '')}</span></div>

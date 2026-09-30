@@ -90,7 +90,7 @@ export function fuCard(p: Proposal, isArchived: boolean): string {
   const contact = touch ? escHtml(touchLabel(touch, fmtDate(sent), followUpCount(p, S.touches))).split(' · ').join('<span class="pq-sep">·</span>') : `Sent ${fmtDate(sent)}`;
   const rev = Math.max(1, p.revision ?? 1);
   const meta = [contact, rev > 1 ? `Revision ${rev}` : '', `SL# ${p.id}`, p.owner ? escHtml(p.owner) : '', p.winLossReason ? `previously: ${escHtml(p.winLossReason)}` : ''].filter(Boolean).join('<span class="pq-sep">·</span>');
-  return `<div class="pq-row${isArchived ? ' is-archived' : ''}" onclick="if(!event.target.closest('a,button'))openRecord('proposal', ${p.id})" oncontextmenu="pqMenu(event, ${p.id})">
+  return `<div class="pq-row${isArchived ? ' is-archived' : ''}" data-row-id="${p.id}" onclick="if(!event.target.closest('a,button'))openRecord('proposal', ${p.id})" oncontextmenu="pqMenu(event, ${p.id})">
     <span class="pq-age ${isArchived ? '' : tone}" title="${days} days since the last contact">${days}<small>d</small></span>
     <div class="pq-main">
       <div class="pq-title">${companyLink(p.companyId, p.client)}<span class="pq-services">${escHtml(p.type || '')}</span></div>

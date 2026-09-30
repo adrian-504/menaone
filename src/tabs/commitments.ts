@@ -3,6 +3,7 @@
 // and reading `>>` / `<<` lines out of meeting notes, notes and quick
 // capture (the rules are in src/lib/commitments.ts, storage in commitments.rs).
 
+import { collapseRow, collapseRows } from '../lib/motion';
 import { foldMoreDetails } from '../lib/moreDetails';
 import { S } from '../lib/state';
 import { renderIcons } from '../core/chrome';
@@ -233,7 +234,8 @@ export function setCommitmentKept(id: number, kept: boolean): void {
   c.closedAt = kept ? new Date().toISOString() : null;
   persistCommitments();
   refreshBadges();
-  refreshCommitmentViews();
+  if (kept) void collapseRows(document.querySelectorAll(`.cm-row[data-commitment-id="${id}"]:not(.is-closed)`)).then(refreshCommitmentViews);
+  else refreshCommitmentViews();
   // A promise kept can be taken back (owner, 30-Sep-2026: Undo where a save is reversible).
   if (kept && was.status !== 'kept') {
     undoToast(`Kept: ${c.text}`, () => {

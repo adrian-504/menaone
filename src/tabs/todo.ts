@@ -4,7 +4,7 @@
 // beside the list instead of an edit dialog. Board and Calendar views show
 // the same list's tasks.
 
-import { settleNew } from '../lib/motion';
+import { collapseRow, collapseRows, settleNew } from '../lib/motion';
 import { foldMoreDetails } from '../lib/moreDetails';
 import { S } from '../lib/state';
 import { toast, undoToast, emptyState } from '../lib/ui';
@@ -764,10 +764,11 @@ export function completeTask(id: number): void {
   window.setTimeout(() => {
     const list = currentList();
     if (getActiveTabId() === 'todo' && list !== 'completed' && S.taskView === 'list') {
-      // Ticked: the row holds 400 ms, then fades in 180 ms (motion system; no height animation).
-      document.querySelectorAll<HTMLElement>(`#todo-list .task-row[data-task-id="${id}"]`).forEach((row) => row.classList.add('leaving'));
+      // Ticked: the row holds 400 ms, then leaves — it fades and the list closes up (delight 4).
+      void collapseRows(document.querySelectorAll(`#todo-list .task-row[data-task-id="${id}"]`)).then(() => afterTodoListChange());
+      return;
     }
-    window.setTimeout(() => afterTodoListChange(), 180);
+    afterTodoListChange();
   }, reduceMotion() ? 0 : 400);
   undoToast(`Completed "${t.title}"`, () => {
     t.status = before.status;
@@ -885,7 +886,9 @@ export function deleteTasks(ids: number[], opts: { silent?: boolean } = {}): voi
   S.todos = S.todos.filter((x) => !doomed.has(x.id));
   ids.forEach((id) => selection.delete(id));
   if (S.taskDetailId != null && doomed.has(S.taskDetailId)) closeTaskDetail();
-  afterTodoListChange();
+  // The deleted rows close up before the list redraws.
+  const rows = [...doomed].flatMap((id) => [...document.querySelectorAll(`#todo-list .task-row[data-task-id="${id}"]`)]);
+  void collapseRows(rows).then(() => afterTodoListChange());
   if (opts.silent) return;
   const subtasks = removed.length - tasks.length;
   const what = tasks.length === 1 ? `"${tasks[0].title}"` : `${tasks.length} tasks`;

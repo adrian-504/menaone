@@ -1,3 +1,4 @@
+import { collapseRow, collapseRows } from '../lib/motion';
 import { backInDays, lastTouch, FOLLOW_UP_AFTER_DAYS, WAIT_LONGER_DAYS, type LastTouch } from '../lib/followup';
 import { ownDomains } from '../lib/clientMatch';
 import { S } from '../lib/state';
@@ -336,7 +337,7 @@ export function snoozeProposal(id: number, days: number): void {
   d.setDate(d.getDate() + days);
   p.snoozedUntil = localIsoDate(d);
   persistProposals();
-  refreshAll();
+  void collapseRows(document.querySelectorAll(`.pq-row[data-row-id="${id}"]`)).then(refreshAll);
 }
 expose('snoozeProposal', snoozeProposal);
 
@@ -383,7 +384,7 @@ export function archiveProposal(id: number): void {
   p.archived = true;
   p.archivedAt = today();
   persistProposals();
-  refreshAll();
+  void collapseRows(document.querySelectorAll(`.pq-row[data-row-id="${id}"]`)).then(refreshAll);
   undoToast(`Archived ${p.client}`, () => { unarchiveProposal(id); (window as any).renderProposalPage?.(); });
 }
 expose('archiveProposal', archiveProposal);

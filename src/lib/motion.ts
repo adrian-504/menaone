@@ -10,7 +10,7 @@
 //   the new item (180 ms) instead of jumping: one highlight element per group,
 //   moved with transform.
 
-const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+const reduced = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 // ── Dialogs ────────────────────────────────────────────────────────────────
 
@@ -121,5 +121,42 @@ export function settleNew(el: Element | null | undefined): void {
   const done = () => el.classList.remove('is-new');
   el.addEventListener('animationend', done, { once: true });
   window.setTimeout(done, 400);
+}
+
+// ── Rows leave (delight 4) ──────────────────────────────────────────────────
+
+const token = (name: string, fallback: number) => {
+  const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  const n = parseFloat(v);
+  return Number.isFinite(n) ? (v.endsWith('ms') ? n : n * 1000) : fallback;
+};
+
+/** A row that is going away fades (--dur-fast) and then closes up (--dur-base,
+ * --ease-in), so the rows below slide up instead of jumping. Resolves when it
+ * is done — or at once with reduced motion, no animation support, or a table
+ * row (which can't shrink) — and never waits on a paused (hidden) window. */
+export function collapseRow(el: Element | null | undefined): Promise<void> {
+  if (!(el instanceof HTMLElement) || reduced() || typeof el.animate !== 'function') return Promise.resolve();
+  const fast = token('--dur-fast', 120);
+  const base = token('--dur-base', 180);
+  const easeIn = getComputedStyle(document.documentElement).getPropertyValue('--ease-in').trim() || 'ease-in';
+  const cs = getComputedStyle(el);
+  el.style.pointerEvents = 'none';
+  const fade = el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: fast, easing: easeIn, fill: 'forwards' });
+  const settle = (a: Animation, ms: number) => Promise.race([a.finished.then(() => undefined, () => undefined), new Promise<void>((r) => window.setTimeout(r, ms + 60))]);
+  return settle(fade, fast).then(() => {
+    if (el.tagName === 'TR') return undefined;
+    el.style.overflow = 'hidden';
+    const close = el.animate([
+      { height: `${el.offsetHeight}px`, marginTop: cs.marginTop, marginBottom: cs.marginBottom, paddingTop: cs.paddingTop, paddingBottom: cs.paddingBottom },
+      { height: '0px', marginTop: '0px', marginBottom: '0px', paddingTop: '0px', paddingBottom: '0px' },
+    ], { duration: base, easing: easeIn, fill: 'forwards' });
+    return settle(close, base);
+  });
+}
+
+/** Every matching row collapses together. */
+export function collapseRows(els: Iterable<Element>): Promise<void> {
+  return Promise.all([...els].map(collapseRow)).then(() => undefined);
 }
 

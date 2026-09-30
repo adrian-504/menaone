@@ -1,4 +1,4 @@
-import { settleNew } from '../lib/motion';
+import { collapseRow, collapseRows, settleNew } from '../lib/motion';
 import { optimistic } from '../lib/optimistic';
 import { S } from '../lib/state';
 import { emptyState } from '../lib/ui';
@@ -114,6 +114,7 @@ export async function dismissInboxItem(id: number): Promise<void> {
   const item = S.inboxItems.find((i) => i.id === id);
   if (!item) return;
   const redraw = () => { updateInboxBadge(); renderInbox(); (window as any).renderMyDay?.(); };
+  await collapseRow(document.querySelector(`.inbox-item[data-inbox-id="${id}"]`));
   await optimistic({
     apply: () => { S.inboxItems = S.inboxItems.filter((i) => i.id !== id); redraw(); },
     commit: () => deleteInboxItem(id),
