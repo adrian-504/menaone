@@ -8,7 +8,7 @@
 //! can see here — read-only, never copied anywhere.
 
 use crate::db::DbState;
-use rusqlite::{params, OptionalExtension};
+use rusqlite::{params, Connection, OptionalExtension};
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 use tauri::State;
@@ -243,6 +243,11 @@ pub fn files_get_or_create_msfile(state: State<DbState>, path: String, name: Str
 pub fn files_get_by_ids(state: State<DbState>, ids: Vec<i64>) -> CmdResult<Vec<LocalFileItem>> {
     if ids.is_empty() { return Ok(vec![]); }
     let conn = state.0.lock().map_err(err)?;
+    files_by_ids(&conn, &ids)
+}
+
+pub fn files_by_ids(conn: &Connection, ids: &[i64]) -> CmdResult<Vec<LocalFileItem>> {
+    if ids.is_empty() { return Ok(vec![]); }
     let placeholders = ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
     let sql = format!("SELECT path, name, item_type FROM microsoft_files WHERE id IN ({placeholders})");
     let mut stmt = conn.prepare(&sql).map_err(err)?;

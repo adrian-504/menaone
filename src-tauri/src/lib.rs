@@ -9,6 +9,7 @@ pub mod db;
 pub mod email_templates;
 pub mod housekeeping;
 pub mod logfile;
+pub mod dossier;
 
 /// The search-index fingerprint when the app opened (foundations P1).
 pub struct LaunchFingerprint(pub String);
@@ -309,6 +310,7 @@ pub fn run() {
             commands::save_company_note,
             commands::export_backup_json,
             activity::get_activity,
+            dossier::company_dossier,
             logfile::log_frontend,
             logfile::reveal_logs_folder,
             activity::activity_forget,

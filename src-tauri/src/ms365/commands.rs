@@ -432,10 +432,14 @@ pub fn ms365_get_emails_by_ids(state: State<DbState>, ids: Vec<i64>) -> CmdResul
 #[tauri::command]
 pub fn ms365_get_emails_by_company(state: State<DbState>, company_id: i64) -> CmdResult<Vec<EmailRecord>> {
     let conn = state.0.lock().map_err(err)?;
+    emails_for_company(&conn, company_id).map_err(err)
+}
+
+pub fn emails_for_company(conn: &rusqlite::Connection, company_id: i64) -> rusqlite::Result<Vec<EmailRecord>> {
     let sql = format!("{EMAIL_SELECT} WHERE company_id = ?1 ORDER BY received_at DESC LIMIT 50");
-    let mut stmt = conn.prepare(&sql).map_err(err)?;
-    let rows = stmt.query_map(params![company_id], row_to_email).map_err(err)?;
-    rows.collect::<rusqlite::Result<_>>().map_err(err)
+    let mut stmt = conn.prepare(&sql)?;
+    let rows = stmt.query_map(params![company_id], row_to_email)?;
+    rows.collect::<rusqlite::Result<_>>()
 }
 
 /// `complete` marks the flag done (kept in Outlook's flag history); `false`

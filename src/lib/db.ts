@@ -97,7 +97,11 @@ export async function setFxRate(currency: string, rate: number | null): Promise<
 export async function proposalFolderLookup(client: string, folderPath: string | null): Promise<ProposalFolder> { return invoke<ProposalFolder>('proposal_folder_lookup', { client, folderPath }); }
 export async function proposalFolderCreate(client: string): Promise<ProposalFolder> { return invoke<ProposalFolder>('proposal_folder_create', { client }); }
 export async function setProposalsRoot(path: string | null): Promise<CommercialSetup> { return invoke<CommercialSetup>('set_proposals_root', { path }); }
-export async function getActivity(filter: ActivityFilter): Promise<ActivityEntry[]> { return invoke<ActivityEntry[]>('get_activity', { filter }); }
+export async function getActivity(filter: ActivityFilter): Promise<ActivityEntry[]> {
+  const own = () => invoke<ActivityEntry[]>('get_activity', { filter });
+  const keys = Object.keys(filter).filter((k) => (filter as any)[k] != null).sort().join(',');
+  return (keys === 'companyId,limit' && filter.limit === 400 && fromDossier('activity', (d) => d.id === filter.companyId, own, 2)) || own();
+}
 /** Renames a company in place (same id); fails if the name belongs to another company. */
 export async function renameCompany(id: number, name: string): Promise<Company> { return invoke<Company>('rename_company', { id, name }); }
 export async function ms365GetEmailsByAddress(address: string): Promise<EmailRecord[]> { return invoke<EmailRecord[]>('ms365_get_emails_by_address', { address }); }
@@ -200,7 +204,8 @@ export async function saveMeeting(meeting: Meeting): Promise<Meeting> { return n
 export async function deleteMeeting(id: number): Promise<void> { await invoke('delete_meeting', { id }); }
 
 export async function getLinksFor(entityType: EntityKind, entityId: number): Promise<EntityLink[]> {
-  return invoke<EntityLink[]>('get_links_for', { entityType, entityId });
+  const own = () => invoke<EntityLink[]>('get_links_for', { entityType, entityId });
+  return (entityType === 'company' && fromDossier('links', (d) => d.id === entityId, own)) || own();
 }
 export async function setLinksFrom(fromType: EntityKind, fromId: number, links: EntityLink[]): Promise<void> {
   await invoke('set_links_from', { fromType, fromId, links });
@@ -264,7 +269,10 @@ export async function ms365Disconnect(): Promise<MicrosoftAccountStatus> { retur
 export async function ms365SyncFlaggedEmails(): Promise<EmailRecord[]> { return (await invoke<EmailRecord[]>('ms365_sync_flagged_emails')).map(normalizeEmail); }
 export async function ms365GetCachedEmails(): Promise<EmailRecord[]> { return (await invoke<EmailRecord[]>('ms365_get_cached_emails')).map(normalizeEmail); }
 export async function ms365GetEmailsByIds(ids: number[]): Promise<EmailRecord[]> { return ids.length ? invoke<EmailRecord[]>('ms365_get_emails_by_ids', { ids }) : Promise.resolve([]); }
-export async function ms365GetEmailsByCompany(companyId: number): Promise<EmailRecord[]> { return invoke<EmailRecord[]>('ms365_get_emails_by_company', { companyId }); }
+export async function ms365GetEmailsByCompany(companyId: number): Promise<EmailRecord[]> {
+  const own = () => invoke<EmailRecord[]>('ms365_get_emails_by_company', { companyId });
+  return fromDossier('emails', (d) => d.id === companyId, own) || own();
+}
 export async function ms365GetCompletedEmails(limit = 100): Promise<EmailCompletedRecord[]> { return invoke<EmailCompletedRecord[]>('ms365_get_completed_emails', { limit }); }
 export async function ms365UpdateEmailFlag(id: number, complete: boolean): Promise<void> { await invoke('ms365_update_email_flag', { id, complete }); }
 /** Undo for complete / remove flag: flags the message again in Outlook and returns the refreshed flagged list. */
@@ -296,7 +304,18 @@ export async function filesListFolder(path: string): Promise<LocalFileItem[]> { 
 export async function filesOpen(path: string): Promise<void> { await invoke('files_open', { path }); }
 export async function filesRevealInFinder(path: string): Promise<void> { await invoke('files_reveal_in_finder', { path }); }
 export async function filesGetOrCreateMsfile(path: string, name: string, itemType: 'file' | 'folder'): Promise<number> { return invoke<number>('files_get_or_create_msfile', { path, name, itemType }); }
-export async function filesGetByIds(ids: number[]): Promise<LocalFileItem[]> { return ids.length ? invoke<LocalFileItem[]>('files_get_by_ids', { ids }) : Promise.resolve([]); }
+export async function filesGetByIds(ids: number[]): Promise<LocalFileItem[]> {
+  if (!ids.length) return [];
+  const own = () => invoke<LocalFileItem[]>('files_get_by_ids', { ids });
+  // The company's linked files, if these are exactly the ones the dossier read.
+  const d = dossier;
+  if (!d || Date.now() - d.at > 5000) return own();
+  const x = await d.data.catch(() => null);
+  if (!x) return own();
+  const key = (list: number[]) => [...list].sort((a, b) => a - b).join(',');
+  const theirs = x.links.filter((l) => l.fromType === 'msfile' && l.toType === 'company' && l.toId === d.id).map((l) => l.fromId);
+  return key(theirs) === key(ids) ? (fromDossier('files', () => true, own) || own()) : own();
+}
 export async function filesResolveCompanyId(name: string): Promise<number> { return invoke<number>('files_resolve_company_id', { name }); }
 export async function filesListLinked(): Promise<LinkedFileEntry[]> { return invoke<LinkedFileEntry[]>('files_list_linked'); }
 export async function filesStatPaths(paths: string[]): Promise<LocalFileItem[]> { return paths.length ? invoke<LocalFileItem[]>('files_stat_paths', { paths }) : Promise.resolve([]); }
@@ -349,7 +368,10 @@ function showSaveErrorToast(label: string) {
 
 // ── Company notes (dated entries) ────────────────────────────────────────────
 export interface CompanyNoteEntry { id: number; companyId: number | null; companyName: string | null; body: string; isLegacy: boolean; createdAt: string; updatedAt: string | null; pinned?: boolean; }
-export async function companyNoteEntries(companyId: number | null, companyName: string | null): Promise<CompanyNoteEntry[]> { return invoke<CompanyNoteEntry[]>('company_note_entries', { companyId, companyName }); }
+export async function companyNoteEntries(companyId: number | null, companyName: string | null): Promise<CompanyNoteEntry[]> {
+  const own = () => invoke<CompanyNoteEntry[]>('company_note_entries', { companyId, companyName });
+  return fromDossier('noteEntries', (d) => d.id === companyId && d.name === companyName, own) || own();
+}
 export async function allCompanyNoteEntries(): Promise<CompanyNoteEntry[]> { return (await invoke<CompanyNoteEntry[] | null>('all_company_note_entries')) ?? []; }
 export async function addCompanyNoteEntryDb(companyId: number | null, companyName: string | null, body: string): Promise<CompanyNoteEntry> { return invoke<CompanyNoteEntry>('add_company_note_entry', { companyId, companyName, body }); }
 export async function updateCompanyNoteEntryDb(id: number, body: string): Promise<CompanyNoteEntry> { return invoke<CompanyNoteEntry>('update_company_note_entry', { id, body }); }
@@ -364,3 +386,32 @@ export async function serviceUsage(id: number): Promise<[number, number]> { retu
 /** Per-source result of the last Watch sync: what each feed brought back, or why it failed. */
 export interface FeedStatus { name: string; kind: string; lastRunAt: string | null; added: number; considered: number; error: string | null; }
 export async function intelligenceFeedStatus(): Promise<FeedStatus[]> { return invoke<FeedStatus[]>('intelligence_feed_status'); }
+
+// ── The company page in one round trip (foundations P4) ─────────────────────
+// Opening a company asks for its activity, notes, links, files and emails in
+// one call; the page's sections then take their part from it instead of each
+// asking the backend (activity twice). Served for a few seconds, each part a
+// set number of times, so a later reload after an edit reads fresh.
+
+export interface CompanyDossierData {
+  activity: ActivityEntry[];
+  noteEntries: CompanyNoteEntry[];
+  links: EntityLink[];
+  files: LocalFileItem[];
+  emails: EmailRecord[];
+}
+let dossier: { id: number | null; name: string; at: number; data: Promise<CompanyDossierData>; used: Record<string, number> } | null = null;
+
+export function primeCompanyDossier(id: number | null, name: string): void {
+  dossier = { id, name, at: Date.now(), data: invoke<CompanyDossierData>('company_dossier', { companyId: id, companyName: name }), used: {} };
+  dossier.data.catch(() => { dossier = null; });
+}
+
+function fromDossier<K extends keyof CompanyDossierData>(kind: K, match: (d: { id: number | null; name: string }) => boolean, fallback: () => Promise<CompanyDossierData[K]>, uses = 1): Promise<CompanyDossierData[K]> | null {
+  const d = dossier;
+  if (!d || Date.now() - d.at > 5000 || !match(d)) return null;
+  const n = d.used[kind] || 0;
+  if (n >= uses) return null;
+  d.used[kind] = n + 1;
+  return d.data.then((x) => x[kind] ?? fallback()).catch(() => fallback());
+}

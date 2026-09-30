@@ -373,15 +373,18 @@ const ENTRY_SELECT: &str =
 #[tauri::command]
 pub fn company_note_entries(state: State<DbState>, company_id: Option<i64>, company_name: Option<String>) -> CmdResult<Vec<CompanyNoteEntry>> {
     let conn = state.0.lock().map_err(err)?;
+    note_entries_for(&conn, company_id, company_name.as_deref()).map_err(err)
+}
+
+pub fn note_entries_for(conn: &Connection, company_id: Option<i64>, company_name: Option<&str>) -> rusqlite::Result<Vec<CompanyNoteEntry>> {
     let mut stmt = conn
         .prepare(&format!(
             "{ENTRY_SELECT} WHERE (?1 IS NOT NULL AND company_id = ?1)
                 OR (?2 IS NOT NULL AND company_id IS NULL AND company_name = ?2)
              ORDER BY created_at DESC, id DESC"
-        ))
-        .map_err(err)?;
-    let rows = stmt.query_map(params![company_id, company_name], |r| row_to_entry(r)).map_err(err)?;
-    rows.collect::<rusqlite::Result<_>>().map_err(err)
+        ))?;
+    let rows = stmt.query_map(params![company_id, company_name], |r| row_to_entry(r))?;
+    rows.collect::<rusqlite::Result<_>>()
 }
 
 /// Every company's notes, newest first — for Notes' per-client list, which

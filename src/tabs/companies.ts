@@ -33,7 +33,7 @@ import { openNotesModal } from '../core/proposals';
 import { createNoteForCompany } from './notes';
 import { renderCoTodosSection, createTodoForCompany } from './todo';
 import { renderLinkedEmailsForCompany } from '../core/emailLinks';
-import { getLinksFor, filesGetByIds, getCompanies, mergeCompanyLinks, saveMeeting, saveProject, saveCompany, getReviewQueue, resolveReviewQueueEntry, renameCompany, getAppMeta, setAppMeta, setCompanyNotePinned, companyNoteEntries, addCompanyNoteEntryDb, updateCompanyNoteEntryDb, deleteCompanyNoteEntryDb, moveCompanyNoteEntries, type CompanyNoteEntry} from '../lib/db';
+import { primeCompanyDossier, getLinksFor, filesGetByIds, getCompanies, mergeCompanyLinks, saveMeeting, saveProject, saveCompany, getReviewQueue, resolveReviewQueueEntry, renameCompany, getAppMeta, setAppMeta, setCompanyNotePinned, companyNoteEntries, addCompanyNoteEntryDb, updateCompanyNoteEntryDb, deleteCompanyNoteEntryDb, moveCompanyNoteEntries, type CompanyNoteEntry} from '../lib/db';
 import { switchTab } from '../core/nav';
 import { normalizeCompanyNameForMatch } from '../lib/companySelector';
 import { INDUSTRY_TAXONOMY } from '../lib/types';
@@ -990,6 +990,8 @@ function relationshipStatus(d: CompanyData): { label: string; tone: string } {
 function renderCompanyDetail(): void {
   if (!S.currentCompany) return;
   const d = buildCompanyData(S.currentCompany);
+  // One backend call for everything the page reads (foundations P4).
+  primeCompanyDossier(d.companyId, d.name);
   const co = currentCompanyRecord();
   const ref = { id: d.companyId, name: d.name };
   const opps = companyOpportunities(d);

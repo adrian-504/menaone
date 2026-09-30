@@ -431,14 +431,18 @@ pub fn delete_document(state: State<DbState>, id: i64) -> CmdResult<()> {
 #[tauri::command]
 pub fn get_links_for(state: State<DbState>, entity_type: String, entity_id: i64) -> CmdResult<Vec<EntityLink>> {
     let conn = state.0.lock().map_err(err)?;
+    links_for(&conn, &entity_type, entity_id).map_err(err)
+}
+
+pub fn links_for(conn: &Connection, entity_type: &str, entity_id: i64) -> rusqlite::Result<Vec<EntityLink>> {
     let mut stmt = conn.prepare(
         "SELECT from_type, from_id, to_type, to_id FROM entity_links
          WHERE (from_type = ?1 AND from_id = ?2) OR (to_type = ?1 AND to_id = ?2)",
-    ).map_err(err)?;
+    )?;
     let rows = stmt.query_map(params![entity_type, entity_id], |r| {
         Ok(EntityLink { from_type: r.get(0)?, from_id: r.get(1)?, to_type: r.get(2)?, to_id: r.get(3)? })
-    }).map_err(err)?;
-    rows.collect::<rusqlite::Result<_>>().map_err(err)
+    })?;
+    rows.collect::<rusqlite::Result<_>>()
 }
 
 /// Replace the full outgoing link set from one entity (e.g. "this note links to
