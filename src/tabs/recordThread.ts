@@ -4,6 +4,7 @@
 // (workGraph.engagementThread, recordTimeline.buildRecordTimeline) and
 // handles their actions. Nothing is created without being asked.
 
+import { arrive } from '../lib/motion';
 import { S } from '../lib/state';
 import { renderIcons } from '../core/chrome';
 import { toast } from '../lib/ui';
@@ -137,11 +138,14 @@ export async function renderRecordTimeline(m: TimelineMount): Promise<void> {
     agreements: S.agreements, projects: S.projects, milestones: m.milestones?.() || [], company: co,
   });
   const now = new Date();
+  const firstFill = !el.childElementCount;
   el.innerHTML = `<div class="rec-section-hd tl-hd"><h2>Timeline</h2><div class="rec-section-actions">${m.header || ''}</div></div>
     <div class="tl">${recordTimelineHtml(tl, {
       today: today(), nowLabel: `Now · ${fmtDateShort(now)}`,
       pastLimit: showAll.has(m.elId) ? null : PAST_LIMIT, showEarlier: `showEarlierTimeline('${m.elId}')`, extraPast: m.extraPast?.(activity),
     })}</div>`;
+  // The first time a timeline fills in, it fades in rather than popping (delight 11).
+  if (firstFill) arrive(el);
   renderIcons(el);
 }
 

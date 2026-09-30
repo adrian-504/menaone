@@ -1,4 +1,5 @@
 import { createListNav } from '../lib/listNav';
+import { arrive } from '../lib/motion';
 import { suggestWebsites } from '../lib/clientMatch';
 import { proposalSentDate, isAgreementActive, isOpenProposal, isLost, isWon, activeMrr as computeActiveMrr, fmtMoney, fmtMoneyByCurrency, toReporting, currencyOf, agreementMonthly, activeTeam, matchesOwnerFilter, ownerFilterOptions, type MoneyByCurrency } from '../lib/commercial';
 import { S } from '../lib/state';
@@ -1557,6 +1558,7 @@ async function renderCoFiles(d: CompanyData): Promise<void> {
     return;
   }
   const links = await getLinksFor('company', company.id);
+  arrive(inner);
   const msfileIds = links.filter((l) => l.toType === 'company' && l.toId === company.id && l.fromType === 'msfile').map((l) => l.fromId);
   if (cntEl) cntEl.textContent = String(msfileIds.length);
   if (msfileIds.length === 0) {

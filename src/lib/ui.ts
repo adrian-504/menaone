@@ -206,6 +206,11 @@ export async function loadInto(el: HTMLElement | null, what: string, retryOnclic
   if (el && empty) el.innerHTML = skeleton(variant === 'cards' ? 3 : 4, variant);
   try {
     await load();
+    // What replaces the placeholders fades in (delight 11): rows or the empty state, never a flash.
+    if (el && el.querySelector('.skel-wrap')) {
+      el.classList.add('arriving');
+      window.setTimeout(() => el.classList.remove('arriving'), 260);
+    }
     return true;
   } catch (err) {
     console.error(`[load] ${what}:`, err);

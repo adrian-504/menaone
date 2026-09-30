@@ -6,7 +6,7 @@
 // to, notes and activity.
 
 import { registerDragSource, registerDropTarget } from '../lib/dnd';
-import { settleNew, shake } from '../lib/motion';
+import { arrive, settleNew, shake } from '../lib/motion';
 import { statusBadge } from '../lib/statusTone';
 import { blockSummary, blocksToSave, emptyBlock, proposalsFromBlocks, type ProposalBlock, type SharedProposalFields } from '../lib/proposalBlocks';
 import { proposalDeckRows } from '../lib/proposalDocuments';
@@ -606,6 +606,7 @@ async function renderDocuments(p: Proposal): Promise<void> {
   const suggested = nextDeckFileName(p, serviceLabel, today(), info.files.map((f) => f.name));
   // The folder path below opens it in Finder; no second button for the same thing.
   if (actions) actions.innerHTML = '';
+  arrive(folderEl);
   if (!info.root) {
     folderEl.innerHTML = `<div class="pr-folder-line rec-muted">${icon('folder', 14)} No Proposals folder found in OneDrive. Choose it in Settings → Proposals.</div>`;
   } else if (!info.exists) {

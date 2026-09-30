@@ -226,3 +226,14 @@ export function shake(el: Element | null | undefined): void {
   window.setTimeout(() => el.classList.remove('shake'), 320);
 }
 
+// ── Content that arrives (delight 11) ───────────────────────────────────────
+
+/** A section filled after a load fades in (--dur-base) instead of popping. */
+export function arrive(el: Element | null | undefined): void {
+  if (!(el instanceof HTMLElement) || reduced()) return;
+  el.classList.remove('arriving');
+  void el.offsetWidth;
+  el.classList.add('arriving');
+  window.setTimeout(() => el.classList.remove('arriving'), 260);
+}
+

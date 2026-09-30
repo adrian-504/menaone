@@ -6,6 +6,7 @@
 // Notes/Contacts are linked through the existing entity_links Work Graph,
 // not new relationship fields — Meetings/Documents use a direct FK, same
 // convention Project already uses for those two.
+import { arrive } from '../lib/motion';
 import { foldMoreDetails } from '../lib/moreDetails';
 import { statusBadge } from '../lib/statusTone';
 import { addMoney, fmtMoneyByCurrency, currentUser, matchesOwnerFilter, ownerFilterOptions, type MoneyByCurrency } from '../lib/commercial';
@@ -854,6 +855,7 @@ async function renderOpportunityFiles(o: Opportunity): Promise<void> {
   const docs = proposal?.documents || [];
   const folder = client ? await proposalFolderLookup(client, proposal?.folderPath ?? null).catch(() => null) : null;
   if (S.currentOpportunityId !== o.id) return;
+  arrive(el);
   const files = (folder?.files || []).filter((f) => !f.isFolder).sort((a, b) => (b.modifiedAt || '').localeCompare(a.modifiedAt || '')).slice(0, 8);
   const attr = (v: string) => escHtml(v).replace(/'/g, "\\'");
   const row = (name: string, path: string | null, sub: string) => `<div class="rec-row" ${path ? `onclick="oppOpenFile('${attr(path)}')"` : ''}>

@@ -1,4 +1,4 @@
-import { settleNew } from '../lib/motion';
+import { arrive, settleNew } from '../lib/motion';
 import { S } from '../lib/state';
 import { emptyState, undoToast } from '../lib/ui';
 import { recordLink } from '../lib/links';
@@ -232,6 +232,7 @@ async function renderLinkedFiles(projectId: number): Promise<void> {
   if (!el) return;
   const links = await getLinksFor('project', projectId);
   if (S.currentProjectId !== projectId) return;
+  arrive(el);
   const msfileIds = links.filter((l) => l.fromType === 'msfile' && l.toType === 'project').map((l) => l.fromId);
   if (cntEl) cntEl.textContent = msfileIds.length ? String(msfileIds.length) : '';
   if (msfileIds.length === 0) {
