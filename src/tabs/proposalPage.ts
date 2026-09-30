@@ -9,6 +9,7 @@ import { statusBadge } from '../lib/statusTone';
 import { blockSummary, blocksToSave, emptyBlock, proposalsFromBlocks, type ProposalBlock, type SharedProposalFields } from '../lib/proposalBlocks';
 import { proposalDeckRows } from '../lib/proposalDocuments';
 import { deckVersion, matchDecks } from '../lib/deckMatch';
+import { proposalNextStep } from '../lib/proposalSteps';
 import { latestRevision, lineWasNote, parseSnapshot, removedServices, revisionFact, revisionOf } from '../lib/revisions';
 import { companyFromForm, contextFromOpportunity } from '../lib/workGraph';
 import { S } from '../lib/state';
@@ -139,22 +140,6 @@ expose('renderProposalPage', renderProposalPage);
 
 // ── Header actions: the next step for where the proposal stands ──
 
-function nextStep(p: Proposal): { label: string; run: string } | null {
-  switch (p.status) {
-    case PS.REQUEST: return { label: 'Start drafting', run: `proposalStep('${PS.DRAFTING}')` };
-    case PS.DRAFTING: return { label: 'Submit for review', run: `proposalStep('${PS.REVIEW}')` };
-    case PS.REVIEW: return p.reviewStatus === 'approved'
-      ? { label: 'Mark sent to client', run: `proposalStep('${PS.SENT}')` }
-      : { label: 'Record review', run: `document.getElementById('prd-review')?.scrollIntoView({behavior:'smooth',block:'center'})` };
-    case PS.SENT: return { label: 'Record signature', run: 'proposalSignatureMenu(event)' };
-    case PS.CLIENT_SIGNED: return { label: 'Signed by both parties', run: `proposalStep('${PS.WON}')` };
-    case PS.WON: {
-      const agr = S.agreements.find((a) => a.proposalId === p.id);
-      return agr ? { label: 'Open agreement', run: `openRecord('agreement', ${agr.id})` } : null;
-    }
-    default: return { label: 'Reopen', run: 'proposalReopenMenu(event)' };
-  }
-}
 
 /** The one document action worth a button where the proposal stands: open
  * the deck once there is one, generate it while drafting; the rest are in "…". */
@@ -166,14 +151,15 @@ function contextualTool(p: Proposal): { label: string; run: string } | null {
   return null;
 }
 
-function renderActions(p: Proposal): void {
+export function renderActions(p: Proposal): void {
   const el = document.getElementById('prd-actions');
   if (!el) return;
-  const step = nextStep(p);
+  const { primary, secondary } = proposalNextStep(p, S.agreements);
   const tool = contextualTool(p);
   el.innerHTML = [
     tool ? `<button class="btn-secondary" onclick="${tool.run}">${escHtml(tool.label)}</button>` : '',
-    step ? `<button class="btn-primary" onclick="${step.run}">${escHtml(step.label)}</button>` : '',
+    secondary ? `<button class="btn-secondary" onclick="${secondary.run}">${escHtml(secondary.label)}</button>` : '',
+    primary ? `<button class="btn-primary" onclick="${primary.run}">${escHtml(primary.label)}</button>` : '',
     `<button class="loc-nav rec-more" onclick="proposalMoreMenu(event)" title="More" aria-label="More">${icon('more', 16)}</button>`,
   ].join('');
 }
@@ -460,7 +446,7 @@ expose('proposalFieldChanged', proposalFieldChanged);
 /** Show every touch instead of the latest five (reset when another proposal opens). */
 let contactAll: number | null = null;
 
-function renderContact(p: Proposal): void {
+export function renderContact(p: Proposal): void {
   const el = document.getElementById('prd-contact');
   if (!el) return;
   el.hidden = p.status !== PS.SENT;
@@ -471,7 +457,7 @@ function renderContact(p: Proposal): void {
     const who = t.contactId != null ? contactFirstName(t.contactId) : null;
     return `<li>${[fmtDate(t.at.slice(0, 10)), touchDoing(t, who), t.subject || ''].filter(Boolean).map(escHtml).join(' · ')}</li>`;
   }).join('');
-  el.innerHTML = `<div class="rec-section-hd"><h2>Follow-up</h2><div class="rec-section-actions"><button class="btn-secondary btn-sm" onclick="followUpMenu(event, ${p.id})" title="Log an email, call, WhatsApp or meeting in one click" aria-haspopup="menu">Followed up ${icon('chevronDown', 11)}</button></div></div>
+  el.innerHTML = `<div class="rec-section-hd"><h2>Follow-up</h2><div class="rec-section-actions"><a href="#" class="rlink" onclick="event.preventDefault();openRevisionDialog(${p.id})" title="Record what the client wants changed; the proposal goes back to drafting as a revision">Client asked for changes…</a><button class="btn-secondary btn-sm" onclick="followUpMenu(event, ${p.id})" title="Log an email, call, WhatsApp or meeting in one click" aria-haspopup="menu">Followed up ${icon('chevronDown', 11)}</button></div></div>
     ${touches.length ? `<ul class="pr-contact-list">${rows}</ul>${touches.length > 5 && contactAll !== p.id ? `<a href="#" class="rlink pr-contact-all" onclick="event.preventDefault();proposalContactAll(${p.id})">Show all ${touches.length}</a>` : ''}` : `<p class="pr-review-note">Nothing logged since it was sent.</p>`}`;
   renderIcons(el);
 }
