@@ -1,3 +1,4 @@
+import { refreshHighlights } from '../lib/motion';
 import { S } from '../lib/state';
 import { expose, showConfirm } from '../lib/utils';
 import { setActiveTabId, renderTab, notifyNavigated } from '../lib/registry';
@@ -97,9 +98,25 @@ document.addEventListener('click', (e) => {
   });
 }, true);
 
+/** The tab being left fades out (120 ms, --ease-in) pinned where it was, over
+ * the new one fading in (180 ms, 4 px): a crossfade with no layout jump. The
+ * switch itself stays synchronous for everything that runs after it. */
+function fadeOutTab(prev: HTMLElement | null, next: string): void {
+  if (!prev || prev.id === `tab-${next}` || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const r = prev.getBoundingClientRect();
+  if (r.height === 0) return;
+  prev.classList.add('tab-leaving');
+  Object.assign(prev.style, { top: `${r.top}px`, left: `${r.left}px`, width: `${r.width}px` });
+  window.setTimeout(() => {
+    prev.classList.remove('tab-leaving');
+    prev.style.top = prev.style.left = prev.style.width = '';
+  }, 130);
+}
+
 export function switchTab(t: string): void {
   S.currentTab = t;
   setActiveTabId(t);
+  fadeOutTab(document.querySelector<HTMLElement>('.tab.active'), t);
   document.querySelectorAll('.tab').forEach((el) => el.classList.remove('active'));
   document.querySelectorAll('.sb-item').forEach((el) => el.classList.remove('active'));
   document.getElementById('tab-' + t)?.classList.add('active');
@@ -108,6 +125,7 @@ export function switchTab(t: string): void {
   const sbEl = document.querySelector(`[data-tab="${t}"]`);
   if (sbEl) sbEl.classList.add('active');
   renderTab(t);
+  refreshHighlights();
   notifyNavigated();
 }
 expose('switchTab', switchTab);

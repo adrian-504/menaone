@@ -4,7 +4,9 @@
 // outside the sidebar, location bar and record rail: input boxes, buttons,
 // blue (primary) buttons. Fails when a view shows more than one primary, a
 // select sits in a list row, an empty text box comes first, or a page is over
-// its targets. `node scripts/focus-check.mjs [--json]`
+// its targets, a view shifts layout after it opens (CLS > 0.01 in 1.5 s), or a
+// list loses its scroll position when you leave and come back.
+// `node scripts/focus-check.mjs [--json]`
 import { spawn } from 'node:child_process';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -82,9 +84,24 @@ const results = [];
 for (const [name, js, t] of VIEWS.filter(([n]) => !process.env.ONLY || n.startsWith(process.env.ONLY))) {
   await send('Page.navigate', { url: URL });
   await sleep(2500);
-  await evalJs(`(${js}), new Promise(r => setTimeout(r, 1200))`);
+  // Layout shift (motion system): from the switch to 1.5 s later, nothing should jump.
+  await evalJs(`window.__cls = 0; new PerformanceObserver((l) => { for (const e of l.getEntries()) if (!e.hadRecentInput) window.__cls += e.value; }).observe({ type: 'layout-shift', buffered: false })`);
+  await evalJs(`(${js}), new Promise(r => setTimeout(r, 1500))`);
+  const cls = await evalJs('Math.round(window.__cls * 1000) / 1000');
   await evalJs('window.scrollTo(0,0)');
   const c = JSON.parse(await evalJs(COUNT));
+  c.cls = cls;
+  // A list keeps its scroll position when you leave it and come back.
+  if (js.startsWith('switchTab(') && !js.includes('myday')) {
+    // A short window, so even sample-data lists scroll.
+    await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 420, deviceScaleFactor: 1, mobile: false });
+    const y0 = await evalJs('new Promise(r => setTimeout(r, 200)).then(() => { window.scrollTo(0, 160); return new Promise(r => setTimeout(() => r(window.scrollY), 200)); })');
+    await evalJs(`switchTab('myday'), new Promise(r => setTimeout(r, 400))`);
+    const y1 = await evalJs(`(${js}), new Promise(r => setTimeout(() => r(window.scrollY), 600))`);
+    c.scroll = y0 > 0 ? `${y0}→${y1}` : 'short';
+    if (y0 > 0 && Math.abs(y1 - y0) > 2) c.scrollLost = true;
+    await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
+  }
   const problems = [];
   if (c.primary > 1) problems.push(`${c.primary} blue buttons`);
   if (t.inputs != null && c.inputs > t.inputs) problems.push(`${c.inputs} inputs (target ≤${t.inputs})`);
@@ -93,10 +110,12 @@ for (const [name, js, t] of VIEWS.filter(([n]) => !process.env.ONLY || n.startsW
   if (t.fitsScreen && c.height > 900) problems.push(`${c.height}px tall (target one screen)`);
   if (c.rowSelects) problems.push(`${c.rowSelects} selects in list rows`);
   if (c.emptyBoxFirst) problems.push('an empty text box comes first');
+  if (c.cls > 0.01) problems.push(`layout shift ${c.cls}`);
+  if (c.scrollLost) problems.push(`scroll not kept (${c.scroll})`);
   results.push({ name, ...c, problems });
 }
 ws.close(); chrome.kill();
 if (process.env.ONLY) for (const r of results) console.log(r.name, r.names.join(' | '));
 if (process.argv.includes('--json')) console.log(JSON.stringify(results, null, 1));
-else for (const r of results) console.log(`${r.problems.length ? '✗' : '✓'} ${r.name.padEnd(22)} inputs ${String(r.inputs).padStart(2)} · buttons ${String(r.buttons).padStart(2)} · blue ${r.primary}${r.filters ? ` · filters ${r.filters}` : ''}${r.problems.length ? `  — ${r.problems.join(', ')}` : ''}`);
+else for (const r of results) console.log(`${r.problems.length ? '✗' : '✓'} ${r.name.padEnd(22)} inputs ${String(r.inputs).padStart(2)} · buttons ${String(r.buttons).padStart(2)} · blue ${r.primary}${r.filters ? ` · filters ${r.filters}` : ''} · shift ${r.cls}${r.scroll ? ` · scroll ${r.scroll}` : ''}${r.problems.length ? `  — ${r.problems.join(', ')}` : ''}`);
 process.exit(results.some((r) => r.problems.length) ? 1 : 0);

@@ -64,7 +64,10 @@ function renderFolderNode(node: FolderNode, depth = 0): string {
   const toggle = hasChildren
     ? `<span class="notes-folder-toggle${collapsed ? ' collapsed' : ''}" onclick="event.stopPropagation();toggleNoteFolderCollapse('${jsArg(node.path)}')">${icon('chevronDown', 11)}</span>`
     : `<span class="notes-folder-toggle-spacer"></span>`;
-  const childrenHtml = hasChildren && !collapsed ? node.children.map((c) => renderFolderNode(c, depth + 1)).join('') : '';
+  // Children are always drawn inside a collapsible, so opening and closing a folder animates (motion system).
+  const childrenHtml = hasChildren
+    ? `<div class="collapsible${collapsed ? ' is-collapsed' : ''}" data-children-of="${escHtml(node.path)}"><div>${node.children.map((c) => renderFolderNode(c, depth + 1)).join('')}</div></div>`
+    : '';
   return `<div class="ws-side-item notes-folder-item${S.currentNoteFolder === node.path ? ' active' : ''}" style="padding-left:${6 + depth * 14}px" data-folder="${escHtml(node.path)}" data-drop="note-folder" data-drop-value="${escHtml(node.path)}" data-drag-kind="folder" data-drag-id="${folderIndex(node.path)}" onclick="setNoteFolder('${jsArg(node.path)}')" oncontextmenu="noteFolderMenu(event,'${jsArg(node.path)}')">
       ${toggle}<span class="ws-side-icon">${icon('folder', 14)}</span><span class="ws-side-label">${escHtml(node.name)}</span><span class="ws-side-count">${cnt || ''}</span>
     </div>${childrenHtml}`;
@@ -152,9 +155,15 @@ function moveFolder(from: string | undefined, parent: string): void {
 }
 
 export function toggleNoteFolderCollapse(path: string): void {
-  if (S.noteFolderCollapsed.has(path)) S.noteFolderCollapsed.delete(path);
-  else S.noteFolderCollapsed.add(path);
-  renderNotesSidebar();
+  const collapsed = !S.noteFolderCollapsed.has(path);
+  if (collapsed) S.noteFolderCollapsed.add(path);
+  else S.noteFolderCollapsed.delete(path);
+  // In place, so the folder's children slide closed or open instead of being redrawn.
+  const wrap = [...document.querySelectorAll<HTMLElement>('.collapsible[data-children-of]')].find((el) => el.dataset.childrenOf === path);
+  const toggle = [...document.querySelectorAll<HTMLElement>('.notes-folder-item[data-folder]')].find((el) => el.dataset.folder === path)?.querySelector('.notes-folder-toggle');
+  if (!wrap) { renderNotesSidebar(); return; }
+  wrap.classList.toggle('is-collapsed', collapsed);
+  toggle?.classList.toggle('collapsed', collapsed);
 }
 expose('toggleNoteFolderCollapse', toggleNoteFolderCollapse);
 
@@ -224,11 +233,13 @@ function renderClientsGroup(): void {
   const chevron = document.getElementById('notes-clients-chevron');
   chevron?.classList.toggle('collapsed', clientsCollapsed);
   section.querySelector('.notes-clients-toggle')?.setAttribute('aria-expanded', String(!clientsCollapsed));
-  el.hidden = clientsCollapsed;
+  el.classList.add('collapsible');
+  el.classList.toggle('is-collapsed', clientsCollapsed);
   el.innerHTML = clients.map((c) => {
     const folder = clientFolder(c.key);
     return `<button class="ws-side-item notes-folder-item${S.currentNoteFolder === folder ? ' active' : ''}" data-folder="${escHtml(folder)}" onclick="setNoteFolder('${jsArg(folder)}')"><span class="ws-side-icon">${icon('building', 13)}</span><span class="ws-side-label">${escHtml(c.key.name)}</span><span class="ws-side-count">${c.count}</span></button>`;
   }).join('');
+  el.innerHTML = `<div>${el.innerHTML}</div>`;
 }
 
 export function toggleNotesClients(): void {

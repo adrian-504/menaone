@@ -1,5 +1,5 @@
 import { S } from '../lib/state';
-import { emptyState } from '../lib/ui';
+import { emptyState, undoToast } from '../lib/ui';
 import { recordLink } from '../lib/links';
 import { renderRecordTimeline, renderThreadStrip } from './recordThread';
 import { collapseEmptySections } from '../lib/sectionLayout';
@@ -422,8 +422,12 @@ export async function toggleArchiveProject(): Promise<void> {
   const saved = await persistProject(p);
   if (!saved) { p.archived = !p.archived; return; }
   await loadProjects();
-  if (p.archived) { closeProjectDetail(); renderProjects(); }
-  else await renderProjectDetail();
+  if (p.archived) {
+    closeProjectDetail();
+    renderProjects();
+    const id = p.id;
+    undoToast(`Archived ${p.name}`, () => { S.currentProjectId = id; void toggleArchiveProject().then(() => (window as any).openRecord?.('project', id)); });
+  } else await renderProjectDetail();
 }
 expose('toggleArchiveProject', toggleArchiveProject);
 

@@ -13,10 +13,12 @@ const js = (v: string) => v.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 const short = (name: string, max = 28) => (name.length > max ? `${name.slice(0, max - 1).trimEnd()}…` : name);
 
 /** Project: finish the next milestone; with none left, move the project on. */
-export function projectNextStep(p: Pick<Project, 'status' | 'archived'>, milestones: Pick<Milestone, 'id' | 'name' | 'status' | 'sortOrder'>[]): Step | null {
+export function projectNextStep(p: Pick<Project, 'status' | 'archived' | 'computedProgress'>, milestones: Pick<Milestone, 'id' | 'name' | 'status' | 'sortOrder'>[]): Step | null {
   if (p.archived || p.status === 'Completed' || p.status === 'Cancelled') return null;
   const next = [...milestones].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)).find((m) => m.status !== 'Done');
   if (next) return { label: `Complete milestone: ${short(next.name)}`, run: `completeMilestone(${next.id})` };
+  // Nothing planned and nothing done yet: plan it first, rather than "Mark completed" at 0 %.
+  if (!milestones.length && !(p.computedProgress > 0)) return { label: 'Add milestone', run: "document.querySelector('#pd-milestones-sec input[name=msName]')?.focus()" };
   return p.status === 'In Progress' || p.status === 'At Risk'
     ? { label: 'Mark completed', run: "changeCurrentProjectStatus('Completed')" }
     : { label: 'Mark in progress', run: "changeCurrentProjectStatus('In Progress')" };

@@ -284,11 +284,27 @@ function restoreScroll(p: Place): void {
   window.setTimeout(apply, 120);
 }
 
+let lastSettled: Place | null = null;
+
+/** Back from a record to its module's list: the list fades in (180 ms), at the
+ * scroll position it was left at (owner, 30-Sep-2026: motion system). */
+function fadeBackToList(from: Place | null, to: Place): void {
+  if (!from || from.key == null || to.key != null || from.tab !== to.tab) return;
+  const tab = document.querySelector<HTMLElement>('.tab.active');
+  if (!tab) return;
+  tab.classList.remove('view-back');
+  void tab.offsetWidth;
+  tab.classList.add('view-back');
+  window.setTimeout(() => tab.classList.remove('view-back'), 200);
+}
+
 function settle(): void {
   pending = false;
   // Arriving in a module whose open page shows a record deleted meanwhile: show its list.
   if (!restoring && closeMissingRecord()) return;
   const place = currentPlace();
+  fadeBackToList(lastSettled, place);
+  lastSettled = place;
   if (restoring) { renderChrome(); return; }
   if (history.visit(place)) {
     rememberRecent(place);

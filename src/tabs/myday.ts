@@ -16,7 +16,7 @@ import { icon } from '../lib/icons';
 import { registerTabRenderer, getActiveTabId } from '../lib/registry';
 import { onChange } from '../lib/changes';
 import { showContextMenu, type ContextMenuItem } from '../lib/contextMenu';
-import { toast, undoToast } from '../lib/ui';
+import { deferWhileHovered, toast, undoToast } from '../lib/ui';
 import { renderIcons } from '../core/chrome';
 import { changeProposalStatus, contactFirstName, snoozeProposal } from '../core/proposals';
 import { addTaskFromText, deleteTodo, openDatePopover, quickAddTokensHtml, setTasksDue, toggleTodoDone } from './todo';
@@ -289,7 +289,7 @@ export async function mydayAct(key: string): Promise<void> {
     case 'open_cleanup': w.openCleanup(a.action.queue); return;
     case 'toggle_group': w.mydayToggleGroup(a.key); return;
     case 'mark_kept':
-      if (a.commitmentId != null) { setCommitmentKept(a.commitmentId, true); toast(`Kept: ${a.title}`); renderMyDay(); }
+      if (a.commitmentId != null) { setCommitmentKept(a.commitmentId, true); renderMyDay(); }
       return;
     default: open();
   }
@@ -537,10 +537,10 @@ let pending: ReturnType<typeof setTimeout> | null = null;
 onChange(() => {
   if (getActiveTabId() !== 'myday') return;
   if (pending) clearTimeout(pending);
-  pending = setTimeout(() => { pending = null; renderMyDay(); }, 120);
+  pending = setTimeout(() => { pending = null; deferWhileHovered(document.getElementById('tab-myday'), renderMyDay); }, 120);
 });
 
-// The "now" line and meeting states move with the clock.
+// The "now" line and meeting states move with the clock — never under the pointer.
 setInterval(() => {
-  if (getActiveTabId() === 'myday' && !document.hidden) renderMyDay();
+  if (getActiveTabId() === 'myday' && !document.hidden) deferWhileHovered(document.getElementById('tab-myday'), renderMyDay);
 }, 60_000);

@@ -3,6 +3,10 @@
 One entry per install, newest first: the version, the day it was installed, and in two lines what changed.
 Settings → Data shows the last five. `scripts/release-check.mjs` refuses a build whose version has no entry here.
 
+## 1.52 — 2026-09-30
+Every click answers the same way: buttons press, menus open under their button, dialogs fade, the sidebar highlight slides, a ticked task pauses then fades — nothing jumps.
+Calmer look: plain grey instead of lavender, My Day's right column docks to the edge, one size and corner for every control, Undo on archive and "kept".
+
 ## 1.51 — 2026-09-30
 One look everywhere: dates read "2 Sept 2026", times 24-hour; every record page has one blue next step, with the rest in "…"; lists share one filter bar.
 Projects are rows; empty pages say "No … yet"; Settings → Data shows real times; Follow-up has "Client asked for changes" beside "Followed up", and menus open below their button.

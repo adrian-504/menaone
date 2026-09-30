@@ -6,7 +6,7 @@ import { recordHeaderHtml } from './recordHeader';
 import type { Agreement, Contact, Milestone, Opportunity, Project, Proposal } from './types';
 
 const ms = (id: number, name: string, status: string, sortOrder: number) => ({ id, name, status, sortOrder }) as Milestone;
-const proj = (status: string, archived = false) => ({ status, archived }) as Project;
+const proj = (status: string, archived = false, computedProgress = 0) => ({ status, archived, computedProgress }) as Project;
 const opp = (stage: string, over: Partial<Opportunity> = {}) => ({ stage, archived: false, proposalId: null, projectId: null, ...over }) as Opportunity;
 const agr = (over: Partial<Agreement>) => ({ status: 'Signed', serviceStatus: 'Active', endDate: null, noticeDays: null, proposalId: null, ...over }) as Agreement;
 
@@ -19,8 +19,12 @@ describe('project: the next milestone, else move the project on', () => {
     expect(projectNextStep(proj('Planning'), [ms(1, 'Transfer every employee file to the new GOSI portal', 'Not Started', 0)])!.label)
       .toBe('Complete milestone: Transfer every employee fil…');
   });
+  it('no milestones at all and nothing done: Add milestone', () => {
+    expect(projectNextStep(proj('In Progress'), [])?.label).toBe('Add milestone');
+    expect(projectNextStep(proj('In Progress', false, 40), [])?.label).toBe('Mark completed');
+  });
   it('no milestones left: Mark in progress, then Mark completed; nothing once closed', () => {
-    expect(projectNextStep(proj('Planning'), [])?.label).toBe('Mark in progress');
+    expect(projectNextStep(proj('Planning', false, 10), [])?.label).toBe('Mark in progress');
     expect(projectNextStep(proj('In Progress'), [ms(1, 'Kickoff', 'Done', 0)])?.label).toBe('Mark completed');
     expect(projectNextStep(proj('Completed'), [])).toBeNull();
     expect(projectNextStep(proj('In Progress', true), [])).toBeNull();

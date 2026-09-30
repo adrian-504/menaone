@@ -1,15 +1,16 @@
 {
   "name": "mena-one",
   "private": true,
-  "version": "1.51.0",
+  "version": "1.52.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "node scripts/release-check.mjs && tsc && vite build",
+    "build": "node scripts/release-check.mjs && node scripts/motion-check.mjs && tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
     "test": "vitest run",
-    "focus-check": "node scripts/focus-check.mjs"
+    "focus-check": "node scripts/focus-check.mjs",
+    "motion-check": "node scripts/motion-check.mjs"
   },
   "dependencies": {
     "@codemirror/commands": "^6.11.0",

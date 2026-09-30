@@ -763,13 +763,11 @@ export function completeTask(id: number): void {
   window.setTimeout(() => {
     const list = currentList();
     if (getActiveTabId() === 'todo' && list !== 'completed' && S.taskView === 'list') {
-      document.querySelectorAll<HTMLElement>(`#todo-list .task-row[data-task-id="${id}"]`).forEach((row) => {
-        row.style.height = `${row.offsetHeight}px`;
-        requestAnimationFrame(() => row.classList.add('leaving'));
-      });
+      // Ticked: the row holds 400 ms, then fades in 180 ms (motion system; no height animation).
+      document.querySelectorAll<HTMLElement>(`#todo-list .task-row[data-task-id="${id}"]`).forEach((row) => row.classList.add('leaving'));
     }
-    window.setTimeout(() => afterTodoListChange(), 220);
-  }, reduceMotion() ? 0 : 650);
+    window.setTimeout(() => afterTodoListChange(), 180);
+  }, reduceMotion() ? 0 : 400);
   undoToast(`Completed "${t.title}"`, () => {
     t.status = before.status;
     t.completedAt = before.completedAt;
