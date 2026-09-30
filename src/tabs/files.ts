@@ -185,6 +185,17 @@ function loadCurrentLevel(): Promise<void> {
   });
 }
 
+/** The folder open in Files (a drop from Finder lands here), or null. */
+export function msFilesCurrentFolder(): string | null {
+  return view === 'browse' ? crumbs[crumbs.length - 1].path : null;
+}
+
+/** Reads the open folder again (after files were dropped into it). */
+export async function msFilesReloadCurrent(): Promise<void> {
+  await loadCurrentLevel();
+  render();
+}
+
 /** Jumps straight to a folder, rebuilding the path from the OneDrive root —
  * used by a company's Files section and by the places sidebar. */
 export async function msFilesNavigateToPath(fullPath: string): Promise<void> {

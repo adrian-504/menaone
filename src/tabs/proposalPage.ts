@@ -718,11 +718,25 @@ export async function proposalCreateFolder(): Promise<void> {
 }
 expose('proposalCreateFolder', proposalCreateFolder);
 
+/** Reads the client folder again (files were just dropped into it) and redraws. */
+export async function proposalRefreshFolder(): Promise<void> {
+  const p = currentProposal();
+  if (!p) return;
+  const info = await proposalFolderLookup(p.client, p.folderPath ?? null);
+  folderCache = { proposalId: p.id, client: p.client, info };
+  renderProposalPage();
+}
+
+/** A file attached as the deck when it is one (pptx/key/pdf with "proposal" in the name). Pure. */
+export function isDeckFile(name: string): boolean {
+  return /\.(pptx|ppt|key|pdf)$/i.test(name) && /proposal/i.test(name);
+}
+
 export function proposalAttachFile(path: string): void {
   const p = currentProposal();
   const file = folderCache?.info.files.find((f) => f.path === path);
   if (!p || !file) return;
-  const isDeck = /\.(pptx|ppt|key|pdf)$/i.test(file.name) && /proposal/i.test(file.name);
+  const isDeck = isDeckFile(file.name);
   const isCommercials = /\.(xlsx|xls)$/i.test(file.name) || /commercial|pricing|quotation/i.test(file.name);
   const docs = p.documents || [];
   // A deck keeps the version in its name unless that number is already taken; otherwise it is the next one.

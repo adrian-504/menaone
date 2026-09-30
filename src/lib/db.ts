@@ -303,6 +303,8 @@ export async function filesListRoots(): Promise<LocalFileItem[]> { return invoke
 export async function filesListFolder(path: string): Promise<LocalFileItem[]> { return invoke<LocalFileItem[]>('files_list_folder', { path }); }
 export async function filesOpen(path: string): Promise<void> { await invoke('files_open', { path }); }
 export async function filesRevealInFinder(path: string): Promise<void> { await invoke('files_reveal_in_finder', { path }); }
+/** Copies files dropped from Finder into a folder (foundations F2). */
+export async function filesCopyInto(paths: string[], destDir: string): Promise<{ copied: string[]; refused: string[] }> { return invoke('files_copy_into', { paths, destDir }); }
 export async function filesGetOrCreateMsfile(path: string, name: string, itemType: 'file' | 'folder'): Promise<number> { return invoke<number>('files_get_or_create_msfile', { path, name, itemType }); }
 export async function filesGetByIds(ids: number[]): Promise<LocalFileItem[]> {
   if (!ids.length) return [];

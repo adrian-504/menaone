@@ -389,3 +389,58 @@ mod tests {
         assert!(!is_within_onedrive(Path::new("/etc/passwd")));
     }
 }
+
+// ── Files dropped from Finder (foundations F2) ──────────────────────────────
+
+/// Apps and scripts are never copied in from a drop.
+pub const REFUSED_EXTENSIONS: &[&str] = &["app", "exe", "command", "sh", "pkg", "dmg", "bat", "msi", "jar", "scpt", "tool", "workflow"];
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DropResult {
+    /// Where each accepted file now is (a copy; the original stays where it was).
+    pub copied: Vec<String>,
+    /// Names refused (apps, scripts, folders, missing files).
+    pub refused: Vec<String>,
+}
+
+/// `name.ext`, then `name 2.ext`, `name 3.ext`… the first that's free in `dir`.
+pub fn free_name(dir: &Path, file_name: &str) -> PathBuf {
+    let first = dir.join(file_name);
+    if !first.exists() { return first; }
+    let (stem, ext) = match file_name.rfind('.') {
+        Some(i) if i > 0 => (&file_name[..i], &file_name[i..]),
+        _ => (file_name, ""),
+    };
+    (2..).map(|n| dir.join(format!("{stem} {n}{ext}"))).find(|p| !p.exists()).unwrap()
+}
+
+/// Copies dropped files into `dest_dir` (made if its parent exists), keeping
+/// the originals; refuses apps, scripts and folders.
+pub fn copy_into(paths: &[String], dest_dir: &Path) -> Result<DropResult, String> {
+    if !dest_dir.exists() {
+        let parent_ok = dest_dir.parent().map(|p| p.exists()).unwrap_or(false);
+        if !parent_ok { return Err(format!("{} doesn't exist", dest_dir.display())); }
+        std::fs::create_dir(dest_dir).map_err(|e| e.to_string())?;
+    }
+    let mut out = DropResult { copied: vec![], refused: vec![] };
+    for p in paths {
+        let src = Path::new(p);
+        let name = src.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| p.clone());
+        let ext = src.extension().map(|e| e.to_string_lossy().to_lowercase()).unwrap_or_default();
+        if !src.is_file() || REFUSED_EXTENSIONS.contains(&ext.as_str()) {
+            out.refused.push(name);
+            continue;
+        }
+        let to = free_name(dest_dir, &name);
+        std::fs::copy(src, &to).map_err(|e| format!("couldn't copy {name}: {e}"))?;
+        log::info!("files: dropped file copied into {}", dest_dir.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default());
+        out.copied.push(to.to_string_lossy().to_string());
+    }
+    Ok(out)
+}
+
+#[tauri::command]
+pub fn files_copy_into(paths: Vec<String>, dest_dir: String) -> Result<DropResult, String> {
+    copy_into(&paths, Path::new(&dest_dir))
+}

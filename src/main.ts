@@ -34,6 +34,7 @@ import { startMotion } from './lib/motion';
 import { registerAppKeys } from './core/appKeys';
 import { startKeys } from './core/keys';
 import { startTooltips } from './lib/tooltip';
+import { startFileDrop } from './lib/fileDrop';
 import { startDateFields } from './lib/dateField';
 import { startErrorReporting } from './lib/errors';
 import { logFrontend } from './lib/db';
@@ -94,6 +95,7 @@ startMotion();
 registerAppKeys();
 startKeys();
 startTooltips();
+void startFileDrop();
 // One date control: every date input takes typed dates (foundations F1).
 startDateFields();
 // Uncaught errors go to the app's log, with one quiet toast (foundations O1).

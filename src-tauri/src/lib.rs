@@ -311,6 +311,7 @@ pub fn run() {
             commands::export_backup_json,
             activity::get_activity,
             dossier::company_dossier,
+            localfiles::files_copy_into,
             logfile::log_frontend,
             logfile::reveal_logs_folder,
             activity::activity_forget,
