@@ -5,6 +5,7 @@
 // commercials, the client's OneDrive folder and documents, what it's linked
 // to, notes and activity.
 
+import { settleNew } from '../lib/motion';
 import { statusBadge } from '../lib/statusTone';
 import { blockSummary, blocksToSave, emptyBlock, proposalsFromBlocks, type ProposalBlock, type SharedProposalFields } from '../lib/proposalBlocks';
 import { proposalDeckRows } from '../lib/proposalDocuments';
@@ -1158,6 +1159,7 @@ export function prbAddBlock(): void {
   // A new proposal starts with the same contract term; its services are its own.
   blocks.push(emptyBlock(blocks[activeBlock].contractMonths));
   loadBlock(blocks.length - 1);
+  settleNew(document.getElementById('prb-block-hd'));
   document.getElementById('prb-service-q')?.focus();
 }
 expose('prbAddBlock', prbAddBlock);

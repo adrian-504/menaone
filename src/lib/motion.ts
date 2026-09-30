@@ -108,3 +108,18 @@ export function startMotion(): void {
     }
   }).observe(document.body, { subtree: true, childList: true });
 }
+
+// ── New items settle in (delight 3) ─────────────────────────────────────────
+
+/** Something the user just added fades up 4 px into place (--dur-base). Only
+ * ever called right after a user action, never on a render or a data load. */
+export function settleNew(el: Element | null | undefined): void {
+  if (!(el instanceof HTMLElement) || reduced()) return;
+  el.classList.remove('is-new');
+  void el.offsetWidth;
+  el.classList.add('is-new');
+  const done = () => el.classList.remove('is-new');
+  el.addEventListener('animationend', done, { once: true });
+  window.setTimeout(done, 400);
+}
+

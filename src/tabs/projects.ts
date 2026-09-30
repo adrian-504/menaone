@@ -1,3 +1,4 @@
+import { settleNew } from '../lib/motion';
 import { S } from '../lib/state';
 import { emptyState, undoToast } from '../lib/ui';
 import { recordLink } from '../lib/links';
@@ -449,6 +450,9 @@ export async function addMilestone(e: Event): Promise<void> {
   S.currentProjectMilestones = await getMilestones(S.currentProjectId);
   f.reset();
   renderMilestones();
+  const rows = document.querySelectorAll('#pd-milestones .milestone-row');
+  settleNew(rows[rows.length - 1]);
+  (f.elements.namedItem('msName') as HTMLInputElement | null)?.focus();
 }
 expose('addMilestone', addMilestone);
 

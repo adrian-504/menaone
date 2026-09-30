@@ -4,6 +4,7 @@
 // beside the list instead of an edit dialog. Board and Calendar views show
 // the same list's tasks.
 
+import { settleNew } from '../lib/motion';
 import { foldMoreDetails } from '../lib/moreDetails';
 import { S } from '../lib/state';
 import { toast, undoToast, emptyState } from '../lib/ui';
@@ -589,7 +590,7 @@ export function quickAddTask(e: Event): void {
   dismissedTokens = new Set();
   quickAddPreview();
   const row = document.querySelector<HTMLElement>(`.task-row[data-task-id="${task.id}"]`);
-  if (row) { row.classList.add('just-added'); row.scrollIntoView({ block: 'nearest' }); }
+  if (row) { row.classList.add('just-added'); settleNew(row); row.scrollIntoView({ block: 'nearest' }); }
   else undoToast(`Added "${task.title}" to ${task.someday ? 'Someday' : task.dueDate && task.dueDate > todayIso() ? 'Upcoming' : 'Anytime'}`, () => { deleteTodo(task.id, { silent: true }); });
 }
 expose('quickAddTask', quickAddTask);

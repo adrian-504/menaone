@@ -63,7 +63,9 @@ const COUNT = `(() => {
   // The first thing on a page shouldn't be an empty box asking to be filled (a create page's first field is an input, not this).
   const first = inputs.slice().sort((a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top)[0];
   const emptyBoxFirst = !!first && first.tagName === 'TEXTAREA' && !first.value.trim() && !first.hasAttribute('data-typing'); // data-typing: a box whose job right now is to be typed in (rule 2)
-  return JSON.stringify({ inputs: inputs.length, filters, buttons, primary, height: document.scrollingElement.scrollHeight, names, rowSelects, emptyBoxFirst });
+  // Settle-in (.is-new) is for things the user just added, never for a render.
+  const isNew = document.querySelectorAll('.is-new').length;
+  return JSON.stringify({ inputs: inputs.length, filters, buttons, primary, height: document.scrollingElement.scrollHeight, names, rowSelects, emptyBoxFirst, isNew });
 })()`;
 
 const port = 9400 + Math.floor(Math.random() * 400);
@@ -111,6 +113,7 @@ for (const [name, js, t] of VIEWS.filter(([n]) => !process.env.ONLY || n.startsW
   if (c.rowSelects) problems.push(`${c.rowSelects} selects in list rows`);
   if (c.emptyBoxFirst) problems.push('an empty text box comes first');
   if (c.cls > 0.01) problems.push(`layout shift ${c.cls}`);
+  if (c.isNew) problems.push(`${c.isNew} .is-new on a cold render`);
   if (c.scrollLost) problems.push(`scroll not kept (${c.scroll})`);
   results.push({ name, ...c, problems });
 }

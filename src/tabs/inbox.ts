@@ -1,3 +1,4 @@
+import { settleNew } from '../lib/motion';
 import { optimistic } from '../lib/optimistic';
 import { S } from '../lib/state';
 import { emptyState } from '../lib/ui';
@@ -44,7 +45,7 @@ registerTabRenderer('inbox', renderInbox);
 expose('renderInbox', renderInbox);
 
 function inboxRow(i: InboxItem): string {
-  return `<div class="inbox-item">
+  return `<div class="inbox-item" data-inbox-id="${i.id}">
     <div class="inbox-item-type" title="${TYPE_LABEL[i.itemType] || i.itemType}">${icon(TYPE_ICON[i.itemType] || 'inbox', 15)}</div>
     <div class="inbox-item-content">${escHtml(i.content)}</div>
     <div class="inbox-item-actions">
@@ -72,6 +73,7 @@ export async function captureInboxItem(e: Event): Promise<void> {
   (f.elements.namedItem('inboxContent') as HTMLInputElement).focus();
   updateInboxBadge();
   renderInbox();
+  settleNew(document.querySelector(`.inbox-item[data-inbox-id="${created.id}"]`));
   (window as any).renderMyDay?.();
 }
 expose('captureInboxItem', captureInboxItem);

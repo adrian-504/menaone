@@ -3,6 +3,7 @@
 // with quick capture, the pipeline, watch items and recent activity.
 // The rules live in lib/myday.ts; this file renders and handles actions.
 
+import { settleNew } from '../lib/motion';
 import { stripCompanyToken } from '../lib/commitments';
 import { setCommitmentKept, readCommitmentsFrom } from './commitments';
 import { parseTaskInput } from '../lib/taskParse';
@@ -497,6 +498,8 @@ export function mydayCapture(e: Event): void {
   input.value = '';
   mydayCapturePreview();
   renderMyDay();
+  settleNew(document.querySelector(`#tab-myday .task-row[data-task-id="${task.id}"]`));
+  input.focus();
   const where = task.someday ? 'Someday' : !task.dueDate ? 'Anytime' : task.dueDate === today() ? 'today' : fmtDate(task.dueDate);
   undoToast(`Added "${task.title}" to ${where}`, () => { deleteTodo(task.id, { silent: true }); renderMyDay(); });
 }

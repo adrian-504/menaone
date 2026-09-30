@@ -2981,3 +2981,8 @@ body.dnd-active .drop-target{transition:background-color var(--dur-fast) var(--e
 :is(.alert-bar,.ar-main,.cal-event-row,.cal-month-cell,.co-card,.co-nr-box,.co-row,.co-stand-dormant,.co-thread,.co-thread-dormant,.company-selector-row,.cu-nav-item,.ep-person,.fx-place,.gen-slide,.intel-main,.kpi,.mdy-att-main,.mdy-biz-part,.mdy-rail-row,.mdy-stat,.mdy-task-main,.mdy-up,.msfw-picker-row,.note-prop,.notes-folder-item,.od-next-row,.pq-note,.price-card-wrap,.project-card,.rec-tr,.rem-row,.rr-row,.settings-nav-item,.svc-row,.task-cal-evt,.task-weekday,.websites-row,.wikilink-menu-item,.ws-side-item,.ws-side-section-hd,.md-ctx-box,.clickable,.rec-empty-hint,.board-card,.inbox-item):active{box-shadow:inset 0 0 0 999px var(--surface-pressed)}
 :is(.td-parent,.rlink,.cm-md-link,.cm-md-wikilink,.list-bar-link,.rec-section-link,.loc-crumb,.fx-crumb,.pr-folder-path):active{color:var(--accent-pressed)}
 .btn-primary:active,.sb-add-btn:not(.secondary):active{box-shadow:none}
+/* 3. Something you just added settles in (lib/motion.ts settleNew): fades up 4px in --dur-base. */
+.is-new{animation:settle-in var(--dur-base) var(--ease-out)}
+.task-row.just-added.is-new{animation:settle-in var(--dur-base) var(--ease-out),task-flash var(--dur-highlight) var(--ease-out)}
+@keyframes settle-in{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+

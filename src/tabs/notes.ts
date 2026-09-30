@@ -4,6 +4,7 @@
 // on selection), links and backlinks at the foot of the note, and a focus
 // mode that hides everything but the writing.
 
+import { settleNew } from '../lib/motion';
 import { S } from '../lib/state';
 import { toast, emptyState } from '../lib/ui';
 import { companyLink, recordLink } from '../lib/links';
@@ -738,6 +739,7 @@ export function createNewNote(templateId?: number | null): void {
   noteLinks = [];
   noteProjectLoadedFor = newNote.id;
   openNote(newNote.id);
+  settleNew(document.querySelector(`.note-item[data-note-id="${newNote.id}"]`));
   closeNewNoteMenu();
   setTimeout(() => document.getElementById('notes-title-inp')?.focus(), 50);
 }

@@ -1,3 +1,4 @@
+import { settleNew } from '../lib/motion';
 import { S } from '../lib/state';
 import { foldMoreDetails } from '../lib/moreDetails';
 import { companyLink, recordLink } from '../lib/links';
@@ -62,18 +63,21 @@ export function submitContact(e: Event): void {
     whatsapp: (f.elements.namedItem('ct-wa') as HTMLInputElement).value.trim(),
   };
   if (!obj.name || !obj.clientName) return;
+  let newId: number | null = null;
   if (S.ctEditId) {
     const idx = S.contacts.findIndex((c) => c.id === S.ctEditId);
     if (idx > -1) S.contacts[idx] = { ...S.contacts[idx], ...obj };
   } else {
     // Kept by id while the field still shows the company it was started from.
     const { companyId } = companyFromForm(contactModalCompany, obj.clientName);
-    S.contacts.push({ id: nextCtId(), ...obj, companyId, service: '', lists: [] });
+    newId = nextCtId();
+    S.contacts.push({ id: newId, ...obj, companyId, service: '', lists: [] });
   }
   persistContacts();
   closeContactModal();
   renderContacts();
   refreshCompanyViewIfOpen();
+  if (newId != null) settleNew(document.querySelector(`#ct-tbody tr[data-contact-id="${newId}"]`));
 }
 expose('submitContact', submitContact);
 
