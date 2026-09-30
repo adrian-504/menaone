@@ -24,15 +24,24 @@ function when(d: Date | null): string {
   return `${day} ${time}`;
 }
 
+/** A stored moment: a full timestamp shows its time; a date alone (written
+ * before 1.51) shows only its day — read as UTC midnight it would show a
+ * made-up time ("today 02:00"). */
+function whenAt(value: string): string {
+  const day = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!day) return when(new Date(value));
+  return when(new Date(+day[1], +day[2] - 1, +day[3])).replace(/ \d{2}:\d{2}$/, '');
+}
+
 /** The three lines, as text with a tone; pure enough to test through the page. */
 export function statusLines(h: HousekeepingStatus | null): { text: string; bad: boolean }[] {
   if (!h) return [{ text: 'Backups: checking…', bad: false }];
   const daily = h.dailyLast ? when(new Date(h.dailyLast * 1000)) : 'none yet';
   const od = h.onedriveError
     ? `OneDrive copy failed: ${h.onedriveError}`
-    : h.onedriveLast ? `OneDrive copy ${when(new Date(h.onedriveLast))} (${h.onedriveKept} kept)` : 'OneDrive copy not made yet';
+    : h.onedriveLast ? `OneDrive copy ${whenAt(h.onedriveLast)} (${h.onedriveKept} kept)` : 'OneDrive copy not made yet';
   const check = h.integrity
-    ? `Database check: ${h.integrity.ok ? 'ok' : `failed${h.integrity.detail ? ` (${h.integrity.detail})` : ''}`} · ${when(new Date(h.integrity.at))}`
+    ? `Database check: ${h.integrity.ok ? 'ok' : `failed${h.integrity.detail ? ` (${h.integrity.detail})` : ''}`} · ${whenAt(h.integrity.at)}`
     : 'Database check: not run yet';
   const t = h.installBackupsTidy;
   const archived = t?.at && t.archivedTo ? `older ones archived ${new Date(t.at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`

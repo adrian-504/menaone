@@ -23,6 +23,19 @@ pub fn now_iso() -> String {
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_secs())
         .unwrap_or(0);
+    iso_date_of(secs)
+}
+
+/// The UTC moment as "YYYY-MM-DDTHH:MM:SSZ", for records that are shown with a
+/// time (Settings → Data's backup and check lines). `now_iso` stays a date:
+/// many callers compare it with dates ("today").
+pub fn timestamp_utc(at: std::time::SystemTime) -> String {
+    let secs = at.duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
+    let t = secs % 86400;
+    format!("{}T{:02}:{:02}:{:02}Z", iso_date_of(secs), t / 3600, t % 3600 / 60, t % 60)
+}
+
+fn iso_date_of(secs: u64) -> String {
     let days = (secs / 86400) as i64;
     let z = days + 719468;
     let era = if z >= 0 { z } else { z - 146096 } / 146097;

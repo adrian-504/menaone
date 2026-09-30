@@ -46,6 +46,16 @@ fn the_quick_check_is_stored_for_settings() {
     let stored: String = conn.query_row("SELECT value FROM app_meta WHERE key = 'integrity_last'", [], |r| r.get(0)).unwrap();
     let back: IntegrityResult = serde_json::from_str(&stored).unwrap();
     assert_eq!(back, r);
+    // Shown with a time in Settings → Data, so a full UTC timestamp, not a date.
+    assert!(r.at.len() == 20 && r.at.as_bytes()[10] == b'T' && r.at.ends_with('Z'), "{}", r.at);
+}
+
+#[test]
+fn housekeeping_times_are_full_utc_timestamps() {
+    use menabig_tracker_lib::commands::timestamp_utc;
+    assert_eq!(timestamp_utc(SystemTime::UNIX_EPOCH + Duration::from_secs(1_790_759_040)), "2026-09-30T09:04:00Z");
+    assert_eq!(timestamp_utc(SystemTime::UNIX_EPOCH + Duration::from_secs(1_790_812_799)), "2026-09-30T23:59:59Z");
+    assert_eq!(timestamp_utc(SystemTime::UNIX_EPOCH), "1970-01-01T00:00:00Z");
 }
 
 #[test]

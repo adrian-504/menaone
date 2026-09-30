@@ -51,6 +51,56 @@ export function positionFloatingPopup(popup: HTMLElement, anchor: HTMLElement): 
   popup.style.visibility = '';
 }
 
+/** Where a button's dropdown goes (owner, 30-Sep-2026: the Followed up menu
+ * opened upwards over the page although there was room below): below the
+ * button, right-aligned to it, `gap` px apart; above only when the visible
+ * area has no room below and more above. `bounds` is that visible area —
+ * the button's scroll container clipped to the window. Pure. */
+export function menuPlacement(
+  anchor: { top: number; bottom: number; left: number; right: number },
+  pop: { width: number; height: number },
+  bounds: { top: number; bottom: number; width: number },
+  gap = 4, margin = 6,
+): { top: number; left: number; above: boolean } {
+  const roomBelow = bounds.bottom - anchor.bottom - gap - margin;
+  const roomAbove = anchor.top - bounds.top - gap - margin;
+  const above = roomBelow < pop.height && roomAbove > roomBelow;
+  const top = above
+    ? Math.max(bounds.top + margin, anchor.top - gap - pop.height)
+    : Math.max(bounds.top + margin, Math.min(anchor.bottom + gap, bounds.bottom - margin - pop.height));
+  const left = Math.max(margin, Math.min(anchor.right - pop.width, bounds.width - pop.width - margin));
+  return { top, left, above };
+}
+
+/** The visible area around an element: its nearest scrolling ancestor, clipped to the window. */
+export function visibleBounds(el: HTMLElement): { top: number; bottom: number; width: number } {
+  let top = 0;
+  let bottom = window.innerHeight;
+  for (let p = el.parentElement; p; p = p.parentElement) {
+    const oy = getComputedStyle(p).overflowY;
+    if ((oy === 'auto' || oy === 'scroll') && p.clientHeight > 0) {
+      const r = p.getBoundingClientRect();
+      top = Math.max(top, r.top);
+      bottom = Math.min(bottom, r.bottom);
+      break;
+    }
+  }
+  return { top, bottom, width: window.innerWidth };
+}
+
+/** A button's dropdown, placed by menuPlacement. */
+export function positionDropdown(popup: HTMLElement, anchor: HTMLElement): void {
+  popup.style.position = 'fixed';
+  popup.style.visibility = 'hidden';
+  popup.style.right = 'auto';
+  popup.style.bottom = 'auto';
+  const pop = popup.getBoundingClientRect();
+  const { top, left } = menuPlacement(anchor.getBoundingClientRect(), pop, visibleBounds(anchor));
+  popup.style.top = `${top}px`;
+  popup.style.left = `${left}px`;
+  popup.style.visibility = '';
+}
+
 let textPromptResolve: ((value: string | null) => void) | null = null;
 
 /** Replacement for the browser-native `window.prompt()`, which Tauri's

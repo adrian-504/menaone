@@ -1051,6 +1051,8 @@ main.workspace .tab.active{animation:none}
 .rec-section-hd h2{font-size:var(--type-heading);font-weight:700;margin:0;color:var(--text)}
 .rec-count{font-size:var(--type-meta);color:var(--muted);font-weight:600}
 .rec-section-actions{margin-left:auto;display:flex;gap:6px}
+/* Follow-up: two matched small buttons, 8px apart (owner, 30-Sep-2026). */
+#prd-contact .rec-section-actions{gap:8px;align-items:center}
 .rec-save-state{margin-left:auto;font-size:var(--type-meta);color:var(--muted)}
 .rec-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:10px;margin-bottom:12px}
 .rec-stat{font:inherit;display:flex;flex-direction:column;align-items:flex-start;gap:1px;padding:12px 14px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);text-align:left;cursor:pointer;transition:border-color var(--dur-fast) var(--ease-out),box-shadow var(--dur-fast) var(--ease-out),transform var(--dur-fast) var(--ease-out)}
