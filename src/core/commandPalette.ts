@@ -129,7 +129,9 @@ export function openCommandPalette(): void {
   S.searchQuery = '';
   window.clearTimeout(searchTimer);
   search.cancel();
-  document.getElementById('cmdk-ov')?.classList.add('open');
+  const ov = document.getElementById('cmdk-ov');
+  ov?.classList.remove('closing');
+  ov?.classList.add('open');
   const input = document.getElementById('cmdk-input') as HTMLInputElement | null;
   if (input) { input.value = ''; setTimeout(() => input.focus(), 0); }
   renderPalette([]);
@@ -140,7 +142,14 @@ export function closeCommandPalette(): void {
   S.commandPaletteOpen = false;
   window.clearTimeout(searchTimer);
   search.cancel();
-  document.getElementById('cmdk-ov')?.classList.remove('open');
+  const ov = document.getElementById('cmdk-ov');
+  if (!ov?.classList.contains('open')) return;
+  ov.classList.remove('open');
+  // It leaves the way it came, faster (--dur-fast, --ease-in).
+  if (!(typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches)) {
+    ov.classList.add('closing');
+    window.setTimeout(() => ov.classList.remove('closing'), 130);
+  }
 }
 expose('closeCommandPalette', closeCommandPalette);
 

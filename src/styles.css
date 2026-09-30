@@ -3017,3 +3017,12 @@ body.dnd-active [data-sort-shift] .dnd-source{opacity:0}
 .arriving{animation:arrive var(--dur-base) var(--ease-out)}
 .empty-state,.feed-empty{animation:arrive var(--dur-base) var(--ease-out)}
 @keyframes arrive{from{opacity:0}to{opacity:1}}
+/* 12. The ⌘K palette drops in 8px with a fade (--dur-base) and leaves the same way faster
+   (--dur-fast, --ease-in); its results keep a steady height so typing never jumps the box. */
+.cmdk-ov.open{animation:modal-overlay-in var(--dur-base) var(--ease-out)}
+.cmdk-ov.open .cmdk-box{animation:cmdk-in var(--dur-base) var(--ease-out)}
+.cmdk-ov.closing{display:flex;pointer-events:none;animation:modal-overlay-out var(--dur-fast) var(--ease-in) forwards}
+.cmdk-ov.closing .cmdk-box{animation:cmdk-out var(--dur-fast) var(--ease-in) forwards}
+@keyframes cmdk-in{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
+@keyframes cmdk-out{to{opacity:0;transform:translateY(-8px)}}
+.cmdk-list{min-height:280px;position:relative}
