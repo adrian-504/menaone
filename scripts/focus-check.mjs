@@ -46,6 +46,7 @@ const VIEWS = [
   ['Project', "openRecord('project', 1)", { inputs: 1 }],
   ['Meeting', "openRecord('meeting', 2)", {}],
   ['New proposal', "openProposalBuilder({})", { fitsScreen: true }],
+  ['Settings → Appearance', "navToModule('settings'), setSettingsPane('appearance')", {}],
 ];
 const COUNT = `(() => {
   const H = innerHeight, W = innerWidth;
@@ -65,6 +66,8 @@ const COUNT = `(() => {
   const emptyBoxFirst = !!first && first.tagName === 'TEXTAREA' && !first.value.trim() && !first.hasAttribute('data-typing'); // data-typing: a box whose job right now is to be typed in (rule 2)
   // Settle-in (.is-new) is for things the user just added, never for a render.
   const isNew = document.querySelectorAll('.is-new').length;
+  // Nothing threw while the view drew (the error reporter shows a red toast).
+  const errorToasts = [...document.querySelectorAll('.toast-error')].map((t) => t.textContent.trim().slice(0, 60));
   // Eyebrows (brand slice): small uppercase labels anywhere on the page, not only the first screen.
   const shown = (el) => { const r = el.getBoundingClientRect(); if (r.width < 2 || r.height < 2) return false; const s = getComputedStyle(el); return s.visibility !== 'hidden' && s.display !== 'none' && !el.closest(chrome); };
   const eyebrows = [...document.querySelectorAll('body *')].filter((el) => {
@@ -74,7 +77,7 @@ const COUNT = `(() => {
     return own && shown(el) && !el.parentElement.closest('[data-eyebrow-counted]') && (el.setAttribute('data-eyebrow-counted', ''), true);
   }).length;
   document.querySelectorAll('[data-eyebrow-counted]').forEach((el) => el.removeAttribute('data-eyebrow-counted'));
-  return JSON.stringify({ inputs: inputs.length, filters, buttons, primary, height: document.scrollingElement.scrollHeight, names, rowSelects, emptyBoxFirst, isNew, eyebrows });
+  return JSON.stringify({ errorToasts, inputs: inputs.length, filters, buttons, primary, height: document.scrollingElement.scrollHeight, names, rowSelects, emptyBoxFirst, isNew, eyebrows });
 })()`;
 
 const port = 9400 + Math.floor(Math.random() * 400);
@@ -124,6 +127,7 @@ for (const [name, js, t] of VIEWS.filter(([n]) => !process.env.ONLY || n.startsW
   if (c.cls > 0.01) problems.push(`layout shift ${c.cls}`);
   if (c.isNew) problems.push(`${c.isNew} .is-new on a cold render`);
   if (c.scrollLost) problems.push(`scroll not kept (${c.scroll})`);
+  if (c.errorToasts.length) problems.push(`error toast: ${c.errorToasts.join(' | ')}`);
   results.push({ name, ...c, problems });
 }
 // The sidebar toggle is measured after its slide (delight 0a): once it has

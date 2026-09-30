@@ -48,7 +48,7 @@ async function renderAppearance(): Promise<void> {
   const count = document.getElementById('band-count');
   if (count && (window as any).__TAURI_INTERNALS__?.invoke) {
     const { invoke } = await import('@tauri-apps/api/core');
-    const n = (await invoke<string[]>('band_photos_list').catch(() => [])).length;
+    const n = ((await invoke<string[] | null>('band_photos_list').catch(() => null)) ?? []).length;
     count.textContent = n ? `${n} photo${n === 1 ? '' : 's'} chosen` : 'No photos chosen yet';
   }
 }

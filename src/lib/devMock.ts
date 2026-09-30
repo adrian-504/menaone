@@ -778,6 +778,13 @@ export async function installDevMockIfNeeded(): Promise<void> {
           const path = (_payload as any)?.path as string;
           return (mockOneDriveTree[path] || []).map((i) => ({ ...i, size: i.isFolder ? null : 2048, modifiedAt: '2026-09-01T00:00:00Z', exists: true }));
         }
+        // My Day's own photos (Settings → Appearance): none in the preview; adding one works only in the app.
+        case 'band_photos_list':
+          return [];
+        case 'band_photos_add':
+          return [];
+        case 'band_photo_data':
+          throw new Error('Your own photos show in the app, not in this preview.');
         case 'files_open':
         case 'files_quick_look':
         case 'files_reveal_in_finder':

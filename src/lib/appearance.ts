@@ -100,7 +100,7 @@ export async function bandPhotoUrl(now = new Date()): Promise<string> {
   if (source === 'office' || !(window as any).__TAURI_INTERNALS__?.invoke) return officeBand;
   try {
     const { invoke } = await import('@tauri-apps/api/core');
-    const name = photoOfDay(await invoke<string[]>('band_photos_list'), now);
+    const name = photoOfDay((await invoke<string[] | null>('band_photos_list')) ?? [], now);
     if (!name) return officeBand;
     if (cached?.key === name) return cached.url;
     const url = await invoke<string>('band_photo_data', { name });

@@ -14,7 +14,7 @@ From Fontsource 5.3.0 (npm), woff2, latin and latin-ext subsets. All under the S
 
 ## MENA BIG — `src/assets/brand/`
 
-The company's own marks and photograph, from the MENA BIG design system: `logo-primary.png`, `logo-white.png` (160 px), `office-band.jpg` (the office banner, cropped to leave out the logo).
+The company's own marks and photograph, from the MENA BIG design system: `logo-primary.png`, `logo-white.png` (the full lockup, 160 px), `mark-primary.png`, `mark-white.png` (the wordmark and the three bars without the subtitle, which is unreadable at sidebar size — the sidebar uses these), `office-band.jpg` (the office banner, cropped to leave out the logo).
 
 ## My Day's city photographs — `src/assets/band/`
 
