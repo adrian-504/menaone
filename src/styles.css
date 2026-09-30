@@ -3165,7 +3165,7 @@ body.dnd-active [data-sort-shift] .dnd-source{opacity:0}
    The rest of My Day is as it was. The band's height is fixed, so the photo
    arriving after the first paint moves nothing. */
 .mdy-band{position:relative;height:180px;border-radius:13px;overflow:hidden;background:var(--blue);box-shadow:var(--shadow-md);color:var(--on-tile);isolation:isolate}
-.mdy-band-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:60% 55%;opacity:0;transition:opacity var(--dur-slow) var(--ease-out)}
+.mdy-band-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 50%;opacity:0;transition:opacity var(--dur-slow) var(--ease-out)}
 .mdy-band-img.is-in{opacity:1}
 .mdy-band-scrim{position:absolute;inset:0}
 .mdy-band-in{position:absolute;inset:0;padding:22px 26px;display:flex;flex-direction:column;justify-content:flex-end;gap:8px}
@@ -3211,3 +3211,4 @@ body.dnd-active [data-sort-shift] .dnd-source{opacity:0}
 :root:is([data-theme="dark"],[data-theme="graphite"]) .sb-brand-logo.on-dark{display:block}
 :root:is([data-theme="dark"],[data-theme="graphite"]) .sb-me-av{background:var(--tile-1)}
 :root:is([data-theme="dark"],[data-theme="graphite"]) .mdy-band-img{filter:brightness(.72)}
+.mdy-band-img.is-office{object-position:60% 55%}

@@ -766,10 +766,11 @@
   </div>
   <div class="sec settings-card">
     <div class="settings-card-hd"><div class="card-hd">My Day photo</div></div>
-    <p class="settings-card-desc">The photograph behind the greeting on My Day. Choose one or several of your own; with several, a different one shows each day. Your photos are copied into MENA One, so moving the originals doesn't matter.</p>
+    <p class="settings-card-desc">The photograph behind the greeting on My Day: the city you're in (from this Mac's time zone), the MENA office, or your own — with several, a different one each day. Your photos are copied into MENA One, so moving the originals doesn't matter.</p>
     <div class="appearance-band-row">
       <div class="seg-btns" id="band-picker" role="radiogroup" aria-label="My Day photo">
-        <button class="seg-btn" data-band="default" role="radio" onclick="appearanceSetBand('default')">The office</button>
+        <button class="seg-btn" data-band="city" role="radio" onclick="appearanceSetBand('city')">My city</button>
+        <button class="seg-btn" data-band="office" role="radio" onclick="appearanceSetBand('office')">The office</button>
         <button class="seg-btn" data-band="mine" role="radio" onclick="appearanceSetBand('mine')">My photos</button>
       </div>
       <button class="btn-secondary btn-sm" onclick="appearanceChoosePhotos()">Choose photos…</button>

@@ -10,7 +10,7 @@ import { parseTaskInput } from '../lib/taskParse';
 import { EMPTY_CONTEXT } from '../lib/workGraph';
 import { renderOfficeStrip } from './officeStrip';
 import { standLine } from './companyState';
-import { bandPhotoUrl, dayPart, displayName, scrimFor } from '../lib/appearance';
+import { OFFICE_BAND, bandPhotoUrl, dayPart, displayName, scrimFor } from '../lib/appearance';
 import { nowLineHtml } from '../lib/timeline';
 import { S } from '../lib/state';
 import { companyLink, recordLink } from '../lib/links';
@@ -164,6 +164,7 @@ function paintBand(now: Date): void {
     void bandPhotoUrl(now).then((url) => {
       if (img.getAttribute('src') === url) return;
       img.classList.remove('is-in');
+      img.classList.toggle('is-office', url === OFFICE_BAND);
       img.onload = () => img.classList.add('is-in');
       img.src = url;
     });

@@ -4,7 +4,7 @@ import { describe, it, expect, vi } from 'vitest';
 vi.mock('../assets/brand/office-band.jpg', () => ({ default: '/office-band.jpg' }));
 
 import { tileIndex, strColor } from './utils';
-import { dayPart, scrimFor, photoOfDay, initialsOf, homeCity } from './appearance';
+import { dayPart, scrimFor, photoOfDay, initialsOf, homeCity, cityPhoto } from './appearance';
 import { buildIndex, nowMeeting, type AttentionItem, type Timeline } from './myday';
 import { agreementFigures, companyFigures, contactFigures, projectFigures, proposalFigures } from './recordFigures';
 import type { Agreement, Meeting, Proposal, Todo } from './types';
@@ -45,9 +45,9 @@ describe('the band', () => {
     expect(dayPart(14)).toBe('afternoon');
     expect(dayPart(19)).toBe('evening');
     expect(dayPart(2)).toBe('evening');
-    expect(scrimFor('afternoon')).toContain('rgba(1,75,140,.92) 0%');
-    expect(scrimFor('morning')).toContain('rgba(1,75,140,.78) 0%');
-    expect(scrimFor('evening')).toContain('rgba(10,32,51,.85) 0%');
+    expect(scrimFor('afternoon')).toContain('rgba(1,75,140,.93) 0%');
+    expect(scrimFor('morning')).toContain('rgba(1,75,140,.9) 0%');
+    expect(scrimFor('evening')).toContain('rgba(10,32,51,.88) 0%');
   });
   it('one of your photos a day, in turn', () => {
     expect(photoOfDay([], new Date(2026, 8, 30))).toBeNull();
@@ -55,6 +55,14 @@ describe('the band', () => {
     const b = photoOfDay(['a.jpg', 'b.jpg'], new Date(2026, 9, 1));
     expect(a).not.toBe(b);
     expect(photoOfDay(['a.jpg', 'b.jpg'], new Date(2026, 8, 30, 23))).toBe(a);
+  });
+  it('city photo: today\'s of that city, in turn; the office when a city has none', () => {
+    const photos = { '../assets/band/riyadh.webp': 'r1', '../assets/band/riyadh-2.webp': 'r2', '../assets/band/beirut.webp': 'b' };
+    const a = cityPhoto('Riyadh', new Date(2026, 8, 30), photos);
+    const b = cityPhoto('Riyadh', new Date(2026, 9, 1), photos);
+    expect([a, b].sort()).toEqual(['r1', 'r2']);
+    expect(cityPhoto('Beirut', new Date(2026, 8, 30), photos)).toBe('b');
+    expect(cityPhoto('Barcelona', new Date(2026, 8, 30), photos)).toBe('/office-band.jpg');
   });
   it('home city: this Mac\'s time zone, else the first weather city', () => {
     expect(homeCity('Asia/Riyadh')).toBe('Riyadh');

@@ -1,7 +1,8 @@
 // Settings → Appearance (brand slice): the shell tint (Blue, the default, or
 // Grey), whose name the greeting and the sidebar use when Microsoft 365 isn't
-// connected, and My Day's band photo (the office, or your own photos, one a
-// day). Tint and name are remembered on this computer, like the theme; your
+// connected, and My Day's band photo: your city (default — a photograph of
+// the office city you're in, bundled in src/assets/band, see
+// docs/brand-assets.md), the MENA office, or your own photos (one a day). Tint and name are remembered on this computer, like the theme; your
 // photos are copied into the app's data folder (src-tauri/src/appearance.rs).
 
 import { S } from './state';
@@ -9,7 +10,7 @@ import { OFFICES } from './offices';
 import officeBand from '../assets/brand/office-band.jpg';
 
 export type Tint = 'blue' | 'grey';
-export type BandSource = 'default' | 'mine';
+export type BandSource = 'city' | 'office' | 'mine';
 
 const KEYS = { tint: 'menabig.tint', name: 'menabig.yourName', band: 'menabig.band' };
 
@@ -31,7 +32,10 @@ export function applyTint(): void {
 export function yourName(): string { return (read(KEYS.name) || '').trim(); }
 export function setYourName(name: string): void { write(KEYS.name, name.trim()); }
 
-export function bandSource(): BandSource { return read(KEYS.band) === 'mine' ? 'mine' : 'default'; }
+export function bandSource(): BandSource {
+  const v = read(KEYS.band);
+  return v === 'mine' || v === 'office' ? v : 'city';
+}
 export function setBandSource(b: BandSource): void { write(KEYS.band, b); }
 
 /** Your name: the Microsoft account's, else the one in Settings. */
@@ -60,11 +64,13 @@ export function dayPart(hour: number): DayPart {
   return 'evening';
 }
 
-/** The band's blue scrim, left to right: lighter in the morning, navy-heavy in the evening. Pure. */
+/** The band's blue scrim, left to right: lighter in the morning, navy-heavy in the evening. The
+ * left side is dense enough for the white greeting at 4.5:1 or more on every bundled photo
+ * (scripts/band-contrast.py measures it). Pure. */
 export function scrimFor(part: DayPart): string {
-  if (part === 'morning') return 'linear-gradient(90deg,rgba(1,75,140,.78) 0%,rgba(1,75,140,.62) 38%,rgba(1,75,140,.28) 70%,rgba(10,32,51,.18) 100%)';
-  if (part === 'evening') return 'linear-gradient(90deg,rgba(10,32,51,.85) 0%,rgba(10,32,51,.74) 38%,rgba(1,75,140,.48) 70%,rgba(10,32,51,.4) 100%)';
-  return 'linear-gradient(90deg,rgba(1,75,140,.92) 0%,rgba(1,75,140,.78) 38%,rgba(1,75,140,.38) 70%,rgba(10,32,51,.25) 100%)';
+  if (part === 'morning') return 'linear-gradient(90deg,rgba(1,75,140,.9) 0%,rgba(1,75,140,.82) 45%,rgba(1,75,140,.34) 72%,rgba(10,32,51,.2) 100%)';
+  if (part === 'evening') return 'linear-gradient(90deg,rgba(10,32,51,.88) 0%,rgba(10,32,51,.8) 45%,rgba(1,75,140,.48) 72%,rgba(10,32,51,.4) 100%)';
+  return 'linear-gradient(90deg,rgba(1,75,140,.93) 0%,rgba(1,75,140,.85) 45%,rgba(1,75,140,.4) 72%,rgba(10,32,51,.25) 100%)';
 }
 
 /** One photo a day, in turn. Pure. */
@@ -74,10 +80,24 @@ export function photoOfDay(names: string[], date: Date): string | null {
   return names[day % names.length];
 }
 
+/** The bundled photographs of the office cities (riyadh.webp, riyadh-2.webp …; docs/brand-assets.md). */
+const CITY_PHOTOS = import.meta.glob('../assets/band/*.webp', { eager: true, import: 'default' }) as Record<string, string>;
+export const OFFICE_BAND = officeBand;
+
+/** Today's photo of a city (in turn, when it has more than one), or the office banner when it has none. Pure. */
+export function cityPhoto(city: string, date: Date, photos: Record<string, string> = CITY_PHOTOS): string {
+  const slug = city.trim().toLowerCase().replace(/[^a-z]+/g, '-');
+  const mine = Object.keys(photos).filter((path) => new RegExp(`/${slug}(-\\d+)?\\.webp$`).test(path)).sort();
+  const pick = photoOfDay(mine, date);
+  return pick ? photos[pick] : officeBand;
+}
+
 let cached: { key: string; url: string } | null = null;
-/** The band photo for today: the office, or today's one of yours. */
+/** The band photo for today: your city's, the office, or today's one of yours. */
 export async function bandPhotoUrl(now = new Date()): Promise<string> {
-  if (bandSource() !== 'mine' || !(window as any).__TAURI_INTERNALS__?.invoke) return officeBand;
+  const source = bandSource();
+  if (source === 'city') return cityPhoto(homeCity(), now);
+  if (source === 'office' || !(window as any).__TAURI_INTERNALS__?.invoke) return officeBand;
   try {
     const { invoke } = await import('@tauri-apps/api/core');
     const name = photoOfDay(await invoke<string[]>('band_photos_list'), now);
