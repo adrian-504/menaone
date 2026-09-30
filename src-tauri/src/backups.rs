@@ -153,7 +153,10 @@ pub fn spawn_daily_backup_loop(app: AppHandle, dir: PathBuf) {
         let Ok(conn) = state.0.lock() else { continue };
         if let Err(e) = ensure_daily_backup(&conn, &dir, DAILY_KEEP) {
             eprintln!("[backups] daily snapshot failed: {e}");
+            continue;
         }
+        // A new day's snapshot goes to OneDrive too (housekeeping.rs).
+        crate::housekeeping::sync_daily_to_onedrive(&conn, &dir, &crate::localfiles::onedrive_dirs());
     });
 }
 

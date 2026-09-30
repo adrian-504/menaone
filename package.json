@@ -1,11 +1,11 @@
 {
   "name": "mena-one",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.50.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "node scripts/release-check.mjs && tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
     "test": "vitest run",

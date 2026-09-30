@@ -657,6 +657,14 @@ export async function installDevMockIfNeeded(): Promise<void> {
           return null;
         }
         // Follow-up touches: a sample email follow-up on the Northwind proposal; new ones kept for the session.
+        // Settings → Data: a healthy picture, as after this morning's launch.
+        case 'housekeeping_status': {
+          const t = new Date(); t.setHours(9, 12, 0, 0);
+          const c = new Date(t.getTime() - 60_000);
+          return { dailyLast: Math.floor(t.getTime() / 1000), onedriveLast: t.toISOString(), onedriveKept: 14, onedriveError: null,
+            integrity: { at: c.toISOString(), ok: true, detail: null }, installBackups: 3,
+            installBackupsTidy: { moved: 17, kept: 3, archivedTo: '/Volumes/DevSSD/MENA One Archive/DB backups', at: t.toISOString() } };
+        }
         case 'get_touches':
           return touchesStore.map((t) => ({ ...t }));
         case 'touches_add': {

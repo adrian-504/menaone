@@ -353,7 +353,9 @@ pub fn run_migration_on_db(db_file: &std::path::Path, conn: &mut Connection) -> 
         "{}.pre-company-migration-{stamp}",
         db_file.file_name().and_then(|n| n.to_str()).unwrap_or("menabig.sqlite3")
     ));
-    std::fs::copy(db_file, &backup_path).map_err(err)?;
+    // A consistent snapshot through SQLite, not a file copy: in WAL mode the
+    // latest changes can still be in the -wal file.
+    crate::backups::snapshot(conn, &backup_path).map_err(err)?;
 
     let tx = conn.transaction().map_err(err)?;
     let report = run_migration_tx(&tx, backup_path.to_string_lossy().to_string()).map_err(err)?;

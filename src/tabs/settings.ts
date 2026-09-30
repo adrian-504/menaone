@@ -9,6 +9,7 @@ import { renderTab } from '../lib/registry';
 import { loadReviewQueue } from './companies';
 import { renderCommercialSettings } from './settingsCommercial';
 import { renderTemplatesSettings } from './settingsTemplates';
+import { renderDataStatus } from './settingsData';
 
 async function loadStatus(): Promise<void> {
   S.ms365Status = await ms365Status();
@@ -60,6 +61,7 @@ async function renderSettingsTab(): Promise<void> {
   renderThemePicker();
   renderCommercialSettings();
   void renderTemplatesSettings();
+  void renderDataStatus();
   await loadStatus();
   const clientIdInput = document.getElementById('ms365-client-id-input') as HTMLInputElement | null;
   if (clientIdInput && !clientIdInput.value) {

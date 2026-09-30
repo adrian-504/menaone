@@ -96,7 +96,7 @@ The outbox is designed now and built once a server exists to drain it.
   `roles`, `user_modules`, `audit_log` and `server_seq`.
 - Entra ID sign-in; the API validates Microsoft tokens.
 - Jobs that run only on the server: Microsoft Graph sync, PowerPoint generation
-  (see `spikes/pptx-generator`), imports, reference numbering.
+  (the `spikes/pptx-generator` spike, (removed 30-Sep-2026; in history at 6e45525)), imports, reference numbering.
 
 ### Migration of the existing data
 1. Upload Ahmad's local database (uuids already assigned) to Postgres.

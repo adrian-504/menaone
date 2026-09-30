@@ -1413,7 +1413,14 @@ body.dnd-active .board-column.drop-target{background:var(--accent-bg)!important}
 .co-dossier .co-records .task-row{padding:4px 6px}
 .co-dossier .co-records .project-grid{grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:8px}
 .co-dossier .co-records .project-card{padding:10px 12px;gap:6px;box-shadow:none}
-.co-dossier .co-records .row-excerpt{margin-top:0}
+.co-dossier .co-records /* Settings → Data: version, backups, the database check (quiet; red only when something failed). */
+.data-status{margin:0 0 18px;font-size:var(--type-secondary);color:var(--muted);display:flex;flex-direction:column;gap:3px}
+.data-version{color:var(--text);font-weight:600;font-size:var(--type-body);margin-bottom:4px}
+.data-line.is-bad{color:var(--red)}
+.data-changes{list-style:none;margin:8px 0 0;padding:8px 0 0;border-top:1px solid var(--hairline);display:flex;flex-direction:column;gap:3px}
+.data-changes li{color:var(--muted)}
+.data-change-v{display:inline-block;min-width:36px;font-variant-numeric:tabular-nums;color:var(--sub)}
+.row-excerpt{margin-top:0}
 .co-dossier .conote-body{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;white-space:normal}
 .co-dossier .conote-entry{padding:7px 0}
 .co-dossier .co-records tbody td{padding-top:6px;padding-bottom:6px}

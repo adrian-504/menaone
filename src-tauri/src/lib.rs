@@ -7,6 +7,7 @@ pub mod commitments;
 pub mod company_migration;
 pub mod db;
 pub mod email_templates;
+pub mod housekeeping;
 pub mod full_backup;
 pub mod insights;
 pub mod integrity;
@@ -222,6 +223,8 @@ pub fn run() {
             let _ = v2_search::rebuild_all(&conn);
             let _ = v2_search::rebuild_note_links(&conn);
             app.manage(DbState(Mutex::new(conn)));
+            // Quick check, the OneDrive copy of today's snapshot, older install backups to the archive.
+            housekeeping::spawn_launch_checks(app.handle().clone(), app_data_dir.clone(), backups_dir.clone());
             backups::spawn_daily_backup_loop(app.handle().clone(), backups_dir);
             app.manage(Ms365State::default());
 
@@ -282,6 +285,7 @@ pub fn run() {
             email_templates::get_email_templates,
             email_templates::save_email_template,
             email_templates::delete_email_template,
+            housekeeping::housekeeping_status,
             commands::delete_todos,
             commands::upsert_notes,
             commands::delete_notes,
@@ -413,7 +417,13 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(|app, event| match event {
-            tauri::RunEvent::ExitRequested { .. } => QUITTING.store(true, Ordering::SeqCst),
+            tauri::RunEvent::ExitRequested { .. } => {
+                QUITTING.store(true, Ordering::SeqCst);
+                // Keeps the query planner's statistics fresh; cheap, and only at quit.
+                if let Some(state) = app.try_state::<DbState>() {
+                    if let Ok(conn) = state.0.lock() { let _ = conn.execute_batch("PRAGMA optimize;"); }
+                }
+            }
             #[cfg(target_os = "macos")]
             tauri::RunEvent::Reopen { has_visible_windows, .. } => {
                 if !has_visible_windows {

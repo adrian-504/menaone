@@ -1,5 +1,8 @@
 # Phone app — skeleton and the road to iOS
 
+> **30 Sept 2026:** the phone plan is now OneDrive phone sync, `docs/phone-sync.md` on the paused branch `phone-sync`.
+> The skeleton this page describes (`mobile/`, `mobile-api/`) was removed from the tree; it lives in history at 6e45525.
+
 What exists today, what it is standing in for, and what has to be true before this becomes an app on a phone. Written 16 September 2026 after the owner interview.
 
 ## What the owner asked for
