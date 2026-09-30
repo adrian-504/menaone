@@ -25,8 +25,9 @@ pub const ARCHIVE_DB_DIR: &str = "/Volumes/DevSSD/MENA One Archive/DB backups";
 
 type Io<T> = Result<T, String>;
 
+/// A full UTC timestamp: these records are shown with a time.
 fn now_iso() -> String {
-    crate::commands::now_iso()
+    crate::commands::timestamp_utc(SystemTime::now())
 }
 
 fn set_meta(conn: &Connection, key: &str, value: &str) -> rusqlite::Result<()> {
@@ -173,7 +174,7 @@ pub struct TidyResult {
 /// `archive_dir` when `archive_volume` is mounted: copied, compared byte for
 /// byte, then removed from the app folder. Without the volume nothing moves.
 pub fn archive_old_install_backups(app_dir: &Path, archive_volume: &Path, archive_dir: &Path, days: u64, now: SystemTime) -> TidyResult {
-    let mut result = TidyResult { at: now_iso(), ..Default::default() };
+    let mut result = TidyResult { at: crate::commands::timestamp_utc(now), ..Default::default() };
     let Ok(entries) = std::fs::read_dir(app_dir) else { return result };
     let cutoff = now.checked_sub(Duration::from_secs(days * 24 * 60 * 60)).unwrap_or(SystemTime::UNIX_EPOCH);
     let mounted = archive_volume.is_dir();

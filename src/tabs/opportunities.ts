@@ -32,7 +32,10 @@ import { persistNotes, persistOpportunity, saveNotesNow } from '../lib/persist';
 import { companyFromForm, contextFromOpportunity, opportunityTasks, type WorkContext } from '../lib/workGraph';
 import { taskRowHtml } from './todo';
 import { icon } from '../lib/icons';
-import { showContextMenu, type ContextMenuItem } from '../lib/contextMenu';
+import { recordHeaderHtml } from '../lib/recordHeader';
+import { showContextMenu, showMenuAt, type ContextMenuItem } from '../lib/contextMenu';
+import { opportunityNextStep } from '../lib/recordSteps';
+import { newForRecordItems } from '../core/contextActions';
 import { attachCompanySelector } from '../lib/companySelector';
 import { OPPORTUNITY_STAGES } from '../lib/types';
 import type { Opportunity, Note } from '../lib/types';
@@ -436,6 +439,11 @@ async function renderOpportunityDetail(): Promise<void> {
   renderOpportunityDescription(o);
   (document.getElementById('od-next-action') as HTMLTextAreaElement).value = o.nextAction || '';
 
+  const actions = document.getElementById('od-actions');
+  if (actions) {
+    const step = opportunityNextStep(o);
+    actions.innerHTML = recordHeaderHtml([{ label: 'Edit', run: 'editCurrentOpportunity()' }], step, 'opportunityMoreMenu(event)');
+  }
   renderThreadStrip('od-thread', { kind: 'opportunity', id: o.id });
   renderOpportunityNextAction(o);
   await renderOpportunityContacts(o);
@@ -665,7 +673,7 @@ async function renderOpportunityNotes(oppId: number): Promise<void> {
   if (S.currentOpportunityId !== oppId) return;
   const noteIds = links.filter((l) => l.fromType === 'note' && l.toType === 'opportunity').map((l) => l.fromId);
   const notes = S.notes.filter((n) => noteIds.includes(n.id));
-  el.innerHTML = `<div class="rec-section-hd"><h2>Notes</h2><span class="rec-count">${notes.length || ''}</span><div class="rec-section-actions"><button class="btn-secondary btn-sm" onclick="createNoteForOpportunity()">+ New</button></div></div>` +
+  el.innerHTML = `<div class="rec-section-hd"><h2>Notes</h2><span class="rec-count">${notes.length || ''}</span><div class="rec-section-actions"><button class="rlink" onclick="createNoteForOpportunity()">Add</button></div></div>` +
     (notes.length === 0
       ? `<div class="feed-empty">No notes yet.</div>`
       : `<div class="rec-list">${notes.map((n) => `<div class="rec-row" onclick="openRecord('note', ${n.id})">
@@ -697,7 +705,7 @@ function renderOpportunityMeetings(oppId: number): void {
   const el = document.getElementById('od-meetings');
   if (!el) return;
   const meetings = S.meetings.filter((m) => m.opportunityId === oppId);
-  el.innerHTML = `<div class="rec-section-hd"><h2>Meetings</h2><span class="rec-count">${meetings.length || ''}</span><div class="rec-section-actions"><button class="btn-secondary btn-sm" onclick="createMeetingForOpportunity()">+ New</button></div></div>` +
+  el.innerHTML = `<div class="rec-section-hd"><h2>Meetings</h2><span class="rec-count">${meetings.length || ''}</span><div class="rec-section-actions"><button class="rlink" onclick="createMeetingForOpportunity()">Add</button></div></div>` +
     (meetings.length === 0
       ? `<div class="feed-empty">No meetings yet.</div>`
       : `<div class="rec-list">${meetings.map((m) => `<div class="rec-row" onclick="openRecord('meeting', ${m.id})">
@@ -725,7 +733,7 @@ function renderOpportunityTasks(oppId: number): void {
   const tasks = opportunityTasks(S, oppId).filter((t) => t.parentId == null)
     .sort((a, b) => Number(a.status === 'Done') - Number(b.status === 'Done') || (a.dueDate || '9999').localeCompare(b.dueDate || '9999'));
   const open = tasks.filter((t) => t.status !== 'Done').length;
-  el.innerHTML = `<div class="rec-section-hd"><h2>Tasks</h2><span class="rec-count">${open || ''}</span><div class="rec-section-actions"><button class="btn-secondary btn-sm" onclick="createTodoForOpportunity()">+ New</button></div></div>` +
+  el.innerHTML = `<div class="rec-section-hd"><h2>Tasks</h2><span class="rec-count">${open || ''}</span><div class="rec-section-actions"><button class="rlink" onclick="createTodoForOpportunity()">Add</button></div></div>` +
     (tasks.length === 0 ? `<div class="feed-empty">No tasks yet.</div>` : `<div class="task-group">${tasks.map((t) => taskRowHtml(t, { compact: true })).join('')}</div>`);
 }
 
@@ -768,7 +776,7 @@ async function renderOpportunityActivity(oppId: number): Promise<void> {
   const activity = await getOpportunityActivity(oppId);
   if (S.currentOpportunityId !== oppId) return;
   await renderRecordTimeline({ elId: 'od-activity', record: { kind: 'opportunity', id: oppId }, scopeToggle: true,
-    header: '<button class="btn-secondary btn-sm" onclick="createNoteForOpportunity()">+ Log note</button>' });
+    header: '<button class="rlink" onclick="createNoteForOpportunity()">Add note</button>' });
 
   // "Days in stage" needs the activity log (to find when the current stage
   // was entered) — appended to the badges row here, once this fetch
@@ -826,7 +834,9 @@ expose('duplicateOpportunity', duplicateOpportunity);
 export function opportunityMoreMenu(e: MouseEvent): void {
   const id = S.currentOpportunityId;
   if (id == null) return;
-  showContextMenu(e, [
+  e.stopPropagation();
+  showMenuAt(e.currentTarget as HTMLElement, [
+    ...newForRecordItems(),
     { label: 'Duplicate', iconName: 'copy', run: () => { void duplicateOpportunity(id); } },
     { label: 'Archive', iconName: 'archive', danger: true, run: () => { void archiveOpportunity(); } },
   ]);

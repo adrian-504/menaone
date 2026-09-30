@@ -11,6 +11,8 @@
 //   company   @Name, or a known company name written in the text
 //   repeat    every day / week / month · daily · weekly · monthly
 
+import { fmtDate, fmtDateShort } from './dates';
+
 export interface ParseContext {
   today: Date;
   projects: { id: number; name: string }[];
@@ -79,8 +81,8 @@ export function friendlyDate(iso: string, today: Date): string {
   if (diff === 1) return 'Tomorrow';
   if (diff === -1) return 'Yesterday';
   if (diff > 1 && diff < 7) return DAYS[date.getDay()][0].toUpperCase() + DAYS[date.getDay()].slice(1, 3);
-  const month = MONTHS[date.getMonth()][0].toUpperCase() + MONTHS[date.getMonth()].slice(1);
-  return y === today.getFullYear() ? `${d} ${month}` : `${d} ${month} ${y}`;
+  // The app's one date format: "10 Sept", "10 Sept 2027" in another year.
+  return y === today.getFullYear() ? fmtDateShort(iso) : fmtDate(iso);
 }
 
 function norm(s: string): string {

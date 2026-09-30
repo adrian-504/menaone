@@ -18,7 +18,10 @@ import { getAllCompanies } from './companies';
 import { taskRowHtml, createTodoForCurrentProject } from './todo';
 import { renderLinkedEmails } from '../core/emailLinks';
 import { icon } from '../lib/icons';
-import { showContextMenu } from '../lib/contextMenu';
+import { recordHeaderHtml } from '../lib/recordHeader';
+import { showContextMenu, showMenuAt } from '../lib/contextMenu';
+import { projectNextStep } from '../lib/recordSteps';
+import { newForRecordItems } from '../core/contextActions';
 import { attachCompanySelector } from '../lib/companySelector';
 import type { Project, Milestone, Note } from '../lib/types';
 import { statusTone, toneVar } from '../lib/statusTone';
@@ -47,8 +50,8 @@ registerTabRenderer('projects', () => { void renderProjectsTab(); });
 
 createListNav<number>({
   tabId: 'projects',
-  getItems: () => [...document.querySelectorAll<HTMLElement>('#proj-grid .project-card[data-project-id]')].map((el) => Number(el.dataset.projectId)),
-  getEl: (id) => document.querySelector<HTMLElement>(`#proj-grid .project-card[data-project-id="${id}"]`),
+  getItems: () => [...document.querySelectorAll<HTMLElement>('#proj-grid .pj-row[data-project-id]')].map((el) => Number(el.dataset.projectId)),
+  getEl: (id) => document.querySelector<HTMLElement>(`#proj-grid .pj-row[data-project-id="${id}"]`),
   onOpen: (id) => { void openProjectDetail(id); },
 });
 registerProjectViewRefresher(() => {
@@ -100,7 +103,7 @@ export function renderProjects(): void {
     renderIcons(grid);
     return;
   }
-  grid.innerHTML = data.map(projectCard).join('');
+  grid.innerHTML = data.map(projectRow).join('');
 }
 expose('renderProjects', renderProjects);
 
@@ -116,23 +119,18 @@ export function projectContextMenu(e: MouseEvent, id: number): void {
 }
 expose('projectContextMenu', projectContextMenu);
 
-function projectCard(p: Project): string {
+/** A project as a row (owner, 30-Sep-2026: rows, not cards) — name, client or
+ * internal with the status, progress, target date. Also on company pages. */
+function projectRow(p: Project): string {
   const sc = STATUS_COLOR[p.status] || STATUS_COLOR['Not Started'];
-  // Cards are also shown on company pages: open through the router so the Projects module comes forward.
-  return `<div class="project-card" data-project-id="${p.id}" onclick="openRecord('project', ${p.id})" oncontextmenu="projectContextMenu(event,${p.id})">
-    <div class="project-card-hd">
-      <div class="project-type-dot ${p.type}" title="${p.type === 'client' ? 'Client project' : 'Internal project'}"></div>
-      <div class="project-name">${escHtml(p.name)}</div>
+  // Rows are also shown on company pages: open through the router so the Projects module comes forward.
+  return `<div class="rec-row pj-row" data-project-id="${p.id}" onclick="openRecord('project', ${p.id})" oncontextmenu="projectContextMenu(event,${p.id})">
+    <div class="rec-row-main">
+      <div class="rec-row-title">${escHtml(p.name)}</div>
+      <div class="rec-row-sub">${p.companyName ? companyLink(p.companyId, p.companyName) : 'Internal'}<span class="pq-sep">·</span>${statusDot(sc, p.status)}</div>
     </div>
-    <div class="project-meta-row">
-      ${statusDot(sc, p.status)}
-      <span>${p.companyName ? companyLink(p.companyId, p.companyName) : 'Internal · MENA BIG'}</span>
-    </div>
-    <div class="project-progress-track"><div class="project-progress-fill" style="width:${p.computedProgress}%"></div></div>
-    <div class="project-meta-row">
-      <span>${p.computedProgress}% · ${p.taskDoneCount}/${p.taskCount} tasks</span>
-      ${p.targetDate ? `<span class="push-right">Target ${fmtDate(p.targetDate)}</span>` : ''}
-    </div>
+    <div class="pj-row-progress" title="${p.taskDoneCount}/${p.taskCount} tasks done"><div class="project-progress-track"><div class="project-progress-fill" style="width:${p.computedProgress}%"></div></div><span>${p.computedProgress}%</span></div>
+    <span class="pj-row-date">${p.targetDate ? `Target ${escHtml(fmtDate(p.targetDate))}` : ''}</span>
   </div>`;
 }
 
@@ -177,7 +175,7 @@ async function renderProjectDetail(): Promise<void> {
   (document.getElementById('pd-progress-txt') as HTMLElement).textContent = `${p.computedProgress}%`;
   (document.getElementById('pd-progress-fill') as HTMLElement).style.width = `${p.computedProgress}%`;
 
-  const archiveBtn = document.getElementById('pd-archive-btn'); if (archiveBtn) archiveBtn.textContent = p.archived ? 'Unarchive' : 'Archive';
+  renderProjectActions(p);
 
   renderThreadStrip('pd-thread', { kind: 'project', id: p.id });
   renderMilestones();
@@ -257,7 +255,7 @@ async function renderLinkedNotes(projectId: number): Promise<void> {
   if (S.currentProjectId !== projectId) return;
   const noteIds = links.filter((l) => l.fromType === 'note' && l.toType === 'project').map((l) => l.fromId);
   const notes = S.notes.filter((n) => noteIds.includes(n.id));
-  el.innerHTML = `<div class="rec-section-hd"><h2>Notes</h2><span class="rec-count">${notes.length || ''}</span><div class="rec-section-actions"><button class="btn-secondary btn-sm" onclick="createNoteForProject()">+ New</button></div></div>` +
+  el.innerHTML = `<div class="rec-section-hd"><h2>Notes</h2><span class="rec-count">${notes.length || ''}</span><div class="rec-section-actions"><button class="rlink" onclick="createNoteForProject()">Add</button></div></div>` +
     (notes.length === 0
       ? `<div class="feed-empty">No notes yet.</div>`
       : `<div class="rec-list">${notes.map((n) => `<div class="rec-row" onclick="openRecord('note', ${n.id})">
@@ -291,7 +289,7 @@ function renderProjectMeetings(projectId: number): void {
   const el = document.getElementById('pd-meetings');
   if (!el) return;
   const meetings = S.meetings.filter((m) => m.projectId === projectId);
-  el.innerHTML = `<div class="rec-section-hd"><h2>Meetings</h2><span class="rec-count">${meetings.length || ''}</span><div class="rec-section-actions"><button class="btn-secondary btn-sm" onclick="createMeetingForProject()">+ New</button></div></div>` +
+  el.innerHTML = `<div class="rec-section-hd"><h2>Meetings</h2><span class="rec-count">${meetings.length || ''}</span><div class="rec-section-actions"><button class="rlink" onclick="createMeetingForProject()">Add</button></div></div>` +
     (meetings.length === 0
       ? `<div class="feed-empty">No meetings yet.</div>`
       : `<div class="rec-list">${meetings.map((m) => `<div class="rec-row" onclick="openRecord('meeting', ${m.id})">
@@ -323,7 +321,7 @@ async function renderProjectActivity(projectId: number): Promise<void> {
   const el = document.getElementById('pd-activity');
   if (!el) return;
   await renderRecordTimeline({ elId: 'pd-activity', record: { kind: 'project', id: projectId }, scopeToggle: true,
-    header: '<button class="btn-secondary btn-sm" onclick="createNoteForProject()">+ Log note</button>',
+    header: '<button class="rlink" onclick="createNoteForProject()">Add note</button>',
     milestones: () => S.currentProjectId === projectId ? S.currentProjectMilestones : [] });
 }
 
@@ -339,7 +337,17 @@ registerDropTarget('milestone-order', {
   },
 });
 
+/** Header: Edit, the next step (blue), "…" (owner, 30-Sep-2026: one pattern for every record). */
+function renderProjectActions(p: Project): void {
+  const el = document.getElementById('pd-actions');
+  if (!el) return;
+  const step = projectNextStep(p, S.currentProjectId === p.id ? S.currentProjectMilestones : []);
+  el.innerHTML = recordHeaderHtml([{ label: 'Edit', run: 'editCurrentProject()' }], step, 'projectMoreMenu(event)');
+}
+
 function renderMilestones(): void {
+  const cur = S.projects.find((x) => x.id === S.currentProjectId);
+  if (cur) renderProjectActions(cur);
   const el = document.getElementById('pd-milestones'); if (!el) return;
   const cnt = document.getElementById('pd-milestone-cnt');
   const list = S.currentProjectMilestones;
@@ -454,6 +462,20 @@ export async function cycleMilestoneStatus(id: number): Promise<void> {
   await loadProjects(); // milestone completion doesn't affect computedProgress (task-derived), but keep list view fresh
 }
 expose('cycleMilestoneStatus', cycleMilestoneStatus);
+
+/** The header's "Complete milestone: …". */
+export async function completeMilestone(id: number): Promise<void> {
+  if (S.currentProjectId == null) return;
+  const m = S.currentProjectMilestones.find((x) => x.id === id);
+  if (!m || m.status === 'Done') return;
+  m.status = 'Done';
+  m.completionDate = today();
+  await persistMilestones(S.currentProjectId, S.currentProjectMilestones);
+  S.currentProjectMilestones = await getMilestones(S.currentProjectId);
+  renderMilestones();
+  await loadProjects();
+}
+expose('completeMilestone', completeMilestone);
 
 export async function deleteMilestone(id: number): Promise<void> {
   if (S.currentProjectId == null) return;
@@ -596,7 +618,7 @@ export function renderCoProjectsSection(d: { name: string; companyId: number | n
     renderIcons(container);
     return;
   }
-  container.innerHTML = `<div class="project-grid">${companyProjects.map(projectCard).join('')}</div>`;
+  container.innerHTML = `<div class="rec-list pj-list">${companyProjects.map(projectRow).join('')}</div>`;
 }
 expose('renderCoProjectsSection', renderCoProjectsSection);
 
@@ -638,7 +660,9 @@ export function projectMoreMenu(e: MouseEvent): void {
   const id = S.currentProjectId;
   if (id == null) return;
   const p = S.projects.find((x) => x.id === id);
-  showContextMenu(e, [
+  e.stopPropagation();
+  showMenuAt(e.currentTarget as HTMLElement, [
+    ...newForRecordItems(),
     { label: 'Duplicate with milestones', iconName: 'copy', run: () => { void duplicateProject(id); } },
     { label: p?.archived ? 'Unarchive' : 'Archive', iconName: 'archive', run: () => { void toggleArchiveProject(); } },
   ]);

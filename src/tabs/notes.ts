@@ -10,7 +10,7 @@ import { companyLink, recordLink } from '../lib/links';
 import { meetingNotesList, type MeetingNoteRow } from '../lib/meetingNotesList';
 import { clientFolder, clientNotesList, clientsWithNotes, parseClientFolder, SOURCE_LABEL, type CompanyEntry } from '../lib/clientNotes';
 import { allCompanyNoteEntries } from '../lib/db';
-import { today, fmtDate, escHtml, nextNoteId, expose, positionFloatingPopup, showTextPrompt, showConfirm, debounce, inCompany } from '../lib/utils';
+import { today, fmtDate, escHtml, nextNoteId, expose, positionFloatingPopup, showTextPrompt, showConfirm, debounce, inCompany, fmtMonth } from '../lib/utils';
 import { showContextMenu, showMenuAt, type ContextMenuItem } from '../lib/contextMenu';
 import { persistNotes, persistNoteFolders, persistTodos, saveNotesNow, saveTodosNow } from '../lib/persist';
 import { readCommitmentsFrom } from './commitments';
@@ -352,7 +352,7 @@ export function renderNotesList(): void {
 }
 expose('renderNotesList', renderNotesList);
 
-const monthOf = (iso: string | null) => (iso ? new Date(`${iso.slice(0, 10)}T12:00:00`).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }) : 'No date');
+const monthOf = (iso: string | null) => (iso ? fmtMonth(iso.slice(0, 10)) : 'No date');
 
 /** "From meetings": what was written in meetings, read-only here; a row opens its meeting. */
 function renderMeetingNotes(search: string): void {

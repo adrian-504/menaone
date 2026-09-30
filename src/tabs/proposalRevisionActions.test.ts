@@ -10,15 +10,17 @@ const proposal = (status: string, over: Partial<Proposal> = {}) => ({
 const header = () => document.getElementById('prd-actions')!;
 
 describe('asking for changes and sending a revision from the proposal page', () => {
-  it("a sent proposal's Follow-up header has Client asked for changes… beside Followed up", () => {
+  it("a sent proposal's Follow-up header: two matched small buttons, no link", () => {
     document.body.innerHTML = '<section id="prd-contact"></section>';
     S.touches = [];
-    renderContact(proposal('Sent to Client'));
+    renderContact(proposal('Sent to Client', { dateSentToClient: '2026-09-29' }));
     const actions = document.querySelector('#prd-contact .rec-section-actions')!;
-    const link = actions.querySelector('a.rlink') as HTMLAnchorElement;
-    expect(link.textContent).toBe('Client asked for changes…');
-    expect(link.getAttribute('onclick')).toContain('openRevisionDialog(7)');
-    expect(actions.querySelector('button')?.textContent).toContain('Followed up');
+    const buttons = [...actions.querySelectorAll('button')];
+    expect(buttons.map((b) => b.textContent!.trim())).toEqual(['Client asked for changes', 'Followed up']);
+    expect(buttons.every((b) => b.className === 'btn-secondary btn-sm')).toBe(true);
+    expect(buttons[0].getAttribute('onclick')).toBe('openRevisionDialog(7)');
+    expect(actions.querySelector('a, .rlink')).toBeNull();
+    expect(document.querySelector('#prd-contact .pr-review-note')?.textContent).toBe('Sent 29 Sept 2026 · nothing logged since.');
   });
 
   it('drafting a revision: one primary, Mark revision sent, with Submit for review as a secondary', () => {

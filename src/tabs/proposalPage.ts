@@ -14,7 +14,7 @@ import { latestRevision, lineWasNote, parseSnapshot, removedServices, revisionFa
 import { companyFromForm, contextFromOpportunity } from '../lib/workGraph';
 import { S } from '../lib/state';
 import { touchDoing, touchesOf } from '../lib/followup';
-import { escHtml, expose, fmtDate, today, nextId, nextCtId, showConfirm, showTextPrompt, debounce, strColor } from '../lib/utils';
+import { escHtml, expose, fmtDate, today, nextId, nextCtId, showConfirm, showTextPrompt, debounce, strColor, fmtDateShort } from '../lib/utils';
 import { icon } from '../lib/icons';
 import { companyLink, recordLink } from '../lib/links';
 import { emptyState, toast, undoToast } from '../lib/ui';
@@ -31,7 +31,7 @@ import { ST, LEAD_SOURCES } from '../lib/constants';
 import { renderLinesEditor, lineForService } from '../lib/linesEditor';
 import { changeProposalStatus, contactFirstName, recordReview, undoReview, openRevisionDialog, openWlModal, updateStatus, archiveProposal, unarchiveProposal, snoozeProposal, isSnoozed } from '../core/proposals';
 import {
-  PS, PROPOSAL_STAGES, stageIndex, isWon, isLost, isWithdrawn, isClosed, lineTotals, syncProposalTotals, fmtMoney, currencyOf,
+  PS, PROPOSAL_STAGES, proposalSentDate, stageIndex, isWon, isLost, isWithdrawn, isClosed, lineTotals, syncProposalTotals, fmtMoney, currencyOf,
   teamMember, reviewers, defaultReviewer, activeTeam, ownerName, entityById, defaultEntity, activeServices, newLine,
   suggestedFileName, nextDocumentId, nextLineId, nextDeckFileName,
   currentUser,
@@ -95,7 +95,7 @@ function commit(p: Proposal, rerender = true): void {
 function promisedByFact(p: Proposal): string {
   if (!p.promisedBy || (p.status !== PS.REQUEST && p.status !== PS.DRAFTING)) return '';
   const d = new Date(`${p.promisedBy.slice(0, 10)}T12:00:00`);
-  const label = isNaN(d.getTime()) ? p.promisedBy : d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  const label = isNaN(d.getTime()) ? p.promisedBy : fmtDateShort(d);
   return `<span class="rec-meta${p.promisedBy.slice(0, 10) <= today() ? ' t-red' : ''}">Promised by ${escHtml(label)}</span>`;
 }
 
@@ -457,8 +457,8 @@ export function renderContact(p: Proposal): void {
     const who = t.contactId != null ? contactFirstName(t.contactId) : null;
     return `<li>${[fmtDate(t.at.slice(0, 10)), touchDoing(t, who), t.subject || ''].filter(Boolean).map(escHtml).join(' · ')}</li>`;
   }).join('');
-  el.innerHTML = `<div class="rec-section-hd"><h2>Follow-up</h2><div class="rec-section-actions"><a href="#" class="rlink" onclick="event.preventDefault();openRevisionDialog(${p.id})" title="Record what the client wants changed; the proposal goes back to drafting as a revision">Client asked for changes…</a><button class="btn-secondary btn-sm" onclick="followUpMenu(event, ${p.id})" title="Log an email, call, WhatsApp or meeting in one click" aria-haspopup="menu">Followed up ${icon('chevronDown', 11)}</button></div></div>
-    ${touches.length ? `<ul class="pr-contact-list">${rows}</ul>${touches.length > 5 && contactAll !== p.id ? `<a href="#" class="rlink pr-contact-all" onclick="event.preventDefault();proposalContactAll(${p.id})">Show all ${touches.length}</a>` : ''}` : `<p class="pr-review-note">Nothing logged since it was sent.</p>`}`;
+  el.innerHTML = `<div class="rec-section-hd"><h2>Follow-up</h2><div class="rec-section-actions"><button class="btn-secondary btn-sm" onclick="openRevisionDialog(${p.id})" title="Record what the client wants changed; the proposal goes back to drafting as a revision">Client asked for changes</button><button class="btn-secondary btn-sm" onclick="followUpMenu(event, ${p.id})" title="Log an email, call, WhatsApp or meeting in one click" aria-haspopup="menu">Followed up ${icon('chevronDown', 11)}</button></div></div>
+    ${touches.length ? `<ul class="pr-contact-list">${rows}</ul>${touches.length > 5 && contactAll !== p.id ? `<a href="#" class="rlink pr-contact-all" onclick="event.preventDefault();proposalContactAll(${p.id})">Show all ${touches.length}</a>` : ''}` : `<p class="pr-review-note">${proposalSentDate(p) ? `Sent ${escHtml(fmtDate(proposalSentDate(p)))} · nothing logged since.` : 'Nothing logged since it was sent.'}</p>`}`;
   renderIcons(el);
 }
 

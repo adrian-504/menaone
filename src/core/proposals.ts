@@ -91,6 +91,9 @@ export function followUpMenu(e: MouseEvent, proposalId: number): void {
     { label: 'Email', run: log('email_in', 'in') },
     { label: 'Call', run: log('call', 'in') },
     { label: 'WhatsApp', run: log('whatsapp', 'in') },
+    { label: '', run: () => {}, separator: true },
+    // What the client said, in words: the proposal's follow-up note.
+    { label: 'Log a note…', iconName: 'note', run: () => openNotesModal(proposalId, 'followup') },
   ];
   showMenuAt(e.currentTarget as HTMLElement, items);
 }

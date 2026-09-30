@@ -5,7 +5,7 @@
 import changelogMd from '../../CHANGELOG.md?raw';
 import packageJson from '../../package.json?raw';
 import { S } from '../lib/state';
-import { escHtml, expose } from '../lib/utils';
+import { escHtml, expose, fmtDate, fmtDateShort, fmtTime } from '../lib/utils';
 import { housekeepingStatus } from '../lib/db';
 import { parseChangelog, versionLine } from '../lib/changelog';
 import type { HousekeepingStatus } from '../lib/types';
@@ -13,15 +13,22 @@ import type { HousekeepingStatus } from '../lib/types';
 const entries = parseChangelog(changelogMd);
 const version = (() => { try { return String(JSON.parse(packageJson).version || ''); } catch { return ''; } })();
 
-const localDay = (d: Date) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
 /** "today 09:12", "yesterday 09:12", "28 Sept 09:12". */
 function when(d: Date | null): string {
   if (!d || isNaN(d.getTime())) return '';
   const now = new Date();
   const yesterday = new Date(now.getTime() - 86_400_000);
-  const time = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-  const day = localDay(d) === localDay(now) ? 'today' : localDay(d) === localDay(yesterday) ? 'yesterday' : d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-  return `${day} ${time}`;
+  const day = fmtDate(d) === fmtDate(now) ? 'today' : fmtDate(d) === fmtDate(yesterday) ? 'yesterday' : fmtDateShort(d);
+  return `${day} ${fmtTime(d)}`;
+}
+
+/** A stored moment: a full timestamp shows its time; a date alone (written
+ * before 1.51) shows only its day — read as UTC midnight it would show a
+ * made-up time ("today 02:00"). */
+function whenAt(value: string): string {
+  const day = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!day) return when(new Date(value));
+  return when(new Date(+day[1], +day[2] - 1, +day[3])).replace(/ \d{2}:\d{2}$/, '');
 }
 
 /** The three lines, as text with a tone; pure enough to test through the page. */
@@ -30,12 +37,12 @@ export function statusLines(h: HousekeepingStatus | null): { text: string; bad: 
   const daily = h.dailyLast ? when(new Date(h.dailyLast * 1000)) : 'none yet';
   const od = h.onedriveError
     ? `OneDrive copy failed: ${h.onedriveError}`
-    : h.onedriveLast ? `OneDrive copy ${when(new Date(h.onedriveLast))} (${h.onedriveKept} kept)` : 'OneDrive copy not made yet';
+    : h.onedriveLast ? `OneDrive copy ${whenAt(h.onedriveLast)} (${h.onedriveKept} kept)` : 'OneDrive copy not made yet';
   const check = h.integrity
-    ? `Database check: ${h.integrity.ok ? 'ok' : `failed${h.integrity.detail ? ` (${h.integrity.detail})` : ''}`} · ${when(new Date(h.integrity.at))}`
+    ? `Database check: ${h.integrity.ok ? 'ok' : `failed${h.integrity.detail ? ` (${h.integrity.detail})` : ''}`} · ${whenAt(h.integrity.at)}`
     : 'Database check: not run yet';
   const t = h.installBackupsTidy;
-  const archived = t?.at && t.archivedTo ? `older ones archived ${new Date(t.at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`
+  const archived = t?.at && t.archivedTo ? `older ones archived ${fmtDateShort(t.at)}`
     : t && !t.archivedTo ? 'older ones wait for the archive drive' : 'none archived yet';
   return [
     { text: `Daily backup: ${daily} · ${od}`, bad: !!h.onedriveError },

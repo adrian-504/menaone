@@ -5,6 +5,7 @@
 
 import { writeUpState } from './meetingRecap';
 import type { Commitment, Meeting } from './types';
+import { fmtDayLong, fmtMonth } from './dates';
 
 type ListMeeting = Pick<Meeting, 'id' | 'meetingDate' | 'startAt' | 'endAt' | 'isCancelled'>;
 
@@ -21,8 +22,8 @@ export interface DayGroup<T> {
 /** Local YYYY-MM-DD. */
 export const localIso = (d: Date): string => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const addDaysIso = (iso: string, n: number) => { const d = new Date(`${iso}T12:00:00`); d.setDate(d.getDate() + n); return localIso(d); };
-const longDay = (iso: string) => new Date(`${iso}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
-const monthOf = (iso: string) => new Date(`${iso}T12:00:00`).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+const longDay = (iso: string) => fmtDayLong(iso);
+const monthOf = (iso: string) => fmtMonth(iso);
 const startKey = (m: ListMeeting) => m.startAt || `${m.meetingDate || ''}T00:00`;
 
 /**

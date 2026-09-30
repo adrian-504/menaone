@@ -2,6 +2,8 @@
 // "## 1.50 — 2026-09-30" and up to two lines. Settings → Data shows the
 // version, when it was installed and the last five entries. Pure.
 
+import { fmtDate } from './dates';
+
 export interface ChangelogEntry {
   version: string;
   /** YYYY-MM-DD. */
@@ -30,6 +32,6 @@ export const shortVersion = (v: string): string => v.trim().replace(/^(\d+\.\d+)
 export function versionLine(version: string, entries: ChangelogEntry[]): string {
   const v = shortVersion(version);
   const e = entries.find((x) => x.version === v);
-  const when = e ? new Date(`${e.date}T12:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }) : null;
+  const when = e ? fmtDate(e.date) : null;
   return `MENA One ${v}${when ? ` · installed ${when}` : ''}`;
 }

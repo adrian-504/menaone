@@ -1,7 +1,7 @@
 import { isWon, isLost, isWithdrawn, addMoney, currencyOf, agreementMonthly, toReporting, fmtMoney, fmtMoneyByCurrency, type MoneyByCurrency } from '../lib/commercial';
 import { S } from '../lib/state';
 import { companyLink } from '../lib/links';
-import { escHtml, fmtDate, daysSince, badge, expose } from '../lib/utils';
+import { escHtml, fmtDate, daysSince, badge, expose, fmtMonth } from '../lib/utils';
 import { registerTabRenderer } from '../lib/registry';
 import { renderPipelineInsights, renderWinLoss } from './insights';
 
@@ -12,7 +12,7 @@ export function populateMonthPicker(): void {
   const curMo = sel.value;
   sel.innerHTML = `<option value="">Select month...</option>` + months.map((m) => {
     const d = new Date(m + '-01');
-    return `<option value="${m}" ${m === curMo ? 'selected' : ''}>${d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}</option>`;
+    return `<option value="${m}" ${m === curMo ? 'selected' : ''}>${fmtMonth(d)}</option>`;
   }).join('');
   const yearSel = document.getElementById('mp-year') as HTMLSelectElement;
   const years = [...new Set(months.map((m) => m.slice(0, 4)))];
@@ -52,7 +52,7 @@ export function renderMonthlyReport(): void {
   const curMrrBy = startedMrr(cur.started);
   const curMrr = toReporting(curMrrBy) ?? curMrrBy.SAR ?? 0;
   const prevMrr = toReporting(startedMrr(prev.started)) ?? startedMrr(prev.started).SAR ?? 0;
-  const mo = new Date(month + '-01').toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+  const mo = fmtMonth(month + '-01');
   let html = `
   <div class="kpi-row-auto analytics-kpis">
     ${[

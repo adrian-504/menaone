@@ -1,4 +1,4 @@
-import { escHtml, expose, positionFloatingPopup } from './utils';
+import { escHtml, expose, positionDropdown, positionFloatingPopup } from './utils';
 import { icon } from './icons';
 
 export interface ContextMenuItem {
@@ -43,6 +43,7 @@ export function showContextMenu(e: MouseEvent, items: ContextMenuItem[]): void {
   anchor.style.width = '0';
   anchor.style.height = '0';
   document.body.appendChild(anchor);
+  menu.style.transformOrigin = '';
   positionFloatingPopup(menu, anchor);
   anchor.remove();
 }
@@ -58,7 +59,7 @@ export function showMenuAt(anchorEl: HTMLElement, items: ContextMenuItem[]): voi
   const menu = document.getElementById('ctx-menu') as HTMLElement;
   menu.innerHTML = renderMenuItems(items);
   menu.classList.add('open');
-  positionFloatingPopup(menu, anchorEl);
+  positionDropdown(menu, anchorEl);
 }
 expose('showMenuAt', showMenuAt);
 

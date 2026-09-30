@@ -100,8 +100,8 @@ export function fuCard(p: Proposal, isArchived: boolean): string {
     ${p.monthlyFee ? `<span class="pq-fee">${fmtMoney(p.monthlyFee, currencyOf(p))}<small>/mo</small></span>` : '<span class="pq-fee"></span>'}
     <div class="pq-actions">
       ${isArchived ? `<button class="btn-secondary btn-sm" onclick="unarchiveProposal(${p.id});renderFollowup()">Unarchive</button>`
-        : `<button class="btn-secondary btn-sm" onclick="followUpMenu(event, ${p.id})" title="Log an email, call, WhatsApp or meeting in one click" aria-haspopup="menu">Followed up ${icon('chevronDown', 11)}</button>
-      <button class="btn-secondary btn-sm" onclick="openNotesModal(${p.id}, 'followup')" title="Log what the client said">Log follow-up</button>`}
+        : `<button class="btn-secondary btn-sm" onclick="openRevisionDialog(${p.id})" title="Record what the client wants changed; the proposal goes back to drafting as a revision">Client asked for changes</button>
+      <button class="btn-secondary btn-sm" onclick="followUpMenu(event, ${p.id})" title="Log an email, call, WhatsApp or meeting in one click" aria-haspopup="menu">Followed up ${icon('chevronDown', 11)}</button>`}
       <button class="rec-icon-btn" onclick="pqMenu(event, ${p.id})" title="More" aria-label="More">${icon('more', 14)}</button>
     </div>
   </div>`;

@@ -705,6 +705,26 @@ button.loc-crumb:hover{background:var(--surface-2);color:var(--text)}
 .rlink{color:inherit;text-decoration:underline;text-decoration-color:color-mix(in srgb,currentColor 28%,transparent);text-decoration-thickness:1px;text-underline-offset:2.5px;border-radius:3px;cursor:pointer;transition:color var(--dur-fast) var(--ease-out),text-decoration-color var(--dur-fast) var(--ease-out)}
 .rlink:hover{color:var(--accent);text-decoration-color:var(--accent)}
 .rlink:focus-visible{outline:2px solid var(--accent-border);outline-offset:1px}
+/* A section's actions (owner, 30-Sep-2026): quiet links at the eyebrow's right, underlined on hover. */
+button.rlink{background:none;border:0;padding:0;font:inherit;line-height:inherit}
+.rec-section-actions .rlink,.tl-head-actions .rlink{font-size:var(--type-secondary);font-weight:500;color:var(--sub);text-decoration-color:transparent}
+.rec-section-actions .rlink:hover,.tl-head-actions .rlink:hover{color:var(--accent);text-decoration-color:var(--accent)}
+/* Links in tables underline on hover only; prose links keep the quiet underline. */
+.tbl a,.tbl .rlink{text-decoration-color:transparent}
+/* Filter bars, one order (owner, 30-Sep-2026): scope · search · selects … count · Columns / Show archived · view. */
+.fbar .rcnt,.toolbar .rcnt,.co-search-bar .rcnt{margin-left:auto}
+.fbar .rlink,.toolbar .rlink,.co-search-bar .rlink{font-size:var(--type-secondary);font-weight:500;color:var(--sub);text-decoration-color:transparent}
+.fbar .rlink:hover,.toolbar .rlink:hover,.co-search-bar .rlink:hover{color:var(--accent);text-decoration-color:var(--accent)}
+.fbar-toggle:has(input:checked){color:var(--accent)}
+/* Projects as rows (owner, 30-Sep-2026), on the Projects page and company pages. */
+.rec-row.pj-row{gap:16px}
+.pj-row .rec-row-sub{display:flex;align-items:center;gap:6px}
+.pj-row-progress{display:flex;align-items:center;gap:8px;width:150px;flex:none;font-size:var(--type-meta);color:var(--sub);font-variant-numeric:tabular-nums}
+.pj-row-progress .project-progress-track{flex:1;margin:0}
+.pj-row-date{width:150px;flex:none;text-align:right;font-size:var(--type-secondary);color:var(--sub);white-space:nowrap}
+@container comain (max-width:720px){.pj-row-date{display:none}}
+@media (max-width:720px){.pj-row-date{display:none}.pj-row-progress{width:96px}}
+.tbl a:hover,.tbl .rlink:hover{text-decoration-color:var(--accent)}
 .rlink-chip{display:inline-flex;align-items:center;gap:4px;background:var(--surface-2);border:1px solid var(--border);border-radius:20px;padding:1px 8px;font-size:var(--type-meta);font-weight:600;color:var(--sub);text-decoration:none;transition:background var(--dur-fast) var(--ease-out),border-color var(--dur-fast) var(--ease-out),color var(--dur-fast) var(--ease-out)}
 .rlink-chip:hover{background:var(--accent-bg);border-color:var(--accent-border);color:var(--accent)}
 .rlink-preview{position:fixed;z-index:2600;width:280px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-md);padding:12px 14px;opacity:0;pointer-events:none;transform:translateY(-3px);transition:opacity var(--dur-base) var(--ease-out),transform var(--dur-base) var(--ease-out)}
@@ -1051,6 +1071,8 @@ main.workspace .tab.active{animation:none}
 .rec-section-hd h2{font-size:var(--type-heading);font-weight:700;margin:0;color:var(--text)}
 .rec-count{font-size:var(--type-meta);color:var(--muted);font-weight:600}
 .rec-section-actions{margin-left:auto;display:flex;gap:6px}
+/* Follow-up: two matched small buttons, 8px apart (owner, 30-Sep-2026). */
+#prd-contact .rec-section-actions{gap:8px;align-items:center}
 .rec-save-state{margin-left:auto;font-size:var(--type-meta);color:var(--muted)}
 .rec-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:10px;margin-bottom:12px}
 .rec-stat{font:inherit;display:flex;flex-direction:column;align-items:flex-start;gap:1px;padding:12px 14px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);text-align:left;cursor:pointer;transition:border-color var(--dur-fast) var(--ease-out),box-shadow var(--dur-fast) var(--ease-out),transform var(--dur-fast) var(--ease-out)}
@@ -2738,8 +2760,8 @@ details[open] > summary .svc-group-names{visibility:hidden}
 .co-thread-next{visibility:visible;opacity:0}
 .co-thread:hover .co-thread-next,.co-thread:focus-within .co-thread-next,.co-thread:focus-visible .co-thread-next{opacity:1}
 /* Company 360: a section's "+ New" shows when you're in that section. */
-#co-detail .rec-section:not(.is-empty) > .rec-section-hd .rec-section-actions .btn-secondary{opacity:0;transition:opacity var(--dur-fast) var(--ease-out)}
-#co-detail .rec-section:hover > .rec-section-hd .rec-section-actions .btn-secondary,#co-detail .rec-section:focus-within > .rec-section-hd .rec-section-actions .btn-secondary{opacity:1}
+#co-detail .rec-section:not(.is-empty) > .rec-section-hd .rec-section-actions .btn-secondary,#co-detail .rec-section:not(.is-empty) > .rec-section-hd .rec-section-actions .rlink{opacity:0;transition:opacity var(--dur-fast) var(--ease-out)}
+#co-detail .rec-section:hover > .rec-section-hd .rec-section-actions .btn-secondary,#co-detail .rec-section:focus-within > .rec-section-hd .rec-section-actions .btn-secondary,#co-detail .rec-section:hover > .rec-section-hd .rec-section-actions .rlink,#co-detail .rec-section:focus-within > .rec-section-hd .rec-section-actions .rlink{opacity:1}
 /* Filter bars: search + two filters; the rest behind "Filters" (lib/filterBar.ts). */
 .fbar-more{position:relative;display:inline-flex;align-items:center;gap:4px}
 .fbar-more-btn.has-active{color:var(--accent);border-color:var(--accent-border)}
@@ -2812,3 +2834,12 @@ tr:hover .td-status .row-more,tr:focus-within .td-status .row-more{opacity:1}
 /* Pending: proposals requested together, one quiet line above them. */
 .pq-together{padding:12px 6px 4px;font-size:var(--type-caption);font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
 .pq-together + .pq-row{box-shadow:none}
+
+/* Opportunities board (owner, 30-Sep-2026): columns stay, cards are flat. */
+#opp-board .board-card{background:var(--surface-flat);border:none;box-shadow:none;border-radius:9px}
+#opp-board .board-card:hover{box-shadow:none;transform:none;background:color-mix(in srgb,var(--surface-flat) 92%,var(--text))}
+
+/* Headings (owner, 30-Sep-2026): Settings cards and the proposal builder's steps
+   use the same small uppercase eyebrow as every record section; no icons. */
+.settings-card-hd [data-icon]{display:none}
+.settings-card-hd .card-hd,.prb-section-hd h2{font-size:var(--type-caption);font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}

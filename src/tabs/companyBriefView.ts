@@ -3,7 +3,7 @@
 // rules as Company 360 (lib/companyBrief.ts); nothing new is stored.
 
 import { S } from '../lib/state';
-import { escHtml, expose, fmtDate } from '../lib/utils';
+import { escHtml, expose, fmtDate, fmtTime, fmtDayLong } from '../lib/utils';
 import { renderIcons } from '../core/chrome';
 import { icon } from '../lib/icons';
 import { clauseText, companyRecords, lastContactByPerson, liveThreads, orderPeople, type BriefClause } from '../lib/companyBrief';
@@ -35,11 +35,11 @@ function briefHtml(name: string): string {
   };
   // The Open threads list follows, so the "in flight" clause would only repeat it.
   const state = briefStateHtml(companyStateFor(key).filter((c) => c.key !== 'inflight'));
-  const time = (iso: string | null | undefined) => (iso ? new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '');
+  const time = (iso: string | null | undefined) => fmtTime(iso);
   return `<article class="bv-page">
     <header class="bv-head">
       <h1>${escHtml(name)}</h1>
-      <div class="bv-date">Brief · ${escHtml(new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }))}</div>
+      <div class="bv-date">Brief · ${escHtml(fmtDayLong(new Date(), true))}</div>
     </header>
     <section class="bv-sec"><h2>Where we stand</h2>${state}</section>
     ${threads.length ? `<section class="bv-sec"><h2>Open threads</h2><ul>${threads.map((t) => `<li><strong>${escHtml(t.label || 'Engagement')}</strong> — ${escHtml(t.phrase)}</li>`).join('')}</ul></section>` : ''}

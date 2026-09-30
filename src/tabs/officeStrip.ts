@@ -4,7 +4,7 @@
 
 import { getActiveTabId } from '../lib/registry';
 import { renderIcons } from '../core/chrome';
-import { escHtml, expose } from '../lib/utils';
+import { escHtml, expose, fmtDateWeekday } from '../lib/utils';
 import { icon } from '../lib/icons';
 import { getAppMeta, setAppMeta, weatherNow, type WeatherNow } from '../lib/db';
 import { OFFICES, STATUS_LABEL, localParts, officeStatus } from '../lib/offices';
@@ -68,7 +68,7 @@ function holidayLine(now: Date): string {
   if (!items.length) return '';
   const day = (iso: string) => iso === todayIso
     ? 'Today'
-    : new Date(`${iso}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+    : fmtDateWeekday(iso);
   return items.map((h) => `<span class="mdy-holiday"><strong>${escHtml(day(h.date))}</strong> ${escHtml(h.name.replace(/ \((Barcelona|Catalonia)\)$/, ''))}${h.expected ? ' <span class="mdy-holiday-note">(expected)</span>' : ''} · ${escHtml(CITY_FOR[h.country])}</span>`).join('<span class="mdy-holiday-sep"></span>');
 }
 

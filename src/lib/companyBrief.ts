@@ -10,6 +10,7 @@ import { engagementThread, type EngagementThread, type GraphData, type ThreadKin
 import type { Tone } from './statusTone';
 import type { RecordKind } from './navHistory';
 import type { Agreement, Commitment, Contact, EmailRecord, Meeting, Touch } from './types';
+import { fmtDate, fmtDateShort, fmtMonth } from './dates';
 
 /** An active client with no meeting or email for longer than this is flagged. */
 export const NEGLECT_DAYS = 45;
@@ -66,10 +67,9 @@ export function clauseText(c: BriefClause): string {
 
 // utils.ts registers window handlers when imported, so this pure module keeps
 // its own copies of the two helpers it needs (same results).
-const fmtDate = (s: string | null | undefined) => (s ? new Date(`${s.slice(0, 10)}T12:00:00`).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—');
 const inCompany = (ref: { id: number | null; name: string }, id: number | null | undefined, name: string | null | undefined) =>
   id != null && ref.id != null ? id === ref.id : !!name && name === ref.name;
-const monthYear = (iso: string) => new Date(`${iso.slice(0, 10)}T12:00:00Z`).toLocaleDateString('en-GB', { month: 'short', year: 'numeric', timeZone: 'UTC' });
+const monthYear = (iso: string) => fmtMonth(iso.slice(0, 10), 'short');
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 const daysBetween = (a: string, b: string) => Math.round((Date.parse(`${b.slice(0, 10)}T00:00:00Z`) - Date.parse(`${a.slice(0, 10)}T00:00:00Z`)) / 86_400_000);
 const minDate = (xs: (string | null | undefined)[]) => xs.filter((x): x is string => !!x).map((x) => x.slice(0, 10)).sort()[0] ?? null;
@@ -144,7 +144,7 @@ export function threadStand(t: EngagementThread, today?: string): string {
     return `proposal revision ${rev} sent${d == null ? '' : d === 0 ? ' today' : d === 1 ? ' yesterday' : ` ${d} days ago`}`;
   }
   const status = last.status ? lowerStatus(last.status) : '';
-  const promised = last.promisedBy ? `, promised by ${new Date(`${last.promisedBy.slice(0, 10)}T12:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' })}` : '';
+  const promised = last.promisedBy ? `, promised by ${fmtDateShort(last.promisedBy.slice(0, 10))}` : '';
   return `${last.kind} ${status && !/^(in|sent|signed|on)\b/.test(status) ? 'at ' : ''}${status}`.trim() + (rev ? `, revision ${rev}` : '') + promised;
 }
 

@@ -6,7 +6,7 @@
 
 import { S } from '../lib/state';
 import { currentPlace, placeCompany } from './router';
-import { showMenuAt } from '../lib/contextMenu';
+import { showMenuAt, type ContextMenuItem } from '../lib/contextMenu';
 import { expose } from '../lib/utils';
 
 export interface ContextAction {
@@ -98,6 +98,16 @@ export function recordNewMenu(e: MouseEvent): void {
   if (actions.length) showMenuAt(e.currentTarget as HTMLElement, actions.map((x) => ({ label: x.noun, iconName: x.iconName, run: x.run })));
 }
 expose('recordNewMenu', recordNewMenu);
+
+/** The same actions as the "New" menu, as the first items of a record's "…" menu, then a divider. */
+export function newForRecordItems(): ContextMenuItem[] {
+  const actions = contextCreateActions();
+  if (!actions.length) return [];
+  return [
+    ...actions.map((x) => ({ label: `New ${x.noun.toLowerCase()}`, iconName: x.iconName, run: x.run })),
+    { label: '', run: () => {}, separator: true },
+  ];
+}
 
 /** The company of the open record (not the company page itself), for "Contact at …". */
 export function contextRecordCompany(): { id: number | null; name: string } | null {

@@ -51,6 +51,59 @@ export function positionFloatingPopup(popup: HTMLElement, anchor: HTMLElement): 
   popup.style.visibility = '';
 }
 
+/** Where a button's dropdown goes (owner, 30-Sep-2026: the Followed up menu
+ * opened upwards over the page although there was room below): below the
+ * button, right-aligned to it, `gap` px apart; above only when the visible
+ * area has no room below and more above. `bounds` is that visible area —
+ * the button's scroll container clipped to the window. Pure. */
+export function menuPlacement(
+  anchor: { top: number; bottom: number; left: number; right: number },
+  pop: { width: number; height: number },
+  bounds: { top: number; bottom: number; width: number },
+  gap = 4, margin = 6,
+): { top: number; left: number; above: boolean } {
+  const roomBelow = bounds.bottom - anchor.bottom - gap - margin;
+  const roomAbove = anchor.top - bounds.top - gap - margin;
+  const above = roomBelow < pop.height && roomAbove > roomBelow;
+  const top = above
+    ? Math.max(bounds.top + margin, anchor.top - gap - pop.height)
+    : Math.max(bounds.top + margin, Math.min(anchor.bottom + gap, bounds.bottom - margin - pop.height));
+  const left = Math.max(margin, Math.min(anchor.right - pop.width, bounds.width - pop.width - margin));
+  return { top, left, above };
+}
+
+/** The visible area around an element: its nearest scrolling ancestor, clipped to the window. */
+export function visibleBounds(el: HTMLElement): { top: number; bottom: number; width: number } {
+  let top = 0;
+  let bottom = window.innerHeight;
+  for (let p = el.parentElement; p; p = p.parentElement) {
+    const oy = getComputedStyle(p).overflowY;
+    if ((oy === 'auto' || oy === 'scroll') && p.clientHeight > 0) {
+      const r = p.getBoundingClientRect();
+      top = Math.max(top, r.top);
+      bottom = Math.min(bottom, r.bottom);
+      break;
+    }
+  }
+  return { top, bottom, width: window.innerWidth };
+}
+
+/** A button's dropdown, placed by menuPlacement. */
+export function positionDropdown(popup: HTMLElement, anchor: HTMLElement): void {
+  popup.style.position = 'fixed';
+  popup.style.visibility = 'hidden';
+  popup.style.right = 'auto';
+  popup.style.bottom = 'auto';
+  // offsetWidth/Height, not the bounding box: the menu opens with a scale
+  // animation, and a scaled box measures ~6% small (it overshot the button's right edge).
+  const pop = { width: popup.offsetWidth, height: popup.offsetHeight };
+  const { top, left, above } = menuPlacement(anchor.getBoundingClientRect(), pop, visibleBounds(anchor));
+  popup.style.top = `${top}px`;
+  popup.style.left = `${left}px`;
+  popup.style.transformOrigin = above ? 'bottom right' : 'top right';
+  popup.style.visibility = '';
+}
+
 let textPromptResolve: ((value: string | null) => void) | null = null;
 
 /** Replacement for the browser-native `window.prompt()`, which Tauri's
@@ -108,24 +161,8 @@ export function resolveConfirmPrompt(value: boolean): void {
 }
 expose('resolveConfirmPrompt', resolveConfirmPrompt);
 
-/** DD-MMM-YYYY display format. Dates are stored as YYYY-MM-DD strings and always
- * parsed with a fixed T12:00:00 time to dodge timezone day-shift bugs — this
- * convention is preserved exactly from the original app. */
-export function fmtDate(s: string | null | undefined): string {
-  if (!s) return '—';
-  const d = new Date(s + 'T12:00:00');
-  return isNaN(d.getTime()) ? '—' : d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-}
-
-/** Same DD-MMM-YYYY display format as fmtDate(), for inputs that are already
- * full ISO timestamps (file mtimes, updatedAt fields) rather than bare
- * YYYY-MM-DD strings — skips fmtDate's T12:00:00 append, which would corrupt
- * a timestamp that already carries real time/timezone info. */
-export function fmtDateFromIso(s: string | null | undefined): string {
-  if (!s) return '';
-  const d = new Date(s);
-  return isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-}
+// Dates and times: the one family lives in ./dates (pure, so lib modules can use it too).
+export * from './dates';
 
 export function daysSince(s: string | null | undefined): number | null {
   if (!s) return null;

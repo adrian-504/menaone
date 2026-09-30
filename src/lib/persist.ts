@@ -10,6 +10,7 @@ import type { Project, Milestone, Opportunity, Meeting, Company, RecordCompanyLi
 import { refreshAll } from './registry';
 import { emitChange } from './changes';
 import type { EntityKind } from './types';
+import { isoToday } from './dates';
 
 // Call after mutating the corresponding S.<entity> array. Only records that
 // changed since the last successful save are written, and records that
@@ -173,7 +174,7 @@ function tasksFollowCommitments(): boolean {
     if (c.todoId == null || c.status === 'dropped') continue;
     const t = S.todos.find((x) => x.id === c.todoId);
     if (!t) continue;
-    if (c.status === 'kept' && t.status !== 'Done') { t.status = 'Done'; t.completedAt = t.completedAt || new Date().toLocaleDateString('en-CA'); changed = true; }
+    if (c.status === 'kept' && t.status !== 'Done') { t.status = 'Done'; t.completedAt = t.completedAt || isoToday(); changed = true; }
     else if (c.status === 'open' && t.status === 'Done') { t.status = 'Pending'; t.completedAt = null; changed = true; }
     if ((t.dueDate || null) !== (c.dueDate || null)) { t.dueDate = c.dueDate || null; changed = true; }
   }

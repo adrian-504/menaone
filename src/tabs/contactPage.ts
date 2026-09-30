@@ -2,11 +2,13 @@
 // they're in, and everything they're part of: opportunities, meetings they
 // attended, emails with them, tasks and notes that mention them, and activity.
 
+import { contactNextStep } from '../lib/recordSteps';
 import { endPropsEdit, mountPropsList, propsEditButton, propsListHtml, type PropField } from '../lib/propsList';
 import { jsString } from './companyState';
 import { S } from '../lib/state';
 import { escHtml, expose, fmtDate, fmtDateFromIso, strColor } from '../lib/utils';
 import { icon } from '../lib/icons';
+import { recordHeaderHtml } from '../lib/recordHeader';
 import { companyLink, recordLink } from '../lib/links';
 import { toast, undoToast } from '../lib/ui';
 import { persistContacts } from '../lib/persist';
@@ -67,13 +69,9 @@ export function renderContactPage(): void {
 
   const actions = document.getElementById('ctd-actions');
   if (actions) {
-    const wa = c.whatsapp || c.phone;
-    actions.innerHTML = [
-      c.email ? `<button class="btn-secondary ctd-action" onclick="openExternalUrl('mailto:${escHtml(c.email)}')">${icon('mail', 14)} Email</button>` : '',
-      c.phone ? `<button class="btn-secondary ctd-action" onclick="openExternalUrl('tel:${escHtml(c.phone.replace(/[^+0-9]/g, ''))}')">Call</button>` : '',
-      wa ? `<button class="btn-secondary ctd-action ctd-wa" onclick="openExternalUrl('https://wa.me/${escHtml(wa.replace(/[^0-9]/g, ''))}')">WhatsApp</button>` : '',
-      `<button class="loc-nav rec-more" onclick="contactMoreMenu(event)" title="More" aria-label="More">${icon('more', 16)}</button>`,
-    ].join('');
+    // Email is the next step; Call and WhatsApp are in "…" (owner, 30-Sep-2026: one pattern for every record).
+    const step = contactNextStep(c);
+    actions.innerHTML = recordHeaderHtml([], step, 'contactMoreMenu(event)');
   }
 
   renderContactProps(c);
@@ -170,7 +168,11 @@ export function contactMoreMenu(e: MouseEvent): void {
   e.stopPropagation();
   const c = currentContact();
   if (!c) return;
+  const wa = c.whatsapp || c.phone;
   showMenuAt(e.currentTarget as HTMLElement, [
+    ...(c.phone ? [{ label: 'Call', run: () => w.openExternalUrl(`tel:${c.phone!.replace(/[^+0-9]/g, '')}`) }] : []),
+    ...(wa ? [{ label: 'WhatsApp', run: () => w.openExternalUrl(`https://wa.me/${wa.replace(/[^0-9]/g, '')}`) }] : []),
+    ...(c.phone || wa ? [{ label: '', run: () => {}, separator: true }] : []),
     ...(c.email ? [{ label: 'Copy email', iconName: 'copy', run: () => w.copyText(c.email, 'Email copied') }] : []),
     ...(c.phone ? [{ label: 'Copy phone', iconName: 'copy', run: () => w.copyText(c.phone, 'Phone copied') }] : []),
     { label: 'Copy details', iconName: 'copy', run: () => w.copyText([c.name, c.role, c.clientName, c.email, c.phone].filter(Boolean).join('\n'), 'Contact details copied') },

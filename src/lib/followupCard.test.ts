@@ -14,15 +14,16 @@ const sent = (over: Partial<Proposal> = {}): Proposal => ({ id: 9, client: 'Cont
 const html = (s: string) => { const el = document.createElement('div'); el.innerHTML = s; return el; };
 
 describe('fuCard', () => {
-  it('an active row has Followed up ▾ (one click) and Log follow-up (to write it down), plus "…"', () => {
+  it('an active row has Client asked for changes and Followed up ▾ (Log a note… is in that menu), plus "…"', () => {
     S.emails = []; S.meetings = []; S.touches = [];
     const el = html(fuCard(sent(), false));
     const buttons = [...el.querySelectorAll('.btn-secondary')];
-    expect(buttons.map((b) => b.textContent!.trim())).toEqual(['Followed up', 'Log follow-up']);
-    expect(buttons[0].getAttribute('onclick')).toContain('followUpMenu(event');
+    expect(buttons.map((b) => b.textContent!.trim())).toEqual(['Client asked for changes', 'Followed up']);
+    expect(buttons.every((b) => b.classList.contains('btn-sm'))).toBe(true);
+    expect(buttons[0].getAttribute('onclick')).toContain('openRevisionDialog(');
+    expect(buttons[1].getAttribute('onclick')).toContain('followUpMenu(event');
     expect(el.querySelector('.rec-icon-btn')?.getAttribute('aria-label')).toBe('More');
     expect(el.querySelector('.pq-won, .pq-lost')).toBeNull();
-    expect(buttons[1].getAttribute('onclick')).toContain("'followup'");
   });
 
   it('an archived row has only Unarchive', () => {

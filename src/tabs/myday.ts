@@ -11,7 +11,7 @@ import { renderOfficeStrip } from './officeStrip';
 import { nowLineHtml } from '../lib/timeline';
 import { S } from '../lib/state';
 import { companyLink, recordLink } from '../lib/links';
-import { escHtml, expose, fmtDate, today } from '../lib/utils';
+import { escHtml, expose, fmtDate, today, fmtDayLong, fmtWeekday, fmtDateShort, fmtTime } from '../lib/utils';
 import { icon } from '../lib/icons';
 import { registerTabRenderer, getActiveTabId } from '../lib/registry';
 import { onChange } from '../lib/changes';
@@ -46,9 +46,7 @@ let attentionByKey = new Map<string, AttentionItem>();
 // ── Data ────────────────────────────────────────────────────────────────────
 
 function hhmm(iso: string | null | undefined): string {
-  if (!iso) return '';
-  const d = new Date(iso);
-  return isNaN(d.getTime()) ? '' : d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  return fmtTime(iso);
 }
 
 function input(): MyDayInput {
@@ -107,7 +105,7 @@ export function renderMyDay(): void {
   const now = data.now;
   setHtml('myday-greeting', escHtml(`${greeting(now)}${firstName() ? `, ${firstName()}` : ''}`));
   renderOfficeStrip();
-  setHtml('myday-date', `${escHtml(now.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' }))}<span class="mdy-dot">·</span>${escHtml(summaryLine(timeline, attention))}`);
+  setHtml('myday-date', `${escHtml(fmtDayLong(now))}<span class="mdy-dot">·</span>${escHtml(summaryLine(timeline, attention))}`);
   setHtml('myday-today', todayHtml(timeline, data));
   setHtml('myday-attention-cnt', attention.length ? String(attention.length) : '');
   setHtml('myday-attention', attentionHtml(attention));
@@ -338,13 +336,13 @@ const UPCOMING_ICON: Record<string, string> = { meeting: 'meeting', task: 'check
 
 function dayName(iso: string): string {
   if (iso === addDays(today(), 1)) return 'Tomorrow';
-  return new Date(`${iso}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'long' });
+  return fmtWeekday(iso);
 }
 
 function upcomingHtml(days: UpcomingDay[]): string {
   if (!days.length) return '';
   return days.map((d) => `<div class="mdy-day">
-    <div class="mdy-day-hd"><strong>${escHtml(dayName(d.date))}</strong><span>${escHtml(new Date(`${d.date}T12:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }))}</span></div>
+    <div class="mdy-day-hd"><strong>${escHtml(dayName(d.date))}</strong><span>${escHtml(fmtDateShort(d.date))}</span></div>
     ${d.entries.slice(0, 8).map((e) => `<div class="mdy-up" onclick="openRecord('${e.record.kind}', ${e.record.id})">
       <span class="mdy-up-time">${e.time ? escHtml(e.time) : icon(UPCOMING_ICON[e.kind] || 'calendar', 12)}</span>
       <span class="mdy-up-title">${escHtml(e.title)}</span>
@@ -423,7 +421,7 @@ async function loadActivity(): Promise<void> {
         const f = activityItem(a);
         const at = a.createdAt.length > 10 ? new Date(a.createdAt) : null;
         const when = at && !isNaN(at.getTime())
-          ? (a.createdAt.slice(0, 10) === today() ? hhmm(a.createdAt) : at.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }))
+          ? (a.createdAt.slice(0, 10) === today() ? hhmm(a.createdAt) : fmtDateShort(at))
           : fmtDate(a.createdAt);
         return `<div class="mdy-act"><span class="feed-icon feed-${f.tone || 'muted'}">${icon(f.iconName, 11)}</span><div class="mdy-act-line">${f.html}</div><span class="mdy-act-when">${escHtml(when)}</span></div>`;
       }).join('')

@@ -15,6 +15,7 @@ import { daysBetween, isOpenOpportunity, opportunityHealth } from './pipeline';
 import type { Agreement, Commitment, EmailRecord, Meeting, Opportunity, PipelineFact, Project, Proposal, Todo, Touch } from './types';
 import type { RecordKind } from './navHistory';
 import { localIsoDate } from './outlookTime';
+import { fmtDateShort, fmtDateWeekday } from './dates';
 
 // ── Inputs ──────────────────────────────────────────────────────────────────
 
@@ -81,7 +82,7 @@ const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? o
 const days = (n: number) => plural(n, 'day');
 const shortDate = (iso: string) => {
   const d = new Date(`${iso.slice(0, 10)}T12:00:00`);
-  return isNaN(d.getTime()) ? iso : d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: d.getFullYear() === new Date().getFullYear() ? undefined : 'numeric' });
+  return isNaN(d.getTime()) ? iso : fmtDateShort(d, true);
 };
 
 function timeLabel(iso: string | null): string {
@@ -105,7 +106,7 @@ export function promisedRank(promisedBy: string | null | undefined, today: strin
   if (!promisedBy) return null;
   const d = daysBetween(today, promisedBy) ?? 0;
   const date = new Date(`${promisedBy.slice(0, 10)}T12:00:00`);
-  const label = isNaN(date.getTime()) ? promisedBy : date.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+  const label = isNaN(date.getTime()) ? promisedBy : fmtDateWeekday(date);
   return { tone: d <= 0 ? 'red' : d <= 3 ? 'amber' : 'accent', when: `Promised by ${label}`, late: d <= 0 };
 }
 

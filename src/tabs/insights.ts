@@ -2,7 +2,7 @@
 // opportunity outcomes). Numbers come from lib/pipeline.ts.
 
 import { S } from '../lib/state';
-import { escHtml, today } from '../lib/utils';
+import { escHtml, today, fmtMonth } from '../lib/utils';
 import { icon } from '../lib/icons';
 import { recordLink } from '../lib/links';
 import { emptyState, skeleton } from '../lib/ui';
@@ -99,7 +99,7 @@ export async function renderPipelineInsights(): Promise<void> {
     <section class="sec an-card">
       <div class="rec-section-hd"><h2>Needs attention</h2><span class="rec-count">${attention.length || ''}</span></div>
       ${attention.length ? `<div class="rec-list">${attention.map((o) => attentionRow(o, health.get(o.id)!)).join('')}</div>`
-        : emptyState({ icon: 'check', title: 'Nothing stalled', body: `Every open opportunity has had activity in the last 14 days, a next action and a close date that hasn't passed.`, compact: true })}
+        : emptyState({ icon: 'check', title: 'No stalled opportunities', body: `Every open opportunity has had activity in the last 14 days, a next action and a close date that hasn't passed.`, compact: true })}
     </section>
 
     <section class="sec an-card">
@@ -195,7 +195,7 @@ function trendCard(proposals: Proposal[]): string {
     <div class="an-trend">${months.map((m) => {
       const w = won.get(m) || 0;
       const l = lost.get(m) || 0;
-      const label = new Date(m + '-01T12:00:00').toLocaleDateString('en-GB', { month: 'short' });
+      const label = fmtMonth(m + '-01', 'short', 'never');
       return `<div class="an-trend-col" title="${label}: ${w} won, ${l} lost"><div class="an-trend-bars"><span class="an-bar won" style="height:${(w / max) * 100}%"></span><span class="an-bar lost" style="height:${(l / max) * 100}%"></span></div><span class="an-trend-label">${label}</span></div>`;
     }).join('')}</div>
     <p class="table-footnote">Won by the month both parties signed; lost by the month the proposal was sent, since losses have no decision date on older records.</p>

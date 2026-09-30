@@ -1,6 +1,6 @@
 import { S } from '../lib/state';
 import { toast } from '../lib/ui';
-import { expose, today, showConfirm } from '../lib/utils';
+import { expose, today, showConfirm, fmtDateTime } from '../lib/utils';
 import { importBackupJson, importLegacyBackupJson, loadAllData, exportFullBackup, inspectFullBackup, restoreFullBackup, type FullBackupSummary } from '../lib/db';
 import { refreshAll } from '../lib/registry';
 import { markLoadedAsSaved } from '../lib/persist';
@@ -89,7 +89,7 @@ export async function restoreFromBackup(file: File): Promise<void> {
         notes: (parsed.data['menabig_notes_v1'] || []).length,
       }
     : parsed.summary || {};
-  const when = parsed.exportedAtReadable || parsed.exportedAtEpochMs ? new Date(parsed.exportedAtEpochMs).toLocaleString('en-GB') : 'unknown date';
+  const when = parsed.exportedAtReadable || parsed.exportedAtEpochMs ? fmtDateTime(new Date(parsed.exportedAtEpochMs)) : 'unknown date';
   const msg = `Restore backup from ${when}?\n\nThis will REPLACE all current data with:\n• ${summary.proposals || 0} proposals\n• ${summary.contacts || 0} contacts\n• ${summary.agreements || 0} agreements\n• ${summary.todos || 0} tasks\n• ${summary.notes || 0} notes\n\nYour current data will be overwritten. Are you sure?`;
   if (!(await showConfirm(msg, { title: 'Restore backup?', confirmLabel: 'Restore' }))) return;
   try {

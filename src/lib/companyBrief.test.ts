@@ -50,7 +50,7 @@ describe('buildCompanyState', () => {
       notes: [{ id: 1, body: 'Finance signs off above SAR 50k.', createdAt: '2026-07-14', pinned: true }, { id: 2, body: 'Not pinned', createdAt: '2026-08-01' }],
     });
     expect(texts(i)).toEqual([
-      ['relationship', 'Active client since Feb 2026 — Payroll at SAR 15,000 a month. CON_PAY_001 ends 31 Jan 2027; notice due 02 Dec 2026.'],
+      ['relationship', 'Active client since Feb 2026 — Payroll at SAR 15,000 a month. CON_PAY_001 ends 31 Jan 2027; notice due 2 Dec 2026.'],
       ['inflight', 'One in flight — Contoso recruitment with us 13 days.'],
       ['rhythm', 'Last meeting 15 Sept 2026, Monthly check-in. Next meeting 13 Oct 2026, Renewal terms.'],
       ['commitments', 'We owe 2 (1 late). They owe 1 (1 late). 1 task overdue.'],
@@ -81,7 +81,7 @@ describe('buildCompanyState', () => {
     const at = (t: string) => buildCompanyState(input({ today: t, now: `${t}T12:00:00Z`, agreements: [agr({})], meetings: [meeting(1, t)] }))[0];
     expect(at('2026-10-15').tone).toBe('green');
     expect(at('2026-11-05')).toMatchObject({ tone: 'amber' });
-    expect(clauseText(at('2026-12-10'))).toContain('the notice date (02 Dec 2026) has passed');
+    expect(clauseText(at('2026-12-10'))).toContain('the notice date (2 Dec 2026) has passed');
   });
 
   it('an opportunity and its proposal are one engagement, not two', () => {
@@ -120,7 +120,7 @@ describe('buildCompanyState', () => {
     const email = { id: 9, subject: 'Headcount', senderEmail: 'dana@contoso.test', receivedAt: '2026-09-01T09:00:00Z', companyId: 1, companyName: CO.name } as EmailRecord;
     const recent = buildCompanyState(input({ agreements: [agr({})], meetings: [meeting(1, '2026-07-01')], emails: [email] })).find((c) => c.key === 'rhythm')!;
     expect(recent.tone).toBeNull();
-    expect(clauseText(recent)).toBe('Last meeting 01 Jul 2026, Meeting 1; last email 01 Sept 2026.');
+    expect(clauseText(recent)).toBe('Last meeting 1 Jul 2026, Meeting 1; last email 1 Sept 2026.');
     // A prospect is never "neglected".
     expect(buildCompanyState(input({ meetings: [meeting(1, '2026-01-01')] })).find((c) => c.key === 'rhythm')!.tone).toBeNull();
     // A client with nothing on record at all.

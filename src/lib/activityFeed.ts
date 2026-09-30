@@ -7,6 +7,7 @@ import { icon } from './icons';
 import { recordLink } from './links';
 import type { ActivityEntry } from './types';
 import type { RecordKind } from './navHistory';
+import { fmtTime } from './dates';
 
 export interface FeedItem {
   /** ISO timestamp or YYYY-MM-DD. */
@@ -74,9 +75,7 @@ function dayLabel(day: string): string {
 }
 
 function timeOf(at: string): string {
-  if (at.length <= 10) return '';
-  const d = new Date(at);
-  return Number.isNaN(d.getTime()) ? '' : d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  return fmtTime(at);
 }
 
 /** Timeline HTML, newest first, grouped by day. */
