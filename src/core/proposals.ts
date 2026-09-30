@@ -7,12 +7,13 @@ import { matchesProposalPeriod } from '../lib/period';
 import { persistProposals } from '../lib/persist';
 import { registerBadgeUpdater, refreshAll, getActiveTabId, renderTab } from '../lib/registry';
 import { toast, undoToast } from '../lib/ui';
+import { optimistic } from '../lib/optimistic';
 import { draftAgreementsFromProposals } from './agreements';
 import { PS, stageIndex, isLost, isWithdrawn, defaultReviewer, teamMember, renewalsDue, activeMrr, pipelineMonthly, fmtMoneyByCurrency } from '../lib/commercial';
 import { applyRevisionRequest, applyRevisionSent } from '../lib/revisions';
 import { touchesAdd, touchesDelete } from '../lib/db';
 import { showMenuAt, type ContextMenuItem } from '../lib/contextMenu';
-import type { Proposal, TouchKind } from '../lib/types';
+import type { Proposal, Touch, TouchKind } from '../lib/types';
 
 // ═══════════════ PERSISTENCE / LOAD ═══════════════
 
@@ -54,17 +55,20 @@ const TOUCH_WORD: Record<TouchKind, string> = { email_out: 'email', email_in: 'e
 export async function logTouch(proposalId: number, kind: TouchKind, direction: 'out' | 'in' = 'out'): Promise<void> {
   const p = S.proposals.find((x) => x.id === proposalId);
   if (!p) return;
-  try {
-    const t = await touchesAdd({ proposalId, companyId: p.companyId ?? null, kind, direction, at: today(), contactId: p.primaryContactId ?? null });
-    S.touches = [...S.touches.filter((x) => x.id !== t.id), t];
-    updateBadge();
-    refreshAll();
-    if (S.currentProposalId === proposalId) (window as any).renderProposalPage?.();
-    const what = direction === 'in' ? `client replied by ${TOUCH_WORD[kind]} today` : `${TOUCH_WORD[kind]} today`;
-    toast(`Logged: ${what}`, { tone: 'success', action: { label: 'Undo', run: () => { void undoTouch(t.id); } } });
-  } catch (err) {
-    toast('Could not log it', { tone: 'error', detail: String(err) });
-  }
+  const draft = { proposalId, companyId: p.companyId ?? null, kind, direction, at: today(), contactId: p.primaryContactId ?? null };
+  // Shown at once with a stand-in id; the saved row replaces it (delight 2: optimistic).
+  const temp = { ...draft, id: -Date.now(), subject: null, source: 'manual', sourceId: null, createdAt: new Date().toISOString() } as unknown as Touch;
+  const redraw = () => { updateBadge(); refreshAll(); if (S.currentProposalId === proposalId) (window as any).renderProposalPage?.(); };
+  const t = await optimistic({
+    apply: () => { S.touches = [...S.touches, temp]; redraw(); },
+    commit: () => touchesAdd(draft),
+    revert: () => { S.touches = S.touches.filter((x) => x.id !== temp.id); redraw(); },
+  });
+  if (!t) return;
+  S.touches = [...S.touches.filter((x) => x.id !== temp.id && x.id !== t.id), t];
+  redraw();
+  const what = direction === 'in' ? `client replied by ${TOUCH_WORD[kind]} today` : `${TOUCH_WORD[kind]} today`;
+  toast(`Logged: ${what}`, { tone: 'success', action: { label: 'Undo', run: () => { void undoTouch(t.id); } } });
 }
 expose('logTouch', logTouch);
 

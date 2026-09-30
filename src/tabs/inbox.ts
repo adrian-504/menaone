@@ -1,3 +1,4 @@
+import { optimistic } from '../lib/optimistic';
 import { S } from '../lib/state';
 import { emptyState } from '../lib/ui';
 import { today, escHtml, expose, nextNoteId } from '../lib/utils';
@@ -108,11 +109,14 @@ export async function convertInboxToNote(id: number): Promise<void> {
 expose('convertInboxToNote', convertInboxToNote);
 
 export async function dismissInboxItem(id: number): Promise<void> {
-  await deleteInboxItem(id);
-  S.inboxItems = S.inboxItems.filter((i) => i.id !== id);
-  updateInboxBadge();
-  renderInbox();
-  (window as any).renderMyDay?.();
+  const item = S.inboxItems.find((i) => i.id === id);
+  if (!item) return;
+  const redraw = () => { updateInboxBadge(); renderInbox(); (window as any).renderMyDay?.(); };
+  await optimistic({
+    apply: () => { S.inboxItems = S.inboxItems.filter((i) => i.id !== id); redraw(); },
+    commit: () => deleteInboxItem(id),
+    revert: () => { if (!S.inboxItems.some((i) => i.id === id)) S.inboxItems = [...S.inboxItems, item]; redraw(); },
+  });
 }
 expose('dismissInboxItem', dismissInboxItem);
 
