@@ -711,6 +711,19 @@ button.rlink{background:none;border:0;padding:0;font:inherit;line-height:inherit
 .rec-section-actions .rlink:hover,.tl-head-actions .rlink:hover{color:var(--accent);text-decoration-color:var(--accent)}
 /* Links in tables underline on hover only; prose links keep the quiet underline. */
 .tbl a,.tbl .rlink{text-decoration-color:transparent}
+/* Filter bars, one order (owner, 30-Sep-2026): scope · search · selects … count · Columns / Show archived · view. */
+.fbar .rcnt,.toolbar .rcnt,.co-search-bar .rcnt{margin-left:auto}
+.fbar .rlink,.toolbar .rlink,.co-search-bar .rlink{font-size:var(--type-secondary);font-weight:500;color:var(--sub);text-decoration-color:transparent}
+.fbar .rlink:hover,.toolbar .rlink:hover,.co-search-bar .rlink:hover{color:var(--accent);text-decoration-color:var(--accent)}
+.fbar-toggle:has(input:checked){color:var(--accent)}
+/* Projects as rows (owner, 30-Sep-2026), on the Projects page and company pages. */
+.rec-row.pj-row{gap:16px}
+.pj-row .rec-row-sub{display:flex;align-items:center;gap:6px}
+.pj-row-progress{display:flex;align-items:center;gap:8px;width:150px;flex:none;font-size:var(--type-meta);color:var(--sub);font-variant-numeric:tabular-nums}
+.pj-row-progress .project-progress-track{flex:1;margin:0}
+.pj-row-date{width:150px;flex:none;text-align:right;font-size:var(--type-secondary);color:var(--sub);white-space:nowrap}
+@container comain (max-width:720px){.pj-row-date{display:none}}
+@media (max-width:720px){.pj-row-date{display:none}.pj-row-progress{width:96px}}
 .tbl a:hover,.tbl .rlink:hover{text-decoration-color:var(--accent)}
 .rlink-chip{display:inline-flex;align-items:center;gap:4px;background:var(--surface-2);border:1px solid var(--border);border-radius:20px;padding:1px 8px;font-size:var(--type-meta);font-weight:600;color:var(--sub);text-decoration:none;transition:background var(--dur-fast) var(--ease-out),border-color var(--dur-fast) var(--ease-out),color var(--dur-fast) var(--ease-out)}
 .rlink-chip:hover{background:var(--accent-bg);border-color:var(--accent-border);color:var(--accent)}
@@ -2821,3 +2834,7 @@ tr:hover .td-status .row-more,tr:focus-within .td-status .row-more{opacity:1}
 /* Pending: proposals requested together, one quiet line above them. */
 .pq-together{padding:12px 6px 4px;font-size:var(--type-caption);font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
 .pq-together + .pq-row{box-shadow:none}
+
+/* Opportunities board (owner, 30-Sep-2026): columns stay, cards are flat. */
+#opp-board .board-card{background:var(--surface-flat);border:none;box-shadow:none;border-radius:9px}
+#opp-board .board-card:hover{box-shadow:none;transform:none;background:color-mix(in srgb,var(--surface-flat) 92%,var(--text))}

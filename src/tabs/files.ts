@@ -407,8 +407,8 @@ function renderItems(): void {
   }
   const rows = currentRows();
   if (!rows.length) {
-    const empty = searchQuery ? { icon: 'search', title: 'Nothing matches', body: `No items named "${searchQuery}" here.` }
-      : view === 'linked' ? { icon: 'link', title: 'Nothing linked yet', body: 'Right-click a file or folder and choose "Link to company…", or match your client folders to companies.' }
+    const empty = searchQuery ? { icon: 'search', title: 'No matches', body: `No items named "${searchQuery}" here.` }
+      : view === 'linked' ? { icon: 'link', title: 'No linked folders yet', body: 'Right-click a file or folder and choose "Link to company…", or match your client folders to companies.' }
       : view === 'recent' ? { icon: 'clock', title: 'No recent files', body: 'Files you open from MENA One show up here.' }
       : view === 'pinned' ? { icon: 'pin', title: 'No favourites yet', body: 'Right-click a file or folder and choose "Add to Favourites".' }
       : crumbs.length === 1 ? { icon: 'folder', title: 'No OneDrive folders on this Mac', body: 'Make sure OneDrive is installed, signed in and has synced at least one folder.' }

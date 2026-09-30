@@ -106,7 +106,7 @@ function renderList(): void {
     return;
   }
   if (!list.length) {
-    body.innerHTML = emptyState({ icon: 'people', title: scan ? 'Everyone you email is already a contact' : 'Nothing read yet', body: scan ? 'Or you dismissed them. New people show up after the next read.' : 'Read your email to find people who aren\'t contacts yet.', compact: true });
+    body.innerHTML = emptyState({ icon: 'people', title: scan ? 'Everyone you email is already a contact' : 'No emails read yet', body: scan ? 'Or you dismissed them. New people show up after the next read.' : 'Read your email to find people who aren\'t contacts yet.', compact: true });
     renderIcons(body);
     return;
   }
@@ -165,7 +165,7 @@ function domainTriageHtml(groups: DomainGroup[]): string {
     ${!reviewKinds && hints.length ? `<div class="settings-callout tone-accent ep-hint"><span>${hints.length} look like government or service providers (banks, airlines, hotels, job sites…).</span>
       <span><button class="btn-secondary btn-sm" onclick="dismissAllKinds()">Mark all not clients</button> <button class="btn-ghost btn-sm" onclick="setTriageKinds(true)">Review them</button></span></div>` : ''}`;
   const g = q[0];
-  if (!g) return `${bar}${emptyState({ icon: 'check', title: reviewKinds ? 'All sorted' : 'Nothing left to sort here', body: reviewKinds ? '' : hiddenQuiet ? `${hiddenQuiet} companies only ever wrote to you — untick "Only companies I've written to" to go through them.` : 'Every company you email is sorted.', compact: true })}${decisions.length ? '<div class="ep-undo-row"><button class="btn-ghost btn-sm" onclick="undoTriage()">Undo last</button></div>' : ''}`;
+  if (!g) return `${bar}${emptyState({ icon: 'check', title: reviewKinds ? 'All sorted' : 'No one left to sort here', body: reviewKinds ? '' : hiddenQuiet ? `${hiddenQuiet} companies only ever wrote to you — untick "Only companies I've written to" to go through them.` : 'Every company you email is sorted.', compact: true })}${decisions.length ? '<div class="ep-undo-row"><button class="btn-ghost btn-sm" onclick="undoTriage()">Undo last</button></div>' : ''}`;
   const existing = S.companies.find((c) => c.name.toLowerCase() === g.name.toLowerCase());
   const when = g.lastAt ? fmtDate(g.lastAt.slice(0, 10)) : '—';
   return `${bar}

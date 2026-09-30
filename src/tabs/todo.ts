@@ -379,9 +379,9 @@ function renderListView(list: string): string {
     }).join('')}</div>`;
   }
   if (total === 0 && list !== 'upcoming') {
-    const empty = list === 'today' ? { icon: 'sun', title: 'Nothing due today', body: 'Tasks due today and anything overdue show up here.' }
-      : list === 'someday' ? { icon: 'archive', title: 'Nothing parked', body: 'Tasks you move to Someday wait here until you pick them up.' }
-      : list === 'completed' ? { icon: 'check', title: 'Nothing completed yet', body: 'Finished tasks are kept here.' }
+    const empty = list === 'today' ? { icon: 'sun', title: 'No tasks due today', body: 'Tasks due today and anything overdue show up here.' }
+      : list === 'someday' ? { icon: 'archive', title: 'No parked tasks yet', body: 'Tasks you move to Someday wait here until you pick them up.' }
+      : list === 'completed' ? { icon: 'check', title: 'No completed tasks yet', body: 'Finished tasks are kept here.' }
       : { icon: 'check', title: 'No open tasks here', body: 'Add one above — dates, projects and priority can go straight in the text.' };
     return html + emptyState(empty) + completedToggle(list);
   }

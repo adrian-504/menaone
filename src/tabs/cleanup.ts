@@ -86,7 +86,7 @@ export async function renderCleanup(): Promise<void> {
         <div><h2>${escHtml(q.title)}</h2><p>${escHtml(q.why)}</p></div>
         ${q.items.length ? `<div class="seg-btns"><button class="seg-btn${mode === 'step' ? ' active' : ''}" onclick="cleanupMode('step')">One at a time</button><button class="seg-btn${mode === 'list' ? ' active' : ''}" onclick="cleanupMode('list')">List</button></div>` : ''}
       </div>
-      ${!q.items.length ? `<div class="sec">${emptyState({ icon: 'check', title: 'Nothing to clean up here', body: withItems.length ? `Next: ${withItems[0].title} (${withItems[0].items.length}).` : 'All records are up to date.', action: withItems.length ? { label: 'Go to next', onclick: `cleanupQueue('${withItems[0].id}')` } : undefined })}</div>`
+      ${!q.items.length ? `<div class="sec">${emptyState({ icon: 'check', title: 'All clear', body: withItems.length ? `Next: ${withItems[0].title} (${withItems[0].items.length}).` : 'All records are up to date.', action: withItems.length ? { label: 'Go to next', onclick: `cleanupQueue('${withItems[0].id}')` } : undefined })}</div>`
         : mode === 'step' ? stepHtml(q) : listHtml(q)}
     </section>`;
   renderIcons(root);

@@ -3,7 +3,10 @@
 // loading skeletons. Styles live under "Design system" in styles.css; every
 // variant is on the dev-only Component Gallery page.
 //
-// No imports on purpose: db.ts and other low-level modules use these too.
+// Imports only icons.ts (which imports nothing): db.ts and other low-level
+// modules use these too.
+
+import { icon } from './icons';
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
@@ -87,7 +90,8 @@ export interface EmptyStateOptions {
 
 export function emptyState(o: EmptyStateOptions): string {
   return `<div class="empty-state${o.compact ? ' compact' : ''}">`
-    + (o.icon ? `<span class="empty-state-icon" data-icon="${esc(o.icon)}" data-icon-size="${o.compact ? 18 : 22}"></span>` : '')
+    // Drawn here, not by a later renderIcons pass that some containers never got (the Inbox's was blank).
+    + (o.icon ? `<span class="empty-state-icon">${icon(o.icon, o.compact ? 18 : 22)}</span>` : '')
     + `<div class="empty-state-title">${esc(o.title)}</div>`
     + (o.body ? `<div class="empty-state-body">${esc(o.body)}</div>` : '')
     + (o.action ? `<button class="btn-secondary empty-state-action" onclick="${esc(o.action.onclick)}">${esc(o.action.label)}</button>` : '')

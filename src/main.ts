@@ -35,6 +35,7 @@ import './lib/links';
 import './core/commandPalette';
 import { backfillMilestoneDates, registerPopulateAllSelects } from './core/proposals';
 import './core/backup';
+import './core/pageMore';
 import { populateAgrFilters } from './core/agreements';
 import { populateCtListFilter, populateCtTypeFilter } from './core/contacts';
 

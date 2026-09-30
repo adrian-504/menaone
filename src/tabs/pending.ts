@@ -82,7 +82,7 @@ export function renderPending(): void {
   const container = document.getElementById('wq-content');
   if (!container) return;
   if (data.length === 0) {
-    container.innerHTML = `<div class="sec">${emptyState({ icon: 'check', title: 'Nothing pending', body: 'Every proposal has been drafted and sent.' })}</div>`;
+    container.innerHTML = `<div class="sec">${emptyState({ icon: 'check', title: 'No pending proposals', body: 'Every proposal has been drafted and sent.' })}</div>`;
     return;
   }
 

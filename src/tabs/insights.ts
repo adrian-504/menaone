@@ -99,7 +99,7 @@ export async function renderPipelineInsights(): Promise<void> {
     <section class="sec an-card">
       <div class="rec-section-hd"><h2>Needs attention</h2><span class="rec-count">${attention.length || ''}</span></div>
       ${attention.length ? `<div class="rec-list">${attention.map((o) => attentionRow(o, health.get(o.id)!)).join('')}</div>`
-        : emptyState({ icon: 'check', title: 'Nothing stalled', body: `Every open opportunity has had activity in the last 14 days, a next action and a close date that hasn't passed.`, compact: true })}
+        : emptyState({ icon: 'check', title: 'No stalled opportunities', body: `Every open opportunity has had activity in the last 14 days, a next action and a close date that hasn't passed.`, compact: true })}
     </section>
 
     <section class="sec an-card">
