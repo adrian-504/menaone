@@ -360,7 +360,7 @@ function renderMilestones(): void {
     <div class="milestone-dot ${m.status === 'Done' ? 'done' : m.status === 'In Progress' ? 'in-progress' : ''}" onclick="cycleMilestoneStatus(${m.id})" title="Click to change status">${m.status === 'Done' ? '&#10003;' : ''}</div>
     <div class="milestone-name">${escHtml(m.name)}</div>
     ${m.targetDate ? `<div class="milestone-date">${fmtDate(m.targetDate)}</div>` : ''}
-    <button class="btn-ghost btn-sm" onclick="deleteMilestone(${m.id})" title="Remove">&times;</button>
+    <button class="btn-ghost btn-sm" onclick="deleteMilestone(${m.id})" data-tip="Remove">&times;</button>
   </div>`).join('');
 }
 

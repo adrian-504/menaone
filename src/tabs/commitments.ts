@@ -150,10 +150,10 @@ export function commitmentRow(c: Commitment, opts: { showCompany?: boolean; plai
     c.status === 'dropped' ? `dropped${c.dropReason ? `: ${escHtml(c.dropReason)}` : ''}` : '',
   ].filter(Boolean).join(' · ');
   return `<div class="cm-row${closed ? ' is-closed' : ''}${c.status === 'dropped' ? ' is-dropped' : ''}" data-commitment-id="${c.id}">
-    <button class="task-check${c.status === 'kept' ? ' checked' : ''}" onclick="toggleCommitmentKept(${c.id})" ${c.status === 'dropped' ? 'disabled' : ''} aria-label="${c.status === 'kept' ? 'Mark as open again' : 'Mark kept'}" title="${c.status === 'kept' ? 'Kept — click to reopen' : 'Mark kept'}"></button>
+    <button class="task-check${c.status === 'kept' ? ' checked' : ''}" onclick="toggleCommitmentKept(${c.id})" ${c.status === 'dropped' ? 'disabled' : ''} aria-label="${c.status === 'kept' ? 'Mark as open again' : 'Mark kept'}" data-tip="${c.status === 'kept' ? 'Kept — click to reopen' : 'Mark kept'}"></button>
     ${dir}
     <div class="cm-main"><div class="cm-text">${escHtml(c.text)}</div><div class="cm-meta">${meta}</div></div>
-    <button class="rec-icon-btn" onclick="commitmentMenu(event, ${c.id})" title="More" aria-label="More">${icon('more', 14)}</button>
+    <button class="rec-icon-btn" onclick="commitmentMenu(event, ${c.id})" data-tip="More" aria-label="More">${icon('more', 14)}</button>
   </div>`;
 }
 

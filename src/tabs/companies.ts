@@ -656,7 +656,7 @@ function renderCompanyListsBar(filters: Record<string, string>): void {
   const active = activeCompanyList();
   const chips = lists.map((l) => {
     const on = l.filters ? l === smartOpen : l === active;
-    return `<span class="list-chip-wrap${on ? ' active' : ''}"><button class="list-chip${on ? ' active' : ''}" onclick="openCompanyList(${l.id})" oncontextmenu="companyListMenu(event, ${l.id})" title="${l.filters ? 'Smart list' : 'Hand-picked list'}">${listChipLabel(l.name, companyNamesInList(l).length, !!l.filters)}</button>${on ? `<button class="list-chip-more" onclick="companyListMenu(event, ${l.id})" aria-label="List actions">${icon('more', 13)}</button>` : ''}</span>`;
+    return `<span class="list-chip-wrap${on ? ' active' : ''}"><button class="list-chip${on ? ' active' : ''}" onclick="openCompanyList(${l.id})" oncontextmenu="companyListMenu(event, ${l.id})" data-tip="${l.filters ? 'Smart list' : 'Hand-picked list'}" aria-label="${l.filters ? 'Smart list' : 'Hand-picked list'}">${listChipLabel(l.name, companyNamesInList(l).length, !!l.filters)}</button>${on ? `<button class="list-chip-more" onclick="companyListMenu(event, ${l.id})" aria-label="List actions">${icon('more', 13)}</button>` : ''}</span>`;
   }).join('');
   const canSave = Object.keys(filters).length > 0 && !smartOpen;
   el.innerHTML = `<span class="list-bar-label">Lists</span>${chips}<button class="list-chip list-chip-add" onclick="newCompanyListMenu(event)">${icon('plus', 11)} New list</button>${canSave ? `<button class="list-bar-link" onclick="saveCompanyFiltersAsList()">Save these filters as a smart list</button>` : ''}`;
@@ -1247,9 +1247,9 @@ function entryHtml(n: CompanyNoteEntry): string {
     return `<div class="conote-entry">
       <div class="conote-meta"><span>${escHtml(when)}${escHtml(edited)} · <span class="note-item-source">Company page</span></span>
         <span class="conote-entry-actions">
-          <button class="rec-icon-btn conote-pin${n.pinned ? ' is-pinned' : ''}" title="${n.pinned ? 'Unpin' : 'Pin to the top of the page'}" aria-label="${n.pinned ? 'Unpin note' : 'Pin note'}" aria-pressed="${n.pinned ? 'true' : 'false'}" onclick="toggleCompanyNotePin(${n.id})">${icon('pin', 13)}</button>
-          <button class="rec-icon-btn" title="Edit" aria-label="Edit note" onclick="editCompanyNoteEntry(${n.id})">${icon('edit', 13)}</button>
-          <button class="rec-icon-btn" title="Delete" aria-label="Delete note" onclick="removeCompanyNoteEntry(${n.id})">${icon('trash', 13)}</button>
+          <button class="rec-icon-btn conote-pin${n.pinned ? ' is-pinned' : ''}" data-tip="${n.pinned ? 'Unpin' : 'Pin to the top of the page'}" aria-label="${n.pinned ? 'Unpin note' : 'Pin note'}" aria-pressed="${n.pinned ? 'true' : 'false'}" onclick="toggleCompanyNotePin(${n.id})">${icon('pin', 13)}</button>
+          <button class="rec-icon-btn" data-tip="Edit" aria-label="Edit note" onclick="editCompanyNoteEntry(${n.id})">${icon('edit', 13)}</button>
+          <button class="rec-icon-btn" data-tip="Delete" aria-label="Delete note" onclick="removeCompanyNoteEntry(${n.id})">${icon('trash', 13)}</button>
         </span>
       </div>
       <div class="conote-body">${escHtml(n.body)}</div>
@@ -1404,7 +1404,7 @@ function initials(name: string): string {
 
 /** Call, email, WhatsApp and copy buttons for a contact. */
 export function contactActionButtons(c: Contact, size = 14): string {
-  const btn = (iconHtml: string, title: string, js: string) => `<button class="rec-icon-btn" title="${title}" aria-label="${title}" onclick="event.stopPropagation();${js}">${iconHtml}</button>`;
+  const btn = (iconHtml: string, title: string, js: string) => `<button class="rec-icon-btn" data-tip="${title}" aria-label="${title}" onclick="event.stopPropagation();${js}">${iconHtml}</button>`;
   const wa = c.whatsapp || c.phone;
   return [
     c.email ? btn(icon('mail', size), `Email ${escHtml(c.email)}`, `openExternalUrl('mailto:${escHtml(c.email)}')`) : '',
@@ -1440,7 +1440,7 @@ export function renderCoContacts(d: CompanyData): void {
       ${c.isDecisionMaker ? '<div class="co-dm-line"><span class="chip co-dm">Decision maker</span></div>' : ''}
       <div class="rec-row-sub" title="${escHtml(lastTitle)}">${[escHtml(c.role || c.email || 'No details yet'), lastHtml].filter(Boolean).join(' · ')}</div>
     </div>
-    <div class="rec-row-actions">${contactActionButtons(c)}<button class="rec-icon-btn" title="More" aria-label="More" onclick="event.stopPropagation();companyPersonMenu(event, ${c.id})">${icon('more', 14)}</button></div>
+    <div class="rec-row-actions">${contactActionButtons(c)}<button class="rec-icon-btn" data-tip="More" aria-label="More" onclick="event.stopPropagation();companyPersonMenu(event, ${c.id})">${icon('more', 14)}</button></div>
   </div>`;
   }).join('');
 }

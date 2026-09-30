@@ -215,9 +215,9 @@ function itemRow(it: IntelligenceItem): string {
       ${open ? readingView(it) : ''}
     </div>
     <div class="intel-actions">
-      <button class="rec-icon-btn${it.saved ? ' is-on' : ''}" onclick="intelToggleSaved(${it.id})" title="${it.saved ? 'Saved — click to unsave' : 'Save'}" aria-pressed="${it.saved}">${it.saved ? '★' : '☆'}</button>
+      <button class="rec-icon-btn${it.saved ? ' is-on' : ''}" onclick="intelToggleSaved(${it.id})" data-tip="${it.saved ? 'Saved — click to unsave' : 'Save'}" aria-label="${it.saved ? 'Saved — click to unsave' : 'Save'}" aria-pressed="${it.saved}">${it.saved ? '★' : '☆'}</button>
       <a href="${escHtml(it.sourceUrl)}" target="_blank" rel="noopener" class="rec-icon-btn" title="Open the source">${icon('link', 13)}</a>
-      <button class="rec-icon-btn" onclick="intelMenu(event, ${it.id})" title="More" aria-label="More">${icon('more', 14)}</button>
+      <button class="rec-icon-btn" onclick="intelMenu(event, ${it.id})" data-tip="More" aria-label="More">${icon('more', 14)}</button>
     </div>
   </div>`;
 }

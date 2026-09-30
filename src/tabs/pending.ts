@@ -139,9 +139,9 @@ export function wqCard(p: Proposal): string {
   const nc = (p.notes || []).length;
   const reviewer = teamMember(p.reviewerId)?.name || defaultReviewer()?.name || 'the reviewer';
   const primary = step <= 1 ? `<button class="btn-secondary btn-sm" onclick="wqAdvance(${p.id},'${PS.DRAFTING}')">Start drafting</button>`
-    : step === 2 ? `<button class="btn-secondary btn-sm" onclick="wqAdvance(${p.id},'${PS.REVIEW}')" title="Send to ${escHtml(reviewer)} for review">Send for review</button>`
+    : step === 2 ? `<button class="btn-secondary btn-sm" onclick="wqAdvance(${p.id},'${PS.REVIEW}')" data-tip="Send to ${escHtml(reviewer)} for review">Send for review</button>`
     : p.reviewStatus === 'approved' ? `<button class="btn-primary btn-sm" onclick="wqAdvance(${p.id},'${PS.SENT}')">Mark sent</button>`
-    : `<button class="btn-secondary btn-sm" onclick="openRecord('proposal', ${p.id})" title="Record ${escHtml(reviewer)}'s review">Record review</button>`;
+    : `<button class="btn-secondary btn-sm" onclick="openRecord('proposal', ${p.id})" data-tip="Record ${escHtml(reviewer)}'s review">Record review</button>`;
   const meta = [
     step === 3 ? `<span class="${p.reviewStatus === 'approved' ? 't-positive' : ''}">${p.reviewStatus === 'approved' ? 'Approved by' : 'With'} ${escHtml(reviewer)}</span>` : '',
     ownerName(p) ? escHtml(ownerName(p)) : '',
@@ -159,7 +159,7 @@ export function wqCard(p: Proposal): string {
       ${p.remarks ? `<div class="pq-remarks" title="${escHtml(p.remarks)}">${escHtml(p.remarks)}</div>` : ''}
     </div>
     ${p.monthlyFee ? `<span class="pq-fee">${fmtMoney(p.monthlyFee, currencyOf(p))}<small>/mo</small></span>` : '<span class="pq-fee"></span>'}
-    <div class="pq-actions">${primary}<button class="rec-icon-btn" onclick="pqMenu(event, ${p.id})" title="More" aria-label="More">${icon('more', 14)}</button></div>
+    <div class="pq-actions">${primary}<button class="rec-icon-btn" onclick="pqMenu(event, ${p.id})" data-tip="More" aria-label="More">${icon('more', 14)}</button></div>
   </div>`;
 }
 

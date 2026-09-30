@@ -442,14 +442,14 @@ export function taskRowHtml(t: Todo, opts: { list?: string; compact?: boolean } 
   if (t.description) meta.push(`<span class="task-icon-meta" title="Has notes">${icon('note', 11)}</span>`);
   const pri = t.priority === 'High' ? ' pri-high' : t.priority === 'Low' ? ' pri-low' : '';
   return `<div class="task-row${done ? ' done' : ''}${over ? ' overdue' : ''}${S.taskDetailId === t.id ? ' open' : ''}" data-task-id="${t.id}" data-drag-kind="task" data-drag-id="${t.id}" onclick="taskRowClick(event,${t.id})" oncontextmenu="todoContextMenu(event,${t.id})">
-    <button class="task-check${pri}${done ? ' checked' : ''}" onclick="event.stopPropagation();completeTask(${t.id})" aria-label="${done ? 'Mark as not done' : 'Complete'}" title="${t.priority === 'High' ? 'High priority · ' : ''}${done ? 'Mark as not done' : 'Complete'}"></button>
+    <button class="task-check${pri}${done ? ' checked' : ''}" onclick="event.stopPropagation();completeTask(${t.id})" aria-label="${done ? 'Mark as not done' : 'Complete'}" data-tip="${t.priority === 'High' ? 'High priority · ' : ''}${done ? 'Mark as not done' : 'Complete'}"></button>
     <div class="task-main">
       <div class="task-title">${escHtml(t.title)}</div>
       ${meta.length ? `<div class="task-meta">${meta.join('')}</div>` : ''}
     </div>
     ${opts.compact ? '' : `<div class="task-hover-actions">
-      <button class="task-hover-btn" onclick="event.stopPropagation();openDatePopover(this,[${t.id}])" title="Schedule (D)" aria-label="Schedule">${icon('calendar', 14)}</button>
-      <button class="task-hover-btn" onclick="event.stopPropagation();todoContextMenu(event,${t.id})" title="More" aria-label="More">${icon('more', 14)}</button>
+      <button class="task-hover-btn" onclick="event.stopPropagation();openDatePopover(this,[${t.id}])" data-tip="Schedule (D)" aria-label="Schedule">${icon('calendar', 14)}</button>
+      <button class="task-hover-btn" onclick="event.stopPropagation();todoContextMenu(event,${t.id})" data-tip="More" aria-label="More">${icon('more', 14)}</button>
     </div>`}
   </div>`;
 }
@@ -534,7 +534,7 @@ export function quickAddPreview(): void {
   if (!input || !el) return;
   if (!input.value.trim()) { dismissedTokens = new Set(); el.innerHTML = ''; return; }
   const parsed = parseQuickAdd(input.value);
-  el.innerHTML = parsed.tokens.map((tk) => `<button type="button" class="qa-chip qa-${tk.kind}" onclick="dismissQuickAddToken('${escHtml(tk.text.toLowerCase()).replace(/'/g, "\\'")}')" title="Recognised as ${tk.kind} — click to keep it as plain text">${icon(TOKEN_ICON[tk.kind] || 'tag', 11)}${escHtml(tk.label)}<span class="qa-chip-x">×</span></button>`).join('');
+  el.innerHTML = parsed.tokens.map((tk) => `<button type="button" class="qa-chip qa-${tk.kind}" onclick="dismissQuickAddToken('${escHtml(tk.text.toLowerCase()).replace(/'/g, "\\'")}')" data-tip="Recognised as ${tk.kind} — click to keep it as plain text">${icon(TOKEN_ICON[tk.kind] || 'tag', 11)}${escHtml(tk.label)}<span class="qa-chip-x">×</span></button>`).join('');
 }
 expose('quickAddPreview', quickAddPreview);
 
@@ -1104,10 +1104,10 @@ function renderTaskDetail(): void {
     `<div class="segmented td-seg">${options.map(([v, label]) => `<button class="${(value || options[0][0]) === v ? 'active' : ''}" onclick="taskDetailSet('${field}','${v}')">${label}</button>`).join('')}</div>`;
   panel.innerHTML = `
     <div class="td-top">
-      <button class="loc-nav" onclick="closeTaskDetail()" title="Close (Esc)" aria-label="Close">${icon('close', 15)}</button>
+      <button class="loc-nav" onclick="closeTaskDetail()" data-tip="Close" data-key="Esc" aria-label="Close">${icon('close', 15)}</button>
       <div class="td-top-actions">
-        <button class="loc-nav" onclick="duplicateTask(${t.id})" title="Duplicate" aria-label="Duplicate">${icon('copy', 15)}</button>
-        <button class="loc-nav td-danger" onclick="deleteTodo(${t.id})" title="Delete" aria-label="Delete">${icon('trash', 15)}</button>
+        <button class="loc-nav" onclick="duplicateTask(${t.id})" data-tip="Duplicate" aria-label="Duplicate">${icon('copy', 15)}</button>
+        <button class="loc-nav td-danger" onclick="deleteTodo(${t.id})" data-tip="Delete" aria-label="Delete">${icon('trash', 15)}</button>
       </div>
     </div>
     <div class="td-scroll">
@@ -1122,8 +1122,8 @@ function renderTaskDetail(): void {
         ${subs.map((s) => `<div class="td-check-item${isOpenTask(s) ? '' : ' done'}" data-drag-kind="subtask" data-drag-id="${s.id}"><span class="td-grip" aria-hidden="true">${icon('grip', 12)}</span>
           <button class="task-check small${isOpenTask(s) ? '' : ' checked'}" onclick="toggleSubtask(${s.id})" aria-label="Complete subtask"></button>
           <input value="${escHtml(s.title)}" onchange="renameSubtask(${s.id}, this.value)" onkeydown="if(event.key==='Enter')this.blur()" aria-label="Subtask">
-          <button class="td-check-open" onclick="openTaskDetail(${s.id})" title="Open subtask">${icon('chevronRight', 12)}</button>
-          <button class="td-check-remove" onclick="deleteTodo(${s.id})" title="Remove" aria-label="Remove subtask">×</button>
+          <button class="td-check-open" onclick="openTaskDetail(${s.id})" data-tip="Open subtask" aria-label="Open subtask">${icon('chevronRight', 12)}</button>
+          <button class="td-check-remove" onclick="deleteTodo(${s.id})" data-tip="Remove" aria-label="Remove subtask">×</button>
         </div>`).join('')}
         <div class="td-check-add">${icon('plus', 13)}<input id="td-add-sub" placeholder="Add a subtask" onkeydown="if(event.key==='Enter'){event.preventDefault();addSubtask(this.value)}"></div>
       </div>

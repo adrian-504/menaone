@@ -19,8 +19,8 @@ function futureRowHtml(r: FutureRow, today: string): string {
   const title = r.record && r.record.kind !== 'task' ? recordLink(r.record.kind, r.record.id, r.label) : escHtml(r.label);
   const when = r.date ? (r.date === today ? 'Today' : fmtDate(r.date)) + (r.time ? ` ${r.time}` : '') : '';
   const action = !r.action ? ''
-    : r.action.kind === 'complete_task' ? `<button class="task-check" onclick="timelineAct('complete_task', ${r.action.id})" aria-label="Complete" title="Complete"></button>`
-    : r.action.kind === 'mark_kept' ? `<button class="task-check" onclick="timelineAct('mark_kept', ${r.action.id})" aria-label="Mark kept" title="Mark kept"></button>`
+    : r.action.kind === 'complete_task' ? `<button class="task-check" onclick="timelineAct('complete_task', ${r.action.id})" aria-label="Complete" data-tip="Complete"></button>`
+    : r.action.kind === 'mark_kept' ? `<button class="task-check" onclick="timelineAct('mark_kept', ${r.action.id})" aria-label="Mark kept" data-tip="Mark kept"></button>`
     : '';
   return `<div class="tl-row${r.overdue ? ' is-overdue' : ''}" data-key="${escHtml(r.key)}">
     <span class="tl-when">${escHtml(when)}</span>

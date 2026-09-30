@@ -23,7 +23,7 @@ function renderThemePicker(): void {
   const el = document.getElementById('theme-picker');
   if (!el) return;
   el.innerHTML = THEMES.map((t) => `
-    <button class="theme-swatch${t.id === S.theme ? ' active' : ''}" onclick="setTheme('${t.id}')" title="${escHtml(t.name)}">
+    <button class="theme-swatch${t.id === S.theme ? ' active' : ''}" onclick="setTheme('${t.id}')" data-tip="${escHtml(t.name)}" aria-label="${escHtml(t.name)}">
       <span class="theme-swatch-preview" style="background:${t.swatchSurface}">
         <span class="theme-swatch-preview-strip" style="background:${t.swatchSidebar}"></span>
         <span class="theme-swatch-preview-body">

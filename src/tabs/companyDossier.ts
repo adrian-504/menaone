@@ -72,7 +72,7 @@ export function renderDossierDetails(co: Company | undefined, d: { proposals: Pr
 function nextRow(r: FutureRow, todayIso: string): string {
   const when = r.date ? `${whenLabel(r.date, todayIso)}${r.time ? ` ${r.time}` : ''}` : '';
   const mark = r.action && (r.action.kind === 'complete_task' || r.action.kind === 'mark_kept')
-    ? `<button class="co-nr-box" onclick="event.stopPropagation();timelineAct('${r.action.kind}', ${r.action.id})" title="${r.action.kind === 'complete_task' ? 'Mark done' : 'Mark kept'}" aria-label="${r.action.kind === 'complete_task' ? 'Mark done' : 'Mark kept'}"></button>`
+    ? `<button class="co-nr-box" onclick="event.stopPropagation();timelineAct('${r.action.kind}', ${r.action.id})" data-tip="${r.action.kind === 'complete_task' ? 'Mark done' : 'Mark kept'}" aria-label="${r.action.kind === 'complete_task' ? 'Mark done' : 'Mark kept'}"></button>`
     : `<span class="co-nr-dot tone-${r.kind === 'meeting' ? 'accent' : 'muted'}"></span>`;
   const title = r.record ? recordLink(r.record.kind, r.record.id, r.label) : escHtml(r.label);
   return `<div class="co-nr-row"><span class="co-nr-when${r.overdue ? ' is-late' : ''}">${escHtml(when)}</span>${mark}<span class="co-nr-main">${title}${r.sub ? `<span class="co-nr-sub">${escHtml(r.sub)}</span>` : ''}</span></div>`;

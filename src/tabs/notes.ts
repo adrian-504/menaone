@@ -599,7 +599,7 @@ function closeNoteEditor(): void {
 
 function updatePinButton(n: Note): void {
   const pinBtn = document.getElementById('notes-pin-btn');
-  if (pinBtn) { pinBtn.classList.toggle('active', !!n.pinned); pinBtn.title = n.pinned ? 'Unpin' : 'Pin'; }
+  if (pinBtn) { pinBtn.classList.toggle('active', !!n.pinned); pinBtn.dataset.tip = n.pinned ? 'Unpin' : 'Pin'; pinBtn.setAttribute('aria-label', pinBtn.dataset.tip); }
 }
 
 // ── Properties under the title ──────────────────────────────────────────────
@@ -754,8 +754,8 @@ export function toggleNewNoteMenu(e: Event): void {
     (S.noteTemplates.length ? `<div class="menu-sep"></div><div class="menu-label">Templates</div>` : '') +
     S.noteTemplates.map((t) => `<div class="wikilink-menu-item row-center">
       <span class="flex-fill clickable" onclick="createNewNote(${t.id})">${escHtml(t.name)}</span>
-      <button onclick="event.stopPropagation();renameNoteTemplate(${t.id})" title="Rename" class="menu-inline-btn">${icon('edit', 12)}</button>
-      <button onclick="event.stopPropagation();removeNoteTemplate(${t.id})" title="Delete" class="menu-inline-btn">${icon('trash', 12)}</button>
+      <button onclick="event.stopPropagation();renameNoteTemplate(${t.id})" data-tip="Rename" aria-label="Rename" class="menu-inline-btn">${icon('edit', 12)}</button>
+      <button onclick="event.stopPropagation();removeNoteTemplate(${t.id})" data-tip="Delete" aria-label="Delete" class="menu-inline-btn">${icon('trash', 12)}</button>
     </div>`).join('') +
     (S.currentNoteId ? `<div class="menu-sep"></div><div class="wikilink-menu-item" onclick="saveCurrentNoteAsTemplate()">Save current note as template…</div>` : '');
   menu.classList.add('open');
@@ -978,7 +978,7 @@ async function renderRelationsPanel(n: Note): Promise<void> {
     group('Linked from', backlinks.map((b) => recordLink('note', b.id, b.title || 'Untitled', { chip: true }))),
   ].join('');
   const convert = pending.length
-    ? `<div class="relations-group"><div class="relations-group-label">Action items</div><div class="relations-chips"><button class="btn-secondary btn-sm" onclick="createTasksFromNoteActionItems()" title="${escHtml(pending.join('\n'))}">Create ${pending.length === 1 ? 'a task' : `${pending.length} tasks`} from action items</button></div></div>`
+    ? `<div class="relations-group"><div class="relations-group-label">Action items</div><div class="relations-chips"><button class="btn-secondary btn-sm" onclick="createTasksFromNoteActionItems()" data-tip="${escHtml(pending.join('\n'))}">Create ${pending.length === 1 ? 'a task' : `${pending.length} tasks`} from action items</button></div></div>`
     : '';
   el.innerHTML = html || convert ? `<div class="relations-title">Connections</div>${html}${convert}` : '';
 }

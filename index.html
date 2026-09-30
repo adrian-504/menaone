@@ -11,7 +11,7 @@
   <div class="sb-header" data-tauri-drag-region="deep">
     <img class="sb-logo-img" src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAAsADkDASIAAhEBAxEB/8QAHAAAAgIDAQEAAAAAAAAAAAAABgcAAgEDBQQI/8QAPRAAAQMDAgIECQkJAAAAAAAAAQIDBAAFEQYSByExQWFxExQVFlFVlLLhIiQyNTdydJHwIzZCVHOBkrPS/8QAGgEAAgIDAAAAAAAAAAAAAAAAAAUBBgIDBP/EAC0RAAEDAgIIBQUAAAAAAAAAAAEAAhEDIQQxBRITFSJBUaEUYbHC0SMyQlLw/9oADAMBAAIRAxEAPwBjp4t6PU4E+UHUgnG4xnMDt6KjnFrR7a1J8oOqCTjcmM4Qe7lSbsFogzdD6ouMhjfKhJjmO5uI2blkK5A4OR6ard7RBjcPLBc2mNsyW9IS85uJ3hJISMdAxjqq0bpwevqS7OOWca3Tolviq0TbKe8J43XiTpmzXFyDMlupfbCVKCY61DCkhQ5gegipH4k6Zk2uZcW5jpjw1NpeJjrBBWSE4GOfQaWr0K23HjUYt3Q0uEthsuJdXtTkRkkZOR14oatQA0JqsDoEiEB3eEXWlui8M5jc5hh5RxGOiyOJqBxyi/ZORHFrSLjiUCc/lRAGYq+v+1em5cTNMWq5SIEuY8mRHWUOJTHWoA94HOkve7XChad0dLjR0tyJja1yFgnLhC0gE/nRCmyxrrxY1I1cYRejpRIdTvCgncAnacipdo3CDi4oh3SbEDogYiqbWm3cJlxLxbNcwlLtElTiIzm1wONqRzIyOkfrn0V7PIEj+aR/ir/qgXgV9T3b8Q37lNmleMHhq7qNM2C6aX1GB7syvnDS/wBmutvuxffNVv32TaW/ESveNdTTen7yxw+1hGdtM5t95McNNKjqCnMLJO0YycdlVvWn707ww03FbtM5chp+SXGkx1FaAVHGRjIzVk2rNvMj7/Yl4adTLl7lLrYGtT8YHLS+8tlt5lslaACRtjJV191Xn2zTtt0Bf02G9OXJSpEQP72tng8LVtxyGc8/yrdfWtSWTic7e7ZY5UpTbTaUExnFtqywlB5p9HPr6RXMtenr4NEalbcs89Dzz8RTbZjLCl4WsqwMZOMisGuJZTcX8IDLSM5vPPop/Jwi/F6Kmpf3R0H/AEHP9ia6d7uOrLvr2+2i13mQ20yp1YaU+UIDaQMgcu2sah0/eXtL6JaatM5bjDKw8hMdRLZK0kbhjly9NVu7WprNxFvlyttilyUvqdaSoxXFIUhYHMFPdQxzHARBPHEx+yCCDeYt6Ij4F/VF3x0eMN+5TZpY8GLXPtlquiZ8GTFK30FAfaKCoBHSM0zqr+lCDi3kf1gu/DCKQQwkSUtIbMa8HaMA/s89v8dZHjIz81u5Oc7lBsnq5fT7B+iaA/OU+p7R7L8annKfU9o9l+NJ9qVZN3M8u/yj5wyHFuqEW8pDhJ2gt4GfR8vu/LvrDnhlg/M7whRJO5GwEA55fT7f1igLzlPqe0ey/Gp5yn1PaPZfjRtSjdzPLv8AKP2FPNLSpUG7r2gcj4PGcYz9PprWBIHPxa8ZxjkGxjHo+X09vaaBPOU+p7R7L8annKfU9o9l+NG1KN3M8u/ymjat5Q8pxqWhal5PjJHP7oBOBXRoT0LcTcIkxRiRI+x1IxHb2A8uvnRZW5pkSlGIpinVLByX/9k=" alt="MENA One">
     <div class="sb-logo-text">MENA One<div class="sb-logo-sub">Workspace</div></div>
-    <button class="sb-collapse-btn" id="sb-collapse-btn" onclick="toggleSidebar()" title="Collapse sidebar (⌘\\)">
+    <button class="sb-collapse-btn" id="sb-collapse-btn" onclick="toggleSidebar()" data-tip="Collapse sidebar" data-key="⌘\" aria-label="Collapse sidebar">
       <span class="sb-icon" data-icon="sidebar"></span>
     </button>
   </div>
@@ -122,11 +122,11 @@
   </div>
   </nav>
   <div class="sb-footer">
-    <button class="sb-item" data-tab="cleanup" onclick="navToModule('cleanup')" title="Records whose status or details need tidying">
+    <button class="sb-item" data-tab="cleanup" onclick="navToModule('cleanup')" data-tip="Records whose status or details need tidying">
       <span class="sb-icon" data-icon="checklist"></span>
       <span class="sb-label">Clean-up</span><span class="sb-count" id="cleanup-badge" style="display:none">0</span>
     </button>
-    <button class="sb-item" data-tab="settings" onclick="navToModule('settings')" title="Settings — theme, Microsoft 365 and backups">
+    <button class="sb-item" data-tab="settings" onclick="navToModule('settings')" data-tip="Settings — theme, Microsoft 365 and backups">
       <span class="sb-icon" data-icon="gear"></span>
       <span class="sb-label">Settings</span>
     </button>
@@ -145,7 +145,7 @@
 
 <div id="app-main">
 
-<button class="sb-expand-btn" id="sb-expand-btn" onclick="toggleSidebar()" title="Show sidebar (⌘\\)">
+<button class="sb-expand-btn" id="sb-expand-btn" onclick="toggleSidebar()" data-tip="Show sidebar" data-key="⌘\" aria-label="Show sidebar">
   <span class="sb-icon" data-icon="sidebar"></span>
 </button>
 
@@ -155,11 +155,11 @@
 
 <header class="loc-bar" id="loc-bar" data-tauri-drag-region="deep">
   <div class="loc-nav-group">
-    <button class="loc-nav" id="loc-back" onclick="navBack()" title="Back (⌘[)" aria-label="Back" disabled><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3.5 5.5 8l4.5 4.5"/></svg></button>
-    <button class="loc-nav" id="loc-fwd" onclick="navForward()" title="Forward (⌘])" aria-label="Forward" disabled><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3.5 10.5 8 6 12.5"/></svg></button>
+    <button class="loc-nav" id="loc-back" onclick="navBack()" data-tip="Back" data-key="⌘[" aria-label="Back" disabled><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3.5 5.5 8l4.5 4.5"/></svg></button>
+    <button class="loc-nav" id="loc-fwd" onclick="navForward()" data-tip="Forward" data-key="⌘]" aria-label="Forward" disabled><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3.5 10.5 8 6 12.5"/></svg></button>
   </div>
   <nav class="loc-crumbs" id="loc-crumbs" aria-label="Location"></nav>
-  <button class="loc-nav loc-rail" id="loc-rail" onclick="toggleRecordRail()" title="Show the list beside the record" aria-label="Toggle the list" hidden><span data-icon="sidebar" data-icon-size="15"></span></button>
+  <button class="loc-nav loc-rail" id="loc-rail" onclick="toggleRecordRail()" data-tip="Show the list beside the record" aria-label="Toggle the list" hidden><span data-icon="sidebar" data-icon-size="15"></span></button>
 </header>
 
 <!-- DASHBOARD -->
@@ -339,9 +339,9 @@
       <button class="seg-btn cal-vbtn active" data-view="week" onclick="setCalendarView('week')">Week</button>
       <button class="seg-btn cal-vbtn" data-view="month" onclick="setCalendarView('month')">Month</button>
     </div>
-    <button class="loc-nav" onclick="calendarNav(-1)" title="Previous" aria-label="Previous"><span data-icon="chevronLeft" data-icon-size="15"></span></button>
+    <button class="loc-nav" onclick="calendarNav(-1)" data-tip="Previous" aria-label="Previous"><span data-icon="chevronLeft" data-icon-size="15"></span></button>
     <button class="btn-secondary btn-sm" onclick="calendarNav(0)">Today</button>
-    <button class="loc-nav" onclick="calendarNav(1)" title="Next" aria-label="Next"><span data-icon="chevronRight" data-icon-size="15"></span></button>
+    <button class="loc-nav" onclick="calendarNav(1)" data-tip="Next" aria-label="Next"><span data-icon="chevronRight" data-icon-size="15"></span></button>
     <span class="toolbar-title" id="cal-range-label"></span>
     <span class="rcnt push-right" id="cal-sync-sub"></span>
   </div>
@@ -537,7 +537,7 @@
         <button class="btn-secondary in-menu" id="md-edit-schedule-btn" style="display:none" onclick="editCurrentMeetingSchedule()">Edit schedule</button>
         <button class="btn-secondary" onclick="recordNewMenu(event)" aria-haspopup="menu"><span data-icon="plus" data-icon-size="13"></span> New</button>
         <button class="btn-danger in-menu" id="md-delete-btn" onclick="deleteCurrentMeeting()">Delete</button>
-        <button class="loc-nav rec-more" onclick="meetingMoreMenu(event)" title="More" aria-label="More"><span data-icon="more" data-icon-size="16"></span></button>
+        <button class="loc-nav rec-more" onclick="meetingMoreMenu(event)" data-tip="More" aria-label="More"><span data-icon="more" data-icon-size="16"></span></button>
       </div>
     </header>
     <div class="rec-layout">
@@ -576,7 +576,7 @@
         <button class="active" data-when="all" onclick="setMeetingFilter('all')">All</button>
         <button data-when="upcoming" onclick="setMeetingFilter('upcoming')">Upcoming</button>
         <button data-when="past" onclick="setMeetingFilter('past')">Past</button>
-        <button data-when="writeup" onclick="setMeetingFilter('writeup')" title="Past meetings with no notes, decisions or action items">Needs write-up</button>
+        <button data-when="writeup" onclick="setMeetingFilter('writeup')" data-tip="Past meetings with no notes, decisions or action items">Needs write-up</button>
       </div>
       <input type="text" class="f-search" id="meeting-search" placeholder="Search title, company, attendee…" oninput="renderMeetingsTab()" aria-label="Search meetings">
       <span class="rcnt" id="meeting-count"></span>
@@ -687,16 +687,16 @@
       <div class="page-title">Files</div>
       <div class="page-subtitle">Your OneDrive, synced to this Mac. Files open in their own apps, right where they live.</div>
     </div>
-    <div class="page-header-actions"><button class="loc-nav rec-more" onclick="pageMoreMenu(event, 'files')" title="More" aria-label="More"><span data-icon="more" data-icon-size="16"></span></button></div>
+    <div class="page-header-actions"><button class="loc-nav rec-more" onclick="pageMoreMenu(event, 'files')" data-tip="More" aria-label="More"><span data-icon="more" data-icon-size="16"></span></button></div>
   </div>
   <div class="fx">
     <nav class="fx-places" id="msf-places" aria-label="Places"></nav>
     <section class="fx-main">
       <div class="fx-toolbar">
-        <button class="loc-nav" id="msf-back-btn" onclick="msFilesGoBack()" title="Up one folder (⌘↑)" aria-label="Up one folder"><span data-icon="chevronLeft" data-icon-size="15"></span></button>
+        <button class="loc-nav" id="msf-back-btn" onclick="msFilesGoBack()" data-tip="Up one folder" data-key="⌘↑" aria-label="Up one folder"><span data-icon="chevronLeft" data-icon-size="15"></span></button>
         <div class="fx-folder-title" id="msf-folder-title"></div>
         <input type="text" class="f-search fx-search" id="msf-search" placeholder="Search" oninput="msFilesSearchChanged()" aria-label="Search this folder">
-        <button class="btn-secondary btn-sm fx-sort" onclick="msFilesSortMenu(event)" title="Sort by">Sort: <span id="msf-sort-label">Name</span></button>
+        <button class="btn-secondary btn-sm fx-sort" onclick="msFilesSortMenu(event)" data-tip="Sort by">Sort: <span id="msf-sort-label">Name</span></button>
         <div class="seg-btns" id="msf-layout-btns">
           <button class="seg-btn" data-layout="list" onclick="msFilesLayout('list')">List</button>
           <button class="seg-btn" data-layout="icons" onclick="msFilesLayout('icons')">Icons</button>
@@ -1170,7 +1170,7 @@
           <button class="ws-side-item notes-folder-item" data-folder="client" onclick="setNoteFolder('client')"><span class="ws-side-icon" data-icon="building" data-icon-size="15"></span><span class="ws-side-label">Linked to clients</span><span class="ws-side-count" id="nf-client"></span></button>
         </div>
         <div class="ws-side-section">
-          <div class="ws-side-section-hd notes-section-hd"><span>Folders</span><button class="notes-section-add" onclick="addNoteFolder()" title="New folder" aria-label="New folder"><span data-icon="plus" data-icon-size="12"></span></button></div>
+          <div class="ws-side-section-hd notes-section-hd"><span>Folders</span><button class="notes-section-add" onclick="addNoteFolder()" data-tip="New folder" aria-label="New folder"><span data-icon="plus" data-icon-size="12"></span></button></div>
           <div id="notes-folder-items"></div>
         </div>
         <div class="ws-side-group notes-side-meetings">
@@ -1194,8 +1194,8 @@
           <div class="notes-list-count" id="notes-list-count"></div>
         </div>
         <div class="notes-new-group">
-          <button class="loc-nav" onclick="createNewNote(null)" title="New note (⌘N)" aria-label="New note"><span data-icon="edit" data-icon-size="15"></span></button>
-          <button class="loc-nav" onclick="toggleNewNoteMenu(event)" title="New from template" aria-label="New from template"><span data-icon="chevronDown" data-icon-size="13"></span></button>
+          <button class="loc-nav" onclick="createNewNote(null)" data-tip="New note" data-key="⌘N" aria-label="New note"><span data-icon="edit" data-icon-size="15"></span></button>
+          <button class="loc-nav" onclick="toggleNewNoteMenu(event)" data-tip="New from template" aria-label="New from template"><span data-icon="chevronDown" data-icon-size="13"></span></button>
           <div class="wikilink-menu" id="new-note-menu"></div>
         </div>
       </div>
@@ -1209,8 +1209,8 @@
     <section class="notes-editor-pane" id="notes-main" aria-label="Editor">
       <div class="notes-topbar">
         <div class="notes-topbar-group">
-          <button class="loc-nav" onclick="toggleNotesSidebar()" title="Show or hide the library" aria-label="Toggle library"><span data-icon="sidebar" data-icon-size="15"></span></button>
-          <button class="loc-nav" id="notes-focus-btn" onclick="toggleNotesFocus()" title="Focus mode (⌘.)" aria-label="Focus mode"><svg width="15" height="15" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3 7V4a1 1 0 0 1 1-1h3M11 3h3a1 1 0 0 1 1 1v3M15 11v3a1 1 0 0 1-1 1h-3M7 15H4a1 1 0 0 1-1-1v-3"/></svg></button>
+          <button class="loc-nav" onclick="toggleNotesSidebar()" data-tip="Show or hide the library" aria-label="Toggle library"><span data-icon="sidebar" data-icon-size="15"></span></button>
+          <button class="loc-nav" id="notes-focus-btn" onclick="toggleNotesFocus()" data-tip="Focus mode" data-key="⌘." aria-label="Focus mode"><svg width="15" height="15" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3 7V4a1 1 0 0 1 1-1h3M11 3h3a1 1 0 0 1 1 1v3M15 11v3a1 1 0 0 1-1 1h-3M7 15H4a1 1 0 0 1-1-1v-3"/></svg></button>
         </div>
         <div class="notes-topbar-status">
           <span id="notes-save-status"></span>
@@ -1218,28 +1218,28 @@
           <span id="notes-word-count"></span>
         </div>
         <div class="notes-topbar-group" id="notes-doc-actions" hidden>
-          <button class="loc-nav" id="notes-format-btn" onclick="toggleNotesFormatBar()" title="Formatting bar" aria-label="Formatting bar"><span class="notes-format-glyph">Aa</span></button>
-          <button class="loc-nav" id="notes-pin-btn" onclick="toggleNotePin()" title="Pin" aria-label="Pin"><span data-icon="pin" data-icon-size="15"></span></button>
-          <button class="loc-nav" onclick="noteMoreMenu(event)" title="More" aria-label="More"><span data-icon="more" data-icon-size="16"></span></button>
+          <button class="loc-nav" id="notes-format-btn" onclick="toggleNotesFormatBar()" data-tip="Formatting bar" aria-label="Formatting bar"><span class="notes-format-glyph">Aa</span></button>
+          <button class="loc-nav" id="notes-pin-btn" onclick="toggleNotePin()" data-tip="Pin" aria-label="Pin"><span data-icon="pin" data-icon-size="15"></span></button>
+          <button class="loc-nav" onclick="noteMoreMenu(event)" data-tip="More" aria-label="More"><span data-icon="more" data-icon-size="16"></span></button>
         </div>
       </div>
       <div class="notes-toolbar" id="notes-toolbar" hidden>
-        <button class="toolbar-btn" onclick="mdBold()" title="Bold (⌘B)"><span data-icon="bold" data-icon-size="15"></span></button>
-        <button class="toolbar-btn" onclick="mdItalic()" title="Italic (⌘I)"><span data-icon="italic" data-icon-size="15"></span></button>
-        <button class="toolbar-btn" onclick="mdStrike()" title="Strikethrough"><span data-icon="strikethrough" data-icon-size="15"></span></button>
+        <button class="toolbar-btn" onclick="mdBold()" data-tip="Bold" data-key="⌘B" aria-label="Bold"><span data-icon="bold" data-icon-size="15"></span></button>
+        <button class="toolbar-btn" onclick="mdItalic()" data-tip="Italic" data-key="⌘I" aria-label="Italic"><span data-icon="italic" data-icon-size="15"></span></button>
+        <button class="toolbar-btn" onclick="mdStrike()" data-tip="Strikethrough" aria-label="Strikethrough"><span data-icon="strikethrough" data-icon-size="15"></span></button>
         <div class="toolbar-sep"></div>
-        <button class="toolbar-btn toolbar-btn-text" onclick="mdHeading(1)" title="Heading 1">H1</button>
-        <button class="toolbar-btn toolbar-btn-text" onclick="mdHeading(2)" title="Heading 2">H2</button>
-        <button class="toolbar-btn toolbar-btn-text" onclick="mdHeading(3)" title="Heading 3">H3</button>
+        <button class="toolbar-btn toolbar-btn-text" onclick="mdHeading(1)" data-tip="Heading 1">H1</button>
+        <button class="toolbar-btn toolbar-btn-text" onclick="mdHeading(2)" data-tip="Heading 2">H2</button>
+        <button class="toolbar-btn toolbar-btn-text" onclick="mdHeading(3)" data-tip="Heading 3">H3</button>
         <div class="toolbar-sep"></div>
-        <button class="toolbar-btn" onclick="mdBulletList()" title="Bullet list"><span data-icon="list" data-icon-size="15"></span></button>
-        <button class="toolbar-btn" onclick="mdNumberedList()" title="Numbered list"><span data-icon="numberedList" data-icon-size="15"></span></button>
-        <button class="toolbar-btn" onclick="mdChecklist()" title="Checklist"><span data-icon="checklist" data-icon-size="15"></span></button>
+        <button class="toolbar-btn" onclick="mdBulletList()" data-tip="Bullet list" aria-label="Bullet list"><span data-icon="list" data-icon-size="15"></span></button>
+        <button class="toolbar-btn" onclick="mdNumberedList()" data-tip="Numbered list" aria-label="Numbered list"><span data-icon="numberedList" data-icon-size="15"></span></button>
+        <button class="toolbar-btn" onclick="mdChecklist()" data-tip="Checklist" aria-label="Checklist"><span data-icon="checklist" data-icon-size="15"></span></button>
         <div class="toolbar-sep"></div>
-        <button class="toolbar-btn" onclick="mdQuote()" title="Quote"><span data-icon="quote" data-icon-size="15"></span></button>
-        <button class="toolbar-btn" onclick="mdCode()" title="Code block"><span data-icon="codeBlock" data-icon-size="15"></span></button>
-        <button class="toolbar-btn" onclick="mdLink()" title="Link"><span data-icon="link" data-icon-size="15"></span></button>
-        <button class="toolbar-btn" onclick="mdDivider()" title="Divider"><span data-icon="divider" data-icon-size="15"></span></button>
+        <button class="toolbar-btn" onclick="mdQuote()" data-tip="Quote" aria-label="Quote"><span data-icon="quote" data-icon-size="15"></span></button>
+        <button class="toolbar-btn" onclick="mdCode()" data-tip="Code block" aria-label="Code block"><span data-icon="codeBlock" data-icon-size="15"></span></button>
+        <button class="toolbar-btn" onclick="mdLink()" data-tip="Link" aria-label="Link"><span data-icon="link" data-icon-size="15"></span></button>
+        <button class="toolbar-btn" onclick="mdDivider()" data-tip="Divider" aria-label="Divider"><span data-icon="divider" data-icon-size="15"></span></button>
       </div>
       <div class="notes-empty-wrap" id="notes-empty"></div>
       <div class="notes-doc-scroll" id="notes-editor-panel" style="display:none">
@@ -1255,17 +1255,17 @@
         </article>
       </div>
       <div class="md-float-toolbar" id="md-float-toolbar" role="toolbar" aria-label="Formatting">
-        <button onmousedown="event.preventDefault()" onclick="mdBold()" title="Bold (⌘B)"><span data-icon="bold" data-icon-size="14"></span></button>
-        <button onmousedown="event.preventDefault()" onclick="mdItalic()" title="Italic (⌘I)"><span data-icon="italic" data-icon-size="14"></span></button>
-        <button onmousedown="event.preventDefault()" onclick="mdStrike()" title="Strikethrough"><span data-icon="strikethrough" data-icon-size="14"></span></button>
+        <button onmousedown="event.preventDefault()" onclick="mdBold()" data-tip="Bold" data-key="⌘B" aria-label="Bold"><span data-icon="bold" data-icon-size="14"></span></button>
+        <button onmousedown="event.preventDefault()" onclick="mdItalic()" data-tip="Italic" data-key="⌘I" aria-label="Italic"><span data-icon="italic" data-icon-size="14"></span></button>
+        <button onmousedown="event.preventDefault()" onclick="mdStrike()" data-tip="Strikethrough" aria-label="Strikethrough"><span data-icon="strikethrough" data-icon-size="14"></span></button>
         <span class="md-float-sep"></span>
-        <button onmousedown="event.preventDefault()" onclick="mdHeading(1)" title="Heading 1" class="md-float-text">H1</button>
-        <button onmousedown="event.preventDefault()" onclick="mdHeading(2)" title="Heading 2" class="md-float-text">H2</button>
+        <button onmousedown="event.preventDefault()" onclick="mdHeading(1)" data-tip="Heading 1" class="md-float-text">H1</button>
+        <button onmousedown="event.preventDefault()" onclick="mdHeading(2)" data-tip="Heading 2" class="md-float-text">H2</button>
         <span class="md-float-sep"></span>
-        <button onmousedown="event.preventDefault()" onclick="mdQuote()" title="Quote"><span data-icon="quote" data-icon-size="14"></span></button>
-        <button onmousedown="event.preventDefault()" onclick="mdChecklist()" title="Checklist"><span data-icon="checklist" data-icon-size="14"></span></button>
-        <button onmousedown="event.preventDefault()" onclick="mdLink()" title="Link"><span data-icon="link" data-icon-size="14"></span></button>
-        <button onmousedown="event.preventDefault()" onclick="mdInlineCode()" title="Code"><span data-icon="codeBlock" data-icon-size="14"></span></button>
+        <button onmousedown="event.preventDefault()" onclick="mdQuote()" data-tip="Quote" aria-label="Quote"><span data-icon="quote" data-icon-size="14"></span></button>
+        <button onmousedown="event.preventDefault()" onclick="mdChecklist()" data-tip="Checklist" aria-label="Checklist"><span data-icon="checklist" data-icon-size="14"></span></button>
+        <button onmousedown="event.preventDefault()" onclick="mdLink()" data-tip="Link" aria-label="Link"><span data-icon="link" data-icon-size="14"></span></button>
+        <button onmousedown="event.preventDefault()" onclick="mdInlineCode()" data-tip="Code" aria-label="Code"><span data-icon="codeBlock" data-icon-size="14"></span></button>
       </div>
     </section>
   </div>
@@ -1283,9 +1283,9 @@
         </div>
         <div class="ws-head-actions">
           <div id="task-cal-nav" class="task-cal-nav" hidden>
-            <button class="loc-nav" onclick="taskCalNav(-1)" title="Previous month" aria-label="Previous month"><span data-icon="chevronLeft" data-icon-size="15"></span></button>
+            <button class="loc-nav" onclick="taskCalNav(-1)" data-tip="Previous month" aria-label="Previous month"><span data-icon="chevronLeft" data-icon-size="15"></span></button>
             <span id="task-cal-label" class="task-cal-label"></span>
-            <button class="loc-nav" onclick="taskCalNav(1)" title="Next month" aria-label="Next month"><span data-icon="chevronRight" data-icon-size="15"></span></button>
+            <button class="loc-nav" onclick="taskCalNav(1)" data-tip="Next month" aria-label="Next month"><span data-icon="chevronRight" data-icon-size="15"></span></button>
             <button class="btn-secondary btn-sm" onclick="taskCalNav(0)">Today</button>
           </div>
           <div class="seg-btns" id="task-view-btns" role="tablist" aria-label="View">
@@ -1293,7 +1293,7 @@
             <button class="seg-btn task-vbtn" data-view="board" onclick="setTaskView('board')">Board</button>
             <button class="seg-btn task-vbtn" data-view="calendar" onclick="setTaskView('calendar')">Calendar</button>
           </div>
-          <button class="loc-nav" id="task-list-menu" onclick="taskListMenu(event)" title="Sort and options" aria-label="Sort and options"><span data-icon="more" data-icon-size="16"></span></button>
+          <button class="loc-nav" id="task-list-menu" onclick="taskListMenu(event)" data-tip="Sort and options" aria-label="Sort and options"><span data-icon="more" data-icon-size="16"></span></button>
         </div>
       </header>
       <form class="task-quickadd" id="task-quickadd" onsubmit="quickAddTask(event)" autocomplete="off">
@@ -1406,7 +1406,7 @@
     </div>
     <div class="page-header-actions">
       <button class="btn-primary" onclick="openContactModal()"><span data-icon="plus" data-icon-size="14"></span> New contact</button>
-      <button class="loc-nav rec-more" onclick="pageMoreMenu(event, 'contacts')" title="More" aria-label="More"><span data-icon="more" data-icon-size="16"></span></button>
+      <button class="loc-nav rec-more" onclick="pageMoreMenu(event, 'contacts')" data-tip="More" aria-label="More"><span data-icon="more" data-icon-size="16"></span></button>
     </div>
   </div>
   <div class="ct-people-banner" id="ct-people-banner" hidden></div>
@@ -1417,7 +1417,7 @@
     <select class="fsel" id="ct-list-filter" onchange="renderContacts()"><option value="">All lists</option></select>
     <select class="fsel" id="ct-type-filter" onchange="renderContacts()" title="Contacts at companies that were offered or are on retainer for this service"><option value="">All services</option></select>
     <span class="rcnt" id="ct-cnt">0 contacts</span>
-    <button class="rlink" onclick="openContactColumns(event)" title="Choose columns">Columns</button>
+    <button class="rlink" onclick="openContactColumns(event)" data-tip="Choose columns">Columns</button>
   </div>
   <div class="list-bar" id="ct-lists-bar" aria-label="Lists"></div>
   <div class="tbl-wrap">
@@ -1505,7 +1505,7 @@
         <option value="proposals">Sort: Most proposals</option>
       </select>
       <span class="rcnt" id="co-cnt">0 companies</span>
-      <button class="rlink" id="co-columns-btn" onclick="openCompanyColumns(event)" title="Choose columns">Columns</button>
+      <button class="rlink" id="co-columns-btn" onclick="openCompanyColumns(event)" data-tip="Choose columns">Columns</button>
       <div class="seg-btns" id="co-view-btns">
         <button class="seg-btn co-vbtn" data-view="grid" onclick="setCoListView('grid')">Grid</button>
         <button class="seg-btn co-vbtn active" data-view="list" onclick="setCoListView('list')">List</button>
@@ -1526,10 +1526,10 @@
       </div>
       <div class="rec-actions">
         <button class="btn-primary" onclick="companyNewMenu(event)" aria-haspopup="menu"><span data-icon="plus" data-icon-size="13"></span> New</button>
-        <button class="btn-secondary" onclick="openCompanyBrief()" title="A one-page brief to read or print">Brief</button>
-        <button class="btn-secondary" onclick="openCompanyTemplates()" title="A template email to this company, ready to copy or open in Outlook">Email</button>
+        <button class="btn-secondary" onclick="openCompanyBrief()" data-tip="A one-page brief to read or print">Brief</button>
+        <button class="btn-secondary" onclick="openCompanyTemplates()" data-tip="A template email to this company, ready to copy or open in Outlook">Email</button>
         <button class="btn-secondary" onclick="openEditCompanyModal()">Edit</button>
-        <button class="loc-nav rec-more" onclick="companyMoreMenu(event)" title="More" aria-label="More"><span data-icon="more" data-icon-size="16"></span></button>
+        <button class="loc-nav rec-more" onclick="companyMoreMenu(event)" data-tip="More" aria-label="More"><span data-icon="more" data-icon-size="16"></span></button>
       </div>
     </header>
     <nav class="rec-sections" id="co-section-nav" aria-label="Sections"></nav>
@@ -1675,7 +1675,7 @@
     </div>
     <div class="page-header-actions">
       <button class="btn-primary" onclick="openAgrModal(null)"><span data-icon="plus" data-icon-size="14"></span> New agreement</button>
-      <button class="loc-nav rec-more" onclick="pageMoreMenu(event, 'agreements')" title="More" aria-label="More"><span data-icon="more" data-icon-size="16"></span></button>
+      <button class="loc-nav rec-more" onclick="pageMoreMenu(event, 'agreements')" data-tip="More" aria-label="More"><span data-icon="more" data-icon-size="16"></span></button>
     </div>
   </div>
   <div id="agr-summary" class="kpi-row-auto"></div>
@@ -1773,7 +1773,7 @@
       <option value="2023-Q4"> 2023 Q4 — Oct–Dec</option>
     </select>
       <button class="btn-primary" onclick="openProposalBuilder()"><span data-icon="plus" data-icon-size="14"></span> New proposal</button>
-      <button class="loc-nav rec-more" onclick="pageMoreMenu(event, 'proposals')" title="More" aria-label="More"><span data-icon="more" data-icon-size="16"></span></button>
+      <button class="loc-nav rec-more" onclick="pageMoreMenu(event, 'proposals')" data-tip="More" aria-label="More"><span data-icon="more" data-icon-size="16"></span></button>
     </div>
   </div>
   <nav class="pr-views" data-pr-views aria-label="Proposal views"></nav>

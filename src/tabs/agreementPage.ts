@@ -70,7 +70,7 @@ export function renderAgreementPage(): void {
   const a = current();
   if (!a) return;
   const title = document.getElementById('agd-title');
-  if (title) title.innerHTML = `${escHtml(a.agrRef || 'Agreement')}${a.agrRef ? `<button class="rec-icon-btn rec-title-copy" onclick="copyText('${escHtml(a.agrRef)}','Reference copied')" title="Copy reference" aria-label="Copy reference">${icon('copy', 14)}</button>` : ''}<span class="pr-title-services">${companyLink(a.companyId, a.client)}</span>`;
+  if (title) title.innerHTML = `${escHtml(a.agrRef || 'Agreement')}${a.agrRef ? `<button class="rec-icon-btn rec-title-copy" onclick="copyText('${escHtml(a.agrRef)}','Reference copied')" data-tip="Copy reference" aria-label="Copy reference">${icon('copy', 14)}</button>` : ''}<span class="pr-title-services">${companyLink(a.companyId, a.client)}</span>`;
   const monthly = agreementMonthly(a);
   const badges = document.getElementById('agd-badges');
   if (badges) badges.innerHTML = [

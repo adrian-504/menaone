@@ -139,7 +139,7 @@ function paintActionRequired(): void {
             <div class="ar-meta">${escHtml(e.senderName || e.senderEmail || 'Unknown sender')} · completed ${fmtDate(e.completedAt)}</div>
           </div>
           <div class="ar-actions">
-            <button class="task-hover-btn" onclick="arReflagEmail('${escHtml(e.messageId).replace(/'/g, "\\'")}')" title="Flag again in Outlook" aria-label="Flag ${escHtml(e.subject || 'this email')} again">${icon('flag', 14)}</button>
+            <button class="task-hover-btn" onclick="arReflagEmail('${escHtml(e.messageId).replace(/'/g, "\\'")}')" data-tip="Flag again in Outlook" aria-label="Flag ${escHtml(e.subject || 'this email')} again">${icon('flag', 14)}</button>
           </div>
         </div>`).join('')}</div>`;
     renderIcons(root);
@@ -182,7 +182,7 @@ function emailRow(e: EmailRecord): string {
     }
   }
   return `<div class="ar-row${e.isRead ? '' : ' unread'}" oncontextmenu="arEmailMenu(event, ${e.id})">
-    <button class="task-check" onclick="arCompleteEmail(${e.id})" title="Mark complete in Outlook" aria-label="Complete"></button>
+    <button class="task-check" onclick="arCompleteEmail(${e.id})" data-tip="Mark complete in Outlook" aria-label="Complete"></button>
     <div class="ar-main" onclick="arOpenEmail(${e.id})">
       <div class="ar-top">
         <span class="ar-subject">${escHtml(e.subject || '(No subject)')}</span>
@@ -195,9 +195,9 @@ function emailRow(e: EmailRecord): string {
       ${taskDraft?.emailId === e.id ? taskDraftRow(e) : ''}
     </div>
     <div class="ar-actions">
-      <button class="task-hover-btn" onclick="event.stopPropagation();arCreateTask(${e.id})" title="Create a task from this email" aria-label="Create task">${icon('task', 14)}</button>
-      <button class="task-hover-btn" onclick="arOpenEmail(${e.id})" title="Open in Outlook" aria-label="Open in Outlook">${icon('link', 14)}</button>
-      <button class="task-hover-btn" onclick="event.stopPropagation();arEmailMenu(event, ${e.id})" title="More" aria-label="More">${icon('more', 14)}</button>
+      <button class="task-hover-btn" onclick="event.stopPropagation();arCreateTask(${e.id})" data-tip="Create a task from this email" aria-label="Create task">${icon('task', 14)}</button>
+      <button class="task-hover-btn" onclick="arOpenEmail(${e.id})" data-tip="Open in Outlook" aria-label="Open in Outlook">${icon('link', 14)}</button>
+      <button class="task-hover-btn" onclick="event.stopPropagation();arEmailMenu(event, ${e.id})" data-tip="More" aria-label="More">${icon('more', 14)}</button>
     </div>
   </div>`;
 }

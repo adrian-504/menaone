@@ -93,7 +93,7 @@ export function updateRecordRail(kind: RecordKind | undefined, key: number | str
   if (railKind !== kind) { railKind = kind!; query = ''; }
   const cfg = SUPPORTED[kind!]!;
   if (!rail.querySelector('.rr-search')) {
-    rail.innerHTML = `<div class="rr-head"><span class="rr-title"></span><button class="rec-icon-btn" onclick="toggleRecordRail()" title="Hide the list" aria-label="Hide the list">${icon('sidebar', 14)}</button></div>
+    rail.innerHTML = `<div class="rr-head"><span class="rr-title"></span><button class="rec-icon-btn" onclick="toggleRecordRail()" data-tip="Hide the list" aria-label="Hide the list">${icon('sidebar', 14)}</button></div>
       <input type="text" class="rr-search" placeholder="Filter…" oninput="recordRailFilter(this.value)" onkeydown="recordRailKey(event)" aria-label="Filter the list">
       <div class="rr-list" role="listbox" tabindex="-1" onkeydown="recordRailKey(event)"></div>`;
   }

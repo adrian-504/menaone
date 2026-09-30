@@ -149,7 +149,7 @@ export function renderAgreements(): void {
       <td class="agr-ref">${escHtml(a.agrRef || '—')}${a.proposalId ? `<div class="agr-prop-ref">SL# ${a.proposalId}</div>` : ''}</td>
       <td class="td-c strong" title="${escHtml(a.client)}">${companyLink(a.companyId, a.client)}</td>
       <td class="db-services">${services.map((sv) => `<span class="chip">${escHtml(sv)}</span>`).join(' ') || '—'}</td>
-      <td class="td-status">${statusDot(sc, a.status || 'Not set')}<button class="rec-icon-btn row-more" onclick="agreementRowMenu(event, ${a.id})" title="Change status…" aria-label="Change status of ${escHtml(a.agrRef || 'this agreement')}">${icon('more', 14)}</button></td>
+      <td class="td-status">${statusDot(sc, a.status || 'Not set')}<button class="rec-icon-btn row-more" onclick="agreementRowMenu(event, ${a.id})" data-tip="Change status…" aria-label="Change status of ${escHtml(a.agrRef || 'this agreement')}">${icon('more', 14)}</button></td>
       <td>${a.serviceStatus ? statusBadge('service', a.serviceStatus) : '<span class="t-muted">—</span>'}</td>
       <td class="t-sub">${escHtml(preparedByName(a) || '—')}</td>
       <td class="td-d">${fmtDate(a.startDate)}</td>

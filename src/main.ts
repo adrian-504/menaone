@@ -31,6 +31,7 @@ import { switchTab } from './core/nav';
 import { renderIcons, initSidebarCollapsed, applyMs365SidebarVisibility } from './core/chrome';
 import { initTheme } from './core/theme';
 import { startMotion } from './lib/motion';
+import { startTooltips } from './lib/tooltip';
 import './core/router';
 import './lib/links';
 import './core/commandPalette';
@@ -82,6 +83,7 @@ initTheme();
 initSidebarCollapsed();
 renderIcons();
 startMotion();
+startTooltips();
 
 /** Populate every filter/select that isn't already refreshed by its own tab's
  * registered render function (Pending/Agreements populate their own filters

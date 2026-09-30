@@ -88,7 +88,7 @@ function rowHtml(c: EmailCandidate, i: number): string {
     <td class="t-muted">${escHtml(c.email)}</td>
     <td><input class="finp" data-f="company" list="email-people-companies" value="${attr(c.certainty === 'new' ? '' : c.guess.name)}" placeholder="${attr(c.certainty === 'new' ? c.guess.name : 'Company')}">${companyNote}</td>
     <td class="t-muted">${escHtml(contactSummary(c))}${when ? `<div>last ${escHtml(when)}</div>` : ''}</td>
-    <td><button class="rec-icon-btn" onclick="dismissEmailPerson(${i})" title="Not a contact" aria-label="Not a contact">${icon('close', 12)}</button></td>
+    <td><button class="rec-icon-btn" onclick="dismissEmailPerson(${i})" data-tip="Not a contact" aria-label="Not a contact">${icon('close', 12)}</button></td>
   </tr>`;
 }
 

@@ -2986,3 +2986,8 @@ body.dnd-active .drop-target{transition:background-color var(--dur-fast) var(--e
 .task-row.just-added.is-new{animation:settle-in var(--dur-base) var(--ease-out),task-flash var(--dur-highlight) var(--ease-out)}
 @keyframes settle-in{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
 
+/* 5. Tooltips (lib/tooltip.ts): 600 ms, below the element (above if no room), fade and rise 4px. */
+.tip{position:fixed;z-index:3000;display:none;align-items:center;gap:6px;max-width:260px;padding:4px 8px;border-radius:6px;background:var(--text);color:var(--bg);font-size:12px;font-weight:500;line-height:1.35;pointer-events:none;opacity:0;transform:translateY(4px);transition:opacity var(--dur-fast) var(--ease-out),transform var(--dur-fast) var(--ease-out)}
+.tip.above{transform:translateY(-4px)}
+.tip.open{opacity:1;transform:none}
+.tip kbd{font:inherit;font-size:11px;opacity:.7}

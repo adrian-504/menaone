@@ -151,10 +151,35 @@ export function checkCraft(all) {
   return problems;
 }
 
+/** Buttons show their label through lib/tooltip.ts (data-tip), not the slow native title. */
+export function checkMarkup(sources) {
+  const problems = [];
+  for (const [file, text] of sources) {
+    for (const m of text.matchAll(/<button\b[^>]*?\stitle=/g)) {
+      problems.push({ selector: `${file}:${text.slice(0, m.index).split('\n').length}`, why: 'title on a button (use data-tip)' });
+    }
+  }
+  return problems;
+}
+
+async function markupSources() {
+  const { readdirSync, statSync } = await import('node:fs');
+  const out = [['index.html', readFileSync(resolve(root, 'index.html'), 'utf8')]];
+  const walk = (dir) => {
+    for (const name of readdirSync(dir)) {
+      const p = resolve(dir, name);
+      if (statSync(p).isDirectory()) walk(p);
+      else if (/\.ts$/.test(name) && !/\.test\.ts$/.test(name)) out.push([p.slice(root.length + 1), readFileSync(p, 'utf8')]);
+    }
+  };
+  walk(resolve(root, 'src'));
+  return out;
+}
+
 const isMain = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (isMain) {
   const all = rules(css);
-  const result = { motion: checkMotion(all), states: checkStates(all), craft: checkCraft(all) };
+  const result = { motion: checkMotion(all), states: checkStates(all), craft: checkCraft(all), markup: checkMarkup(await markupSources()) };
   if (process.argv.includes('--json')) console.log(JSON.stringify(result, null, 1));
   else {
     for (const [pass, list] of Object.entries(result)) {

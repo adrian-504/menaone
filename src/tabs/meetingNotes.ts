@@ -160,7 +160,7 @@ function nextMeetingRow(m: Meeting): string {
     ${set
       ? `<button class="md-next-date" onclick="pickNextMeeting()">${escHtml(fmtDate(m.nextMeeting))}</button>
          <button class="md-link-btn" onclick="planFollowUpMeeting(${m.id})">Create it</button>
-         <button class="md-next-clear" onclick="setNextMeeting('')" title="Clear" aria-label="Clear the next meeting date">${icon('close', 12)}</button>`
+         <button class="md-next-clear" onclick="setNextMeeting('')" data-tip="Clear" aria-label="Clear the next meeting date">${icon('close', 12)}</button>`
       : `<button class="md-next-date is-unset" onclick="pickNextMeeting()">Not set</button>`}
     <input type="date" id="md-next-meeting" class="md-next-input" value="${escHtml(m.nextMeeting || '')}" onchange="setNextMeeting(this.value)" tabindex="-1" aria-label="Next meeting date">
   </div>`;
