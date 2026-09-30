@@ -3,6 +3,10 @@
 One entry per install, newest first: the version, the day it was installed, and in two lines what changed.
 Settings → Data shows the last five. `scripts/release-check.mjs` refuses a build whose version has no entry here.
 
+## 1.55 — 2026-09-30
+MENA BIG's look: the logo, brand blue with a coral spark, Saira and IBM Plex type, depth on the things that matter, and a sidebar tint you can switch (Blue or Grey).
+My Day opens on the office photograph with the day's figures and what's on now; record pages lead with their key figures; Settings → Appearance holds the tint, your name and your own photos.
+
 ## 1.54 — 2026-09-30
 Faster and sturdier: My Day paints first, the company page loads in one go, a log file and checked backups, and offline just waits and retries.
 Type dates ("next Tue"), one set of shortcuts everywhere, drop files from Finder onto a company or proposal, and Space for Quick Look.
