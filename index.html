@@ -276,7 +276,7 @@
         <div id="myday-pipeline"></div>
       </section>
       <section class="sec mdy-sec" id="myday-watch-card" hidden>
-        <div class="rec-section-hd"><h2>Watch</h2><div class="rec-section-actions"><button class="btn-secondary btn-sm" onclick="navToModule('intelligence')">All</button></div></div>
+        <div class="rec-section-hd"><h2>Watch</h2><div class="rec-section-actions"><button class="rlink" onclick="navToModule('intelligence')">All</button></div></div>
         <div id="myday-watch"></div>
       </section>
       <section class="sec mdy-sec">
@@ -924,12 +924,7 @@
         <h1 class="rec-title" id="pd-name"></h1>
         <div class="rec-badges" id="pd-badges"></div>
       </div>
-      <div class="rec-actions">
-        <button class="btn-primary" onclick="recordNewMenu(event)" aria-haspopup="menu"><span data-icon="plus" data-icon-size="13"></span> New</button>
-        <button class="btn-secondary" onclick="editCurrentProject()">Edit</button>
-        <button class="btn-secondary" id="pd-archive-btn" onclick="toggleArchiveProject()">Archive</button>
-        <button class="loc-nav rec-more" onclick="projectMoreMenu(event)" title="More" aria-label="More"><span data-icon="more" data-icon-size="16"></span></button>
-      </div>
+      <div class="rec-actions" id="pd-actions"></div>
     </header>
     <div class="thread-host" id="pd-thread" hidden></div>
     <div class="rec-layout">
@@ -945,7 +940,7 @@
         </form>
       </section>
       <section class="sec rec-section" id="pd-tasks-sec">
-        <div class="rec-section-hd"><h2>Tasks</h2><span class="rec-count" id="pd-task-cnt"></span><div class="rec-section-actions"><button class="btn-secondary btn-sm" onclick="createTodoForCurrentProject()">+ New</button></div></div>
+        <div class="rec-section-hd"><h2>Tasks</h2><span class="rec-count" id="pd-task-cnt"></span><div class="rec-section-actions"><button class="rlink" onclick="createTodoForCurrentProject()">Add</button></div></div>
         <div id="pd-tasks"></div>
       </section>
       <div class="sec rec-section" id="pd-meetings"></div>
@@ -1085,11 +1080,7 @@
         <h1 class="rec-title" id="od-name"></h1>
         <div class="rec-badges" id="od-badges"></div>
       </div>
-      <div class="rec-actions">
-        <button class="btn-primary" onclick="recordNewMenu(event)" aria-haspopup="menu"><span data-icon="plus" data-icon-size="13"></span> New</button>
-        <button class="btn-secondary" onclick="editCurrentOpportunity()">Edit</button>
-        <button class="loc-nav rec-more" onclick="opportunityMoreMenu(event)" title="More" aria-label="More"><span data-icon="more" data-icon-size="16"></span></button>
-      </div>
+      <div class="rec-actions" id="od-actions"></div>
     </header>
     <div class="thread-host" id="od-thread" hidden></div>
     <div class="rec-layout">
@@ -1638,31 +1629,31 @@
          collapse to one line after them (lib/companyRecords.ts). -->
     <div class="co-records" id="co-records">
     <section class="rec-section sec" id="co-sec-proposals" data-section="proposals">
-      <div class="rec-section-hd"><h2>Proposals</h2><span class="rec-count" id="co-proposals-count"></span><div class="rec-section-actions"><button class="btn-secondary btn-sm" onclick="createProposalForCurrentCompany()">+ New</button></div></div>
+      <div class="rec-section-hd"><h2>Proposals</h2><span class="rec-count" id="co-proposals-count"></span><div class="rec-section-actions"><button class="rlink" onclick="createProposalForCurrentCompany()">Add</button></div></div>
       <div class="tbl-wrap rec-table"><table><thead><tr><th>SL#</th><th>Service</th><th>Status</th><th class="co-col-date">Sent</th><th>MRR</th></tr></thead><tbody id="co-proposals-tbody"></tbody></table></div>
     </section>
     <section class="rec-section sec" id="co-sec-agreements" data-section="agreements">
-      <div class="rec-section-hd"><h2>Agreements</h2><span class="rec-count" id="co-agreements-count"></span><div class="rec-section-actions"><button class="btn-secondary btn-sm" onclick="openAgrForCompany()">+ New</button></div></div>
+      <div class="rec-section-hd"><h2>Agreements</h2><span class="rec-count" id="co-agreements-count"></span><div class="rec-section-actions"><button class="rlink" onclick="openAgrForCompany()">Add</button></div></div>
       <div class="tbl-wrap rec-table"><table><thead><tr><th>Ref</th><th>Type</th><th>Status</th><th class="co-col-date">Ends</th><th>MRR</th></tr></thead><tbody id="co-agreements-tbody"></tbody></table></div>
     </section>
     <section class="rec-section sec" id="co-sec-opportunities" data-section="opportunities">
-      <div class="rec-section-hd"><h2>Opportunities</h2><span class="rec-count" id="co-opps-count"></span><div class="rec-section-actions"><button class="btn-secondary btn-sm" onclick="createOpportunityForCurrentCompany()">+ New</button></div></div>
+      <div class="rec-section-hd"><h2>Opportunities</h2><span class="rec-count" id="co-opps-count"></span><div class="rec-section-actions"><button class="rlink" onclick="createOpportunityForCurrentCompany()">Add</button></div></div>
       <div class="rec-list" id="co-opps-list"></div>
     </section>
     <section class="rec-section sec" id="co-sec-projects" data-section="projects">
-      <div class="rec-section-hd"><h2>Projects</h2><span class="rec-count" id="co-projects-tab-count"></span><div class="rec-section-actions"><button class="btn-secondary btn-sm" onclick="createProjectForCurrentCompany()">+ New</button></div></div>
+      <div class="rec-section-hd"><h2>Projects</h2><span class="rec-count" id="co-projects-tab-count"></span><div class="rec-section-actions"><button class="rlink" onclick="createProjectForCurrentCompany()">Add</button></div></div>
       <div id="cosub-projects-inner"></div>
     </section>
     <section class="rec-section sec" id="co-sec-meetings" data-section="meetings">
-      <div class="rec-section-hd"><h2>Meetings</h2><span class="rec-count" id="co-meetings-tab-count"></span><div class="rec-section-actions"><button class="btn-secondary btn-sm" onclick="createMeetingForCurrentCompany()">+ New</button></div></div>
+      <div class="rec-section-hd"><h2>Meetings</h2><span class="rec-count" id="co-meetings-tab-count"></span><div class="rec-section-actions"><button class="rlink" onclick="createMeetingForCurrentCompany()">Add</button></div></div>
       <div id="cosub-meetings-inner"></div>
     </section>
     <section class="rec-section sec" id="co-sec-tasks" data-section="tasks">
-      <div class="rec-section-hd"><h2>Tasks</h2><span class="rec-count" id="co-todos-tab-count"></span><div class="rec-section-actions"><button class="btn-secondary btn-sm" onclick="createTodoForCurrentCompany()">+ New</button></div></div>
+      <div class="rec-section-hd"><h2>Tasks</h2><span class="rec-count" id="co-todos-tab-count"></span><div class="rec-section-actions"><button class="rlink" onclick="createTodoForCurrentCompany()">Add</button></div></div>
       <div id="cosub-todos-inner"></div>
     </section>
     <section class="rec-section sec" id="co-sec-files" data-section="files">
-      <div class="rec-section-hd"><h2>Files</h2><span class="rec-count" id="co-files-tab-count"></span><div class="rec-section-actions"><button class="btn-secondary btn-sm" onclick="switchTab('files');msFilesOpenSetupWizard()">Match a folder…</button></div></div>
+      <div class="rec-section-hd"><h2>Files</h2><span class="rec-count" id="co-files-tab-count"></span><div class="rec-section-actions"><button class="rlink" onclick="switchTab('files');msFilesOpenSetupWizard()">Match a folder…</button></div></div>
       <div id="cosub-files-inner"></div>
     </section>
     <section class="rec-section sec" id="co-sec-emails" data-section="emails" hidden>
@@ -2604,7 +2595,7 @@
     </div>
     <div class="card-hd">Linked to</div>
     <div id="msfi-linked" class="modal-block"></div>
-    <div class="rec-section-hd"><h2>Notes</h2><div class="rec-section-actions"><button class="btn-secondary btn-sm" onclick="msFilesInspectorAddNote()">+ New</button></div></div>
+    <div class="rec-section-hd"><h2>Notes</h2><div class="rec-section-actions"><button class="rlink" onclick="msFilesInspectorAddNote()">Add</button></div></div>
     <div id="msfi-notes"></div>
   </div>
 </div>

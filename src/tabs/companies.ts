@@ -1576,7 +1576,7 @@ async function renderCoActivity(d: CompanyData): Promise<void> {
   const name = d.name;
   await renderRecordTimeline({
     elId: 'co-sec-activity', company: { id: d.companyId, name }, scopeToggle: false,
-    header: '<button class="btn-secondary btn-sm" onclick="openActivityNote()">+ Log note</button>',
+    header: '<button class="rlink" onclick="openActivityNote()">Add note</button>',
     extraPast: (entries) => companyHistory(d, entries),
   });
 }

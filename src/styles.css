@@ -705,6 +705,13 @@ button.loc-crumb:hover{background:var(--surface-2);color:var(--text)}
 .rlink{color:inherit;text-decoration:underline;text-decoration-color:color-mix(in srgb,currentColor 28%,transparent);text-decoration-thickness:1px;text-underline-offset:2.5px;border-radius:3px;cursor:pointer;transition:color var(--dur-fast) var(--ease-out),text-decoration-color var(--dur-fast) var(--ease-out)}
 .rlink:hover{color:var(--accent);text-decoration-color:var(--accent)}
 .rlink:focus-visible{outline:2px solid var(--accent-border);outline-offset:1px}
+/* A section's actions (owner, 30-Sep-2026): quiet links at the eyebrow's right, underlined on hover. */
+button.rlink{background:none;border:0;padding:0;font:inherit;line-height:inherit}
+.rec-section-actions .rlink,.tl-head-actions .rlink{font-size:var(--type-secondary);font-weight:500;color:var(--sub);text-decoration-color:transparent}
+.rec-section-actions .rlink:hover,.tl-head-actions .rlink:hover{color:var(--accent);text-decoration-color:var(--accent)}
+/* Links in tables underline on hover only; prose links keep the quiet underline. */
+.tbl a,.tbl .rlink{text-decoration-color:transparent}
+.tbl a:hover,.tbl .rlink:hover{text-decoration-color:var(--accent)}
 .rlink-chip{display:inline-flex;align-items:center;gap:4px;background:var(--surface-2);border:1px solid var(--border);border-radius:20px;padding:1px 8px;font-size:var(--type-meta);font-weight:600;color:var(--sub);text-decoration:none;transition:background var(--dur-fast) var(--ease-out),border-color var(--dur-fast) var(--ease-out),color var(--dur-fast) var(--ease-out)}
 .rlink-chip:hover{background:var(--accent-bg);border-color:var(--accent-border);color:var(--accent)}
 .rlink-preview{position:fixed;z-index:2600;width:280px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-md);padding:12px 14px;opacity:0;pointer-events:none;transform:translateY(-3px);transition:opacity var(--dur-base) var(--ease-out),transform var(--dur-base) var(--ease-out)}
@@ -2740,8 +2747,8 @@ details[open] > summary .svc-group-names{visibility:hidden}
 .co-thread-next{visibility:visible;opacity:0}
 .co-thread:hover .co-thread-next,.co-thread:focus-within .co-thread-next,.co-thread:focus-visible .co-thread-next{opacity:1}
 /* Company 360: a section's "+ New" shows when you're in that section. */
-#co-detail .rec-section:not(.is-empty) > .rec-section-hd .rec-section-actions .btn-secondary{opacity:0;transition:opacity var(--dur-fast) var(--ease-out)}
-#co-detail .rec-section:hover > .rec-section-hd .rec-section-actions .btn-secondary,#co-detail .rec-section:focus-within > .rec-section-hd .rec-section-actions .btn-secondary{opacity:1}
+#co-detail .rec-section:not(.is-empty) > .rec-section-hd .rec-section-actions .btn-secondary,#co-detail .rec-section:not(.is-empty) > .rec-section-hd .rec-section-actions .rlink{opacity:0;transition:opacity var(--dur-fast) var(--ease-out)}
+#co-detail .rec-section:hover > .rec-section-hd .rec-section-actions .btn-secondary,#co-detail .rec-section:focus-within > .rec-section-hd .rec-section-actions .btn-secondary,#co-detail .rec-section:hover > .rec-section-hd .rec-section-actions .rlink,#co-detail .rec-section:focus-within > .rec-section-hd .rec-section-actions .rlink{opacity:1}
 /* Filter bars: search + two filters; the rest behind "Filters" (lib/filterBar.ts). */
 .fbar-more{position:relative;display:inline-flex;align-items:center;gap:4px}
 .fbar-more-btn.has-active{color:var(--accent);border-color:var(--accent-border)}

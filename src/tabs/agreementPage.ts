@@ -7,6 +7,7 @@ import { statusBadge } from '../lib/statusTone';
 import { S } from '../lib/state';
 import { escHtml, expose, fmtDate, today, showConfirm } from '../lib/utils';
 import { icon } from '../lib/icons';
+import { recordHeaderHtml } from '../lib/recordHeader';
 import { companyLink, recordLink } from '../lib/links';
 import { toast, undoToast } from '../lib/ui';
 import { persistAgreements } from '../lib/persist';
@@ -21,6 +22,7 @@ import { endPropsEdit, mountPropsList, propsEditButton, propsListHtml, resetProp
 import { agrBadge, updateAgrStatus } from '../core/agreements';
 import { syncAgreementTotals, fmtMoney, currencyOf, agreementMonthly, teamMember, activeTeam, entityById, contractEndDate, lineTotals, isAgreementActive } from '../lib/commercial';
 import { proposalProject } from '../lib/workGraph';
+import { agreementNextStep } from '../lib/recordSteps';
 import type { Agreement } from '../lib/types';
 
 const w = window as any;
@@ -79,11 +81,8 @@ export function renderAgreementPage(): void {
   ].filter(Boolean).join('');
   const actions = document.getElementById('agd-actions');
   if (actions) {
-    const primary = a.status !== 'Signed' && a.status !== 'Canceled'
-      ? `<button class="btn-primary" onclick="agreementMarkSigned()">Mark signed</button>`
-      : a.serviceStatus !== 'Active' && a.status === 'Signed'
-        ? `<button class="btn-primary" onclick="agreementFieldChanged('serviceStatus','Active')">Service started</button>` : '';
-    actions.innerHTML = `${primary}<button class="loc-nav rec-more" onclick="agreementMoreMenu(event)" title="More" aria-label="More">${icon('more', 16)}</button>`;
+    const step = agreementNextStep(a, today());
+    actions.innerHTML = recordHeaderHtml([], step, 'agreementMoreMenu(event)');
   }
   renderThreadStrip('agd-thread', { kind: 'agreement', id: a.id });
   renderProps(a);
@@ -94,6 +93,20 @@ export function renderAgreementPage(): void {
   const page = document.getElementById('agr-detail'); if (page) renderIcons(page);
 }
 expose('renderAgreementPage', renderAgreementPage);
+
+/** "Renew…" near the notice date: a new proposal for the client, starting from this agreement's lines and term. */
+export function agreementRenew(): void {
+  const a = current();
+  if (!a) return;
+  (window as any).openProposalBuilder?.({
+    client: a.client || undefined,
+    lines: (a.lines || []).map((l) => ({ ...l })),
+    currency: a.currency ?? null,
+    businessEntityId: a.businessEntityId ?? null,
+    contractMonths: a.contractMonths ?? null,
+  });
+}
+expose('agreementRenew', agreementRenew);
 
 const opt = (value: string, label: string, selected: string) => `<option value="${escHtml(value)}"${value === selected ? ' selected' : ''}>${escHtml(label)}</option>`;
 const onChange = (key: string) => `agreementFieldChanged('${key}', this.value)`;

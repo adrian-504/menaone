@@ -195,7 +195,7 @@ export function renderCommitmentSection(elId: string, scope: Scope, ctx: WorkCon
     if (!list.length) { el.innerHTML = ''; return; }
     const open = list.filter((c) => c.status === 'open').length;
     el.innerHTML = `<div class="rec-section-hd"><h2>Commitments</h2><span class="rec-count">${open ? `${open} open` : ''}</span>
-      <div class="rec-section-actions"><button class="btn-secondary btn-sm" onclick="newCommitmentHere('${elId}')">+ New</button></div></div>
+      <div class="rec-section-actions"><button class="rlink" onclick="newCommitmentHere('${elId}')">Add</button></div></div>
       ${commitmentListHtml(list, opts)}`;
     renderIcons(el);
   };

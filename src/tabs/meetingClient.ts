@@ -297,7 +297,7 @@ export function renderMeetingPeople(m: Meeting): void {
   const addable = fresh.filter((p) => p.guess);
   const groups: [string, MeetingPerson[]][] = [['Not in contacts yet', fresh]];
   el.innerHTML = `<div class="rec-section-hd"><h2>People to add</h2><span class="rec-count">${fresh.length}</span>
-      ${addable.length > 1 ? `<div class="rec-section-actions"><button class="btn-secondary btn-sm" onclick="addAllMeetingPeople(${m.id})">${icon('plus', 12)} Add all ${addable.length} to contacts</button></div>` : ''}</div>
+      ${addable.length > 1 ? `<div class="rec-section-actions"><button class="rlink" onclick="addAllMeetingPeople(${m.id})">Add all ${addable.length} to contacts</button></div>` : ''}</div>
     <datalist id="md-people-companies">${S.companies.filter((c) => !c.archived).map((c) => `<option value="${attr(c.name)}">`).join('')}</datalist>
     ${groups.filter(([, list]) => list.length).map(([label, list]) => `<div class="md-people-group"><div class="md-people-label">${escHtml(label)}</div>${list.map((p) => personRow(m, p)).join('')}</div>`).join('')}`;
   renderIcons(el);

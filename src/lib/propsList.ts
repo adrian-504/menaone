@@ -116,7 +116,7 @@ expose('propsEditAll', propsEditAll);
 /** The section-header button for a list: "Edit" / "Done". */
 export function propsEditButton(listId: string): string {
   const on = editAll.has(listId);
-  return `<button class="btn-ghost btn-sm" onclick="propsEditAll('${escHtml(listId)}')" aria-pressed="${on}">${on ? 'Done' : 'Edit'}</button>`;
+  return `<button class="rlink" onclick="propsEditAll('${escHtml(listId)}')" aria-pressed="${on}">${on ? 'Done' : 'Edit'}</button>`;
 }
 
 /** Ends a one-row edit (for saves that don't go through a change event, e.g. the company picker). */
