@@ -3,6 +3,10 @@
 One entry per install, newest first: the version, the day it was installed, and in two lines what changed.
 Settings → Data shows the last five. `scripts/release-check.mjs` refuses a build whose version has no entry here.
 
+## 1.57 — 2026-09-30
+My Day, focused: what needs you comes before the timeline, with meetings to write up and clients gone quiet; the Join button lives only in the Now panel.
+Beside it, the proposals in play (to draft, with Hassan, with clients — each with one next step), the next seven days, and critical regulatory news.
+
 ## 1.56 — 2026-09-30
 One mark for the app: the MENA monogram with its three coral bars is the Dock icon and sits beside "MENA One" at the top of the sidebar.
 Hide the modules you don't use from the sidebar (Settings → Appearance → Sidebar); they still open from search and links, and show while you're in them.

@@ -1,6 +1,6 @@
-// My Day: a plan for today. Timeline of meetings and tasks, one ranked list of
-// what needs attention across the business, the week ahead, and a side rail
-// with quick capture, the pipeline, watch items and recent activity.
+// My Day: a plan for today. What's on now, one ranked list of what needs you,
+// then today's timeline; beside it (1.57 "focus") the proposals in play, the
+// next seven days, and anything regulatory that's critical.
 // The rules live in lib/myday.ts; this file renders and handles actions.
 
 import { settleNew } from '../lib/motion';
@@ -24,19 +24,24 @@ import { renderIcons } from '../core/chrome';
 import { changeProposalStatus, contactFirstName, snoozeProposal } from '../core/proposals';
 import { addTaskFromText, deleteTodo, openDatePopover, quickAddTokensHtml, setTasksDue, toggleTodoDone } from './todo';
 import { unprocessedInboxItems } from './inbox';
-import { getActivity, getAppMeta, getIntelligenceItems, getPipelineFacts, ms365GetCachedEmails, setAppMeta } from '../lib/db';
-import { activityItem } from '../lib/activityFeed';
+import { activityLog, activityRemove, getAppMeta, getIntelligenceItems, getPipelineFacts, ms365GetCachedEmails, setAppMeta } from '../lib/db';
+import { buildInPlay, buildComingUpFocus, regulatoryNotes, STAGE_LABEL, STAGE_ORDER, type ComingDay, type ComingItem, type InPlay, type PlayRow } from '../lib/mydayFocus';
+import { briefInputFor } from './companyState';
+import { companyContact, companyRecords } from '../lib/companyBrief';
+import { initialsOf } from '../lib/appearance';
 import { ownDomains } from '../lib/clientMatch';
-import { PS, activeMrr, addMoney, currencyOf, fmtMoneyByCurrency, teamMember, defaultReviewer, toReporting, fmtMoney, type MoneyByCurrency } from '../lib/commercial';
-import { isOpenOpportunity, monthlyOf, weightedValue } from '../lib/pipeline';
+import { PS, teamMember, defaultReviewer, isAgreementActive, isOpenProposal } from '../lib/commercial';
+import { strColor } from '../lib/utils';
+import { followUpMenu } from '../core/proposals';
 import {
-  buildAttention, buildComingUp, buildTimeline, shownAttentionKeys, greeting, summaryLine, addDays, isClientMeeting, buildIndex, nowMeeting,
-  type AttentionItem, type MyDayInput, type Timeline, type UpcomingDay,
+  buildAttention, buildTimeline, shownAttentionKeys, greeting, summaryLine, addDays, isClientMeeting, buildIndex, nowMeeting,
+  type AttentionItem, type MyDayInput, type Timeline, type QuietClient,
 } from '../lib/myday';
 import type { IntelligenceItem, Meeting, Todo } from '../lib/types';
+import { daysBetween } from '../lib/pipeline';
 
 const w = window as any;
-const ATTENTION_VISIBLE = 7;
+const ATTENTION_VISIBLE = 8;
 
 let snoozed: Record<string, string> = {};
 let snoozedLoaded = false;
@@ -61,8 +66,28 @@ function input(): MyDayInput {
     commitments: S.commitments, companies: S.companies, touches: S.touches, contactName: contactFirstName,
     integrityFailed: S.housekeeping?.integrity?.ok === false,
     reviewerName: (p) => teamMember(p.reviewerId)?.name || reviewer,
-    ownDomains: ownDomains(), snoozed,
+    ownDomains: ownDomains(), snoozed, quietClients: quietClients(),
   };
+}
+
+/** Active clients (a running agreement or an open proposal) and when we last met, emailed or called them. */
+function quietClients(): QuietClient[] {
+  const t = today();
+  const ids = new Set<number>();
+  for (const a of S.agreements) if (a.companyId != null && isAgreementActive(a, t)) ids.add(a.companyId);
+  for (const p of S.proposals) if (p.companyId != null && !p.archived && isOpenProposal(p)) ids.add(p.companyId);
+  const out: QuietClient[] = [];
+  for (const id of ids) {
+    const c = S.companies.find((x) => x.id === id);
+    if (!c) continue;
+    const bi = briefInputFor({ id, name: c.name });
+    const r = companyRecords(bi);
+    const { lastContact } = companyContact(bi, r);
+    const service = r.clientAgreements.flatMap((a) => (a.lines?.length ? a.lines.map((l) => l.serviceName) : [a.type || ''])).filter(Boolean)[0]
+      || r.proposals.find((p) => isOpenProposal(p))?.type || null;
+    out.push({ companyId: id, name: c.name, lastContact, days: lastContact ? daysBetween(lastContact, t) : null, service: service ? service.toLowerCase() : null });
+  }
+  return out;
 }
 
 /** Loads what My Day needs that other tabs normally load on their own visit. */
@@ -110,24 +135,26 @@ export function renderMyDay(): void {
   renderOfficeStrip();
   setHtml('myday-date', escHtml(fmtDayLong(now, true).replace(',', '')));
   paintBand(now);
-  setHtml('myday-index', indexHtml(buildIndex(timeline, attention)));
+  const inPlay = buildInPlay(S.proposals, { emails: data.emails, meetings: data.meetings, today: data.today, ownDomains: data.ownDomains, touches: data.touches, contactName: data.contactName });
+  setHtml('myday-index', indexHtml(buildIndex(timeline, attention, inPlay.total)));
   const nowPick = nowMeeting(timeline);
   setHtml('myday-now', nowPick ? nowPanelHtml(nowPick.meeting, nowPick.current) : '');
   const nowSec = document.getElementById('myday-now-sec'); if (nowSec) nowSec.hidden = !nowPick;
   setHtml('myday-today', todayHtml(timeline, data));
-  setHtml('myday-attention-cnt', attention.length ? String(attention.length) : '');
+  setHtml('myday-attention-cnt', attention.length ? String(attention.length).padStart(2, '0') : '');
   setHtml('myday-attention', attentionHtml(attention));
-  const upcoming = buildComingUp(data);
-  setHtml('myday-upcoming', upcomingHtml(upcoming));
+  setHtml('myday-inplay', inPlayHtml(inPlay));
+  setHtml('myday-inplay-cnt', inPlay.total ? String(inPlay.total).padStart(2, '0') : '');
+  const playSec = document.getElementById('myday-inplay-sec'); if (playSec) playSec.hidden = !inPlay.total;
+  const coming = buildComingUpFocus({ ...data, timeOf: hhmm });
+  setHtml('myday-upcoming', comingHtml(coming, data.today));
   // Nothing coming up: no section saying so (Focus rule 4).
-  const upSec = document.getElementById('myday-upcoming')?.closest('section'); if (upSec) upSec.hidden = !upcoming.length;
-  setHtml('myday-pipeline', pipelineHtml());
+  const upSec = document.getElementById('myday-upcoming-sec'); if (upSec) upSec.hidden = !coming.length;
   const root = document.getElementById('tab-myday');
   if (root) renderIcons(root);
 
   void ensureData().then((changed) => { if (changed && getActiveTabId() === 'myday') renderMyDay(); });
-  void loadIntel();
-  void loadActivity();
+  void loadRegulatory();
 }
 registerTabRenderer('myday', renderMyDay);
 
@@ -177,7 +204,7 @@ function indexHtml(items: ReturnType<typeof buildIndex>): string {
 
 export function mydayIndexGo(target: string): void {
   if (target === 'followup') { (window as any).navToModule?.('followup'); return; }
-  const id = target === 'attention' ? 'myday-attention-sec' : target === 'overdue' ? 'myday-today' : 'myday-today-sec';
+  const id = target === 'attention' ? 'myday-attention-sec' : target === 'overdue' ? 'myday-today' : target === 'inplay' ? 'myday-inplay-sec' : 'myday-today-sec';
   document.getElementById(id)?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
 }
 expose('mydayIndexGo', mydayIndexGo);
@@ -230,12 +257,12 @@ function meetingRow(m: Meeting, past: boolean, current: boolean, own: Set<string
   const where = [m.companyName ? companyLink(m.companyId, m.companyName) : '', m.location && !/microsoft teams/i.test(m.location) ? escHtml(m.location) : '', m.isOnlineMeeting ? 'Teams' : '']
     .filter(Boolean).join('<span class="mdy-sep">·</span>');
   return `<div class="mdy-slot-body">
-      <div class="mdy-meeting-title">${recordLink('meeting', m.id, m.title)}${current ? ' <span class="rec-badge tone-coral">Now</span>' : ''}</div>
+      <div class="mdy-meeting-title">${recordLink('meeting', m.id, m.title)}${current ? ' <span class="mdy-nowtag">now</span>' : ''}</div>
       ${where ? `<div class="mdy-meta">${where}</div>` : ''}
     </div>
     <div class="mdy-row-actions">
-      ${m.onlineMeetingUrl && !past ? `<button class="btn-secondary btn-sm" onclick="mydayJoin(${m.id})">${icon('meeting', 12)} Join</button>` : ''}
-      ${!past && client ? `<button class="btn-secondary btn-sm" onclick="openRecord('meeting', ${m.id})">${m.agenda ? 'Brief' : 'Prepare'}</button>` : ''}
+      ${m.onlineMeetingUrl && !past && !current ? `<button class="btn-secondary btn-sm" onclick="mydayJoin(${m.id})">${icon('meeting', 12)} Join</button>` : ''}
+      ${!past && !current && client ? `<button class="btn-secondary btn-sm" onclick="openRecord('meeting', ${m.id})">${m.agenda ? 'Brief' : 'Prepare'}</button>` : ''}
       ${needsNotes ? `<button class="btn-secondary btn-sm" onclick="openRecord('meeting', ${m.id})">${icon('note', 12)} Add notes</button>` : ''}
     </div>`;
 }
@@ -282,17 +309,22 @@ function todayHtml(t: Timeline, data: MyDayInput): string {
 // ── Attention ───────────────────────────────────────────────────────────────
 
 const KIND_ICON: Record<AttentionItem['kind'], string> = {
-  proposal: 'database', review: 'check', followup: 'repeat', opportunity: 'briefcase', agreement: 'document',
-  meeting: 'meeting', project: 'target', email: 'mail', inbox: 'inbox', commitment: 'flag', system: 'warning',
+  proposal: 'database', review: 'check', followup: 'repeat', opportunity: 'warning', agreement: 'document',
+  meeting: 'clock', project: 'target', email: 'mail', inbox: 'inbox', commitment: 'flag', system: 'warning', writeup: 'edit', quiet: 'people',
 };
+/** The tile's colour, by what the row is (mock: red late promise and at risk, amber write-up and no agenda, blue waiting on a client, green waiting on Hassan). */
+const KIND_TINT: Partial<Record<AttentionItem['kind'], 'red' | 'amber' | 'blue' | 'green'>> = {
+  writeup: 'amber', meeting: 'amber', followup: 'blue', quiet: 'blue', review: 'green', opportunity: 'red', system: 'red',
+};
+const tintOf = (a: AttentionItem) => KIND_TINT[a.kind] ?? (a.tone === 'red' ? 'red' : a.tone === 'amber' ? 'amber' : 'blue');
 
 function attentionRow(a: AttentionItem, child = false): string {
   const isGroup = !!a.children?.length;
   const open = openGroups.has(a.key);
   const title = a.record ? recordLink(a.record.kind, a.record.id, a.title) : escHtml(a.title);
-  const company = a.companyName && a.companyName !== a.title && !child ? `<span class="mdy-sep">·</span>${companyLink(a.companyId, a.companyName)}` : '';
+  const company = a.companyName && !a.title.includes(a.companyName) && !child ? `<span class="mdy-sep">·</span>${companyLink(a.companyId, a.companyName)}` : '';
   return `<div class="mdy-att${child ? ' is-child' : ''} tone-${a.tone}" data-key="${escHtml(a.key)}">
-    ${child ? '' : `<span class="mdy-att-icon">${icon(KIND_ICON[a.kind], 14)}</span>`}
+    ${child ? '' : `<span class="mdy-att-icon tint-${tintOf(a)}">${icon(KIND_ICON[a.kind], 14)}</span>`}
     <div class="mdy-att-main"${isGroup ? ` onclick="mydayToggleGroup('${escHtml(a.key)}')"` : ''}>
       <div class="mdy-att-title">${isGroup ? `<span class="mdy-chev${open ? ' open' : ''}">${icon('chevronRight', 12)}</span>` : ''}${title}${company}</div>
       <div class="mdy-att-reason">${escHtml(a.reason)}</div>
@@ -346,6 +378,10 @@ export async function mydayAct(key: string): Promise<void> {
     case 'open_data_settings': w.switchTab('settings'); w.setSettingsPane('data'); return;
     case 'open_cleanup': w.openCleanup(a.action.queue); return;
     case 'toggle_group': w.mydayToggleGroup(a.key); return;
+    case 'write_up': open(); return;
+    case 'email_company':
+      if (a.companyName) { w.openCompanyDetail?.(a.companyName); setTimeout(() => w.openCompanyTemplates?.(), 250); }
+      return;
     case 'mark_kept':
       if (a.commitmentId != null) { setCommitmentKept(a.commitmentId, true); renderMyDay(); }
       return;
@@ -392,100 +428,97 @@ expose('mydayItemMenu', mydayItemMenu);
 
 const UPCOMING_ICON: Record<string, string> = { meeting: 'meeting', task: 'check', agreement: 'document', opportunity: 'briefcase', project: 'target', proposal: 'database' };
 
-function dayName(iso: string): string {
-  if (iso === addDays(today(), 1)) return 'Tomorrow';
-  return fmtWeekday(iso);
+// ── Rail: proposals in play, coming up, regulatory ─────────────────────────
+
+const STAGE_TINT: Record<PlayRow['stage'], string> = { draft: 'coral', hassan: 'amber', client: 'blue' };
+
+function inPlayHtml(p: InPlay): string {
+  if (!p.total) return '';
+  const panels = p.stages.map((s) => `<button class="mdy-stage st-${STAGE_TINT[s.stage]}" onclick="mydayPlayAll('${s.stage}')"><span class="mdy-stage-n">${s.count}</span><span class="mdy-stage-l">${escHtml(STAGE_LABEL[s.stage].charAt(0).toLowerCase() + STAGE_LABEL[s.stage].slice(1))}</span><span class="mdy-stage-d">oldest ${s.oldest} ${s.oldest === 1 ? 'day' : 'days'}</span></button>`).join('');
+  const groups = STAGE_ORDER.map((stage) => {
+    const rows = p.rows.filter((r) => r.stage === stage);
+    if (!rows.length) return '';
+    const count = p.stages.find((s) => s.stage === stage)?.count ?? rows.length;
+    return `<div class="mdy-stg st-${STAGE_TINT[stage]}"><i></i>${escHtml(STAGE_LABEL[stage])}<span class="mdy-stg-cnt">${count}</span>${p.hidden[stage] ? `<button class="rlink mdy-stg-all" onclick="mydayPlayAll('${stage}')">+${p.hidden[stage]}</button>` : ''}</div>
+      ${rows.map(playRowHtml).join('')}`;
+  }).join('');
+  return `<div class="mdy-flow">${panels}</div>${groups}`;
 }
 
-function upcomingHtml(days: UpcomingDay[]): string {
+function playRowHtml(r: PlayRow): string {
+  return `<div class="mdy-pr rec-row" tabindex="0" data-proposal-id="${r.id}" onclick="openRecord('proposal', ${r.id})" onkeydown="if(event.key==='Enter'&&event.target===this)this.click()">
+    <span class="mdy-pr-tile" style="background:${strColor(r.client)}">${escHtml(initialsOf(r.client))}</span>
+    <div class="mdy-pr-main"><div class="mdy-pr-title">${escHtml(r.client)} — ${escHtml(r.service)}</div><div class="mdy-pr-meta">${escHtml(r.meta)}</div></div>
+    <div class="mdy-pr-right"><span class="mdy-age${r.tone ? ` t-${r.tone}` : ''}">${escHtml(r.ageLabel)}</span><button class="rlink mdy-pr-act" onclick="event.stopPropagation();mydayPlay(event, ${r.id}, '${r.action.kind}')">${escHtml(r.action.label)}</button></div>
+  </div>`;
+}
+
+export function mydayPlayAll(stage: string): void {
+  w.navToModule(stage === 'client' ? 'followup' : 'pending');
+}
+expose('mydayPlayAll', mydayPlayAll);
+
+export async function mydayPlay(e: MouseEvent, id: number, action: string): Promise<void> {
+  const p = S.proposals.find((x) => x.id === id);
+  if (!p) return;
+  if (action === 'draft') { w.openRecord('proposal', id); return; }
+  if (action === 'followed_up') { followUpMenu(e, id); return; }
+  if (action === 'revision_sent') { if (await changeProposalStatus(id, PS.SENT)) renderMyDay(); return; }
+  if (action === 'nudge') {
+    // A nudge to the reviewer is ours, not contact with the client: it goes in the activity log, not the client's touches.
+    const who = teamMember(p.reviewerId)?.name || defaultReviewer()?.name || 'the reviewer';
+    try {
+      const entryId = await activityLog({ action: 'review_nudged', entityType: 'proposal', entityId: id, entityLabel: `${p.client} — ${p.type || 'proposal'}`, detail: `Nudged ${who} about the review`, companyId: p.companyId ?? null });
+      undoToast(`Nudged ${who} about ${p.client}`, () => { void activityRemove(entryId); });
+    } catch (err) {
+      toast("Couldn't log the nudge", { tone: 'error', detail: String(err) });
+    }
+  }
+}
+expose('mydayPlay', mydayPlay);
+
+const COMING_ICON: Record<ComingItem['kind'], [string, string]> = {
+  meeting: ['meeting', 'blue'], promise_ours: ['flag', 'amber'], proposal_promised: ['flag', 'amber'], promise_theirs: ['flag', 'amber-outline'], expiry: ['clock', 'red'], notice: ['document', 'green'],
+};
+
+function comingHtml(days: ComingDay[], todayIso: string): string {
   if (!days.length) return '';
-  return days.map((d) => `<div class="mdy-day">
-    <div class="mdy-day-hd"><strong>${escHtml(dayName(d.date))}</strong><span>${escHtml(fmtDateShort(d.date))}</span></div>
-    ${d.entries.slice(0, 8).map((e) => `<div class="mdy-up" onclick="openRecord('${e.record.kind}', ${e.record.id})">
-      <span class="mdy-up-time">${e.time ? escHtml(e.time) : icon(UPCOMING_ICON[e.kind] || 'calendar', 12)}</span>
-      <span class="mdy-up-title">${escHtml(e.title)}</span>
-      <span class="mdy-up-detail">${escHtml(e.detail)}</span>
-    </div>`).join('')}
-    ${d.entries.length > 8 ? `<div class="mdy-up-more">+${d.entries.length - 8} more</div>` : ''}
-  </div>`).join('');
+  const items = days.reduce((n, d) => n + d.items.length, 0);
+  return days.map((d) => {
+    const dt = new Date(`${d.date}T12:00:00`);
+    return `<div class="mdy-cday${d.date === todayIso ? ' is-today' : ''}">
+      <div class="mdy-med"><b>${dt.getDate()}</b><span>${escHtml(fmtWeekday(d.date).slice(0, 3))}</span></div>
+      <div class="mdy-cday-items">${d.items.map((it) => {
+        const [ic, tint] = COMING_ICON[it.kind];
+        const title = it.record ? recordLink(it.record.kind, it.record.id, it.title) : escHtml(it.title);
+        const company = it.companyName && !it.title.includes(it.companyName) ? `<span class="mdy-sep">·</span>${companyLink(it.companyId ?? null, it.companyName)}` : '';
+        return `<div class="mdy-cev"><span class="mdy-cev-k tint-${tint}">${icon(ic, 10)}</span><div><div class="mdy-cev-t">${title}${company}</div><div class="mdy-cev-s">${it.time ? `<span class="mono">${escHtml(it.time)}</span> · ` : ''}${escHtml(it.detail)}</div></div></div>`;
+      }).join('')}</div>
+    </div>`;
+  }).join('') + (items >= 10 ? '<button class="mdy-more" onclick="navToModule(\'calendar\')">More in Calendar</button>' : '');
 }
 
-// ── Rail ────────────────────────────────────────────────────────────────────
-
-function stat(label: string, value: string, sub: string, onclick: string): string {
-  return `<button class="mdy-stat" onclick="${onclick}"><span class="mdy-stat-label">${escHtml(label)}</span><span class="mdy-stat-value">${escHtml(value)}</span><span class="mdy-stat-sub">${escHtml(sub)}</span></button>`;
-}
-
-function pipelineHtml(): string {
-  const open = S.opportunities.filter(isOpenOpportunity);
-  const value: MoneyByCurrency = {};
-  const weighted: MoneyByCurrency = {};
-  for (const o of open) { addMoney(value, o.currency || 'SAR', o.estimatedValue); addMoney(weighted, o.currency || 'SAR', weightedValue(o)); }
-  const withValue = open.filter((o) => o.estimatedValue != null).length;
-  const sent = S.proposals.filter((p) => !p.archived && p.status === PS.SENT);
-  const sentMonthly: MoneyByCurrency = {};
-  for (const p of sent) addMoney(sentMonthly, currencyOf(p), monthlyOf(p));
-  const mrr = activeMrr();
-  const active = S.agreements.filter((a) => a.serviceStatus === 'Active').length;
-  const month = today().slice(0, 7);
-  const wonThisMonth = S.proposals.filter((p) => p.status === PS.WON && (p.dateSigned || p.dblSignedDate || '').startsWith(month)).length;
-  const money = (m: MoneyByCurrency) => (Object.values(m).some((v) => v) ? fmtMoneyByCurrency(m) : '—');
-  const reporting = (m: MoneyByCurrency) => (Object.keys(m).length > 1 ? `≈ ${fmtMoney(toReporting(m))} total` : '');
-  // One quiet line (Focus): the numbers, each a way into its list.
-  const part = (label: string, value: string, onclick: string, title: string) => value === '—' ? '' : `<button class="mdy-biz-part" onclick="${onclick}" data-tip="${escHtml(title)}" aria-label="${escHtml(title)}"><span class="mdy-biz-label">${escHtml(label)}</span> ${escHtml(value)}</button>`;
-  const parts = [
-    part('Pipeline', money(value), "navToModule('opportunities')", withValue < open.length ? `${open.length} open · ${open.length - withValue} without a value` : `${open.length} open ${open.length === 1 ? 'opportunity' : 'opportunities'}`),
-    part('Weighted', money(weighted), "navToModule('analytics')", reporting(weighted) || 'Value × probability'),
-    part('MRR', money(mrr), "navToModule('agreements')", `${active} active ${active === 1 ? 'agreement' : 'agreements'}${wonThisMonth ? ` · ${wonThisMonth} won this month` : ''}`),
-  ].filter(Boolean);
-  void stat; void sentMonthly;
-  return parts.length ? `<div class="mdy-biz">${parts.join('<span class="mdy-biz-sep" aria-hidden="true">·</span>')}</div>` : '';
-}
-
-async function loadIntel(): Promise<void> {
+/** Critical regulatory stories only, with the clients whose services they touch; nothing critical, no block. */
+async function loadRegulatory(): Promise<void> {
   let items: IntelligenceItem[] = [];
-  try {
-    items = (await getIntelligenceItems())
-      .filter((i) => i.importance === 'critical' || i.importance === 'important')
-      .sort((a, b) => (a.importance === b.importance ? 0 : a.importance === 'critical' ? -1 : 1))
-      .slice(0, 4);
-  } catch { /* shown as empty */ }
-  const card = document.getElementById('myday-watch-card');
-  if (card) card.hidden = items.length === 0;
-  setHtml('myday-watch', items.map((i) => `<div class="mdy-rail-row" onclick="navToModule('intelligence');openIntelModal(${i.id})">
-    <span class="mdy-pill tone-${i.importance === 'critical' ? 'red' : 'amber'}"></span>
-    <div><div class="mdy-rail-title">${escHtml(i.headline)}</div><div class="mdy-meta">${i.kind === 'regulatory' ? 'Regulatory' : 'Business'} · ${escHtml(i.importance)}</div></div>
+  try { items = await getIntelligenceItems(); } catch { /* none shown */ }
+  const t = today();
+  const clients = new Map<number, { id: number; name: string; services: string[] }>();
+  for (const a of S.agreements) {
+    if (a.companyId == null || !isAgreementActive(a, t)) continue;
+    const c = clients.get(a.companyId) || { id: a.companyId, name: a.client || '', services: [] };
+    c.services.push(...(a.lines?.length ? a.lines.map((l) => l.serviceName) : [a.type || '']).filter(Boolean));
+    clients.set(a.companyId, c);
+  }
+  const notes = regulatoryNotes(items, [...clients.values()]);
+  const sec = document.getElementById('myday-reg-sec');
+  if (sec) sec.hidden = !notes.length;
+  setHtml('myday-reg', notes.map(({ item, clients: cs }) => `<div class="mdy-alert">
+    <div class="mdy-alert-chip">Critical · ${escHtml(item.sourceName)}</div>
+    <div class="mdy-alert-t">${escHtml(item.headline)}</div>
+    <div class="mdy-alert-s">${escHtml([item.effectiveDate ? `Effective ${fmtDateShort(item.effectiveDate)}` : '', item.whoAffected || item.category || ''].filter(Boolean).join(' · '))}</div>
+    <div class="mdy-alert-r"><button class="rlink" onclick="navToModule('intelligence');openIntelModal(${item.id})">Read</button>${cs.length ? ` · Note for ${cs.slice(0, 3).map((c) => companyLink(c.id, c.name)).join(', ')}${cs.length > 3 ? ` and ${cs.length - 3} more` : ''}` : ''}</div>
   </div>`).join(''));
-}
-
-// The rail stays quieter than the day: six recent entries, more on request.
-const ACTIVITY_SHOWN = 6;
-let activityAll = false;
-
-export function mydayMoreActivity(): void {
-  activityAll = true;
-  void loadActivity();
-}
-expose('mydayMoreActivity', mydayMoreActivity);
-
-async function loadActivity(): Promise<void> {
-  const entries = await getActivity({ limit: activityAll ? 20 : ACTIVITY_SHOWN + 1 }).catch(() => []);
-  const more = !activityAll && entries.length > ACTIVITY_SHOWN;
-  if (!activityAll) entries.splice(ACTIVITY_SHOWN);
-  const el = document.getElementById('myday-activity');
-  if (!el) return;
-  const html = entries.length
-    ? entries.map((a) => {
-        const f = activityItem(a);
-        const at = a.createdAt.length > 10 ? new Date(a.createdAt) : null;
-        const when = at && !isNaN(at.getTime())
-          ? (a.createdAt.slice(0, 10) === today() ? hhmm(a.createdAt) : fmtDateShort(at))
-          : fmtDate(a.createdAt);
-        return `<div class="mdy-act"><span class="feed-icon feed-${f.tone || 'muted'}">${icon(f.iconName, 11)}</span><div class="mdy-act-line">${f.html}</div><span class="mdy-act-when">${escHtml(when)}</span></div>`;
-      }).join('')
-    : `<div class="mdy-empty compact">Nothing logged yet.</div>`;
-  const withMore = more ? `${html}<button class="mdy-more" onclick="mydayMoreActivity()">Show more</button>` : html;
-  if (el.innerHTML !== withMore) el.innerHTML = withMore;
 }
 
 // ── Actions ─────────────────────────────────────────────────────────────────

@@ -16,6 +16,7 @@ import type { Agreement, Commitment, EmailRecord, Meeting, Opportunity, Pipeline
 import type { RecordKind } from './navHistory';
 import { localIsoDate } from './outlookTime';
 import { fmtDateShort, fmtDateWeekday } from './dates';
+import { writeUpState } from './meetingRecap';
 
 // ── Inputs ──────────────────────────────────────────────────────────────────
 
@@ -46,6 +47,8 @@ export interface MyDayInput {
   ownDomains: Set<string>;
   /** Item keys hidden until a date (inclusive of that date's start). */
   snoozed: Record<string, string>;
+  /** Active clients with no contact for a while (worked out by the tab from each company's brief; see quietItems). */
+  quietClients?: QuietClient[];
   /** Attention rows actually on screen (not snoozed, not behind "Show N more").
    * When given, a promise's task leaves Today only if its row is one of them. */
   attentionShown?: Set<string>;
@@ -56,12 +59,12 @@ export interface MyDayInput {
 export type AttentionAction =
   | 'open' | 'prepare' | 'follow_up' | 'send_to_client' | 'start_drafting'
   | 'open_followups' | 'open_action_required' | 'open_inbox' | 'open_opportunities' | 'open_review_queue' | 'open_cleanup'
-  | 'mark_kept' | 'toggle_group' | 'open_data_settings';
+  | 'mark_kept' | 'toggle_group' | 'open_data_settings' | 'write_up' | 'email_company' | 'nudge';
 
 export interface AttentionItem {
   key: string;
   /** Section the rule belongs to — used for the icon and for grouping. */
-  kind: 'proposal' | 'review' | 'followup' | 'opportunity' | 'agreement' | 'meeting' | 'project' | 'email' | 'inbox' | 'commitment' | 'system';
+  kind: 'proposal' | 'review' | 'followup' | 'opportunity' | 'agreement' | 'meeting' | 'project' | 'email' | 'inbox' | 'commitment' | 'system' | 'writeup' | 'quiet';
   score: number;
   tone: 'red' | 'amber' | 'accent';
   title: string;
@@ -272,6 +275,39 @@ function meetingItems(i: MyDayInput): AttentionItem[] {
   return out;
 }
 
+/** A client meeting that ended today or yesterday with nothing written (the Meetings page's write-up rule). */
+function writeUpItems(i: MyDayInput): AttentionItem[] {
+  const yesterday = addDays(i.today, -1);
+  const out: AttentionItem[] = [];
+  for (const m of i.meetings) {
+    if (m.isCancelled || (m.meetingDate !== i.today && m.meetingDate !== yesterday)) continue;
+    const ended = m.meetingDate === yesterday || (m.endAt ? new Date(m.endAt) <= i.now : false);
+    if (!ended || !isClientMeeting(m, i.ownDomains)) continue;
+    const tasks = i.todos.filter((t) => t.meetingId === m.id);
+    if (!writeUpState(m, tasks, true).needsWriteUp) continue;
+    const who = (m.attendees || []).find((a) => !Array.from(i.ownDomains).some((d) => a.toLowerCase().endsWith(`@${d}`)))?.split('@')[0];
+    const isToday = m.meetingDate === i.today;
+    out.push({ key: `meeting:${m.id}:writeup`, kind: 'writeup', record: { kind: 'meeting', id: m.id }, companyId: m.companyId ?? null, companyName: m.companyName,
+      title: `Write up ${m.title}`, score: isToday ? 74 : 66, tone: 'amber',
+      reason: [m.endAt ? `Ended ${timeLabel(m.endAt)}` : 'Ended', 'no notes yet', who || ''].filter(Boolean).join(' · '),
+      when: isToday ? 'today' : 'yesterday', action: { kind: 'write_up', label: 'Write up' } });
+  }
+  return out;
+}
+
+export interface QuietClient { companyId: number; name: string; lastContact: string | null; days: number | null; service: string | null }
+/** Days without a meeting, email or call before an active client counts as gone quiet. */
+export const QUIET_DAYS = 30;
+
+function quietItems(i: MyDayInput): AttentionItem[] {
+  return (i.quietClients || []).filter((c) => c.days == null || c.days >= QUIET_DAYS).map((c) => ({
+    key: `company:${c.companyId}:quiet`, kind: 'quiet' as const, record: { kind: 'company' as RecordKind, id: c.companyId }, companyId: c.companyId, companyName: c.name,
+    title: `${c.name} has gone quiet`, score: 40 + Math.min(c.days ?? 60, 60) / 6, tone: 'accent' as const,
+    reason: ['Active client', c.lastContact ? `last contact ${shortDate(c.lastContact)}` : 'no contact on record', c.service || ''].filter(Boolean).join(' · '),
+    when: c.days != null ? days(c.days) : undefined, action: { kind: 'email_company' as AttentionAction, label: 'Email' },
+  }));
+}
+
 function projectItems(i: MyDayInput): AttentionItem[] {
   const out: AttentionItem[] = [];
   for (const p of i.projects) {
@@ -347,7 +383,7 @@ const snoozedNow = (i: MyDayInput, key: string) => !!i.snoozed[key] && i.snoozed
 /** Everything that needs attention, most urgent first. */
 export function buildAttention(i: MyDayInput): AttentionItem[] {
   let items = [
-    ...proposalItems(i), ...opportunityItems(i), ...commitmentItems(i), ...agreementItems(i), ...meetingItems(i), ...projectItems(i), ...emailItems(i),
+    ...proposalItems(i), ...opportunityItems(i), ...commitmentItems(i), ...agreementItems(i), ...meetingItems(i), ...writeUpItems(i), ...quietItems(i), ...projectItems(i), ...emailItems(i),
   ];
   // The launch check found a problem: one red row, nothing done automatically.
   if (i.integrityFailed) items.push({ key: 'db:integrity', kind: 'system', title: 'Database check failed — back up and tell Ahmad', score: 200, tone: 'red', reason: 'Settings → Data has the details and the backups', action: { kind: 'open_data_settings', label: 'Open' } });
@@ -548,12 +584,13 @@ export function summaryLine(t: Timeline, attention: AttentionItem[]): string {
 // Each figure comes from a signal My Day already has; a zero is left out and
 // the rest are numbered in order.
 
-export type IndexTarget = 'attention' | 'today' | 'overdue' | 'followup';
+export type IndexTarget = 'attention' | 'today' | 'overdue' | 'followup' | 'inplay';
 export interface IndexItem { ix: string; n: number; label: string; target: IndexTarget }
 
 const flat = (items: AttentionItem[]): AttentionItem[] => items.flatMap((a) => [a, ...(a.children ?? [])]);
 
-export function buildIndex(t: Timeline, attention: AttentionItem[]): IndexItem[] {
+/** With `inPlay` (1.57), 04 is the proposals in play instead of the clients waiting on you. */
+export function buildIndex(t: Timeline, attention: AttentionItem[], inPlay?: number): IndexItem[] {
   const all = flat(attention);
   const toGo = t.timed.filter((e) => e.type === 'meeting' && !e.past).length;
   const waiting = new Set(all.filter((a) => /^proposal:\d+:followup$|^commitment:\d+:(overdue|due)$/.test(a.key)).map((a) => (a.companyName || a.title).toLowerCase()));
@@ -563,7 +600,9 @@ export function buildIndex(t: Timeline, attention: AttentionItem[]): IndexItem[]
     { n: attention.length, label: 'need you', target: 'attention' },
     { n: toGo, label: word(toGo, 'meeting to go', 'meetings to go'), target: 'today' },
     { n: t.overdue.length, label: word(t.overdue.length, 'task overdue', 'tasks overdue'), target: 'overdue' },
-    { n: waiting.size, label: word(waiting.size, 'client waiting on you', 'clients waiting on you'), target: 'followup' },
+    inPlay != null
+      ? { n: inPlay, label: word(inPlay, 'proposal in play', 'proposals in play'), target: 'inplay' as const }
+      : { n: waiting.size, label: word(waiting.size, 'client waiting on you', 'clients waiting on you'), target: 'followup' as const },
     { n: late, label: word(late, 'promise late', 'promises late'), target: 'attention' },
   ];
   return rows.filter((r) => r.n > 0).map((r, i) => ({ ...r, ix: String(i + 1).padStart(2, '0') }));

@@ -13,6 +13,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 const URL = process.env.FOCUS_URL || 'http://localhost:1420/';
+// The window (default 1440 × 900); VW=1080 VH=940 or VW=1680 VH=1020 check My Day's stacked and docked layouts.
+const VW = Number(process.env.VW || 1440), VH = Number(process.env.VH || 900);
 const CHROME = process.env.CHROME || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 // [name, how to open it, targets]
 // A tab only renders when its module is loaded: tab modules register their
@@ -105,7 +107,7 @@ ws.addEventListener('message', (e) => { const m = JSON.parse(e.data); if (m.id &
 const send = (method, params = {}) => new Promise((r) => { const i = ++id; pending.set(i, r); ws.send(JSON.stringify({ id: i, method, params })); });
 const evalJs = async (expr) => (await send('Runtime.evaluate', { expression: expr, awaitPromise: true, returnByValue: true })).result?.result?.value;
 
-await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
+await send('Emulation.setDeviceMetricsOverride', { width: VW, height: VH, deviceScaleFactor: 1, mobile: false });
 const results = [];
 for (const [name, js, t] of VIEWS.filter(([n]) => !process.env.ONLY || n.startsWith(process.env.ONLY))) {
   await send('Page.navigate', { url: URL });
@@ -126,7 +128,7 @@ for (const [name, js, t] of VIEWS.filter(([n]) => !process.env.ONLY || n.startsW
     const y1 = await evalJs(`(${js}), new Promise(r => setTimeout(() => r(window.scrollY), 600))`);
     c.scroll = y0 > 0 ? `${y0}→${y1}` : 'short';
     if (y0 > 0 && Math.abs(y1 - y0) > 2) c.scrollLost = true;
-    await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
+    await send('Emulation.setDeviceMetricsOverride', { width: VW, height: VH, deviceScaleFactor: 1, mobile: false });
   }
   const problems = [];
   if (c.primary > 1) problems.push(`${c.primary} blue buttons`);

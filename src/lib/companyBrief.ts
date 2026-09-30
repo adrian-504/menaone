@@ -328,7 +328,9 @@ function inFlightClause(all: CompanyThread[], form: 'short' | 'long', proposals:
   return { key: 'inflight', text, links, tone };
 }
 
-function rhythmClause(i: CompanyBriefInput, r: Records, isClient: boolean): BriefClause | null {
+/** The company's last meeting, email (either way) and call, and the latest of them — the brief's
+ * rhythm line and My Day's gone-quiet rule read this one calculation. */
+export function companyContact(i: CompanyBriefInput, r: Records = companyRecords(i)) {
   const now = i.now || `${i.today}T12:00:00`;
   const past = r.meetings.filter((m) => m.meetingDate && happened(m, i.today, now)).sort((a, b) => (b.startAt || b.meetingDate!).localeCompare(a.startAt || a.meetingDate!));
   const next = r.meetings.filter((m) => m.meetingDate && m.meetingDate >= i.today && !happened(m, i.today, now)).sort((a, b) => (a.startAt || a.meetingDate!).localeCompare(b.startAt || b.meetingDate!))[0];
@@ -338,6 +340,11 @@ function rhythmClause(i: CompanyBriefInput, r: Records, isClient: boolean): Brie
   const lastEmail = maxDate([...r.emails.map((e) => e.receivedAt), ...touches.filter((t) => t.kind === 'email_out' || t.kind === 'email_in').map((t) => t.at)]);
   const lastCall = maxDate(touches.filter((t) => t.kind === 'call' || t.kind === 'whatsapp').map((t) => t.at));
   const lastContact = maxDate([lastMeeting?.meetingDate, lastEmail, lastCall]);
+  return { lastMeeting, next, lastEmail, lastCall, lastContact: lastContact ? lastContact.slice(0, 10) : null };
+}
+
+function rhythmClause(i: CompanyBriefInput, r: Records, isClient: boolean): BriefClause | null {
+  const { lastMeeting, next, lastEmail, lastCall, lastContact } = companyContact(i, r);
   const gap = lastContact ? daysBetween(lastContact, i.today) : null;
   const neglected = isClient && (gap == null || gap > NEGLECT_DAYS);
   const links: BriefLink[] = [];

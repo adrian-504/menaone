@@ -267,6 +267,10 @@
         <div class="rec-section-hd"><h2 class="hd-major">Now</h2></div>
         <div id="myday-now"></div>
       </section>
+      <section class="sec mdy-sec" id="myday-attention-sec">
+        <div class="rec-section-hd"><h2 class="hd-major">Needs your attention</h2><span class="mdy-hd-cnt" id="myday-attention-cnt"></span></div>
+        <div id="myday-attention"></div>
+      </section>
       <section class="sec mdy-sec" id="myday-today-sec">
         <div class="rec-section-hd"><h2 class="hd-major">Today</h2></div>
         <div id="myday-today"></div>
@@ -276,27 +280,19 @@
           <div class="qa-chips" id="myday-capture-preview"></div>
         </form>
       </section>
-      <section class="sec mdy-sec" id="myday-attention-sec">
-        <div class="rec-section-hd"><h2 class="hd-major">Needs your attention</h2><span class="rcnt" id="myday-attention-cnt"></span></div>
-        <div id="myday-attention"></div>
-      </section>
     </div>
     <aside class="mdy-rail">
-      <section class="sec mdy-sec">
-        <div class="rec-section-hd"><h2>Coming up</h2><span class="mdy-hd-note">Next 7 days</span></div>
+      <section class="sec mdy-sec" id="myday-inplay-sec" hidden>
+        <div class="rec-section-hd"><h2 class="hd-major">Proposals in play</h2><span class="mdy-hd-cnt" id="myday-inplay-cnt"></span><div class="rec-section-actions"><button class="rlink" onclick="navToModule('pending')">All</button></div></div>
+        <div id="myday-inplay"></div>
+      </section>
+      <section class="sec mdy-sec" id="myday-upcoming-sec" hidden>
+        <div class="rec-section-hd"><h2 class="hd-major">Coming up</h2><span class="mdy-hd-note">Next 7 days</span></div>
         <div id="myday-upcoming"></div>
       </section>
-      <section class="sec mdy-sec">
-        <div class="rec-section-hd"><h2>Business</h2></div>
-        <div id="myday-pipeline"></div>
-      </section>
-      <section class="sec mdy-sec" id="myday-watch-card" hidden>
-        <div class="rec-section-hd"><h2>Watch</h2><div class="rec-section-actions"><button class="rlink" onclick="navToModule('intelligence')">All</button></div></div>
-        <div id="myday-watch"></div>
-      </section>
-      <section class="sec mdy-sec">
-        <div class="rec-section-hd"><h2>Recent activity</h2></div>
-        <div id="myday-activity"></div>
+      <section class="sec mdy-sec" id="myday-reg-sec" hidden>
+        <div class="rec-section-hd"><h2 class="hd-major">Regulatory</h2><span class="mdy-hd-note">Critical only</span></div>
+        <div id="myday-reg"></div>
       </section>
     </aside>
   </div>
