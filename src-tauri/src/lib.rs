@@ -8,6 +8,9 @@ pub mod company_migration;
 pub mod db;
 pub mod email_templates;
 pub mod housekeeping;
+
+/// The search-index fingerprint when the app opened (foundations P1).
+pub struct LaunchFingerprint(pub String);
 pub mod full_backup;
 pub mod insights;
 pub mod integrity;
@@ -217,11 +220,18 @@ pub fn run() {
             if let Err(e) = backups::ensure_daily_backup(&conn, &backups_dir, backups::DAILY_KEEP) {
                 eprintln!("[backups] daily snapshot failed: {e}");
             }
-            // The FTS index and note-link graph are derived data — rebuild them once at
-            // startup so they're guaranteed consistent even after a manual DB edit, a
-            // restore, or an upgrade from a V1 database that never populated them.
-            let _ = v2_search::rebuild_all(&conn);
-            let _ = v2_search::rebuild_note_links(&conn);
+            // The search index and note-link graph are derived data. Rebuilt at launch
+            // only when the data changed outside the app (an edit, a restore, a crash
+            // before quit) — otherwise the index from the last quit is already right
+            // (foundations P1; v2_search::rebuild_if_stale).
+            let started = std::time::Instant::now();
+            match v2_search::rebuild_if_stale(&conn) {
+                Ok(true) => log::info!("launch: search index rebuilt in {} ms", started.elapsed().as_millis()),
+                Ok(false) => log::info!("launch: search index up to date (checked in {} ms)", started.elapsed().as_millis()),
+                Err(e) => log::warn!("launch: search index check failed: {e}"),
+            }
+            let fingerprint_at_launch = v2_search::index_fingerprint(&conn).unwrap_or_default();
+            app.manage(LaunchFingerprint(fingerprint_at_launch));
             app.manage(DbState(Mutex::new(conn)));
             // Quick check, the OneDrive copy of today's snapshot, older install backups to the archive.
             housekeeping::spawn_launch_checks(app.handle().clone(), app_data_dir.clone(), backups_dir.clone());
@@ -422,7 +432,18 @@ pub fn run() {
                 QUITTING.store(true, Ordering::SeqCst);
                 // Keeps the query planner's statistics fresh; cheap, and only at quit.
                 if let Some(state) = app.try_state::<DbState>() {
-                    if let Ok(conn) = state.0.lock() { let _ = conn.execute_batch("PRAGMA optimize;"); }
+                    if let Ok(conn) = state.0.lock() {
+                        // Changed this session: rebuild the search index now, so the next launch needn't.
+                        if let Some(fp) = app.try_state::<LaunchFingerprint>() {
+                            let started = std::time::Instant::now();
+                            match v2_search::refresh_at_quit(&conn, &fp.0) {
+                                Ok(true) => log::info!("quit: search index rebuilt in {} ms", started.elapsed().as_millis()),
+                                Ok(false) => {}
+                                Err(e) => log::warn!("quit: search index refresh failed: {e}"),
+                            }
+                        }
+                        let _ = conn.execute_batch("PRAGMA optimize;");
+                    }
                 }
             }
             #[cfg(target_os = "macos")]

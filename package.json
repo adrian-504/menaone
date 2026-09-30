@@ -10,7 +10,8 @@
     "tauri": "tauri",
     "test": "vitest run",
     "focus-check": "node scripts/focus-check.mjs",
-    "motion-check": "node scripts/motion-check.mjs"
+    "motion-check": "node scripts/motion-check.mjs",
+    "launch-check": "node scripts/launch-check.mjs"
   },
   "dependencies": {
     "@codemirror/commands": "^6.11.0",

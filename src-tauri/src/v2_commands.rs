@@ -624,7 +624,7 @@ pub fn get_note_backlinks(state: State<DbState>, note_id: i64) -> CmdResult<Vec<
 pub fn rebuild_search_index(state: State<DbState>) -> CmdResult<()> {
     let mut conn = state.0.lock().map_err(err)?;
     let tx = conn.transaction().map_err(err)?;
-    crate::v2_search::rebuild_all(&tx).map_err(err)?;
+    crate::v2_search::rebuild_and_remember(&tx).map_err(err)?;
     tx.commit().map_err(err)
 }
 
