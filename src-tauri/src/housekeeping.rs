@@ -74,8 +74,20 @@ pub fn run_quick_check(conn: &Connection) -> rusqlite::Result<IntegrityResult> {
 
 /// `PRAGMA integrity_check` on a file opened read-only (a copy, not the live database).
 pub fn file_is_intact(path: &Path) -> bool {
-    let Ok(c) = Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX) else { return false };
-    c.query_row("PRAGMA integrity_check", [], |r| r.get::<_, String>(0)).map(|s| s == "ok").unwrap_or(false)
+    // Opened immutable (foundations O2): a snapshot keeps the WAL flag of the
+    // database it came from, and a plain read-only open of it can fail for want
+    // of a -shm file; immutable reads just the file, as the install ritual does.
+    let uri = format!("file:{}?immutable=1", path.to_string_lossy().replace('%', "%25").replace('?', "%3f").replace('#', "%23"));
+    let Ok(c) = Connection::open_with_flags(uri, OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_URI | OpenFlags::SQLITE_OPEN_NO_MUTEX) else { return false };
+    c.query_row("PRAGMA quick_check", [], |r| r.get::<_, String>(0)).map(|s| s == "ok").unwrap_or(false)
+}
+
+/// Folds the write-ahead log back into the database and empties it (at quit
+/// and after the daily run), so the -wal file never grows without bound.
+pub fn checkpoint(conn: &Connection) -> rusqlite::Result<(i64, i64, i64)> {
+    let r = conn.query_row("PRAGMA wal_checkpoint(TRUNCATE)", [], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?;
+    if r.0 == 0 { log::info!("wal: checkpointed {} pages", r.2); } else { log::warn!("wal: checkpoint busy ({} of {} pages)", r.2, r.1); }
+    Ok(r)
 }
 
 // ── OneDrive copy of the daily snapshot ──
@@ -246,6 +258,7 @@ pub fn spawn_launch_checks(app: tauri::AppHandle, app_data_dir: PathBuf, backups
                 log::error!("housekeeping: quick_check failed to run: {e}");
             }
             sync_daily_to_onedrive(&conn, &backups_dir, &crate::localfiles::onedrive_dirs());
+            let _ = checkpoint(&conn);
         }
         let tidy = archive_old_install_backups(&app_data_dir, Path::new(ARCHIVE_VOLUME), Path::new(ARCHIVE_DB_DIR), INSTALL_BACKUP_DAYS, SystemTime::now());
         if let Ok(conn) = state.0.lock() {

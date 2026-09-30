@@ -72,6 +72,10 @@ pub fn ensure_daily_backup(conn: &Connection, dir: &Path, keep: usize) -> rusqli
         None
     } else {
         snapshot(conn, &dest)?;
+        // Every copy is checked the way the install ritual checks it, and the result logged (O2).
+        let ok = crate::housekeeping::file_is_intact(&dest);
+        if ok { log::info!("backups: daily snapshot {} made, quick_check ok", dest.file_name().and_then(|n| n.to_str()).unwrap_or("?")); }
+        else { log::error!("backups: daily snapshot {} failed its quick_check", dest.display()); }
         Some(dest)
     };
     prune_daily(dir, keep);
@@ -115,6 +119,7 @@ pub fn backup_before_migrations(db_file: &Path, dir: &Path) -> rusqlite::Result<
     let stamp: String = conn.query_row("SELECT strftime('%Y%m%d-%H%M%S', 'now', 'localtime')", [], |r| r.get(0))?;
     let dest = dir.join(format!("{PRE_MIGRATION_PREFIX}v{from}-{stamp}.sqlite3"));
     snapshot(&conn, &dest)?;
+    log::info!("backups: before migrating v{from}, snapshot {} (quick_check {})", dest.file_name().and_then(|n| n.to_str()).unwrap_or("?"), if crate::housekeeping::file_is_intact(&dest) { "ok" } else { "FAILED" });
     Ok(Some(dest))
 }
 
@@ -155,8 +160,9 @@ pub fn spawn_daily_backup_loop(app: AppHandle, dir: PathBuf) {
             log::warn!("backups: daily snapshot failed: {e}");
             continue;
         }
-        // A new day's snapshot goes to OneDrive too (housekeeping.rs).
+        // A new day's snapshot goes to OneDrive too (housekeeping.rs); then the WAL is folded back.
         crate::housekeeping::sync_daily_to_onedrive(&conn, &dir, &crate::localfiles::onedrive_dirs());
+        let _ = crate::housekeeping::checkpoint(&conn);
     });
 }
 
@@ -202,9 +208,7 @@ pub fn snapshot_before_change(app: &AppHandle, conn: &Connection, what: &str) ->
 
 /// Checks a snapshot can be opened and is intact.
 pub fn verify_snapshot(path: &Path) -> rusqlite::Result<bool> {
-    let conn = Connection::open_with_flags(path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)?;
-    let result: String = conn.query_row("PRAGMA integrity_check", [], |r| r.get(0))?;
-    Ok(result == "ok")
+    Ok(crate::housekeeping::file_is_intact(path))
 }
 
 #[tauri::command]

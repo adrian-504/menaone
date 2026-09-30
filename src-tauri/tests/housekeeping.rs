@@ -148,3 +148,31 @@ fn without_the_archive_drive_nothing_moves() {
     assert!(app.join("menabig.sqlite3.pre-old-20260801").exists());
     assert!(!volume.exists(), "nothing is created where the drive would be");
 }
+
+#[test]
+fn a_checkpoint_empties_the_write_ahead_log() {
+    let dir = scratch("checkpoint");
+    let (path, conn) = db_in(&dir);
+    for i in 0..200 {
+        conn.execute("INSERT INTO app_meta (key, value) VALUES (?1, 'x')", [format!("k{i}")]).unwrap();
+    }
+    let wal = path.with_file_name(format!("{}-wal", path.file_name().unwrap().to_string_lossy()));
+    assert!(std::fs::metadata(&wal).map(|m| m.len()).unwrap_or(0) > 0, "writes went to the WAL");
+    let (busy, _, _) = menabig_tracker_lib::housekeeping::checkpoint(&conn).unwrap();
+    assert_eq!(busy, 0);
+    assert_eq!(std::fs::metadata(&wal).map(|m| m.len()).unwrap_or(0), 0, "TRUNCATE leaves it empty");
+}
+
+#[test]
+fn a_snapshot_in_a_folder_with_a_space_is_checked_immutable() {
+    let dir = scratch("space").join("Application Support");
+    std::fs::create_dir_all(&dir).unwrap();
+    let (_, conn) = db_in(&dir);
+    conn.execute("INSERT INTO app_meta (key, value) VALUES ('probe', '1')", []).unwrap();
+    let snap = dir.join("daily-2026-09-30.sqlite3");
+    conn.execute("VACUUM INTO ?1", [snap.to_string_lossy()]).unwrap();
+    assert!(file_is_intact(&snap), "a finished snapshot passes, WAL flag and all");
+    let bad = dir.join("broken.sqlite3");
+    std::fs::write(&bad, b"not a database").unwrap();
+    assert!(!file_is_intact(&bad));
+}

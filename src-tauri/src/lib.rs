@@ -450,6 +450,8 @@ pub fn run() {
                             }
                         }
                         let _ = conn.execute_batch("PRAGMA optimize;");
+                        // The WAL folded back into the database before the app closes (foundations O2).
+                        let _ = housekeeping::checkpoint(&conn);
                     }
                 }
             }
