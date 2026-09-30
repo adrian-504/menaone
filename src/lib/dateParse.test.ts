@@ -18,8 +18,19 @@ describe('what a date field understands', () => {
     expect(p('Tue')).toBe('2026-10-06');
     expect(p('wednesday')).toBe('2026-10-07');
     expect(p('fri')).toBe('2026-10-02');
-    // As in quick capture: "next Tue" is the Tuesday of next week.
-    expect(p('next tue')).toBe('2026-10-13');
+  });
+
+  it('"next <day>" is that day in the week starting next Monday', () => {
+    expect(p('next mon')).toBe('2026-10-05');
+    expect(p('next tue')).toBe('2026-10-06');
+    expect(p('next wed')).toBe('2026-10-07');
+    expect(p('next thu')).toBe('2026-10-08');
+    expect(p('next sunday')).toBe('2026-10-11');
+    // From Monday 5 October, next week starts on the 12th.
+    const mon = new Date(2026, 9, 5, 10);
+    expect(parseDate('next tue', mon)).toBe('2026-10-13');
+    expect(parseDate('next mon', mon)).toBe('2026-10-12');
+    expect(parseDate('tue', mon)).toBe('2026-10-06');
   });
 
   it('day and month: day first (02/10 is 2 October), a past one is next year', () => {

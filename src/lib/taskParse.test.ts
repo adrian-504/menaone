@@ -20,11 +20,21 @@ describe('task quick add', () => {
     expect(t.tokens.map((k) => k.kind).sort()).toEqual(['company', 'date', 'priority', 'project', 'time']);
   });
 
+  it('"next Tue" agrees with the date field: Tuesday of next week', () => {
+    const wed = { ...ctx, today: new Date(2026, 8, 30) };
+    const t = parseTaskInput('Call Omar next Tue', wed);
+    expect(t.title).toBe('Call Omar');
+    expect(t.dueDate).toBe('2026-10-06');
+    expect(parseTaskInput('Call Omar tue', wed).dueDate).toBe('2026-10-06');
+    expect(parseTaskInput('Call Omar next Mon', { ...ctx, today: new Date(2026, 9, 5) }).dueDate).toBe('2026-10-12');
+  });
+
   it('understands the usual ways of writing a date', () => {
     const due = (s: string) => parseTaskInput(`Send pack ${s}`, ctx).dueDate;
     expect(due('today')).toBe('2026-09-13');
     expect(due('fri')).toBe('2026-09-18');
-    expect(due('next monday')).toBe('2026-09-21');
+    expect(due('next monday')).toBe('2026-09-14'); // next week starts tomorrow (Mon–Sun weeks)
+    expect(due('next tue')).toBe('2026-09-15');
     expect(due('next week')).toBe('2026-09-14');
     expect(due('in 3 days')).toBe('2026-09-16');
     expect(due('15 sep')).toBe('2026-09-15');
