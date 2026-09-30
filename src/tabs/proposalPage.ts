@@ -1192,7 +1192,7 @@ function renderBuilderSummary(): void {
   const currency = val('prb-currency') || 'SAR';
   const months = val('prb-months') ? Number(val('prb-months')) : null;
   const t = lineTotals(draftLines, months);
-  const row = (label: string, value: string | null, cls = '') => (value ? `<div${cls ? ` class="${cls}"` : ''}><dt>${label}</dt><dd>${value}</dd></div>` : '');
+  const row = (label: string, value: string | null, cls = '', roll = '') => (value ? `<div${cls ? ` class="${cls}"` : ''}><dt>${label}</dt><dd${roll ? ` data-roll="prb-${roll}"` : ''}>${value}</dd></div>` : '');
   if (blocks.length > 1) {
     syncActiveBlock();
     el.innerHTML = `<div class="rec-section-hd"><h2>Summary</h2></div>
@@ -1206,9 +1206,9 @@ function renderBuilderSummary(): void {
     <dl class="prb-sum">
       ${row('Client', client ? escHtml(client) : null)}
       ${row('Services', t.serviceNames.length ? t.serviceNames.map(escHtml).join('<br>') : null)}
-      ${row('Monthly', t.monthly ? fmtMoney(t.monthly, currency) : null)}
-      ${row('One-time', t.oneTime ? fmtMoney(t.oneTime, currency) : null)}
-      ${row(`Contract value${months ? ` · ${months} mo` : ''}`, t.contractValue ? fmtMoney(t.contractValue, currency) : null, 'prb-sum-main')}
+      ${row('Monthly', t.monthly ? fmtMoney(t.monthly, currency) : null, '', 'monthly')}
+      ${row('One-time', t.oneTime ? fmtMoney(t.oneTime, currency) : null, '', 'onetime')}
+      ${row(`Contract value${months ? ` · ${months} mo` : ''}`, t.contractValue ? fmtMoney(t.contractValue, currency) : null, 'prb-sum-main', 'value')}
     </dl>`;
 }
 

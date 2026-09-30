@@ -207,9 +207,9 @@ export function renderLinesEditor(key: string, containerId: string, ctx: LinesEd
     <div class="le-footer">
       ${ctx.editable ? `<button type="button" class="btn-secondary btn-sm" onclick="linesEdit('${k}', 0, 'add', '')">${icon('plus', 13)} Add service</button>` : '<span></span>'}
       <dl class="le-totals">
-        <div><dt>Monthly</dt><dd>${totals.monthly != null ? fmtMoney(totals.monthly, currency) : '—'}</dd></div>
-        <div><dt>One-time</dt><dd>${totals.oneTime != null ? fmtMoney(totals.oneTime, currency) : '—'}</dd></div>
-        <div class="le-total-main"><dt>Contract value${months ? ` · ${months} mo` : ''}</dt><dd>${totals.contractValue != null ? fmtMoney(totals.contractValue, currency) : '—'}</dd></div>
+        <div><dt>Monthly</dt><dd data-roll="${k}-monthly">${totals.monthly != null ? fmtMoney(totals.monthly, currency) : '—'}</dd></div>
+        <div><dt>One-time</dt><dd data-roll="${k}-onetime">${totals.oneTime != null ? fmtMoney(totals.oneTime, currency) : '—'}</dd></div>
+        <div class="le-total-main"><dt>Contract value${months ? ` · ${months} mo` : ''}</dt><dd data-roll="${k}-value">${totals.contractValue != null ? fmtMoney(totals.contractValue, currency) : '—'}</dd></div>
       </dl>
     </div>`;
 }

@@ -2998,3 +2998,5 @@ body:not(:has(#sidebar.collapsed)) .undo-stack{left:250px}
 /* 7. Travelling focus: a keyboard move slides a focus ring to the new row (lib/motion.ts keyTravel). */
 .key-hl{position:absolute;top:0;left:0;z-index:2;pointer-events:none;opacity:0;border-radius:9px;box-shadow:inset 0 0 0 2px var(--accent-border);transition:transform var(--dur-fast) var(--ease-out),opacity var(--dur-fast) var(--ease-out)}
 .key-hl.is-jump{transition:transform var(--dur-base) var(--ease-out),opacity var(--dur-fast) var(--ease-out)}
+/* 8. Rolling numbers keep their width steady (lib/rollNumber.ts). */
+.sb-badge,[data-roll],[id$="-tab-count"]{font-variant-numeric:tabular-nums}

@@ -32,6 +32,7 @@ import { renderIcons, initSidebarCollapsed, applyMs365SidebarVisibility } from '
 import { initTheme } from './core/theme';
 import { startMotion } from './lib/motion';
 import { startTooltips } from './lib/tooltip';
+import { startRollingNumbers } from './lib/rollNumber';
 import './core/router';
 import './lib/links';
 import './core/commandPalette';
@@ -306,7 +307,8 @@ const devMockReady = import.meta.env.DEV
   : Promise.resolve();
 
 devMockReady.finally(() => {
-  init().catch((err) => {
+  // Numbers roll only once the app has loaded: never the first counts on launch.
+  init().then(() => { window.setTimeout(startRollingNumbers, 1500); }).catch((err) => {
     console.error('Failed to initialize MENA One:', err);
     document.body.innerHTML = `<div style="padding:40px;font-family:sans-serif;color:firebrick"><h2>Failed to load the tracker database</h2><pre style="white-space:pre-wrap">${String(err)}</pre></div>`;
   });
