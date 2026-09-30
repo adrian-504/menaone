@@ -31,6 +31,12 @@ function rowFor(path: string): () => HTMLElement | null {
   return () => [...document.querySelectorAll<HTMLElement>('[data-ql-path]')].find((el) => el.dataset.qlPath === path) ?? null;
 }
 
+/** Quick Look from a button (a deck tile's action). */
+export function quickLookPath(path: string): void {
+  void quickLook(path, rowFor(path));
+}
+if (typeof window !== 'undefined') (window as any).quickLookPath = quickLookPath;
+
 let started = false;
 export function startQuickLook(): void {
   if (started) return;

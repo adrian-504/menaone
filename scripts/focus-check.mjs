@@ -47,18 +47,26 @@ const VIEWS = [
   ['Meeting', "openRecord('meeting', 2)", {}],
   ['New proposal', "openProposalBuilder({})", { fitsScreen: true }],
   ['Settings → Appearance', "navToModule('settings'), setSettingsPane('appearance')", {}],
+  // Studio: the Generate sheet over a proposal (counted inside the sheet), and the builder's
+  // company suggestion list must not survive leaving the builder.
+  ['Generate sheet', "openRecord('proposal', 3), openGenerateProposal(3)", {}],
+  ['Builder → away', "openProposalBuilder({}), (() => { const c = document.getElementById('prb-client'); c.focus(); c.value = 'Acme'; c.dispatchEvent(new Event('input', { bubbles: true })); })(), openRecord('proposal', 3)", { noPopover: true }],
 ];
 const COUNT = `(() => {
   const H = innerHeight, W = innerWidth;
   const chrome = '.sidebar, #sidebar, #loc-bar, #record-rail, .modal-ov:not(.open), .toast-stack, #toast-stack';
   const vis = (el) => { const r = el.getBoundingClientRect(); if (r.width < 2 || r.height < 2 || r.bottom <= 0 || r.top >= H || r.right <= 0 || r.left >= W) return false;
     const s = getComputedStyle(el); if (s.visibility === 'hidden' || s.display === 'none' || +s.opacity === 0) return false; return !el.closest(chrome); };
-  const inputs = [...document.querySelectorAll('input:not([type=hidden]):not([type=checkbox]):not([type=radio]), select, textarea, [contenteditable=true]')].filter(vis);
+  // With a dialog or sheet open, only what's in it counts (the page behind is dimmed).
+  const dialog = [...document.querySelectorAll('.modal-ov.open')].pop();
+  const inScope = (el) => !dialog || dialog.contains(el);
+  const inputs = [...document.querySelectorAll('input:not([type=hidden]):not([type=checkbox]):not([type=radio]), select, textarea, [contenteditable=true]')].filter(vis).filter(inScope);
   const filters = inputs.filter((el) => el.closest('.fbar, .co-search-bar, .page-filters, .list-filters, .filter-bar')).length;
-  const btns = [...document.querySelectorAll('button, a.btn-primary, a.btn-secondary')].filter((b) => vis(b) && !b.classList.contains('rlink'));
+  const btns = [...document.querySelectorAll('button, a.btn-primary, a.btn-secondary')].filter((b) => vis(b) && !b.classList.contains('rlink')).filter(inScope);
   const buttons = btns.length;
   const names = btns.map((b) => (b.textContent || '').trim().slice(0, 20) || b.getAttribute('aria-label') || b.title);
-  const primary = [...document.querySelectorAll('.btn-primary')].filter(vis).length;
+  const primary = [...document.querySelectorAll('.btn-primary')].filter(vis).filter(inScope).length;
+  const popover = !!document.querySelector('.company-selector-popover.open');
   // A list row is read, not edited: no select in a table row.
   const rowSelects = [...document.querySelectorAll('tbody tr select')].filter(vis).length;
   // The first thing on a page shouldn't be an empty box asking to be filled (a create page's first field is an input, not this).
@@ -77,7 +85,7 @@ const COUNT = `(() => {
     return own && shown(el) && !el.parentElement.closest('[data-eyebrow-counted]') && (el.setAttribute('data-eyebrow-counted', ''), true);
   }).length;
   document.querySelectorAll('[data-eyebrow-counted]').forEach((el) => el.removeAttribute('data-eyebrow-counted'));
-  return JSON.stringify({ errorToasts, inputs: inputs.length, filters, buttons, primary, height: document.scrollingElement.scrollHeight, names, rowSelects, emptyBoxFirst, isNew, eyebrows });
+  return JSON.stringify({ errorToasts, popover, inputs: inputs.length, filters, buttons, primary, height: document.scrollingElement.scrollHeight, names, rowSelects, emptyBoxFirst, isNew, eyebrows });
 })()`;
 
 const port = 9400 + Math.floor(Math.random() * 400);
@@ -128,6 +136,7 @@ for (const [name, js, t] of VIEWS.filter(([n]) => !process.env.ONLY || n.startsW
   if (c.isNew) problems.push(`${c.isNew} .is-new on a cold render`);
   if (c.scrollLost) problems.push(`scroll not kept (${c.scroll})`);
   if (c.errorToasts.length) problems.push(`error toast: ${c.errorToasts.join(' | ')}`);
+  if (t.noPopover && c.popover) problems.push('the company suggestion list is still open');
   results.push({ name, ...c, problems });
 }
 // The sidebar toggle is measured after its slide (delight 0a): once it has

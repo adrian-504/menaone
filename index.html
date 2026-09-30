@@ -1897,7 +1897,7 @@
       </section>
       <section class="rec-section sec" id="prd-decks-sec">
         <div class="rec-section-hd"><h2 class="hd-major">Proposal documents</h2><span class="rec-count" id="prd-decks-count"></span><div class="rec-section-actions"><button class="btn-secondary btn-sm" onclick="generateCurrentProposal()"><span data-icon="bolt" data-icon-size="12"></span> Generate proposal</button></div></div>
-        <div class="rec-list" id="prd-decks"></div>
+        <div class="deck-tiles" id="prd-decks"></div>
       </section>
       <section class="rec-section sec" id="prd-documents-sec">
         <div class="rec-section-hd"><h2>Supporting documents</h2><span class="rec-count" id="prd-docs-count"></span><div class="rec-section-actions" id="prd-docs-actions"></div></div>
@@ -1937,7 +1937,7 @@
   <form id="prb-form" class="prb-grid" onsubmit="submitProposalBuilder(event)" autocomplete="off">
     <div class="prb-main">
       <section class="sec prb-section">
-        <div class="prb-section-hd"><span class="prb-step">1</span><h2>Client</h2></div>
+        <div class="prb-section-hd"><span class="prb-step" data-step="1">01</span><h2>Client</h2></div>
         <div class="fg">
           <div class="fgrp fgrp-full"><label class="flbl" for="prb-client">Company *</label><input class="finp" id="prb-client" required placeholder="Search or type a new company" oninput="prbClientChanged()"></div>
         </div>
@@ -1955,7 +1955,7 @@
         </div>
       </section>
       <section class="sec prb-section">
-        <div class="prb-section-hd"><span class="prb-step">2</span><h2>Services</h2></div>
+        <div class="prb-section-hd"><span class="prb-step" data-step="2">02</span><h2>Services</h2></div>
         <!-- Several proposals in one go: the other proposals as one line each (lib/proposalBlocks.ts). -->
         <div class="prb-blocks" id="prb-blocks-before" data-sort="prb-block-order" data-drop-value="before" data-sort-shift></div>
         <div class="prb-block-hd" id="prb-block-hd" hidden></div>
@@ -1970,7 +1970,7 @@
         <button type="button" class="rlink prb-add-block" onclick="prbAddBlock()">Add another proposal</button>
       </section>
       <section class="sec prb-section">
-        <div class="prb-section-hd"><span class="prb-step">3</span><h2>Terms</h2></div>
+        <div class="prb-section-hd"><span class="prb-step" data-step="3">03</span><h2>Terms</h2></div>
         <div class="prb-defaults" id="prb-entity-line"></div>
         <div class="fg" id="prb-entity-fields" hidden>
           <div class="fgrp"><label class="flbl" for="prb-entity">Business entity</label><select class="finp" id="prb-entity" onchange="prbEntityChanged()"></select></div>
@@ -1978,11 +1978,11 @@
         </div>
         <div class="fg">
           <div class="fgrp"><label class="flbl" for="prb-months">Contract term</label><select class="finp" id="prb-months" onchange="prbRefreshLines()"><option value="">Not set</option><option value="3">3 months</option><option value="6">6 months</option><option value="12">12 months</option><option value="24">24 months</option><option value="36">36 months</option></select></div>
-          <div class="fgrp"><label class="flbl" for="prb-valid">Valid until</label><input class="finp" type="date" id="prb-valid"></div>
+          <div class="fgrp"><label class="flbl" for="prb-valid">Valid until</label><input class="finp" type="date" id="prb-valid" onchange="prbCardRefresh()"></div>
         </div>
       </section>
       <section class="sec prb-section">
-        <div class="prb-section-hd"><span class="prb-step">4</span><h2>Workflow</h2></div>
+        <div class="prb-section-hd"><span class="prb-step" data-step="4">04</span><h2>Workflow</h2></div>
         <div class="prb-defaults" id="prb-workflow-line"></div>
         <div class="fg" id="prb-workflow-fields" hidden>
           <div class="fgrp"><label class="flbl" for="prb-status">Where it stands</label><select class="finp" id="prb-status" onchange="prbStatusChanged()">
@@ -2002,7 +2002,7 @@
       </section>
     </div>
     <aside class="prb-side">
-      <div class="sec prb-summary" id="prb-summary" hidden></div>
+      <div class="prb-summary" id="prb-summary"></div>
       <div class="sec prb-folder" id="prb-folder" hidden></div>
     </aside>
   </form>

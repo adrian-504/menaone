@@ -4,7 +4,7 @@
 // flagged, and the proposal keeps its client folder.
 import { describe, it, expect } from 'vitest';
 import { applyGeneratedDocument, nextDeckFileName } from './commercial';
-import { proposalDeckRows, deckStatus } from './proposalDocuments';
+import { proposalDeckRows, deckStatus, deckStatusLine } from './proposalDocuments';
 import type { Proposal, ProposalDocument } from './types';
 
 const deck = (id: number, version: number, fileName: string, notes = 'Generated from Standard deck'): ProposalDocument =>
@@ -46,5 +46,12 @@ describe('proposal documents after generation', () => {
     expect(missingRow).not.toContain('proposalOpenFile');
     expect(missingRow).toContain('proposalRemoveDocument(2)');
     expect(html.split('data-doc-id="1"')[1]).toContain('proposalRevealFile');
+  });
+
+  it('a card says "sent" only for the version the client has', () => {
+    const sentP = { status: 'Sent to Client', dateSentToClient: '2026-09-02' };
+    expect(deckStatusLine({ ...deck(1, 1, 'a.pptx'), createdAt: '2026-09-01' }, true, sentP)).toBe('sent 2 Sept');
+    expect(deckStatusLine({ ...deck(2, 2, 'b.pptx'), createdAt: '2026-09-30' }, true, sentP)).toBe('draft');
+    expect(deckStatusLine(deck(1, 1, 'a.pptx'), true, { status: 'Drafting' })).toBe('draft');
   });
 });

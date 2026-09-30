@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { breadcrumb, feeLine, fillLabel, fillList, slideGroups } from './studio';
+import { breadcrumb, cardLine, feeLine, fillLabel, fillList, slideGroups } from './studio';
 
 describe('the studio in plain words', () => {
   it('a path is a breadcrumb from OneDrive, never a Unix path', () => {
@@ -32,5 +32,11 @@ describe('the studio in plain words', () => {
     const g = slideGroups(slides, new Set([1, 3, 4]), 'Payroll Template', (n) => n.replace(/ Template$/, ''));
     expect(g.map((x) => x.label)).toEqual(['Standard', 'Accountancy & VAT']);
     expect(g.flatMap((x) => x.slides.map((s) => s.number))).toEqual(['01', '—', '02', '03']);
+  });
+
+  it('a service on the proposal card reads as one line', () => {
+    expect(cardLine({ serviceName: 'Payroll', billing: 'monthly', unitPrice: 5000, quantity: 1 }, 'SAR')).toBe('Payroll · Monthly · SAR 5,000');
+    expect(cardLine({ serviceName: 'Business setup', billing: 'one_time', unitPrice: 12000, quantity: 2 }, 'SAR')).toBe('Business setup · One-time · SAR 24,000');
+    expect(cardLine({ serviceName: 'PRO', billing: 'monthly', unitPrice: null, quantity: 1 }, 'SAR')).toBe('PRO · Monthly · price to set');
   });
 });

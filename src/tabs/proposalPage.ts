@@ -26,6 +26,8 @@ import { persistProposals, persistContacts } from '../lib/persist';
 import { notifyNavigated, refreshAll, refreshCompanyViewIfOpen } from '../lib/registry';
 import { saveOpportunity, filesOpen, filesRevealInFinder, filesStatPaths, proposalFolderLookup, proposalFolderCreate } from '../lib/db';
 import { attachCompanySelector } from '../lib/companySelector';
+import { breadcrumb, cardLine } from '../lib/studio';
+import { initialsOf } from '../lib/appearance';
 import { showMenuAt, type ContextMenuItem } from '../lib/contextMenu';
 import { renderFeed } from '../lib/activityFeed';
 import { renderRecordTimeline, renderThreadStrip } from './recordThread';
@@ -38,8 +40,7 @@ import {
   PS, PROPOSAL_STAGES, proposalSentDate, stageIndex, isWon, isLost, isWithdrawn, isClosed, lineTotals, syncProposalTotals, fmtMoney, currencyOf,
   teamMember, reviewers, defaultReviewer, activeTeam, ownerName, entityById, defaultEntity, activeServices, newLine,
   suggestedFileName, nextDocumentId, nextLineId, nextDeckFileName,
-  currentUser,
-} from '../lib/commercial';
+  currentUser, priceRange, serviceById } from '../lib/commercial';
 import type { Proposal, CommercialLine, ProposalFolder, Opportunity, LocalFileItem } from '../lib/types';
 
 const w = window as any;
@@ -612,11 +613,11 @@ async function renderDocuments(p: Proposal): Promise<void> {
   if (!info.root) {
     folderEl.innerHTML = `<div class="pr-folder-line rec-muted">${icon('folder', 14)} No Proposals folder found in OneDrive. Choose it in Settings → Proposals.</div>`;
   } else if (!info.exists) {
-    folderEl.innerHTML = `<div class="pr-folder-line">${icon('folder', 14)}<span>No folder for ${escHtml(p.client)} yet in <code class="path-code">${escHtml(info.root)}</code></span><button class="btn-secondary btn-sm" onclick="proposalCreateFolder()">Create folder</button></div>`;
+    folderEl.innerHTML = `<div class="pr-folder-line">${icon('folder', 14)}<span>No folder for ${escHtml(p.client)} yet in <span data-tip="${escHtml(info.root)}">${escHtml(breadcrumb(info.root))}</span></span><button class="btn-secondary btn-sm" onclick="proposalCreateFolder()">Create folder</button></div>`;
   } else {
     // The folder by name (like Files); the full path is on hover.
     const folderName = (info.path || '').split('/').filter(Boolean).pop() || p.client;
-    folderEl.innerHTML = `<div class="pr-folder-line">${icon('folder', 14)}<button class="rlink pr-folder-path" onclick="proposalOpenFolder()" data-tip="${escHtml(info.path || '')}" aria-label="${escHtml(info.path || '')}">${escHtml(folderName)}</button></div>
+    folderEl.innerHTML = `<div class="pr-folder-line">${icon('folder', 14)}<button class="rlink pr-folder-path" onclick="proposalOpenFolder()" data-tip="${escHtml(info.path || '')}" aria-label="Open ${escHtml(folderName)} in Finder">${escHtml(breadcrumb(info.path) || folderName)}</button></div>
       <div class="pr-next-name"><span class="rec-muted">Next file name</span><code>${escHtml(suggested)}</code><button class="rec-icon-btn pr-copy-name" onclick="copyText('${escHtml(suggested.replace(/'/g, "\\'"))}','File name copied')" data-tip="Copy file name" aria-label="Copy file name">${icon('copy', 13)}</button></div>`;
   }
 
@@ -989,14 +990,21 @@ function renderServicePicker(): void {
   const el = document.getElementById('prb-service-picker');
   if (!top || !el) return;
   const chosen = chosenServices();
-  const chip = (sv: { id: number; name: string }) => `<button type="button" class="prb-chip" onclick="prbAddService(${sv.id})">${icon('plus', 11)}${escHtml(sv.name)}</button>`;
-  const quick = topServices().filter((sv) => !chosen.has(sv.id));
+  // The rate card's price shows on hover; a coral dot marks a service already on the proposal.
+  const currency = val('prb-currency') || 'SAR';
+  const tip = (sv: { id: number }) => {
+    const r = priceRange(serviceById(sv.id));
+    return r ? (r.min === r.max ? fmtMoney(r.min, currency) : `${fmtMoney(r.min, currency)} – ${fmtMoney(r.max, currency)}`) : 'No rate card price';
+  };
+  const chip = (sv: { id: number; name: string }) => chosen.has(sv.id)
+    ? `<button type="button" class="prb-chip is-added" aria-disabled="true" data-tip="On this proposal · ${escHtml(tip(sv))}"><span class="prb-chip-dot" aria-hidden="true"></span>${escHtml(sv.name)}</button>`
+    : `<button type="button" class="prb-chip" onclick="prbAddService(${sv.id})" data-tip="${escHtml(tip(sv))}">${icon('plus', 11)}${escHtml(sv.name)}</button>`;
+  const quick = topServices();
   top.innerHTML = `${quick.map(chip).join('')}<button type="button" class="btn-ghost btn-sm prb-browse" aria-expanded="${browseAll}" onclick="prbBrowseServices()">${browseAll ? 'Hide the list' : 'Browse all services'}</button>`;
   el.hidden = !browseAll;
   if (browseAll) {
     const groups = new Map<string, typeof S.services>();
     for (const sv of activeServices()) {
-      if (chosen.has(sv.id)) continue;
       const cat = sv.category || 'Other';
       if (!groups.has(cat)) groups.set(cat, []);
       groups.get(cat)!.push(sv);
@@ -1229,34 +1237,43 @@ export function prbRemoveBlock(i: number): void {
 expose('prbRemoveBlock', prbRemoveBlock);
 
 /** The running summary: only once there's a client or a service, and only what's known. */
+/** The proposal card beside the builder (studio slice): it takes shape as the form is filled —
+ * the client, entity and currency, a row per service, term and validity, and the contract value
+ * as a display figure that rolls as services and term change. Other proposals stack below. */
 function renderBuilderSummary(): void {
   const el = document.getElementById('prb-summary');
   if (!el) return;
+  el.hidden = false;
   const client = val('prb-client');
-  el.hidden = !client && !draftLines.length;
-  if (el.hidden) { el.innerHTML = ''; return; }
   const currency = val('prb-currency') || 'SAR';
   const months = val('prb-months') ? Number(val('prb-months')) : null;
-  const t = lineTotals(draftLines, months);
-  const row = (label: string, value: string | null, cls = '', roll = '') => (value ? `<div${cls ? ` class="${cls}"` : ''}><dt>${label}</dt><dd${roll ? ` data-roll="prb-${roll}"` : ''}>${value}</dd></div>` : '');
-  if (blocks.length > 1) {
-    syncActiveBlock();
-    el.innerHTML = `<div class="rec-section-hd"><h2>Summary</h2></div>
-      <dl class="prb-sum">
-        ${row('Client', client ? escHtml(client) : null)}
-        ${blocks.map((b, i) => row(`Proposal ${i + 1}`, escHtml(blockSummary(b, i, currency).replace(/^Proposal \d+ · /, '')))).join('')}
-      </dl>`;
-    return;
-  }
-  el.innerHTML = `<div class="rec-section-hd"><h2>Summary</h2></div>
-    <dl class="prb-sum">
-      ${row('Client', client ? escHtml(client) : null)}
-      ${row('Services', t.serviceNames.length ? t.serviceNames.map(escHtml).join('<br>') : null)}
-      ${row('Monthly', t.monthly ? fmtMoney(t.monthly, currency) : null, '', 'monthly')}
-      ${row('One-time', t.oneTime ? fmtMoney(t.oneTime, currency) : null, '', 'onetime')}
-      ${row(`Contract value${months ? ` · ${months} mo` : ''}`, t.contractValue ? fmtMoney(t.contractValue, currency) : null, 'prb-sum-main', 'value')}
-    </dl>`;
+  const entity = entityById(Number(val('prb-entity')) || null);
+  const valid = val('prb-valid');
+  if (blocks.length > 1) syncActiveBlock();
+  const lines = draftLines.filter((l) => l.serviceName.trim());
+  const t = lineTotals(lines, months);
+  const tile = client ? `<span class="prb-card-tile" style="background:${strColor(client)}">${escHtml(initialsOf(client))}</span>` : '<span class="prb-card-tile is-empty"></span>';
+  const others = blocks.length > 1 ? blocks.map((b, i) => (i === activeBlock ? '' : `<div class="prb-mini">${escHtml(blockSummary(b, i, currency))}</div>`)).join('') : '';
+  // Steps: done navy, the current one coral, the rest muted (Workflow has defaults, so it is never "missing").
+  const done = [!!client, lines.length > 0, !!months, false];
+  const currentStep = done.findIndex((d) => !d);
+  document.querySelectorAll<HTMLElement>('#prb-form .prb-step').forEach((st, i) => {
+    st.classList.toggle('is-done', done[i]);
+    st.classList.toggle('is-current', i === currentStep);
+  });
+  el.innerHTML = `<div class="prb-card">
+      <div class="prb-card-hd">${tile}<div class="prb-card-id"><div class="prb-card-client${client ? '' : ' is-empty'}">${escHtml(client || 'New proposal')}</div><div class="prb-card-sub">${escHtml([entity?.name, currency].filter(Boolean).join(' · '))}</div></div></div>
+      ${lines.length ? `<ul class="prb-card-lines">${lines.map((l) => `<li>${escHtml(cardLine(l, currency))}</li>`).join('')}</ul>` : '<p class="prb-card-hint">Services appear here as you add them.</p>'}
+      <dl class="prb-card-terms">
+        <div><dt>Term</dt><dd>${months ? `${months} months` : '—'}</dd></div>
+        <div><dt>Valid until</dt><dd>${valid ? escHtml(fmtDateShort(valid, true)) : '—'}</dd></div>
+      </dl>
+      <div class="prb-card-value"><span class="prb-card-value-l">Contract value${months ? ` · ${months} mo` : ''}</span><span class="prb-card-fig" data-roll="prb-value">${t.contractValue ? escHtml(fmtMoney(t.contractValue, currency)) : '—'}</span></div>
+      ${t.monthly ? `<div class="prb-card-monthly"><span data-roll="prb-monthly">${escHtml(fmtMoney(t.monthly, currency))}</span> a month${t.oneTime ? ` · <span data-roll="prb-onetime">${escHtml(fmtMoney(t.oneTime, currency))}</span> one-time` : ''}</div>` : ''}
+    </div>${others ? `<div class="prb-minis">${others}</div>` : ''}`;
 }
+
+expose('prbCardRefresh', () => renderBuilderSummary());
 
 /** One line about the client's OneDrive folder, once there's a client. */
 function renderBuilderFolder(): void {
@@ -1267,8 +1284,8 @@ function renderBuilderFolder(): void {
   if (el.hidden) { el.innerHTML = ''; return; }
   const folderName = (builderFolder!.path || '').split('/').filter(Boolean).pop() || client;
   el.innerHTML = builderFolder!.exists
-    ? `<div class="pr-folder-line" title="${escHtml(builderFolder!.path || '')}">${icon('folder', 13)}<span>Saves in <strong>${escHtml(folderName)}</strong></span></div>`
-    : `<label class="check-label" title="${escHtml(builderFolder!.path || '')}"><input type="checkbox" id="prb-create-folder" checked> Create a folder for <strong>${escHtml(client)}</strong></label>`;
+    ? `<div class="pr-folder-line" data-tip="${escHtml(builderFolder!.path || '')}">${icon('folder', 13)}<span>Saves in <strong>${escHtml(breadcrumb(builderFolder!.path) || folderName)}</strong></span></div>`
+    : `<label class="check-label" data-tip="${escHtml(builderFolder!.path || '')}"><input type="checkbox" id="prb-create-folder" checked> Create a folder for <strong>${escHtml(client)}</strong></label>`;
   renderIcons(el);
 }
 

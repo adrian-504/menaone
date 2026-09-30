@@ -4,6 +4,8 @@
 // Pure, except miniCoverHtml's escaping.
 
 import { escHtml } from './utils';
+import { fmtMoney, lineAmount } from './commercial';
+import type { CommercialLine } from './types';
 
 /** What each template placeholder is, as the generator's token list names it (generator.rs TOKENS). */
 const FILL_LABELS: Record<string, string> = {
@@ -65,5 +67,11 @@ export function slideGroups(slides: { index: number; title: string; source?: str
 
 /** The brand mini-cover: navy block, three coral bars, the client in Saira. */
 export function miniCoverHtml(client: string, label: string, sub = ''): string {
-  return `<div class="mini-cover"><span class="bars" aria-hidden="true"><i></i><i></i><i></i></span><span class="mini-cover-client">${escHtml(client)}</span><span class="mini-cover-label">${escHtml(label)}</span>${sub ? `<span class="mini-cover-sub">${escHtml(sub)}</span>` : ''}</div>`;
+  return `<div class="mini-cover"><span class="bars" aria-hidden="true"><i></i><i></i><i></i></span><span class="mini-cover-client">${escHtml(client)}</span><span class="mini-cover-label">${escHtml(label)}${sub ? ` <span class="mini-cover-sub">· ${escHtml(sub)}</span>` : ''}</span></div>`;
+}
+
+/** A service row on the builder's proposal card: "Payroll · Monthly · SAR 5,000". Pure. */
+export function cardLine(l: Pick<CommercialLine, 'serviceName' | 'billing' | 'unitPrice' | 'quantity'>, currency: string): string {
+  const amount = lineAmount(l);
+  return [l.serviceName.trim() || 'Service', l.billing === 'one_time' ? 'One-time' : 'Monthly', amount != null ? fmtMoney(amount, currency) : 'price to set'].join(' · ');
 }
