@@ -2838,3 +2838,8 @@ tr:hover .td-status .row-more,tr:focus-within .td-status .row-more{opacity:1}
 /* Opportunities board (owner, 30-Sep-2026): columns stay, cards are flat. */
 #opp-board .board-card{background:var(--surface-flat);border:none;box-shadow:none;border-radius:9px}
 #opp-board .board-card:hover{box-shadow:none;transform:none;background:color-mix(in srgb,var(--surface-flat) 92%,var(--text))}
+
+/* Headings (owner, 30-Sep-2026): Settings cards and the proposal builder's steps
+   use the same small uppercase eyebrow as every record section; no icons. */
+.settings-card-hd [data-icon]{display:none}
+.settings-card-hd .card-hd,.prb-section-hd h2{font-size:var(--type-caption);font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}

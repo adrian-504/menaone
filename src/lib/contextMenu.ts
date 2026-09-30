@@ -43,6 +43,7 @@ export function showContextMenu(e: MouseEvent, items: ContextMenuItem[]): void {
   anchor.style.width = '0';
   anchor.style.height = '0';
   document.body.appendChild(anchor);
+  menu.style.transformOrigin = '';
   positionFloatingPopup(menu, anchor);
   anchor.remove();
 }

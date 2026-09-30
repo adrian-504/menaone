@@ -94,10 +94,13 @@ export function positionDropdown(popup: HTMLElement, anchor: HTMLElement): void 
   popup.style.visibility = 'hidden';
   popup.style.right = 'auto';
   popup.style.bottom = 'auto';
-  const pop = popup.getBoundingClientRect();
-  const { top, left } = menuPlacement(anchor.getBoundingClientRect(), pop, visibleBounds(anchor));
+  // offsetWidth/Height, not the bounding box: the menu opens with a scale
+  // animation, and a scaled box measures ~6% small (it overshot the button's right edge).
+  const pop = { width: popup.offsetWidth, height: popup.offsetHeight };
+  const { top, left, above } = menuPlacement(anchor.getBoundingClientRect(), pop, visibleBounds(anchor));
   popup.style.top = `${top}px`;
   popup.style.left = `${left}px`;
+  popup.style.transformOrigin = above ? 'bottom right' : 'top right';
   popup.style.visibility = '';
 }
 
