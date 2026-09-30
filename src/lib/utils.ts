@@ -25,6 +25,21 @@ export function debounce(fn: () => void, ms: number): () => void {
   };
 }
 
+/** List searches (foundations P3): the list redraws 150 ms after the last
+ * keystroke instead of on every one; the render reads the field when it runs,
+ * so the newest query always wins. `filterSoon('renderContacts')` from an
+ * oninput; one timer per renderer. */
+const filterTimers = new Map<string, ReturnType<typeof setTimeout>>();
+export function filterSoon(render: string | (() => void), ms = 150): void {
+  const key = typeof render === 'string' ? render : render.name || 'fn';
+  clearTimeout(filterTimers.get(key));
+  filterTimers.set(key, setTimeout(() => {
+    filterTimers.delete(key);
+    if (typeof render === 'string') (window as any)[render]?.();
+    else render();
+  }, ms));
+}
+
 /** Positions a floating menu/popover as `position:fixed`, anchored near
  * `anchor` and clamped to the viewport. Popups that only use CSS
  * `position:absolute` inherit whatever stacking context their scroll
@@ -160,6 +175,7 @@ export function resolveConfirmPrompt(value: boolean): void {
   resolve?.(value);
 }
 expose('resolveConfirmPrompt', resolveConfirmPrompt);
+expose('filterSoon', filterSoon);
 
 // Dates and times: the one family lives in ./dates (pure, so lib modules can use it too).
 export * from './dates';

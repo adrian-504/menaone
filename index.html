@@ -578,7 +578,7 @@
         <button data-when="past" onclick="setMeetingFilter('past')">Past</button>
         <button data-when="writeup" onclick="setMeetingFilter('writeup')" data-tip="Past meetings with no notes, decisions or action items">Needs write-up</button>
       </div>
-      <input type="text" class="f-search" id="meeting-search" placeholder="Search title, company, attendee…" oninput="renderMeetingsTab()" aria-label="Search meetings">
+      <input type="text" class="f-search" id="meeting-search" placeholder="Search title, company, attendee…" oninput="filterSoon('renderMeetingsTab')" aria-label="Search meetings">
       <span class="rcnt" id="meeting-count"></span>
     </div>
     <div id="meeting-list"></div>
@@ -897,7 +897,7 @@
         <button onclick="setProjectFilter('client')">Client</button>
         <button onclick="setProjectFilter('internal')">Internal</button>
       </div>
-      <input type="text" class="f-search" id="proj-search" placeholder="Search projects…" oninput="renderProjects()">
+      <input type="text" class="f-search" id="proj-search" placeholder="Search projects…" oninput="filterSoon('renderProjects')">
       <select class="ssel" id="proj-status-filter" onchange="renderProjects()">
         <option value="">All Statuses</option>
         <option>Idea</option><option>Planning</option><option>Not Started</option><option>In Progress</option>
@@ -1340,7 +1340,7 @@
   </div>
   <nav class="pr-views" data-pr-views aria-label="Proposal views"></nav>
   <div class="fbar">
-    <input type="text" class="f-search" id="wq-search" placeholder="Search client, type, owner…" oninput="renderPending()">
+    <input type="text" class="f-search" id="wq-search" placeholder="Search client, type, owner…" oninput="filterSoon('renderPending')">
     <select class="fsel" id="wq-filter-status" onchange="renderPending()">
       <option value="">All stages</option>
       <option value="Proposal Request Received">Request received</option>
@@ -1412,7 +1412,7 @@
   <div class="ct-people-banner" id="ct-people-banner" hidden></div>
   <div class="ct-people-banner" id="ct-email-banner" hidden></div>
   <div class="fbar">
-    <input type="text" class="f-search" id="ct-search" placeholder="Search name, company, email, role, service…" oninput="renderContacts()">
+    <input type="text" class="f-search" id="ct-search" placeholder="Search name, company, email, role, service…" oninput="filterSoon('renderContacts')">
     <select class="fsel" id="ct-client" onchange="renderContacts()"><option value="">All Clients</option></select>
     <select class="fsel" id="ct-list-filter" onchange="renderContacts()"><option value="">All lists</option></select>
     <select class="fsel" id="ct-type-filter" onchange="renderContacts()" title="Contacts at companies that were offered or are on retainer for this service"><option value="">All services</option></select>
@@ -1465,7 +1465,7 @@
     <div class="co-review-queue" id="co-review-queue" style="display:none"></div>
     <div class="co-quality-bar" id="co-quality-bar"></div>
     <div class="co-search-bar">
-      <input type="text" class="f-search" id="co-search" placeholder="Search companies…" oninput="renderCompanyList()">
+      <input type="text" class="f-search" id="co-search" placeholder="Search companies…" oninput="filterSoon('renderCompanyList')">
       <select class="fsel" id="co-filter-status" onchange="renderCompanyList()" aria-label="Relationship">
         <option value="">Any relationship</option>
         <option value="client">Active clients</option>
@@ -1680,7 +1680,7 @@
   </div>
   <div id="agr-summary" class="kpi-row-auto"></div>
   <div class="fbar">
-    <input type="text" class="f-search" id="agr-search" placeholder="Search client, reference, service, remarks…" oninput="renderAgreements()">
+    <input type="text" class="f-search" id="agr-search" placeholder="Search client, reference, service, remarks…" oninput="filterSoon('renderAgreements')">
     <select class="fsel" id="agr-status" onchange="renderAgreements()"><option value="">All statuses</option></select>
     <select class="fsel" id="agr-service" onchange="renderAgreements()"><option value="">Any service status</option></select>
     <select class="fsel" id="agr-type" onchange="renderAgreements()"><option value="">All types</option></select>
@@ -1991,7 +1991,7 @@
     </div>
   </div>
   <div class="fbar">
-    <input type="text" class="f-search" id="r-search" placeholder="Search client…" oninput="renderReports()">
+    <input type="text" class="f-search" id="r-search" placeholder="Search client…" oninput="filterSoon('renderReports')">
     <select class="fsel" id="r-status" onchange="renderReports()"><option value="">All</option></select>
     <select class="fsel" id="r-type" onchange="renderReports()"><option value="">All</option></select>
     <span class="fbar-range">Sent <input type="date" id="r-df" onchange="renderReports()" aria-label="Sent from"> to <input type="date" id="r-dt" onchange="renderReports()" aria-label="Sent to"></span>
@@ -2084,7 +2084,7 @@
     <button class="seg-btn" data-svc-view="templates" onclick="setServicesView('templates')">Proposal templates</button>
   </div>
   <div class="fbar">
-    <input type="text" class="f-search" id="price-search" placeholder="Search services…" oninput="renderPricingTab()">
+    <input type="text" class="f-search" id="price-search" placeholder="Search services…" oninput="filterSoon('renderPricingTab')">
     <select class="fsel" id="price-filter" onchange="renderPricingTab()"><option value="">All categories</option></select>
     <label class="check-label" id="svc-inactive-wrap"><input type="checkbox" id="svc-show-inactive" onchange="renderPricingTab()"> Show retired services</label>
   </div>
