@@ -1430,12 +1430,15 @@ export function renderCoContacts(d: CompanyData): void {
   const last = lastContactByPerson(input);
   list.innerHTML = orderPeople(d.contacts, last).map((c) => {
     const lc = last.get(c.id);
-    const lastHtml = lc ? `<span class="co-last" title="Last contact">${escHtml(fmtShort(lc.date))} · ${lc.kind === 'meeting' ? recordLink('meeting', lc.id, lc.label) : escHtml(lc.label)}</span>` : '';
+    // One quiet line in the narrow rail: role · last contact's date; what it was is in the tooltip.
+    const lastHtml = lc ? `<span class="co-last">${escHtml(fmtShort(lc.date))}</span>` : '';
+    const lastTitle = lc ? `Last contact ${fmtShort(lc.date)} · ${lc.label}` : '';
     return `<div class="rec-row" onclick="openRecord('contact', ${c.id})" data-drag-kind="contact" data-drag-id="${c.id}">
     <span class="rec-row-avatar" style="background:${strColor(c.name || '?')}">${escHtml(initials(c.name || '?'))}</span>
     <div class="rec-row-main">
-      <div class="rec-row-title">${recordLink('contact', c.id, c.name || 'Unnamed contact')}${c.isDecisionMaker ? ' <span class="chip co-dm">Decision maker</span>' : ''}</div>
-      <div class="rec-row-sub">${[escHtml(c.role || c.email || 'No details yet'), lastHtml].filter(Boolean).join(' · ')}</div>
+      <div class="rec-row-title">${recordLink('contact', c.id, c.name || 'Unnamed contact')}</div>
+      ${c.isDecisionMaker ? '<div class="co-dm-line"><span class="chip co-dm">Decision maker</span></div>' : ''}
+      <div class="rec-row-sub" title="${escHtml(lastTitle)}">${[escHtml(c.role || c.email || 'No details yet'), lastHtml].filter(Boolean).join(' · ')}</div>
     </div>
     <div class="rec-row-actions">${contactActionButtons(c)}<button class="rec-icon-btn" title="More" aria-label="More" onclick="event.stopPropagation();companyPersonMenu(event, ${c.id})">${icon('more', 14)}</button></div>
   </div>`;

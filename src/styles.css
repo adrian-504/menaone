@@ -1399,10 +1399,13 @@ body.dnd-active .board-column.drop-target{background:var(--accent-bg)!important}
 .co-people .rec-row{padding:6px 0;border:0;border-top:1px solid var(--hairline);border-radius:0;background:none}
 .co-people .rec-row:first-child{border-top:0}
 .co-people .rec-row-avatar{width:26px;height:26px;font-size:10px}
-.co-people .rec-row-title{font-size:var(--type-secondary);white-space:normal}
-.co-people .rec-row-sub{font-size:var(--type-meta);white-space:normal}
-.co-people .co-dm{font-size:10px}
-.co-people .rec-row-actions{visibility:hidden}
+.co-people .rec-row{position:relative}
+.co-people .rec-row-main{min-width:0}
+.co-people .rec-row-title{font-size:var(--type-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.co-people .rec-row-sub{font-size:var(--type-meta);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.co-people .co-dm-line{margin:2px 0 1px;line-height:1}
+.co-people .co-dm{height:18px;font-size:11px;padding:0 6px}
+.co-people .rec-row-actions{visibility:hidden;position:absolute;right:0;top:50%;transform:translateY(-50%);padding-left:12px;background:linear-gradient(to right,transparent,var(--surface-flat) 12px)}
 .co-people .rec-row:hover .rec-row-actions,.co-people .rec-row:focus-within .rec-row-actions{visibility:visible;opacity:1}
 /* Where we stand: one labelled line per clause. */
 .co-stand{display:flex;flex-direction:column}
