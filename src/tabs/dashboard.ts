@@ -13,7 +13,10 @@ import type { Proposal } from '../lib/types';
 
 // Bundled with the app: a script loaded from a CDN would run with full
 // access to the app, and charts would break offline.
-import Chart from 'chart.js/auto';
+// Chart.js is its own chunk, loaded the first time the dashboard draws (foundations P2).
+let Chart: typeof import('chart.js/auto').default | null = null;
+let chartLoading: Promise<unknown> | null = null;
+const chartReady = () => (chartLoading ??= import('chart.js/auto').then((m) => { Chart = m.default; }));
 
 export function destroyChart(id: string): void {
   if (S.charts[id]) { S.charts[id].destroy(); delete S.charts[id]; }
@@ -28,7 +31,7 @@ export function renderDashboard(): void {
   set('kpi-service', new Set(S.agreements.filter((a) => isAgreementActive(a)).map((a) => a.companyId ?? a.client)).size);
   set('kpi-closed', dp.filter(isLost).length);
   updateBadge();
-  setTimeout(() => { renderStatusChart(dp); renderTypeChart(dp); renderMonthlyChart(dp); renderTopClients(dp); }, 10);
+  void chartReady().then(() => { renderStatusChart(dp); renderTypeChart(dp); renderMonthlyChart(dp); renderTopClients(dp); });
   renderWorkManagementKpis();
   renderRelationshipsKpis();
   renderKnowledgeKpis();
@@ -102,6 +105,7 @@ function renderKnowledgeKpis(): void {
 }
 
 export function renderStatusChart(dp?: Proposal[]): void {
+  if (!Chart) { void chartReady().then(() => renderStatusChart(dp)); return; }
   dp = dp || S.proposals;
   destroyChart('status');
   const counts: Record<string, number> = {};
@@ -112,7 +116,7 @@ export function renderStatusChart(dp?: Proposal[]): void {
   const colors = labels.map((s) => themeColor(toneVar(statusTone('proposal', s))));
   const ctx = document.getElementById('ch-status') as HTMLCanvasElement | null;
   if (!ctx) return;
-  S.charts.status = new Chart(ctx, {
+  S.charts.status = new Chart!(ctx, {
     type: 'bar',
     data: { labels: labels.map((s) => (s.length > 26 ? s.slice(0, 24) + '…' : s)), datasets: [{ data, backgroundColor: colors, borderRadius: 4, borderSkipped: false }] },
     options: {
@@ -124,6 +128,7 @@ export function renderStatusChart(dp?: Proposal[]): void {
 }
 
 export function renderTypeChart(dp?: Proposal[]): void {
+  if (!Chart) { void chartReady().then(() => renderTypeChart(dp)); return; }
   dp = dp || S.proposals;
   destroyChart('type');
   const counts: Record<string, number> = {};
@@ -135,7 +140,7 @@ export function renderTypeChart(dp?: Proposal[]): void {
   const colors = chartPalette().slice(0, top8.length);
   const ctx = document.getElementById('ch-type') as HTMLCanvasElement | null;
   if (!ctx) return;
-  S.charts.type = new Chart(ctx, {
+  S.charts.type = new Chart!(ctx, {
     type: 'doughnut',
     data: { labels: top8.map((d) => d.name), datasets: [{ data: top8.map((d) => d.value), backgroundColor: colors, borderWidth: 2, borderColor: themeColor('--surface'), hoverOffset: 4 }] },
     options: { responsive: true, maintainAspectRatio: false, cutout: '55%', plugins: { legend: { display: false }, tooltip: { callbacks: { label: (i: any) => `${i.label}: ${i.raw}` } } } },
@@ -145,6 +150,7 @@ export function renderTypeChart(dp?: Proposal[]): void {
 }
 
 export function renderMonthlyChart(dp?: Proposal[]): void {
+  if (!Chart) { void chartReady().then(() => renderMonthlyChart(dp)); return; }
   dp = dp || S.proposals;
   destroyChart('monthly');
   const counts: Record<string, { count: number; label: string }> = {};
@@ -157,7 +163,7 @@ export function renderMonthlyChart(dp?: Proposal[]): void {
   const sorted = Object.entries(counts).sort((a, b) => a[0].localeCompare(b[0]));
   const ctx = document.getElementById('ch-monthly') as HTMLCanvasElement | null;
   if (!ctx) return;
-  S.charts.monthly = new Chart(ctx, {
+  S.charts.monthly = new Chart!(ctx, {
     type: 'line',
     data: { labels: sorted.map(([, v]) => v.label), datasets: [{ data: sorted.map(([, v]) => v.count), borderColor: themeColor('--accent'), backgroundColor: themeColor('--accent-bg'), fill: true, tension: 0.35, pointBackgroundColor: themeColor('--accent'), pointRadius: 3, pointHoverRadius: 5, borderWidth: 2 }] },
     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: (i: any) => `Proposals: ${i.raw}` } } }, scales: { x: { grid: { display: false }, ticks: { color: themeColor('--muted'), font: { size: 9 }, maxRotation: 35 } }, y: { grid: { color: themeColor('--border') }, ticks: { color: themeColor('--muted'), font: { size: 10 } }, beginAtZero: true } } },

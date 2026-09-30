@@ -3,7 +3,7 @@
 // app weird — the notes flicker, unselect, then select a different note." The
 // cause: loading a note into the editor counted as an edit, so 600 ms later it
 // was "saved" with today's date and jumped up the list under the pointer.
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest';
 
 vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn(async () => []) }));
 // jsdom has no layout: CodeMirror and scrollIntoView get stand-ins.
@@ -16,7 +16,7 @@ vi.mock('../lib/db', async (orig) => ({ ...(await orig<typeof import('../lib/db'
 
 import { S } from '../lib/state';
 import { persistNotes } from '../lib/persist';
-import { openNote, autoSaveNote } from './notes';
+import { openNote, autoSaveNote, notesEditorReady } from './notes';
 import type { Note } from '../lib/types';
 
 const note = (id: number, title: string, updatedAt: string): Note => ({
@@ -27,6 +27,9 @@ const note = (id: number, title: string, updatedAt: string): Note => ({
 document.body.innerHTML = `<div id="notes-list"></div><div id="notes-empty"></div>
   <div id="notes-editor-panel"><textarea id="notes-title-inp"></textarea><div id="notes-props"></div><div id="notes-editor"></div><footer id="notes-relations"></footer></div>
   <span id="notes-ts"></span><span id="notes-save-status"></span>`;
+
+// The editor is its own chunk (foundations P2): load it once, as opening Notes does.
+beforeAll(async () => { await notesEditorReady(); });
 
 beforeEach(() => {
   document.getElementById('notes-list')!.innerHTML = '';

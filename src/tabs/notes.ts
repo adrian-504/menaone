@@ -28,12 +28,18 @@ import { attachCompanySelector } from '../lib/companySelector';
 import { registerDragSource, registerDropTarget } from '../lib/dnd';
 import { saveTextFileAs } from '../lib/files';
 import { renderIcons } from '../core/chrome';
-import {
-  createNoteEditor, setEditorDoc, insertAtCursor, wrapSelection, insertLink,
-  insertLinePrefix, insertCodeBlock, insertDivider,
-} from '../lib/markdownEditor';
 import type { EditorView } from '@codemirror/view';
 import type { Note, EntityLink, Todo } from '../lib/types';
+
+// The editor (CodeMirror) is its own chunk, loaded the first time Notes opens
+// (foundations P2) — it's most of the app's weight and most sessions never write a note.
+let md: typeof import('../lib/markdownEditor') | null = null;
+let mdLoading: Promise<typeof import('../lib/markdownEditor')> | null = null;
+export function notesEditorReady(): Promise<typeof import('../lib/markdownEditor')> {
+  if (md) return Promise.resolve(md);
+  mdLoading ??= import('../lib/markdownEditor').then((m) => (md = m));
+  return mdLoading;
+}
 
 // ── Nested folders: "/"-delimited path strings (e.g. "Clients/Acme Holdings")
 // in the flat noteFolders list — the tree is derived here.
@@ -279,7 +285,7 @@ export function renderNotesTab(): void {
   applyNotesLayout();
   if (S.currentNoteId == null) renderNotesEmpty();
 }
-registerTabRenderer('notes', renderNotesTab);
+registerTabRenderer('notes', () => { void notesEditorReady(); renderNotesTab(); });
 expose('renderNotesTab', renderNotesTab);
 
 // ── Note list ───────────────────────────────────────────────────────────────
@@ -506,7 +512,7 @@ async function onImageFile(file: File): Promise<void> {
   reader.onload = async () => {
     const dataUrl = reader.result as string;
     const att = await saveAttachment(S.currentNoteId!, file.name || 'image.png', dataUrl);
-    if (noteEditorView) insertAtCursor(noteEditorView, `![](attachment://${att.id})`);
+    if (noteEditorView) md!.insertAtCursor(noteEditorView, `![](attachment://${att.id})`);
   };
   reader.readAsDataURL(file);
 }
@@ -515,7 +521,7 @@ function getOrCreateEditor(): EditorView {
   if (noteEditorView) return noteEditorView;
   const container = document.getElementById('notes-editor');
   if (!container) throw new Error('notes-editor container missing');
-  noteEditorView = createNoteEditor(container, {
+  noteEditorView = md!.createNoteEditor(container, {
     doc: '',
     onChange: () => autoSaveNote(),
     resolveWikilink: resolveWikilinkTitle,
@@ -555,6 +561,7 @@ function currentNote(): Note | undefined {
 export function openNote(id: number): void {
   const n = S.notes.find((x) => x.id === id);
   if (!n) return;
+  if (!md) { void notesEditorReady().then(() => openNote(id)); return; }
   // The note being left: its pending edit is saved now, and its timer can no longer land on this one.
   if (S.noteAutoSaveTimer) { window.clearTimeout(S.noteAutoSaveTimer); S.noteAutoSaveTimer = null; }
   if (S.noteChanged && S.currentNoteId && S.currentNoteId !== id) saveCurrentNote();
@@ -569,7 +576,7 @@ export function openNote(id: number): void {
   titleEl.value = n.title && n.title !== 'Untitled' ? n.title : '';
   autoGrowNoteTitle();
   const view = getOrCreateEditor();
-  setEditorDoc(view, n.content || '');
+  md!.setEditorDoc(view, n.content || '');
   if (noteProjectLoadedFor !== id) noteProjectId = null;
   renderNoteProps(n);
   updatePinButton(n);
@@ -1142,19 +1149,19 @@ expose('insertWikilink', insertWikilink);
 interface SlashCmd { id: string; label: string; hint: string; keywords: string; glyph: string; run: (view: EditorView) => void }
 
 const SLASH_COMMANDS: SlashCmd[] = [
-  { id: 'h1', label: 'Heading 1', hint: 'Big section heading', keywords: 'h1 heading title big', glyph: 'H1', run: (v) => insertLinePrefix(v, '# ') },
-  { id: 'h2', label: 'Heading 2', hint: 'Medium section heading', keywords: 'h2 heading subtitle', glyph: 'H2', run: (v) => insertLinePrefix(v, '## ') },
-  { id: 'h3', label: 'Heading 3', hint: 'Small section heading', keywords: 'h3 heading', glyph: 'H3', run: (v) => insertLinePrefix(v, '### ') },
-  { id: 'checklist', label: 'Checklist', hint: 'Track to-dos with checkboxes', keywords: 'todo check checkbox task', glyph: '☑', run: (v) => insertLinePrefix(v, '- [ ] ') },
-  { id: 'bullet', label: 'Bulleted list', hint: 'Simple bullet list', keywords: 'ul bullet list unordered', glyph: '•', run: (v) => insertLinePrefix(v, '- ') },
-  { id: 'numbered', label: 'Numbered list', hint: 'List with numbering', keywords: 'ol number list ordered', glyph: '1.', run: (v) => insertLinePrefix(v, '1. ') },
-  { id: 'quote', label: 'Quote', hint: 'Capture a quote', keywords: 'quote blockquote', glyph: '❝', run: (v) => insertLinePrefix(v, '> ') },
-  { id: 'code', label: 'Code block', hint: 'Monospaced snippet', keywords: 'code pre block', glyph: '{ }', run: (v) => insertCodeBlock(v) },
-  { id: 'link', label: 'Link', hint: 'Insert a web link', keywords: 'link url href', glyph: '↗', run: (v) => insertLink(v) },
-  { id: 'note', label: 'Link to note', hint: 'Connect another note', keywords: 'wikilink note backlink', glyph: '[[', run: (v) => insertAtCursor(v, '[[') },
-  { id: 'divider', label: 'Divider', hint: 'Break between sections', keywords: 'hr divider rule line separator', glyph: '—', run: (v) => insertDivider(v) },
-  { id: 'bold', label: 'Bold', hint: 'Emphasize text', keywords: 'b bold strong', glyph: 'B', run: (v) => wrapSelection(v, '**') },
-  { id: 'italic', label: 'Italic', hint: 'Italicize text', keywords: 'i italic em', glyph: 'I', run: (v) => wrapSelection(v, '*') },
+  { id: 'h1', label: 'Heading 1', hint: 'Big section heading', keywords: 'h1 heading title big', glyph: 'H1', run: (v) => md!.insertLinePrefix(v, '# ') },
+  { id: 'h2', label: 'Heading 2', hint: 'Medium section heading', keywords: 'h2 heading subtitle', glyph: 'H2', run: (v) => md!.insertLinePrefix(v, '## ') },
+  { id: 'h3', label: 'Heading 3', hint: 'Small section heading', keywords: 'h3 heading', glyph: 'H3', run: (v) => md!.insertLinePrefix(v, '### ') },
+  { id: 'checklist', label: 'Checklist', hint: 'Track to-dos with checkboxes', keywords: 'todo check checkbox task', glyph: '☑', run: (v) => md!.insertLinePrefix(v, '- [ ] ') },
+  { id: 'bullet', label: 'Bulleted list', hint: 'Simple bullet list', keywords: 'ul bullet list unordered', glyph: '•', run: (v) => md!.insertLinePrefix(v, '- ') },
+  { id: 'numbered', label: 'Numbered list', hint: 'List with numbering', keywords: 'ol number list ordered', glyph: '1.', run: (v) => md!.insertLinePrefix(v, '1. ') },
+  { id: 'quote', label: 'Quote', hint: 'Capture a quote', keywords: 'quote blockquote', glyph: '❝', run: (v) => md!.insertLinePrefix(v, '> ') },
+  { id: 'code', label: 'Code block', hint: 'Monospaced snippet', keywords: 'code pre block', glyph: '{ }', run: (v) => md!.insertCodeBlock(v) },
+  { id: 'link', label: 'Link', hint: 'Insert a web link', keywords: 'link url href', glyph: '↗', run: (v) => md!.insertLink(v) },
+  { id: 'note', label: 'Link to note', hint: 'Connect another note', keywords: 'wikilink note backlink', glyph: '[[', run: (v) => md!.insertAtCursor(v, '[[') },
+  { id: 'divider', label: 'Divider', hint: 'Break between sections', keywords: 'hr divider rule line separator', glyph: '—', run: (v) => md!.insertDivider(v) },
+  { id: 'bold', label: 'Bold', hint: 'Emphasize text', keywords: 'b bold strong', glyph: 'B', run: (v) => md!.wrapSelection(v, '**') },
+  { id: 'italic', label: 'Italic', hint: 'Italicize text', keywords: 'i italic em', glyph: 'I', run: (v) => md!.wrapSelection(v, '*') },
 ];
 
 let slashCandidates: SlashCmd[] = [];
@@ -1246,29 +1253,29 @@ function handleEditorMenuKey(e: KeyboardEvent): boolean {
 function withEditor(fn: (view: EditorView) => void): void {
   if (noteEditorView) fn(noteEditorView);
 }
-export function mdBold(): void { withEditor((v) => wrapSelection(v, '**')); }
+export function mdBold(): void { withEditor((v) => md!.wrapSelection(v, '**')); }
 expose('mdBold', mdBold);
-export function mdItalic(): void { withEditor((v) => wrapSelection(v, '*')); }
+export function mdItalic(): void { withEditor((v) => md!.wrapSelection(v, '*')); }
 expose('mdItalic', mdItalic);
-export function mdStrike(): void { withEditor((v) => wrapSelection(v, '~~')); }
+export function mdStrike(): void { withEditor((v) => md!.wrapSelection(v, '~~')); }
 expose('mdStrike', mdStrike);
-export function mdInlineCode(): void { withEditor((v) => wrapSelection(v, '`')); }
+export function mdInlineCode(): void { withEditor((v) => md!.wrapSelection(v, '`')); }
 expose('mdInlineCode', mdInlineCode);
-export function mdHeading(level: number): void { withEditor((v) => insertLinePrefix(v, '#'.repeat(level) + ' ')); }
+export function mdHeading(level: number): void { withEditor((v) => md!.insertLinePrefix(v, '#'.repeat(level) + ' ')); }
 expose('mdHeading', mdHeading);
-export function mdBulletList(): void { withEditor((v) => insertLinePrefix(v, '- ')); }
+export function mdBulletList(): void { withEditor((v) => md!.insertLinePrefix(v, '- ')); }
 expose('mdBulletList', mdBulletList);
-export function mdNumberedList(): void { withEditor((v) => insertLinePrefix(v, '1. ')); }
+export function mdNumberedList(): void { withEditor((v) => md!.insertLinePrefix(v, '1. ')); }
 expose('mdNumberedList', mdNumberedList);
-export function mdChecklist(): void { withEditor((v) => insertLinePrefix(v, '- [ ] ')); }
+export function mdChecklist(): void { withEditor((v) => md!.insertLinePrefix(v, '- [ ] ')); }
 expose('mdChecklist', mdChecklist);
-export function mdQuote(): void { withEditor((v) => insertLinePrefix(v, '> ')); }
+export function mdQuote(): void { withEditor((v) => md!.insertLinePrefix(v, '> ')); }
 expose('mdQuote', mdQuote);
-export function mdCode(): void { withEditor((v) => insertCodeBlock(v)); }
+export function mdCode(): void { withEditor((v) => md!.insertCodeBlock(v)); }
 expose('mdCode', mdCode);
-export function mdLink(): void { withEditor((v) => insertLink(v)); }
+export function mdLink(): void { withEditor((v) => md!.insertLink(v)); }
 expose('mdLink', mdLink);
-export function mdDivider(): void { withEditor((v) => insertDivider(v)); }
+export function mdDivider(): void { withEditor((v) => md!.insertDivider(v)); }
 expose('mdDivider', mdDivider);
 
 // ── Folders ─────────────────────────────────────────────────────────────────
