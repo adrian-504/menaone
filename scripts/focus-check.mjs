@@ -1,20 +1,33 @@
 // Focus check (docs/ux-conventions.md, "Focus"): opens every main view of the
-// dev preview (npm run dev — sample data only, never the real database) in
+// app on its sample data (src/lib/devMock.ts — never the real database) in
 // headless Chrome at 1440x900 and counts what is visible before scrolling,
 // outside the sidebar, location bar and record rail: input boxes, buttons,
 // blue (primary) buttons. Fails when a view shows more than one primary, a
 // select sits in a list row, an empty text box comes first, or a page is over
 // its targets, a view shifts layout after it opens (CLS > 0.01 in 1.5 s), or a
 // list loses its scroll position when you leave and come back.
-// `node scripts/focus-check.mjs [--json]`
+//
+// By default it builds the app once (with the sample data compiled in) and
+// serves that build with `vite preview` on port 1430, so nothing re-bundles or
+// reloads the page mid-run. `--dev` (or FOCUS_URL) checks a running dev server
+// instead — quicker while iterating (`npm run dev`, default http://localhost:1420/).
+// `--stable` opens My Day three times at 1080 × 940 (stacked) and 1680 × 1020
+// (docked) and fails a size only if all three attempts fail.
+// `node scripts/focus-check.mjs [--dev] [--stable] [--json]`
 import { spawn } from 'node:child_process';
 import { mkdtempSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-const URL = process.env.FOCUS_URL || 'http://localhost:1420/';
+const DEV = process.argv.includes('--dev') || !!process.env.FOCUS_URL;
+const STABLE = process.argv.includes('--stable');
+const PREVIEW_PORT = 1430;
+const APP_URL = DEV ? process.env.FOCUS_URL || 'http://localhost:1420/' : `http://localhost:${PREVIEW_PORT}/`;
 // The window (default 1440 × 900); VW=1080 VH=940 or VW=1680 VH=1020 check My Day's stacked and docked layouts.
 const VW = Number(process.env.VW || 1440), VH = Number(process.env.VH || 900);
+// --stable: My Day's two layouts, three tries each.
+const STABLE_SIZES = [[1080, 940], [1680, 1020]], TRIES = 3;
 const CHROME = process.env.CHROME || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 // [name, how to open it, targets]
 // A tab only renders when its module is loaded: tab modules register their
@@ -94,12 +107,25 @@ const COUNT = `(() => {
   return JSON.stringify({ activeShown, errorToasts, popover, inputs: inputs.length, filters, buttons, primary, height: document.scrollingElement.scrollHeight, names, rowSelects, emptyBoxFirst, isNew, eyebrows });
 })()`;
 
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const root = fileURLToPath(new URL('..', import.meta.url));
+const vite = join(root, 'node_modules/.bin/vite');
+let preview;
+if (!DEV) {
+  // A build with the sample data in it: NODE_ENV=development keeps import.meta.env.DEV true (devMock, gallery).
+  const out = join(tmpdir(), 'menaone-focus-build');
+  const built = await new Promise((r) => spawn(vite, ['build', '--outDir', out, '--emptyOutDir', '--logLevel', 'error'], { cwd: root, stdio: 'inherit', env: { ...process.env, NODE_ENV: 'development' } }).on('exit', r));
+  if (built !== 0) { console.error('vite build failed'); process.exit(2); }
+  preview = spawn(vite, ['preview', '--outDir', out, '--port', String(PREVIEW_PORT), '--strictPort'], { cwd: root, stdio: 'ignore' });
+  let up = false;
+  for (let i = 0; i < 50 && !up; i++) { await sleep(200); try { up = (await fetch(APP_URL)).ok; } catch {} }
+  if (!up) { preview.kill(); console.error(`vite preview did not start on port ${PREVIEW_PORT} (in use?)`); process.exit(2); }
+}
 const port = 9400 + Math.floor(Math.random() * 400);
 const chrome = spawn(CHROME, ['--headless=new', `--remote-debugging-port=${port}`, `--user-data-dir=${mkdtempSync(join(tmpdir(), 'focus-'))}`, '--hide-scrollbars', 'about:blank'], { stdio: 'ignore' });
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let target;
 for (let i = 0; i < 60 && !target; i++) { await sleep(200); try { target = (await (await fetch(`http://127.0.0.1:${port}/json`)).json()).find((t) => t.type === 'page'); } catch {} }
-if (!target) { console.error('Chrome did not start'); process.exit(2); }
+if (!target) { preview?.kill(); console.error('Chrome did not start'); process.exit(2); }
 const ws = new WebSocket(target.webSocketDebuggerUrl);
 await new Promise((r) => ws.addEventListener('open', r));
 let id = 0; const pending = new Map();
@@ -107,8 +133,6 @@ ws.addEventListener('message', (e) => { const m = JSON.parse(e.data); if (m.id &
 const send = (method, params = {}) => new Promise((r) => { const i = ++id; pending.set(i, r); ws.send(JSON.stringify({ id: i, method, params })); });
 const evalJs = async (expr) => (await send('Runtime.evaluate', { expression: expr, awaitPromise: true, returnByValue: true })).result?.result?.value;
 
-await send('Emulation.setDeviceMetricsOverride', { width: VW, height: VH, deviceScaleFactor: 1, mobile: false });
-const results = [];
 // Ready = the app has started and painted My Day (not a fixed wait: the dev server can reload the page
 // while it re-bundles, and a view switched before the app is up is measured half-drawn).
 const ready = async () => {
@@ -117,8 +141,12 @@ const ready = async () => {
     await sleep(200);
   }
 };
-for (const [name, js, t] of VIEWS.filter(([n]) => !process.env.ONLY || n.startsWith(process.env.ONLY))) {
-  await send('Page.navigate', { url: URL });
+/** Opens each view at vw × vh and returns what it counted and what's wrong. */
+async function check(views, vw, vh) {
+const results = [];
+await send('Emulation.setDeviceMetricsOverride', { width: vw, height: vh, deviceScaleFactor: 1, mobile: false });
+for (const [name, js, t] of views) {
+  await send('Page.navigate', { url: APP_URL });
   await sleep(1000);
   await ready();
   await sleep(500);
@@ -138,14 +166,14 @@ for (const [name, js, t] of VIEWS.filter(([n]) => !process.env.ONLY || n.startsW
     const y1 = await evalJs(`(${js}), new Promise(r => setTimeout(() => r(window.scrollY), 600))`);
     c.scroll = y0 > 0 ? `${y0}→${y1}` : 'short';
     if (y0 > 0 && Math.abs(y1 - y0) > 2) c.scrollLost = true;
-    await send('Emulation.setDeviceMetricsOverride', { width: VW, height: VH, deviceScaleFactor: 1, mobile: false });
+    await send('Emulation.setDeviceMetricsOverride', { width: vw, height: vh, deviceScaleFactor: 1, mobile: false });
   }
   const problems = [];
   if (c.primary > 1) problems.push(`${c.primary} blue buttons`);
   if (t.inputs != null && c.inputs > t.inputs) problems.push(`${c.inputs} inputs (target ≤${t.inputs})`);
   if (t.buttons != null && c.buttons > t.buttons) problems.push(`${c.buttons} buttons (target ≤${t.buttons})`);
   if (t.filters != null && c.filters > t.filters) problems.push(`${c.filters} filter controls (target ≤${t.filters})`);
-  if (t.fitsScreen && c.height > 900) problems.push(`${c.height}px tall (target one screen)`);
+  if (t.fitsScreen && c.height > vh) problems.push(`${c.height}px tall (target one screen, ${vh})`);
   if (c.rowSelects) problems.push(`${c.rowSelects} selects in list rows`);
   if (c.emptyBoxFirst) problems.push('an empty text box comes first');
   if (c.cls > 0.01) problems.push(`layout shift ${c.cls}`);
@@ -156,19 +184,39 @@ for (const [name, js, t] of VIEWS.filter(([n]) => !process.env.ONLY || n.startsW
   if (t.noPopover && c.popover) problems.push('the company suggestion list is still open');
   results.push({ name, ...c, problems });
 }
+return results;
+}
+const line = (r) => `${r.problems.length ? '✗' : '✓'} ${r.name.padEnd(22)} inputs ${String(r.inputs).padStart(2)} · buttons ${String(r.buttons).padStart(2)} · blue ${r.primary}${r.filters ? ` · filters ${r.filters}` : ''}${r.eyebrows != null ? ` · eyebrows ${r.eyebrows}` : ''} · shift ${r.cls}${r.scroll ? ` · scroll ${r.scroll}` : ''}${r.problems.length ? `  — ${r.problems.join(', ')}` : ''}`;
+const done = (code) => { ws.close(); chrome.kill(); preview?.kill(); process.exit(code); };
+
+if (STABLE) {
+  const myday = VIEWS.filter(([n]) => n === 'My Day');
+  let failed = false;
+  for (const [w, h] of STABLE_SIZES) {
+    const tries = [];
+    for (let i = 0; i < TRIES; i++) tries.push((await check(myday, w, h))[0]);
+    const passed = tries.filter((r) => !r.problems.length).length;
+    if (!passed) failed = true;
+    console.log(`${passed ? '✓' : '✗'} My Day at ${w} × ${h}: ${passed}/${TRIES} passed`);
+    for (const r of tries) console.log(`    ${line(r)}`);
+  }
+  done(failed ? 1 : 0);
+}
+
+const results = await check(VIEWS.filter(([n]) => !process.env.ONLY || n.startsWith(process.env.ONLY)), VW, VH);
 // The sidebar toggle is measured after its slide (delight 0a): once it has
 // settled, nothing on the page moves.
 if (!process.env.ONLY) {
-  await send('Page.navigate', { url: URL });
-  await sleep(2500);
+  await send('Page.navigate', { url: APP_URL });
+  await sleep(1000);
+  await ready();
   await evalJs(`switchTab('myday'), toggleSidebar(), new Promise(r => setTimeout(r, 700))`);
   await evalJs(`window.__cls = 0; new PerformanceObserver((l) => { for (const e of l.getEntries()) if (!e.hadRecentInput) window.__cls += e.value; }).observe({ type: 'layout-shift', buffered: false })`);
   const cls = await evalJs('new Promise(r => setTimeout(() => r(Math.round(window.__cls * 1000) / 1000), 1500))');
   await evalJs('toggleSidebar()');
   results.push({ name: 'Sidebar collapsed', inputs: 0, buttons: 0, primary: 0, cls, names: [], problems: cls > 0.01 ? [`layout shift ${cls} after the slide`] : [] });
 }
-ws.close(); chrome.kill();
 if (process.env.ONLY) for (const r of results) console.log(r.name, r.names.join(' | '));
 if (process.argv.includes('--json')) console.log(JSON.stringify(results, null, 1));
-else for (const r of results) console.log(`${r.problems.length ? '✗' : '✓'} ${r.name.padEnd(22)} inputs ${String(r.inputs).padStart(2)} · buttons ${String(r.buttons).padStart(2)} · blue ${r.primary}${r.filters ? ` · filters ${r.filters}` : ''}${r.eyebrows != null ? ` · eyebrows ${r.eyebrows}` : ''} · shift ${r.cls}${r.scroll ? ` · scroll ${r.scroll}` : ''}${r.problems.length ? `  — ${r.problems.join(', ')}` : ''}`);
-process.exit(results.some((r) => r.problems.length) ? 1 : 0);
+else for (const r of results) console.log(line(r));
+done(results.some((r) => r.problems.length) ? 1 : 0);
