@@ -154,6 +154,23 @@ pub fn rename_company_row(conn: &Connection, id: i64, name: &str) -> Result<(), 
     Ok(())
 }
 
+/// Undo (owner, 30-Sep-2026: "Undo everywhere"): the timeline rows a trigger
+/// wrote for one record since the action was taken — and those written when the
+/// undo itself was saved — go, so an undone action leaves no trace. Only rows
+/// at or after `since` (UTC, the same format the triggers write).
+pub fn forget_activity_since(conn: &Connection, entity_type: &str, entity_id: i64, since: &str) -> rusqlite::Result<usize> {
+    conn.execute(
+        "DELETE FROM activity WHERE entity_type = ?1 AND entity_id = ?2 AND created_at >= ?3",
+        params![entity_type, entity_id, since],
+    )
+}
+
+#[tauri::command]
+pub fn activity_forget(state: State<DbState>, entity_type: String, entity_id: i64, since: String) -> CmdResult<usize> {
+    let conn = state.0.lock().map_err(err)?;
+    forget_activity_since(&conn, &entity_type, entity_id, &since).map_err(err)
+}
+
 #[tauri::command]
 pub fn rename_company(state: State<DbState>, id: i64, name: String) -> CmdResult<Company> {
     let conn = state.0.lock().map_err(err)?;

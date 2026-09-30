@@ -2991,3 +2991,7 @@ body.dnd-active .drop-target{transition:background-color var(--dur-fast) var(--e
 .tip.above{transform:translateY(-4px)}
 .tip.open{opacity:1;transform:none}
 .tip kbd{font:inherit;font-size:11px;opacity:.7}
+/* 6. Undo: one at a time, bottom-left, 7 s; ⌘Z runs it. */
+.undo-stack{position:fixed;left:20px;bottom:20px;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+body:not(:has(#sidebar.collapsed)) .undo-stack{left:250px}
+.toast-undo .toast-action kbd{font:inherit;font-size:11px;opacity:.6;margin-left:4px}

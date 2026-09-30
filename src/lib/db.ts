@@ -52,6 +52,8 @@ export interface NewTouch { companyId?: number | null; proposalId?: number | nul
 export async function getTouches(): Promise<Touch[]> { return invoke<Touch[]>('get_touches'); }
 export async function touchesAdd(touch: NewTouch): Promise<Touch> { return invoke<Touch>('touches_add', { touch }); }
 export async function touchesDelete(id: number): Promise<void> { await invoke('touches_delete', { id }); }
+/** Undo: the timeline rows written for one record since `since` (UTC ISO) go. */
+export async function activityForget(entityType: string, entityId: number, since: string): Promise<number> { return invoke<number>('activity_forget', { entityType, entityId, since }); }
 
 // Backups and the database check (housekeeping.rs).
 export async function housekeepingStatus(): Promise<HousekeepingStatus | null> { return invoke<HousekeepingStatus | null>('housekeeping_status'); }

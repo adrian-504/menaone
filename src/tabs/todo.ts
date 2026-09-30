@@ -10,8 +10,8 @@ import { S } from '../lib/state';
 import { toast, undoToast, emptyState } from '../lib/ui';
 import { companyLink, recordLink } from '../lib/links';
 import { fmtDate, escHtml, nextTodoId, getClients, expose, positionFloatingPopup, inCompany, fmtWeekday, fmtDateShort, fmtMonth, fmtDayLong } from '../lib/utils';
-import { persistTodos, saveTodosNow } from '../lib/persist';
-import { getLinksFor, setLinksFrom } from '../lib/db';
+import { persistTodos, saveTodosNow, saved } from '../lib/persist';
+import { activityForget, getLinksFor, setLinksFrom } from '../lib/db';
 import { addLinks, companyFromForm, companyOf, contextFromMeeting, contextFromOpportunity, contextFromProject, inheritCompany, taskFields, EMPTY_CONTEXT, type WorkContext } from '../lib/workGraph';
 import { registerTabRenderer, registerBadgeUpdater, refreshProjectViewIfOpen, refreshCompanyViewIfOpen, notifyNavigated, getActiveTabId } from '../lib/registry';
 import { renderTagChips } from '../lib/tagChips';
@@ -753,6 +753,7 @@ export function completeTask(id: number): void {
     return;
   }
   const before = { status: t.status, completedAt: t.completedAt };
+  const since = new Date(Date.now() - 250).toISOString();
   const spawned = markDone(t);
   persistTodos();
   updateTodoBadge();
@@ -775,6 +776,8 @@ export function completeTask(id: number): void {
     t.completedAt = before.completedAt;
     if (spawned) S.todos = S.todos.filter((x) => x.id !== spawned.id);
     afterTodoListChange();
+    // The "completed" line in the timeline goes too.
+    void saved('todos').then(() => activityForget('task', id, since)).catch(() => undefined);
   });
 }
 expose('completeTask', completeTask);

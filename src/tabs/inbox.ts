@@ -1,7 +1,7 @@
 import { collapseRow, collapseRows, settleNew } from '../lib/motion';
 import { optimistic } from '../lib/optimistic';
 import { S } from '../lib/state';
-import { emptyState } from '../lib/ui';
+import { emptyState, undoToast } from '../lib/ui';
 import { today, escHtml, expose, nextNoteId } from '../lib/utils';
 import { registerTabRenderer, registerBadgeUpdater } from '../lib/registry';
 import { addInboxItem, resolveInboxItem, deleteInboxItem } from '../lib/db';
@@ -119,6 +119,9 @@ export async function dismissInboxItem(id: number): Promise<void> {
     apply: () => { S.inboxItems = S.inboxItems.filter((i) => i.id !== id); redraw(); },
     commit: () => deleteInboxItem(id),
     revert: () => { if (!S.inboxItems.some((i) => i.id === id)) S.inboxItems = [...S.inboxItems, item]; redraw(); },
+  });
+  undoToast('Dismissed', () => {
+    void addInboxItem(item.itemType, item.content).then((back) => { S.inboxItems = [back, ...S.inboxItems]; redraw(); });
   });
 }
 expose('dismissInboxItem', dismissInboxItem);

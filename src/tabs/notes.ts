@@ -6,7 +6,7 @@
 
 import { collapseRow, collapseRows, settleNew } from '../lib/motion';
 import { S } from '../lib/state';
-import { toast, emptyState } from '../lib/ui';
+import { toast, emptyState, undoToast } from '../lib/ui';
 import { companyLink, recordLink } from '../lib/links';
 import { meetingNotesList, type MeetingNoteRow } from '../lib/meetingNotesList';
 import { clientFolder, clientNotesList, clientsWithNotes, parseClientFolder, SOURCE_LABEL, type CompanyEntry } from '../lib/clientNotes';
@@ -870,15 +870,27 @@ export function duplicateNote(id: number): void {
 }
 expose('duplicateNote', duplicateNote);
 
-/** Deleting still asks first: a note's attachments go with it and can't be restored by Undo. */
+/** Deleting offers Undo: the note leaves the list at once but stays in the
+ * database (with its images) until the undo window has passed. */
 export async function deleteNote(id: number): Promise<void> {
   const n = S.notes.find((x) => x.id === id);
-  if (!(await showConfirm(`"${n?.title || 'Untitled'}" and any images in it will be deleted.`, { title: 'Delete note?', confirmLabel: 'Delete' }))) return;
+  if (!n) return;
   await collapseRow(document.querySelector(`.note-item[data-note-id="${id}"]`));
+  const index = S.notes.indexOf(n);
   S.notes = S.notes.filter((x) => x.id !== id);
-  persistNotes();
+  S.notesPendingDelete = [...S.notesPendingDelete, n];
   if (id === S.currentNoteId) closeNoteEditor();
   renderNotesTab();
+  const forget = window.setTimeout(() => {
+    S.notesPendingDelete = S.notesPendingDelete.filter((x) => x.id !== id);
+    persistNotes();
+  }, 7500);
+  undoToast(`Deleted "${n.title || 'Untitled'}"`, () => {
+    window.clearTimeout(forget);
+    S.notesPendingDelete = S.notesPendingDelete.filter((x) => x.id !== id);
+    S.notes.splice(Math.min(index, S.notes.length), 0, n);
+    renderNotesTab();
+  });
 }
 expose('deleteNote', deleteNote);
 

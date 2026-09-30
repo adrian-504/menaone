@@ -5,14 +5,14 @@ import { S } from '../lib/state';
 import { STATUSES, WIN_REASONS, LOSS_REASONS } from '../lib/constants';
 import { today, fmtDate, daysSince, daysUntil, escHtml, expose, showTextPrompt, showConfirm, localIsoDate } from '../lib/utils';
 import { matchesProposalPeriod } from '../lib/period';
-import { persistProposals } from '../lib/persist';
+import { persistProposals, saved } from '../lib/persist';
 import { registerBadgeUpdater, refreshAll, getActiveTabId, renderTab } from '../lib/registry';
 import { toast, undoToast } from '../lib/ui';
 import { optimistic } from '../lib/optimistic';
 import { draftAgreementsFromProposals } from './agreements';
 import { PS, stageIndex, isLost, isWithdrawn, defaultReviewer, teamMember, renewalsDue, activeMrr, pipelineMonthly, fmtMoneyByCurrency } from '../lib/commercial';
 import { applyRevisionRequest, applyRevisionSent } from '../lib/revisions';
-import { touchesAdd, touchesDelete } from '../lib/db';
+import { activityForget, touchesAdd, touchesDelete } from '../lib/db';
 import { showMenuAt, type ContextMenuItem } from '../lib/contextMenu';
 import type { Proposal, Touch, TouchKind } from '../lib/types';
 
@@ -69,7 +69,7 @@ export async function logTouch(proposalId: number, kind: TouchKind, direction: '
   S.touches = [...S.touches.filter((x) => x.id !== temp.id && x.id !== t.id), t];
   redraw();
   const what = direction === 'in' ? `client replied by ${TOUCH_WORD[kind]} today` : `${TOUCH_WORD[kind]} today`;
-  toast(`Logged: ${what}`, { tone: 'success', action: { label: 'Undo', run: () => { void undoTouch(t.id); } } });
+  undoToast(`Logged: ${what}`, () => { void undoTouch(t.id); });
 }
 expose('logTouch', logTouch);
 
@@ -328,15 +328,38 @@ export async function removeProposal(id: number): Promise<void> {
 }
 expose('removeProposal', removeProposal);
 
+// ═══════════════ UNDO ═══════════════
+
+/** Undo for any change to a proposal (owner, 30-Sep-2026: "Undo everywhere"):
+ * call before the change; the returned function puts the proposal back exactly
+ * as it was and removes the timeline rows written since (the change's and the
+ * undo's own), once the restore has been saved. */
+export function snapshotProposal(p: Proposal): () => void {
+  const before = JSON.parse(JSON.stringify(p)) as Proposal;
+  const since = new Date(Date.now() - 250).toISOString();
+  return () => {
+    const cur = S.proposals.find((x) => x.id === p.id);
+    if (!cur) return;
+    for (const k of Object.keys(cur)) delete (cur as any)[k];
+    Object.assign(cur, before);
+    persistProposals();
+    void saved('proposals').then(() => activityForget('proposal', p.id, since)).catch(() => undefined);
+    refreshAll();
+    (window as any).renderProposalPage?.();
+  };
+}
+
 // ═══════════════ SNOOZE ═══════════════
 
 export function snoozeProposal(id: number, days: number): void {
   const p = S.proposals.find((x) => x.id === id);
   if (!p) return;
+  const restore = snapshotProposal(p);
   const d = new Date();
   d.setDate(d.getDate() + days);
   p.snoozedUntil = localIsoDate(d);
   persistProposals();
+  undoToast(`Snoozed ${p.client} for ${days} day${days === 1 ? '' : 's'}`, restore);
   void collapseRows(document.querySelectorAll(`.pq-row[data-row-id="${id}"]`)).then(refreshAll);
 }
 expose('snoozeProposal', snoozeProposal);

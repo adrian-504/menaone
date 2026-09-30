@@ -30,7 +30,7 @@ import { endPropsEdit, mountPropsList, propsEditButton, propsListHtml, resetProp
 import { renderIcons } from '../core/chrome';
 import { ST, LEAD_SOURCES } from '../lib/constants';
 import { renderLinesEditor, lineForService } from '../lib/linesEditor';
-import { changeProposalStatus, contactFirstName, recordReview, undoReview, openRevisionDialog, openWlModal, updateStatus, archiveProposal, unarchiveProposal, snoozeProposal, isSnoozed } from '../core/proposals';
+import { snapshotProposal, changeProposalStatus, contactFirstName, recordReview, undoReview, openRevisionDialog, openWlModal, updateStatus, archiveProposal, unarchiveProposal, snoozeProposal, isSnoozed } from '../core/proposals';
 import {
   PS, PROPOSAL_STAGES, proposalSentDate, stageIndex, isWon, isLost, isWithdrawn, isClosed, lineTotals, syncProposalTotals, fmtMoney, currencyOf,
   teamMember, reviewers, defaultReviewer, activeTeam, ownerName, entityById, defaultEntity, activeServices, newLine,
@@ -168,8 +168,10 @@ export function renderActions(p: Proposal): void {
 export async function proposalStep(status: string): Promise<void> {
   const p = currentProposal();
   if (!p) return;
-  await changeProposalStatus(p.id, status);
+  const restore = snapshotProposal(p);
+  const changed = await changeProposalStatus(p.id, status);
   renderProposalPage();
+  if (changed) undoToast(`${p.client}: ${p.status}`, restore);
 }
 expose('proposalStep', proposalStep);
 
@@ -507,9 +509,10 @@ export function proposalRecordReview(outcome: 'approved' | 'changes_requested'):
   if (!p) return;
   const note = (document.getElementById('prd-review-note') as HTMLTextAreaElement | null)?.value || null;
   if (outcome === 'changes_requested' && !note?.trim()) { toast('Add what needs to change', { tone: 'error' }); document.getElementById('prd-review-note')?.focus(); return; }
+  const restore = snapshotProposal(p);
   recordReview(p.id, outcome, note);
   renderProposalPage();
-  toast(outcome === 'approved' ? 'Review recorded — ready to send' : 'Changes requested — back to drafting', { tone: outcome === 'approved' ? 'success' : 'neutral' });
+  undoToast(outcome === 'approved' ? 'Review recorded — ready to send' : 'Changes requested — back to drafting', restore);
 }
 expose('proposalRecordReview', proposalRecordReview);
 
