@@ -8,6 +8,7 @@ import { draftingSince } from './revisions';
 import { daysBetween, isOpenOpportunity } from './pipeline';
 import type { Agreement, Company, Opportunity, Proposal, Todo, Commitment, Contact } from './types';
 import type { RecordKind } from './navHistory';
+import { fmtDateFromIso } from './dates';
 
 export type CleanupAction =
   | 'lost' | 'withdrawn' | 'won' | 'keep' | 'snooze_followup'
@@ -93,8 +94,7 @@ const ago = (d: number | null) => (d == null ? '—' : d === 0 ? 'today' : `${pl
 
 function fmt(iso: string | null | undefined): string {
   if (!iso) return '—';
-  const d = new Date(`${iso.slice(0, 10)}T12:00:00`);
-  return isNaN(d.getTime()) ? iso : d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  return fmtDateFromIso(iso.slice(0, 10)) || iso;
 }
 
 function money(amount: number | null | undefined, currency: string | null | undefined): string {

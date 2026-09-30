@@ -5,7 +5,7 @@
 import changelogMd from '../../CHANGELOG.md?raw';
 import packageJson from '../../package.json?raw';
 import { S } from '../lib/state';
-import { escHtml, expose } from '../lib/utils';
+import { escHtml, expose, fmtDate, fmtDateShort, fmtTime } from '../lib/utils';
 import { housekeepingStatus } from '../lib/db';
 import { parseChangelog, versionLine } from '../lib/changelog';
 import type { HousekeepingStatus } from '../lib/types';
@@ -13,15 +13,13 @@ import type { HousekeepingStatus } from '../lib/types';
 const entries = parseChangelog(changelogMd);
 const version = (() => { try { return String(JSON.parse(packageJson).version || ''); } catch { return ''; } })();
 
-const localDay = (d: Date) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
 /** "today 09:12", "yesterday 09:12", "28 Sept 09:12". */
 function when(d: Date | null): string {
   if (!d || isNaN(d.getTime())) return '';
   const now = new Date();
   const yesterday = new Date(now.getTime() - 86_400_000);
-  const time = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-  const day = localDay(d) === localDay(now) ? 'today' : localDay(d) === localDay(yesterday) ? 'yesterday' : d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-  return `${day} ${time}`;
+  const day = fmtDate(d) === fmtDate(now) ? 'today' : fmtDate(d) === fmtDate(yesterday) ? 'yesterday' : fmtDateShort(d);
+  return `${day} ${fmtTime(d)}`;
 }
 
 /** A stored moment: a full timestamp shows its time; a date alone (written
@@ -44,7 +42,7 @@ export function statusLines(h: HousekeepingStatus | null): { text: string; bad: 
     ? `Database check: ${h.integrity.ok ? 'ok' : `failed${h.integrity.detail ? ` (${h.integrity.detail})` : ''}`} · ${whenAt(h.integrity.at)}`
     : 'Database check: not run yet';
   const t = h.installBackupsTidy;
-  const archived = t?.at && t.archivedTo ? `older ones archived ${new Date(t.at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`
+  const archived = t?.at && t.archivedTo ? `older ones archived ${fmtDateShort(t.at)}`
     : t && !t.archivedTo ? 'older ones wait for the archive drive' : 'none archived yet';
   return [
     { text: `Daily backup: ${daily} · ${od}`, bad: !!h.onedriveError },

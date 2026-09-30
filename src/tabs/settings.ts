@@ -1,6 +1,6 @@
 import { S } from '../lib/state';
 import { toast } from '../lib/ui';
-import { escHtml, expose, showConfirm } from '../lib/utils';
+import { escHtml, expose, showConfirm, fmtDateTime } from '../lib/utils';
 import { registerTabRenderer } from '../lib/registry';
 import { ms365GetClientId, ms365SetClientId, ms365GetTenantId, ms365SetTenantId, ms365Status, ms365Connect, ms365Disconnect, runCompanyMigration, getCompanies, listLocalBackups, backupDatabaseNow, revealBackupsFolder } from '../lib/db';
 import { THEMES } from '../core/theme';
@@ -85,7 +85,7 @@ async function renderLocalBackups(): Promise<void> {
   try { backups = await listLocalBackups(); } catch { return; }
   const latest = backups.find((b) => b.kind !== 'other');
   if (!latest) return;
-  const when = new Date(latest.modifiedAt * 1000).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+  const when = fmtDateTime(new Date(latest.modifiedAt * 1000));
   const daily = backups.filter((b) => b.kind === 'daily').length;
   el.textContent = `Saved every day on this computer (last 14 kept) and before every app upgrade. Latest: ${when} · ${daily} daily cop${daily === 1 ? 'y' : 'ies'} kept.`;
 }

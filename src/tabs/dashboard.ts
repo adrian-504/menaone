@@ -1,7 +1,7 @@
 import { isOpenProposal, isWon, isLost, isAgreementActive } from '../lib/commercial';
 import { S } from '../lib/state';
 import { STATUSES, ST } from '../lib/constants';
-import { escHtml, kpiCard, themeColor, fmtDate, statusDot, chartPalette } from '../lib/utils';
+import { escHtml, kpiCard, themeColor, fmtDate, statusDot, chartPalette, fmtMonth } from '../lib/utils';
 import { matchesProposalPeriod } from '../lib/period';
 import { statusTone, toneVar } from '../lib/statusTone';
 import { registerTabRenderer } from '../lib/registry';
@@ -151,7 +151,7 @@ export function renderMonthlyChart(dp?: Proposal[]): void {
   dp.filter((p) => p.sentDate).forEach((p) => {
     const d = new Date(p.sentDate + 'T12:00:00');
     const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-    counts[k] = counts[k] || { count: 0, label: d.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' }) };
+    counts[k] = counts[k] || { count: 0, label: fmtMonth(d, 'short') };
     counts[k].count++;
   });
   const sorted = Object.entries(counts).sort((a, b) => a[0].localeCompare(b[0]));

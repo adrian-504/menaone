@@ -2,7 +2,7 @@ import { S } from '../lib/state';
 import { emptyState } from '../lib/ui';
 import { companyLink } from '../lib/links';
 import { WQ_STATUSES, WQ_CFG } from '../lib/constants';
-import { today, fmtDate, daysSince, escHtml, expose, kpiCard, statusDot, showConfirm } from '../lib/utils';
+import { today, fmtDate, daysSince, escHtml, expose, kpiCard, statusDot, showConfirm, fmtDateShort } from '../lib/utils';
 import { matchesProposalPeriod } from '../lib/period';
 import { registerTabRenderer, registerBadgeUpdater, refreshAll, getActiveTabId } from '../lib/registry';
 import { persistProposals } from '../lib/persist';
@@ -126,7 +126,7 @@ expose('renderPending', renderPending);
 function promisedMeta(p: Proposal): string {
   if (!p.promisedBy) return '';
   const d = new Date(`${p.promisedBy.slice(0, 10)}T12:00:00`);
-  const label = isNaN(d.getTime()) ? p.promisedBy : d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  const label = isNaN(d.getTime()) ? p.promisedBy : fmtDateShort(d);
   return `<span class="${p.promisedBy.slice(0, 10) <= today() ? 't-red' : ''}">promised by ${escHtml(label)}</span>`;
 }
 

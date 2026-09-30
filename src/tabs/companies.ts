@@ -7,7 +7,7 @@ import { STATUSES, ST, AGR_ST } from '../lib/constants';
 import { renderCompanyCommitments } from './commitments';
 import { COMPANIES_VIEW_KEY, initialCompaniesView } from '../lib/companiesView';
 import { companyNavItems, groupRequestedTogether, layoutCompanyRecords, type RecordCounts } from '../lib/companyRecords';
-import { today, fmtDate, escHtml, expose, showConfirm, statusDot, showTextPrompt, getClients, companyRef, inCompany, daysSince, daysUntil, strColor, type CompanyRef } from '../lib/utils';
+import { today, fmtDate, escHtml, expose, showConfirm, statusDot, showTextPrompt, getClients, companyRef, inCompany, daysSince, daysUntil, strColor, type CompanyRef, fmtDateShort } from '../lib/utils';
 import { shownColumns, sortState, setSort, sortRows, headerCells, openColumnPicker, agoLabel, type Column, type SortState } from '../lib/tableColumns';
 import { companyLists, companyNamesInList, contactsInCompanyList, contactsAtCompanies, createSavedList, renameSavedList, removeSavedList, updateSmartListFilters, addCompaniesToList, removeCompaniesFromList, addToCompanyListChoices, exportToActiveCampaign, listById, sameFilters, cleanFilters, listChipLabel, listsForCompany } from '../core/lists';
 import { emptyState } from '../lib/ui';
@@ -1442,7 +1442,7 @@ export function renderCoContacts(d: CompanyData): void {
   }).join('');
 }
 
-const fmtShort = (iso: string) => new Date(`${iso.slice(0, 10)}T12:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+const fmtShort = (iso: string) => fmtDateShort(iso.slice(0, 10));
 
 export function companyPersonMenu(e: MouseEvent, id: number): void {
   const c = S.contacts.find((x) => x.id === id);

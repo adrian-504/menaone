@@ -158,24 +158,8 @@ export function resolveConfirmPrompt(value: boolean): void {
 }
 expose('resolveConfirmPrompt', resolveConfirmPrompt);
 
-/** DD-MMM-YYYY display format. Dates are stored as YYYY-MM-DD strings and always
- * parsed with a fixed T12:00:00 time to dodge timezone day-shift bugs — this
- * convention is preserved exactly from the original app. */
-export function fmtDate(s: string | null | undefined): string {
-  if (!s) return '—';
-  const d = new Date(s + 'T12:00:00');
-  return isNaN(d.getTime()) ? '—' : d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-}
-
-/** Same DD-MMM-YYYY display format as fmtDate(), for inputs that are already
- * full ISO timestamps (file mtimes, updatedAt fields) rather than bare
- * YYYY-MM-DD strings — skips fmtDate's T12:00:00 append, which would corrupt
- * a timestamp that already carries real time/timezone info. */
-export function fmtDateFromIso(s: string | null | undefined): string {
-  if (!s) return '';
-  const d = new Date(s);
-  return isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-}
+// Dates and times: the one family lives in ./dates (pure, so lib modules can use it too).
+export * from './dates';
 
 export function daysSince(s: string | null | undefined): number | null {
   if (!s) return null;

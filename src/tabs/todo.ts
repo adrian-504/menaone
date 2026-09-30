@@ -8,7 +8,7 @@ import { foldMoreDetails } from '../lib/moreDetails';
 import { S } from '../lib/state';
 import { toast, undoToast, emptyState } from '../lib/ui';
 import { companyLink, recordLink } from '../lib/links';
-import { fmtDate, escHtml, nextTodoId, getClients, expose, positionFloatingPopup, inCompany } from '../lib/utils';
+import { fmtDate, escHtml, nextTodoId, getClients, expose, positionFloatingPopup, inCompany, fmtWeekday, fmtDateShort, fmtMonth, fmtDayLong } from '../lib/utils';
 import { persistTodos, saveTodosNow } from '../lib/persist';
 import { getLinksFor, setLinksFrom } from '../lib/db';
 import { addLinks, companyFromForm, companyOf, contextFromMeeting, contextFromOpportunity, contextFromProject, inheritCompany, taskFields, EMPTY_CONTEXT, type WorkContext } from '../lib/workGraph';
@@ -156,14 +156,14 @@ function groupsForList(list: string): Group[] {
       const day = addDaysIso(t0, i);
       const [y, m, d] = day.split('-').map(Number);
       const date = new Date(y, m - 1, d);
-      const label = i === 1 ? 'Tomorrow' : date.toLocaleDateString('en-GB', { weekday: 'long' });
-      groups.push({ key: day, label, hint: date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }), tasks: sorted(tasks.filter((t) => t.dueDate === day)), dropDate: day });
+      const label = i === 1 ? 'Tomorrow' : fmtWeekday(date);
+      groups.push({ key: day, label, hint: fmtDateShort(date), tasks: sorted(tasks.filter((t) => t.dueDate === day)), dropDate: day });
     }
     const later = tasks.filter((t) => t.dueDate! > addDaysIso(t0, 7));
     const months = [...new Set(later.map((t) => t.dueDate!.slice(0, 7)))].sort();
     for (const mo of months) {
       const [y, m] = mo.split('-').map(Number);
-      groups.push({ key: mo, label: new Date(y, m - 1, 1).toLocaleDateString('en-GB', { month: 'long', year: y === new Date().getFullYear() ? undefined : 'numeric' }), tasks: sorted(later.filter((t) => t.dueDate!.startsWith(mo))) });
+      groups.push({ key: mo, label: fmtMonth(new Date(y, m - 1, 1), 'long', 'ifOther'), tasks: sorted(later.filter((t) => t.dueDate!.startsWith(mo))) });
     }
     return groups;
   }
@@ -202,7 +202,7 @@ function groupsForList(list: string): Group[] {
 function listTitle(list: string): { title: string; subtitle: string } {
   const smart = SMART.find((s) => s.key === list);
   if (smart) {
-    const sub = list === 'today' ? new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })
+    const sub = list === 'today' ? fmtDayLong(new Date())
       : list === 'upcoming' ? 'Everything with a date after today'
       : list === 'anytime' ? 'All open tasks you could do now'
       : list === 'someday' ? 'Parked until you pick them up again'
@@ -372,7 +372,7 @@ function renderListView(list: string): string {
       const [y, m, d] = g.key.split('-').map(Number);
       const date = new Date(y, m - 1, d);
       return `<button class="task-weekday${g.tasks.length ? ' has' : ''}" data-drop="task-date" data-drop-value="${g.key}" onclick="document.getElementById('tg-${g.key}')?.scrollIntoView({behavior:'smooth',block:'start'})">
-        <span class="task-weekday-name">${date.toLocaleDateString('en-GB', { weekday: 'short' })}</span>
+        <span class="task-weekday-name">${fmtWeekday(date, 'short')}</span>
         <span class="task-weekday-num">${d}</span>
         <span class="task-weekday-dot">${g.tasks.length || ''}</span>
       </button>`;
@@ -476,7 +476,7 @@ function renderBoard(list: string): string {
 function renderCalendar(list: string): string {
   const [ay, am] = S.taskCalAnchor.split('-').map(Number);
   const label = document.getElementById('task-cal-label');
-  if (label) label.textContent = new Date(ay, am - 1, 1).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+  if (label) label.textContent = fmtMonth(new Date(ay, am - 1, 1));
   const monthStart = new Date(ay, am - 1, 1);
   const lead = (monthStart.getDay() + 6) % 7;
   const start = new Date(ay, am - 1, 1 - lead);
@@ -1022,8 +1022,8 @@ export function openDatePopover(anchor: HTMLElement, ids: number[]): void {
   const mon = addDaysIso(t0, (8 - new Date().getDay()) % 7 || 7);
   const opt = (label: string, iconName: string, js: string, hint = '') => `<button class="task-date-opt" onclick="${js}">${icon(iconName, 14)}<span>${label}</span><span class="task-date-hint">${hint}</span></button>`;
   pop.innerHTML = `
-    ${opt('Today', 'sun', `applyTaskDate('${t0}')`, friendlyDate(t0, new Date()) === 'Today' ? new Date().toLocaleDateString('en-GB', { weekday: 'short' }) : '')}
-    ${opt('Tomorrow', 'calendar', `applyTaskDate('${addDaysIso(t0, 1)}')`, new Date(Date.now() + 86400000).toLocaleDateString('en-GB', { weekday: 'short' }))}
+    ${opt('Today', 'sun', `applyTaskDate('${t0}')`, friendlyDate(t0, new Date()) === 'Today' ? fmtWeekday(new Date(), 'short') : '')}
+    ${opt('Tomorrow', 'calendar', `applyTaskDate('${addDaysIso(t0, 1)}')`, fmtWeekday(new Date(Date.now() + 86400000), 'short'))}
     ${opt('This weekend', 'calendar', `applyTaskDate('${sat}')`, 'Sat')}
     ${opt('Next week', 'calendar', `applyTaskDate('${mon}')`, 'Mon')}
     ${opt('Someday', 'archive', 'applyTaskSomeday()')}

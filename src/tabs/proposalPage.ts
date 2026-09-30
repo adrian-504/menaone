@@ -14,7 +14,7 @@ import { latestRevision, lineWasNote, parseSnapshot, removedServices, revisionFa
 import { companyFromForm, contextFromOpportunity } from '../lib/workGraph';
 import { S } from '../lib/state';
 import { touchDoing, touchesOf } from '../lib/followup';
-import { escHtml, expose, fmtDate, today, nextId, nextCtId, showConfirm, showTextPrompt, debounce, strColor } from '../lib/utils';
+import { escHtml, expose, fmtDate, today, nextId, nextCtId, showConfirm, showTextPrompt, debounce, strColor, fmtDateShort } from '../lib/utils';
 import { icon } from '../lib/icons';
 import { companyLink, recordLink } from '../lib/links';
 import { emptyState, toast, undoToast } from '../lib/ui';
@@ -95,7 +95,7 @@ function commit(p: Proposal, rerender = true): void {
 function promisedByFact(p: Proposal): string {
   if (!p.promisedBy || (p.status !== PS.REQUEST && p.status !== PS.DRAFTING)) return '';
   const d = new Date(`${p.promisedBy.slice(0, 10)}T12:00:00`);
-  const label = isNaN(d.getTime()) ? p.promisedBy : d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  const label = isNaN(d.getTime()) ? p.promisedBy : fmtDateShort(d);
   return `<span class="rec-meta${p.promisedBy.slice(0, 10) <= today() ? ' t-red' : ''}">Promised by ${escHtml(label)}</span>`;
 }
 

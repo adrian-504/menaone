@@ -8,6 +8,7 @@
 import { isAgreementActive, lineTotals, PS, proposalSentDate } from './commercial';
 import { escHtml } from './utils';
 import type { Agreement, Contact, EmailTemplate, Proposal, TeamMember } from './types';
+import { fmtDateLong } from './dates';
 
 export const SIGNATURE_NAME = '_signature';
 
@@ -41,7 +42,7 @@ export function holesHtml(text: string): string {
   return escHtml(text).replace(HOLE, (whole) => `<span class="tpl-hole">${whole}</span>`);
 }
 
-const longDate = (iso: string) => new Date(`${iso.slice(0, 10)}T12:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
+const longDate = (iso: string) => fmtDateLong(iso.slice(0, 10));
 
 const IN_PLAY = new Set<string>([PS.SENT, PS.REVIEW, PS.DRAFTING]);
 

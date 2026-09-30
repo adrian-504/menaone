@@ -7,7 +7,7 @@
 import { S } from '../lib/state';
 import { renderIcons } from '../core/chrome';
 import { toast } from '../lib/ui';
-import { escHtml, expose, today } from '../lib/utils';
+import { escHtml, expose, today, fmtDateShort } from '../lib/utils';
 import { getActivity } from '../lib/db';
 import { invoke } from '@tauri-apps/api/core';
 import { refreshAll } from '../lib/registry';
@@ -139,7 +139,7 @@ export async function renderRecordTimeline(m: TimelineMount): Promise<void> {
   const now = new Date();
   el.innerHTML = `<div class="rec-section-hd tl-hd"><h2>Timeline</h2><div class="rec-section-actions">${m.header || ''}</div></div>
     <div class="tl">${recordTimelineHtml(tl, {
-      today: today(), nowLabel: `Now · ${now.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`,
+      today: today(), nowLabel: `Now · ${fmtDateShort(now)}`,
       pastLimit: showAll.has(m.elId) ? null : PAST_LIMIT, showEarlier: `showEarlierTimeline('${m.elId}')`, extraPast: m.extraPast?.(activity),
     })}</div>`;
   renderIcons(el);

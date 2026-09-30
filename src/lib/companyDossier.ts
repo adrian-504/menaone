@@ -9,6 +9,7 @@ import { meetingExcerpt } from './meetingExcerpt';
 import type { FutureRow } from './recordTimeline';
 import type { ActivityEntry, Meeting } from './types';
 import type { ClauseKey } from './companyBrief';
+import { fmtDateShort } from './dates';
 
 /** Where we stand, as labelled lines; the pinned clause is the Remember panel instead. */
 export const STAND_LABEL: Partial<Record<ClauseKey, string>> = {
@@ -89,5 +90,5 @@ export function whenLabel(date: string, today: string): string {
   if (d === 0) return 'Today';
   if (d === 1) return 'Yesterday';
   if (d === -1) return 'Tomorrow';
-  return new Date(`${date}T12:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+  return fmtDateShort(date);
 }

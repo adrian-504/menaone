@@ -9,7 +9,7 @@ import { renderIcons } from '../core/chrome';
 import { loadInto, emptyState } from '../lib/ui';
 import { toast } from '../lib/ui';
 import { companyLink, recordLink } from '../lib/links';
-import { fmtDate, escHtml, expose, today, showConfirm, inCompany } from '../lib/utils';
+import { fmtDate, escHtml, expose, today, showConfirm, inCompany, fmtTime, fmtTimeRange, fmtDateShort, fmtDateWeekday } from '../lib/utils';
 import { registerTabRenderer, refreshAll, refreshBadges, notifyNavigated } from '../lib/registry';
 import { getMeetings, deleteMeeting, ms365CancelOutlookMeeting } from '../lib/db';
 import { getAllCompanies } from './companies';
@@ -31,14 +31,6 @@ import { renderMeetingClientSection, meetingSuggestionsBanner, meetingSuggestion
 /** Time-of-day only (no date) — shared by the row list, detail badges, and
  * the Outlook info card below, so a meeting's time renders identically
  * everywhere regardless of whether it's Outlook-sourced or manually logged. */
-function fmtTimeOnly(iso: string | null): string {
-  return iso ? new Date(iso).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }) : '';
-}
-function fmtTimeRange(startAt: string | null, endAt: string | null): string {
-  if (!startAt) return '';
-  const start = fmtTimeOnly(startAt);
-  return endAt ? `${start} – ${fmtTimeOnly(endAt)}` : start;
-}
 
 async function loadMeetings(): Promise<void> {
   S.meetings = await getMeetings();
@@ -112,8 +104,8 @@ function meetingPeopleLine(m: Meeting): string {
 
 /** The time column: today onward the time (with duration and place); earlier the date, then the time. */
 function timeCell(m: Meeting, earlier: boolean): string {
-  const time = m.startAt ? fmtTimeOnly(m.startAt) : '';
-  if (earlier) return `<b>${m.meetingDate ? escHtml(new Date(`${m.meetingDate}T12:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })) : '—'}</b>${escHtml(time)}`;
+  const time = m.startAt ? fmtTime(m.startAt) : '';
+  if (earlier) return `<b>${m.meetingDate ? escHtml(fmtDateShort(m.meetingDate)) : '—'}</b>${escHtml(time)}`;
   const extra = [durationLabel(m.startAt, m.endAt), placeLabel(m)].filter(Boolean).join(' · ');
   return `<b>${escHtml(time || 'All day')}</b>${escHtml(extra)}`;
 }
@@ -233,11 +225,11 @@ export function openMeetingDetail(id: number): void {
   deleteBtn.textContent = isOutlook ? 'Cancel Meeting' : 'Delete';
 
   if (isOutlook) {
-    const fmtTime = (iso: string | null) => iso ? new Date(iso).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
+    const fmtWhen = (iso: string | null) => (iso ? `${fmtDateWeekday(iso)} ${fmtTime(iso)}` : '');
     outlookCard.style.display = '';
     outlookInfo.innerHTML = [
       m.isCancelled ? `<div class="t-red fw-600">This meeting was cancelled in Outlook.</div>` : '',
-      m.startAt ? `<div>${icon('calendar', 13)} ${escHtml(fmtTime(m.startAt))}${m.endAt ? ` – ${escHtml(new Date(m.endAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }))}` : ''}</div>` : '',
+      m.startAt ? `<div>${icon('calendar', 13)} ${escHtml(fmtWhen(m.startAt))}${m.endAt ? ` – ${escHtml(fmtTime(m.endAt))}` : ''}</div>` : '',
       m.organizer ? `<div>Organizer: ${escHtml(m.organizer)}</div>` : '',
       ...(m.location ? m.location.split(/;\s*/).filter(Boolean).map((part) => /^https?:\/\//.test(part.trim())
         ? `<div>Online: <a href="#" class="rlink" onclick="event.preventDefault();openExternalUrl('${escHtml(part.trim())}')">${escHtml(part.trim().replace(/^https?:\/\/(www\.)?/, '').split('/')[0])}</a></div>`

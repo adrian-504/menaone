@@ -6,6 +6,7 @@
 
 import { fmtMoney, lineAmount, PS } from './commercial';
 import type { CommercialLine, Proposal, ProposalRevision } from './types';
+import { fmtDateShort } from './dates';
 
 type RevisionProposal = Pick<Proposal, 'revision' | 'revisions' | 'dateSentToClient' | 'sentDate' | 'lastSentAt'>;
 
@@ -79,7 +80,7 @@ export function applyRevisionSent(p: Proposal, today: string): ProposalRevision 
   return { ...open, sentAt: today };
 }
 
-const shortDate = (iso: string) => new Date(`${iso.slice(0, 10)}T12:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+const shortDate = (iso: string) => fmtDateShort(iso.slice(0, 10));
 
 /** The header fact: "Revision 2 · first sent 10 Sept", once sent "Revision 2 · sent 25 Sept · first sent 10 Sept". */
 export function revisionFact(p: RevisionProposal): string | null {

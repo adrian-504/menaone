@@ -1,6 +1,6 @@
 import { S } from '../lib/state';
 import { toast } from '../lib/ui';
-import { escHtml, expose, today } from '../lib/utils';
+import { escHtml, expose, today, fmtTime } from '../lib/utils';
 import { attachCompanySelector } from '../lib/companySelector';
 import { registerTabRenderer } from '../lib/registry';
 import {
@@ -35,11 +35,6 @@ function startOfWeek(d: Date): Date {
 }
 function sameDate(a: Date, b: Date): boolean {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
-}
-function fmtTime(iso: string | null): string {
-  if (!iso) return '';
-  const d = new Date(iso);
-  return d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
 }
 
 /** Range actually synced/displayed for the current view — always padded to
