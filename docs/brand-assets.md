@@ -18,7 +18,7 @@ The company's own marks and photograph, from the MENA BIG design system: `logo-p
 
 ## My Day's city photographs — `src/assets/band/`
 
-One per office city (two for Riyadh and Dubai, shown on alternate days), 1600 × 600 webp. Picked with the owner (30-Sep-2026). The band's scrim keeps the greeting at 4.5:1 or more on each (`python3 scripts/band-contrast.py`).
+One per office city (two for Riyadh, Dubai and Barcelona, shown on alternate days), 1600 × 600 webp. Picked with the owner (30-Sep-2026). The band's scrim keeps the greeting at 4.5:1 or more on each (`python3 scripts/band-contrast.py`).
 
 | File | Place | Photographer | Source | Licence |
 |---|---|---|---|---|
@@ -28,6 +28,7 @@ One per office city (two for Riyadh and Dubai, shown on alternate days), 1600 ×
 | `dubai.webp` | Burj Khalifa and Downtown | Ahmed Aldaie (@ahmedaldaie) | https://unsplash.com/photos/burj-khalifa-skyline-in-dubai-aKj9uDanF18 | Unsplash Licence |
 | `dubai-2.webp` | Dubai skyline at night | Robert Bock | https://commons.wikimedia.org/wiki/File:Dubai_skyline_unsplash.jpg | CC0 |
 | `beirut.webp` | Zaitunay Bay at blue hour | rashid khreiss (@rush_intime) | https://unsplash.com/photos/brown-wooden-dock-near-body-of-water-at-night-Ur0JWjVvP60 | Unsplash Licence |
-| `barcelona.webp` | Port Vell at blue hour | Jordi Vich Navarro (@jvich) | https://unsplash.com/photos/city-skyline-under-blue-sky-during-night-time-h0qUUgi2WZg | Unsplash Licence |
+| `barcelona.webp` | Park Güell at dusk | Lief Peng (@liefpeng) | https://unsplash.com/photos/barcelona-at-dusk-seen-from-park-guell-W8tw8v0e0uM | Unsplash Licence |
+| `barcelona-2.webp` | Las Arenas and the Eixample at night | Bohdan Nahorniak (@nanik00) | https://unsplash.com/photos/an-aerial-view-of-a-city-at-night-y9crmlkIHxk | Unsplash Licence |
 
 The Unsplash Licence allows free use without attribution; CC0 is public domain. Both are credited here anyway.
