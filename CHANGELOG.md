@@ -3,6 +3,10 @@
 One entry per install, newest first: the version, the day it was installed, and in two lines what changed.
 Settings → Data shows the last five. `scripts/release-check.mjs` refuses a build whose version has no entry here.
 
+## 1.51 — 2026-09-30
+One look everywhere: dates read "2 Sept 2026", times 24-hour; every record page has one blue next step, with the rest in "…"; lists share one filter bar.
+Projects are rows; empty pages say "No … yet"; Settings → Data shows real times; Follow-up has "Client asked for changes" beside "Followed up", and menus open below their button.
+
 ## 1.50 — 2026-09-30
 Your data is safer: each day's backup is also copied to OneDrive (last 14 kept), and the database is checked every time the app opens.
 Settings → Data shows the version, backups and check. On a sent proposal, "Client asked for changes…" sits in Follow-up; a revision's button reads Mark revision sent.
