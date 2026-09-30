@@ -5,7 +5,7 @@ Settings → Data shows the last five. `scripts/release-check.mjs` refuses a bui
 
 ## 1.50 — 2026-09-30
 Your data is safer: each day's backup is also copied to OneDrive (last 14 kept), and the database is checked every time the app opens.
-Settings → Data shows the version, the backups and the check; install backups older than a month move to the archive drive.
+Settings → Data shows the version, backups and check. On a sent proposal, "Client asked for changes…" sits in Follow-up; a revision's button reads Mark revision sent.
 
 ## 1.49 — 2026-09-29
 Company page as a dossier: details, people and what to remember on the left; where we stand, what's next and recent on the right.
