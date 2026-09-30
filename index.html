@@ -12,11 +12,11 @@
   <body>
 <div id="sidebar">
   <div class="sb-header" data-tauri-drag-region="deep">
-    <img class="sb-brand-logo on-light" src="./src/assets/brand/mark-primary.png" alt="MENA Business Investment Group" width="40" height="28"><img class="sb-brand-logo on-dark" src="./src/assets/brand/mark-white.png" alt="MENA Business Investment Group" width="40" height="28">
     <button class="sb-collapse-btn" id="sb-collapse-btn" onclick="toggleSidebar()" data-tip="Collapse sidebar" data-shortcut="toggle-sidebar" aria-label="Collapse sidebar">
       <span class="sb-icon" data-icon="sidebar"></span>
     </button>
   </div>
+  <div class="sb-ident" data-tauri-drag-region="deep"><img class="sb-ident-tile" src="./src/assets/brand/mark-tile-28.png" srcset="./src/assets/brand/mark-tile-28.png 1x, ./src/assets/brand/mark-tile-56.png 2x" alt="" width="28" height="28"><span class="sb-ident-name">MENA One</span></div>
   <button class="sb-search-btn" onclick="openCommandPalette()">
     <span class="sb-icon" data-icon="search"></span><span>Search & Commands</span><kbd>&#8984;K</kbd>
   </button>
@@ -758,6 +758,11 @@
       <button class="seg-btn" data-tint="blue" role="radio" onclick="appearanceSetTint('blue')">Blue</button>
       <button class="seg-btn" data-tint="grey" role="radio" onclick="appearanceSetTint('grey')">Grey</button>
     </div>
+  </div>
+  <div class="sec settings-card">
+    <div class="settings-card-hd"><div class="card-hd">Sidebar</div></div>
+    <p class="settings-card-desc">Hide the modules you don't use from the sidebar. They still work: search, links from other records and the Navigate menu open them, and while one is open it shows in the sidebar. Remembered on this computer.</p>
+    <div class="sb-switches" id="sidebar-switches"></div>
   </div>
   <div class="sec settings-card">
     <div class="settings-card-hd"><div class="card-hd">Theme</div></div>

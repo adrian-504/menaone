@@ -44,7 +44,7 @@ use db::DbState;
 use ms365::models::Ms365State;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
-use tauri::menu::{MenuBuilder, MenuItemBuilder, PredefinedMenuItem, SubmenuBuilder};
+use tauri::menu::{AboutMetadata, MenuBuilder, MenuItemBuilder, PredefinedMenuItem, SubmenuBuilder};
 use tauri::{Emitter, Manager};
 
 /// Opens the bundled USER_GUIDE.md with the user's default app for it (a
@@ -79,7 +79,12 @@ fn build_menu(app: &tauri::AppHandle) -> tauri::Result<tauri::menu::Menu<tauri::
     let new_proposal = MenuItemBuilder::with_id("new_proposal", "New Proposal").build(app)?;
 
     let app_menu = SubmenuBuilder::new(app, "MENA One")
-        .item(&PredefinedMenuItem::about(app, None, None)?)
+        // The native About panel shows the app icon (the MENA mark), name and version; it takes
+        // no image beside the icon, so the full lockup can't go here — the copyright line does.
+        .item(&PredefinedMenuItem::about(app, None, Some(AboutMetadata {
+            copyright: Some("© 2026 MENA Business Investment Group".into()),
+            ..Default::default()
+        }))?)
         .separator();
     #[cfg(target_os = "macos")]
     let app_menu = app_menu

@@ -75,6 +75,8 @@ export function travellingHighlight(container: HTMLElement, itemSelector: string
   };
   new MutationObserver((records) => {
     // Straight from the observer (a microtask after the change): rAF doesn't run in a hidden window.
+    // An item shown or hidden (the sidebar's module switches) moves the rows under the fill: jump, don't slide.
+    if (records.some((r) => r.type === 'attributes' && r.attributeName === 'hidden' && r.target !== hl)) shown = false;
     if (records.some((r) => r.target !== hl)) place();
   }).observe(container, { subtree: true, childList: true, attributes: true, attributeFilter: ['class', 'hidden'] });
   new ResizeObserver(() => { shown = false; place(); }).observe(container);

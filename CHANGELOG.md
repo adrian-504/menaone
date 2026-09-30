@@ -3,6 +3,10 @@
 One entry per install, newest first: the version, the day it was installed, and in two lines what changed.
 Settings → Data shows the last five. `scripts/release-check.mjs` refuses a build whose version has no entry here.
 
+## 1.56 — 2026-09-30
+One mark for the app: the MENA monogram with its three coral bars is the Dock icon and sits beside "MENA One" at the top of the sidebar.
+Hide the modules you don't use from the sidebar (Settings → Appearance → Sidebar); they still open from search and links, and show while you're in them.
+
 ## 1.55 — 2026-09-30
 MENA BIG's look: the logo, brand blue with a coral spark, Saira and Plex type, depth where it matters, a Blue or Grey sidebar, My Day on a photo of your city, and record pages that lead with their figures.
 The proposal studio: Generate opens as a sheet with the slides as tiles and a plain-words summary, then shows the deck being written and what to do next; the builder grows a live proposal card, and versions are cards.
