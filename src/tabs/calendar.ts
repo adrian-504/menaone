@@ -1,3 +1,4 @@
+import { noteSync, OFFLINE_LABEL } from '../lib/offline';
 import { S } from '../lib/state';
 import { toast } from '../lib/ui';
 import { escHtml, expose, today, fmtTime } from '../lib/utils';
@@ -87,13 +88,15 @@ async function loadAndRenderCalendar(): Promise<void> {
       S.meetings = await getMeetings();
       void (window as any).autoLinkMeetings?.();
       S.calendarSyncError = null;
+      noteSync('calendar', null, () => loadAndRenderCalendar());
     } catch (err) {
       // Previously swallowed entirely — indistinguishable from "zero events
       // this week." Still non-fatal (render whatever's cached locally), but
       // the real error now surfaces in the sync sub-label instead of being
       // discarded, so an auth/scope failure is visible instead of silent.
-      console.error('[calendar] sync failed:', err);
-      S.calendarSyncError = String(err);
+      // Offline is not an error: a quiet mark, and it tries again by itself (O3).
+      if (noteSync('calendar', err, () => loadAndRenderCalendar())) S.calendarSyncError = null;
+      else { console.error('[calendar] sync failed:', err); S.calendarSyncError = String(err); }
     }
     S.calendarSyncing = false;
   } else {
@@ -119,6 +122,7 @@ function paintSyncSub(): void {
   if (!el) return;
   if (!S.ms365Status || S.ms365Status.status !== 'connected') { el.textContent = 'Not connected to Microsoft 365'; el.classList.remove('c-red'); return; }
   if (S.calendarSyncing) { el.textContent = 'Syncing…'; el.classList.remove('c-red'); return; }
+  if (S.ms365Offline) { el.textContent = OFFLINE_LABEL; el.classList.remove('c-red'); return; }
   if (S.calendarSyncError) {
     el.textContent = `Sync failed — ${S.calendarSyncError}`;
     el.classList.add('c-red');
@@ -304,3 +308,6 @@ export async function submitOutlookMeeting(e: Event): Promise<void> {
   submitBtn.disabled = false;
 }
 expose('submitOutlookMeeting', submitOutlookMeeting);
+
+// Repainted when Outlook goes offline or comes back (lib/offline.ts).
+expose('paintCalendarSyncSub', paintSyncSub);

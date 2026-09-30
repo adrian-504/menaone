@@ -1,3 +1,4 @@
+import { OFFLINE_LABEL } from '../lib/offline';
 import { allSaved } from '../lib/persist';
 import { savedTick } from '../lib/motion';
 import { S } from '../lib/state';
@@ -150,7 +151,7 @@ function renderMs365Status(): void {
   if (st.status === 'connected') {
     dot.style.background = 'var(--green)';
     text.textContent = `Connected${st.displayName ? ` as ${st.displayName}` : ''}`;
-    sub.textContent = [st.accountEmail, st.lastSyncAt ? `Last synced ${st.lastSyncAt}` : null].filter(Boolean).join(' · ');
+    sub.textContent = [st.accountEmail, S.ms365Offline ? OFFLINE_LABEL : st.lastSyncAt ? `Last synced ${st.lastSyncAt}` : null].filter(Boolean).join(' · ');
     disconnectBtn.style.display = '';
   } else if (st.status === 'expired' || st.status === 'error') {
     dot.style.background = 'var(--red)';
@@ -243,3 +244,5 @@ document.addEventListener('change', (e) => {
   void allSaved().then(() => savedTick(field));
 });
 
+// Repainted when Outlook goes offline or comes back (lib/offline.ts).
+expose('renderMs365Status', renderMs365Status);
