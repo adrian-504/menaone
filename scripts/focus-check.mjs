@@ -109,9 +109,19 @@ const evalJs = async (expr) => (await send('Runtime.evaluate', { expression: exp
 
 await send('Emulation.setDeviceMetricsOverride', { width: VW, height: VH, deviceScaleFactor: 1, mobile: false });
 const results = [];
+// Ready = the app has started and painted My Day (not a fixed wait: the dev server can reload the page
+// while it re-bundles, and a view switched before the app is up is measured half-drawn).
+const ready = async () => {
+  for (let i = 0; i < 50; i++) {
+    if (await evalJs(`typeof window.switchTab === 'function' && performance.getEntriesByName('myday-painted').length > 0`)) return;
+    await sleep(200);
+  }
+};
 for (const [name, js, t] of VIEWS.filter(([n]) => !process.env.ONLY || n.startsWith(process.env.ONLY))) {
   await send('Page.navigate', { url: URL });
-  await sleep(2500);
+  await sleep(1000);
+  await ready();
+  await sleep(500);
   // Layout shift (motion system): from the switch to 1.5 s later, nothing should jump.
   await evalJs(`window.__cls = 0; new PerformanceObserver((l) => { for (const e of l.getEntries()) if (!e.hadRecentInput) window.__cls += e.value; }).observe({ type: 'layout-shift', buffered: false })`);
   await evalJs(`(${js}), new Promise(r => setTimeout(r, 1500))`);

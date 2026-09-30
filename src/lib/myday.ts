@@ -49,6 +49,10 @@ export interface MyDayInput {
   snoozed: Record<string, string>;
   /** Active clients with no contact for a while (worked out by the tab from each company's brief; see quietItems). */
   quietClients?: QuietClient[];
+  /** My Day's rail shows proposals in play (1.57): their stage rows leave this list; a late promise stays. */
+  railOwnsProposals?: boolean;
+  /** An attendee as a person's name (the contact's, when we have them). */
+  nameOf?: (attendee: string) => string;
   /** Attention rows actually on screen (not snoozed, not behind "Show N more").
    * When given, a promise's task leaves Today only if its row is one of them. */
   attentionShown?: Set<string>;
@@ -168,6 +172,22 @@ function proposalItems(i: MyDayInput): AttentionItem[] {
   return out;
 }
 
+/** A proposal we promised by today or earlier and haven't sent for review: a late promise, not a stage — it stays here too. */
+function latePromiseItems(i: MyDayInput): AttentionItem[] {
+  const out: AttentionItem[] = [];
+  for (const p of i.proposals) {
+    if (p.archived || (p.status !== PS.REQUEST && p.status !== PS.DRAFTING) || !p.promisedBy || openRevision(p)) continue;
+    const d = daysBetween(i.today, p.promisedBy) ?? 0;
+    if (d > 0) continue;
+    const services = p.type ? ` · ${p.type}` : '';
+    out.push({ key: `proposal:${p.id}:promise`, kind: 'commitment', record: { kind: 'proposal', id: p.id }, companyId: p.companyId ?? null, companyName: p.client,
+      title: `${p.client} proposal`, score: 94 + Math.min(-d, 6), tone: 'red',
+      reason: `You promised it for ${shortDate(p.promisedBy)}${d < 0 ? ` — ${days(-d)} late` : ' — due today'}${services}`, when: d < 0 ? days(-d) : 'Today',
+      action: p.status === PS.REQUEST ? { kind: 'start_drafting', label: 'Start drafting' } : { kind: 'open', label: 'Open' } });
+  }
+  return out;
+}
+
 /** Whether an opportunity already has work planned: an open task (its own or
  * from one of its meetings) or an open promise we made. */
 export function hasOpenWork(o: Opportunity, i: Pick<MyDayInput, 'todos' | 'meetings' | 'commitments'>): boolean {
@@ -275,6 +295,12 @@ function meetingItems(i: MyDayInput): AttentionItem[] {
   return out;
 }
 
+/** "omar.haddad@acme.test" → "Omar Haddad"; a name stays as it is. Pure. */
+export function personName(attendee: string): string {
+  if (!attendee.includes('@')) return attendee;
+  return attendee.split('@')[0].split(/[._-]+/).filter(Boolean).map((w) => w[0].toUpperCase() + w.slice(1)).join(' ');
+}
+
 /** A client meeting that ended today or yesterday with nothing written (the Meetings page's write-up rule). */
 function writeUpItems(i: MyDayInput): AttentionItem[] {
   const yesterday = addDays(i.today, -1);
@@ -285,7 +311,8 @@ function writeUpItems(i: MyDayInput): AttentionItem[] {
     if (!ended || !isClientMeeting(m, i.ownDomains)) continue;
     const tasks = i.todos.filter((t) => t.meetingId === m.id);
     if (!writeUpState(m, tasks, true).needsWriteUp) continue;
-    const who = (m.attendees || []).find((a) => !Array.from(i.ownDomains).some((d) => a.toLowerCase().endsWith(`@${d}`)))?.split('@')[0];
+    const guest = (m.attendees || []).find((a) => !Array.from(i.ownDomains).some((d) => a.toLowerCase().endsWith(`@${d}`)));
+    const who = guest ? (i.nameOf ? i.nameOf(guest) : personName(guest)) : '';
     const isToday = m.meetingDate === i.today;
     out.push({ key: `meeting:${m.id}:writeup`, kind: 'writeup', record: { kind: 'meeting', id: m.id }, companyId: m.companyId ?? null, companyName: m.companyName,
       title: `Write up ${m.title}`, score: isToday ? 74 : 66, tone: 'amber',
@@ -381,9 +408,15 @@ export function requestGroupReason(statuses: string[]): string {
 const snoozedNow = (i: MyDayInput, key: string) => !!i.snoozed[key] && i.snoozed[key] > i.today;
 
 /** Everything that needs attention, most urgent first. */
+/** Proposal-stage rows the rail's Proposals in play already shows with its own action (1.57):
+ * requests and drafts, waiting for review (and the reviewer's answer), and sent with no answer. */
+export function inRail(key: string): boolean {
+  return /^proposal:\d+:(request|drafting|waiting-review|changes|approved|followup)$/.test(key);
+}
+
 export function buildAttention(i: MyDayInput): AttentionItem[] {
   let items = [
-    ...proposalItems(i), ...opportunityItems(i), ...commitmentItems(i), ...agreementItems(i), ...meetingItems(i), ...writeUpItems(i), ...quietItems(i), ...projectItems(i), ...emailItems(i),
+    ...(i.railOwnsProposals ? [...proposalItems(i).filter((x) => !inRail(x.key)), ...latePromiseItems(i)] : proposalItems(i)), ...opportunityItems(i), ...commitmentItems(i), ...agreementItems(i), ...meetingItems(i), ...writeUpItems(i), ...quietItems(i), ...projectItems(i), ...emailItems(i),
   ];
   // The launch check found a problem: one red row, nothing done automatically.
   if (i.integrityFailed) items.push({ key: 'db:integrity', kind: 'system', title: 'Database check failed — back up and tell Ahmad', score: 200, tone: 'red', reason: 'Settings → Data has the details and the backups', action: { kind: 'open_data_settings', label: 'Open' } });

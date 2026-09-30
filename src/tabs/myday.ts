@@ -34,7 +34,7 @@ import { PS, teamMember, defaultReviewer, isAgreementActive, isOpenProposal } fr
 import { strColor } from '../lib/utils';
 import { followUpMenu } from '../core/proposals';
 import {
-  buildAttention, buildTimeline, shownAttentionKeys, greeting, summaryLine, addDays, isClientMeeting, buildIndex, nowMeeting,
+  buildAttention, buildTimeline, shownAttentionKeys, personName, greeting, summaryLine, addDays, isClientMeeting, buildIndex, nowMeeting,
   type AttentionItem, type MyDayInput, type Timeline, type QuietClient,
 } from '../lib/myday';
 import type { IntelligenceItem, Meeting, Todo } from '../lib/types';
@@ -66,8 +66,15 @@ function input(): MyDayInput {
     commitments: S.commitments, companies: S.companies, touches: S.touches, contactName: contactFirstName,
     integrityFailed: S.housekeeping?.integrity?.ok === false,
     reviewerName: (p) => teamMember(p.reviewerId)?.name || reviewer,
-    ownDomains: ownDomains(), snoozed, quietClients: quietClients(),
+    ownDomains: ownDomains(), snoozed, quietClients: quietClients(), nameOf: attendeeName, railOwnsProposals: true,
   };
+}
+
+/** An attendee as a name: the contact with that email, else the email's name part, capitalised. */
+function attendeeName(a: string): string {
+  const email = a.trim().toLowerCase();
+  const c = email.includes('@') ? S.contacts.find((x) => (x.email || '').toLowerCase() === email) : null;
+  return c?.name || personName(a);
 }
 
 /** Active clients (a running agreement or an open proposal) and when we last met, emailed or called them. */
@@ -146,7 +153,7 @@ export function renderMyDay(): void {
   setHtml('myday-inplay', inPlayHtml(inPlay));
   setHtml('myday-inplay-cnt', inPlay.total ? String(inPlay.total).padStart(2, '0') : '');
   const playSec = document.getElementById('myday-inplay-sec'); if (playSec) playSec.hidden = !inPlay.total;
-  const coming = buildComingUpFocus({ ...data, timeOf: hhmm });
+  const coming = buildComingUpFocus({ ...data, timeOf: hhmm, nameOf: attendeeName });
   setHtml('myday-upcoming', comingHtml(coming, data.today));
   // Nothing coming up: no section saying so (Focus rule 4).
   const upSec = document.getElementById('myday-upcoming-sec'); if (upSec) upSec.hidden = !coming.length;
@@ -434,7 +441,7 @@ const STAGE_TINT: Record<PlayRow['stage'], string> = { draft: 'coral', hassan: '
 
 function inPlayHtml(p: InPlay): string {
   if (!p.total) return '';
-  const panels = p.stages.map((s) => `<button class="mdy-stage st-${STAGE_TINT[s.stage]}" onclick="mydayPlayAll('${s.stage}')"><span class="mdy-stage-n">${s.count}</span><span class="mdy-stage-l">${escHtml(STAGE_LABEL[s.stage].charAt(0).toLowerCase() + STAGE_LABEL[s.stage].slice(1))}</span><span class="mdy-stage-d">oldest ${s.oldest} ${s.oldest === 1 ? 'day' : 'days'}</span></button>`).join('');
+  const panels = p.stages.map((s) => `<button class="mdy-stage st-${STAGE_TINT[s.stage]}" onclick="mydayPlayAll('${s.stage}')"><span class="mdy-stage-n">${s.count}</span><span class="mdy-stage-l">${escHtml(STAGE_LABEL[s.stage].charAt(0).toLowerCase() + STAGE_LABEL[s.stage].slice(1))}</span><span class="mdy-stage-d"><span class="mdy-stage-o">oldest</span>${s.oldest} ${s.oldest === 1 ? 'day' : 'days'}</span></button>`).join('');
   const groups = STAGE_ORDER.map((stage) => {
     const rows = p.rows.filter((r) => r.stage === stage);
     if (!rows.length) return '';
@@ -463,7 +470,7 @@ export async function mydayPlay(e: MouseEvent, id: number, action: string): Prom
   if (!p) return;
   if (action === 'draft') { w.openRecord('proposal', id); return; }
   if (action === 'followed_up') { followUpMenu(e, id); return; }
-  if (action === 'revision_sent') { if (await changeProposalStatus(id, PS.SENT)) renderMyDay(); return; }
+  if (action === 'revision_sent' || action === 'mark_sent') { if (await changeProposalStatus(id, PS.SENT)) renderMyDay(); return; }
   if (action === 'nudge') {
     // A nudge to the reviewer is ours, not contact with the client: it goes in the activity log, not the client's touches.
     const who = teamMember(p.reviewerId)?.name || defaultReviewer()?.name || 'the reviewer';

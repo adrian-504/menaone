@@ -44,7 +44,11 @@ const PERSON_TOUCH: Record<string, string> = {
 };
 
 /** The company's logged follow-ups. */
-const companyTouches = (i: CompanyBriefInput): Touch[] => (i.company.id == null ? [] : (i.touches || []).filter((t) => t.companyId === i.company.id));
+/** Follow-ups logged with the company, or on one of its proposals (a touch logged on a proposal may carry no company). */
+const companyTouches = (i: CompanyBriefInput): Touch[] => {
+  const own = new Set(i.proposals.filter((p) => inCompany(i.company, p.companyId, p.client)).map((p) => p.id));
+  return (i.touches || []).filter((t) => (i.company.id != null && t.companyId === i.company.id) || (t.proposalId != null && own.has(t.proposalId)));
+};
 
 export type BriefLink = { kind: RecordKind | 'section'; id: number | string; label: string };
 

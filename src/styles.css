@@ -3442,3 +3442,7 @@ body.dnd-active [data-sort-shift] .dnd-source{opacity:0}
 .mdy-alert-r{margin-top:6px;font-size:var(--type-secondary)}
 .mdy-pr:hover{background:var(--surface-hover)}.mdy-pr:active{background:var(--surface-pressed)}
 .mdy-att-actions{opacity:1} /* 1.57: every row shows its one action (the "…" still waits for hover) */
+.mdy-stage-d{white-space:nowrap}
+.mdy-stage-o{margin-right:4px;font-family:var(--font-text);font-size:9.5px;font-weight:400;color:var(--muted)}
+/* Stacked (under 1,101px): the rail's blocks take the column's full width. */
+@media (max-width:1100px){.mdy-layout{align-items:stretch}.mdy-layout > .mdy-main > .sec,.mdy-layout > .mdy-rail > .sec{width:100%}}

@@ -9,7 +9,7 @@ import { PS, proposalSentDate } from './commercial';
 import { openRevision } from './revisions';
 import { lastTouch, type TouchContext } from './followup';
 import { daysBetween } from './pipeline';
-import { agreementRenewal, addDays } from './myday';
+import { agreementRenewal, addDays, personName } from './myday';
 import { fmtDateShort, fmtDateWeekday } from './dates';
 
 // ── Proposals in play ───────────────────────────────────────────────────────
@@ -18,7 +18,7 @@ export type Stage = 'draft' | 'hassan' | 'client';
 export const STAGE_ORDER: Stage[] = ['draft', 'hassan', 'client'];
 export const STAGE_LABEL: Record<Stage, string> = { draft: 'To draft', hassan: 'With Hassan', client: 'With clients' };
 
-export type PlayAction = 'draft' | 'nudge' | 'followed_up' | 'revision_sent';
+export type PlayAction = 'draft' | 'nudge' | 'followed_up' | 'revision_sent' | 'mark_sent';
 export interface PlayRow {
   id: number;
   stage: Stage;
@@ -67,6 +67,9 @@ export function playRow(p: Proposal, ctx: TouchContext & { reviewerName?: (p: Pr
   if (stage === 'hassan') {
     const since = p.reviewRequestedAt || p.dateSentToHassan;
     const age = Math.max(0, daysBetween(since, today) ?? 0);
+    // Hassan has answered: the next step is ours.
+    if (p.reviewStatus === 'approved') return { ...base, meta: `Approved${p.reviewedAt ? ` ${fmtDateShort(p.reviewedAt)}` : ''} — send it to the client`, age, ageLabel: plural(age, 'day'), tone: 'red', action: { kind: 'mark_sent', label: 'Mark as sent' } };
+    if (p.reviewStatus === 'changes_requested') return { ...base, meta: `Changes asked${p.reviewNote ? `: ${p.reviewNote}` : ''}`, age, ageLabel: plural(age, 'day'), tone: 'red', action: { kind: 'draft', label: 'Open' } };
     return { ...base, meta: since ? `In review since ${fmtDateShort(since)}` : 'In review', age, ageLabel: plural(age, 'day'), tone: age >= 14 ? 'amber' : null, action: { kind: 'nudge', label: 'Nudge' } };
   }
   const sent = proposalSentDate(p);
@@ -108,6 +111,8 @@ const KIND_ORDER: Record<ComingKind, number> = { meeting: 0, promise_ours: 1, pr
 export function buildComingUpFocus(i: {
   today: string; meetings: Meeting[]; commitments?: Commitment[]; proposals: Proposal[]; agreements: Agreement[];
   companies?: { id: number; name: string }[]; timeOf?: (iso: string) => string;
+  /** An attendee as a person's name (a contact's, else the email's name part, capitalised). */
+  nameOf?: (attendee: string) => string;
 }, span = 7, cap = 10): ComingDay[] {
   const last = addDays(i.today, span);
   const inRange = (d: string | null | undefined, from = i.today): d is string => !!d && d.slice(0, 10) >= from && d.slice(0, 10) <= last;
@@ -116,7 +121,7 @@ export function buildComingUpFocus(i: {
   const company = (id: number | null | undefined) => (id == null ? null : (i.companies || []).find((c) => c.id === id)?.name ?? null);
   for (const m of i.meetings) {
     if (m.isCancelled || !inRange(m.meetingDate, tomorrow)) continue;
-    const who = [(m.attendees || []).slice(0, 2).map((a) => a.split('@')[0]).join(', '), m.isOnlineMeeting ? 'Teams' : m.location || ''].filter(Boolean).join(' · ');
+    const who = [(m.attendees || []).slice(0, 2).map((a) => (i.nameOf ? i.nameOf(a) : personName(a))).join(', '), m.isOnlineMeeting ? 'Teams' : m.location || ''].filter(Boolean).join(' · ');
     out.push({ date: m.meetingDate!, sort: `0${m.startAt || ''}`, kind: 'meeting', title: m.title, detail: who, time: m.startAt && i.timeOf ? i.timeOf(m.startAt) : undefined,
       record: { kind: 'meeting', id: m.id }, companyId: m.companyId ?? null, companyName: m.companyName });
   }

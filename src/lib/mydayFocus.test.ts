@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { buildInPlay, buildComingUpFocus, playRow, regulatoryNotes, stageOf } from './mydayFocus';
-import { buildAttention, buildIndex, QUIET_DAYS, type MyDayInput } from './myday';
+import { buildAttention, buildIndex, personName, QUIET_DAYS, type MyDayInput } from './myday';
 import type { Agreement, Commitment, IntelligenceItem, Meeting, Proposal } from './types';
 
 const TODAY = '2026-09-30';
@@ -126,5 +126,36 @@ describe('needs your attention: write-ups and quiet clients', () => {
     expect(quiet[0].reason).toBe('Active client · last contact 30 Aug · payroll');
     expect(quiet[0].action.kind).toBe('email_company');
     expect(QUIET_DAYS).toBe(30);
+  });
+});
+
+describe('the rail owns proposal-stage work', () => {
+  const input = (over: Partial<MyDayInput>): MyDayInput => ({
+    today: TODAY, now: new Date('2026-09-30T18:00:00'), proposals: [], opportunities: [], pipelineFacts: [], agreements: [], meetings: [],
+    todos: [], projects: [], emails: [], inboxCount: 0, reviewerName: () => 'Hassan', ownDomains: new Set(['menabig.com']), snoozed: {}, ...over,
+  });
+  it('a proposal is in Proposals in play or in Needs your attention, never both — except a late promise', () => {
+    const proposals = [
+      proposal({ id: 1, status: 'Proposal Request Received', dateAdded: '2026-09-20' }),
+      proposal({ id: 2, status: 'Proposal Request Received', dateAdded: '2026-09-20', promisedBy: '2026-09-28' }),
+      proposal({ id: 3, status: 'In Internal Review', reviewRequestedAt: '2026-09-01' }),
+      proposal({ id: 4, status: 'In Internal Review', reviewRequestedAt: '2026-09-01', reviewStatus: 'approved' }),
+      proposal({ id: 5, status: 'Sent to Client', dateSentToClient: '2026-08-20' }),
+      proposal({ id: 6, status: 'Drafting', dateAdded: '2026-09-01' }),
+    ];
+    const rail = new Set(buildInPlay(proposals, ctx, 99).rows.map((r) => r.id));
+    const attention = buildAttention(input({ proposals, railOwnsProposals: true })).flatMap((a) => [a, ...(a.children ?? [])]).filter((a) => a.record?.kind === 'proposal');
+    const both = attention.filter((a) => rail.has(a.record!.id));
+    expect(both.map((a) => a.key)).toEqual(['proposal:2:promise']);
+    expect(both[0].reason).toBe('You promised it for 28 Sept — 2 days late · Payroll');
+  });
+  it('approved by Hassan: the rail says Mark as sent, not Nudge', () => {
+    const r = playRow(proposal({ status: 'In Internal Review', reviewRequestedAt: '2026-09-20', reviewStatus: 'approved', reviewedAt: '2026-09-29' }), ctx)!;
+    expect([r.action.kind, r.tone, r.meta]).toEqual(['mark_sent', 'red', 'Approved 29 Sept — send it to the client']);
+  });
+  it('attendees read as names', () => {
+    expect(personName('omar.haddad@acme.test')).toBe('Omar Haddad');
+    expect(personName('omar@acme.test')).toBe('Omar');
+    expect(personName('Jane Doe')).toBe('Jane Doe');
   });
 });
