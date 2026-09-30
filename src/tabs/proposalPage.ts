@@ -5,6 +5,7 @@
 // commercials, the client's OneDrive folder and documents, what it's linked
 // to, notes and activity.
 
+import { registerDragSource, registerDropTarget } from '../lib/dnd';
 import { settleNew, shake } from '../lib/motion';
 import { statusBadge } from '../lib/statusTone';
 import { blockSummary, blocksToSave, emptyBlock, proposalsFromBlocks, type ProposalBlock, type SharedProposalFields } from '../lib/proposalBlocks';
@@ -1146,7 +1147,7 @@ function renderBlocks(): void {
   if (!before || !after || !hd) return;
   syncActiveBlock();
   const currency = val('prb-currency') || 'SAR';
-  const line = (b: ProposalBlock, i: number) => `<div class="prb-block-line">
+  const line = (b: ProposalBlock, i: number) => `<div class="prb-block-line" data-drag-kind="prb-block" data-drag-id="${i}">
     <button type="button" class="rlink prb-block-open" onclick="prbActivateBlock(${i})">${escHtml(blockSummary(b, i, currency))}</button>
     <button type="button" class="rlink prb-block-remove" onclick="prbRemoveBlock(${i})">Remove</button></div>`;
   before.innerHTML = blocks.slice(0, activeBlock).map((b, i) => line(b, i)).join('');
@@ -1156,6 +1157,38 @@ function renderBlocks(): void {
   hd.hidden = blocks.length < 2;
   hd.innerHTML = blocks.length < 2 ? '' : `<span>Proposal ${activeBlock + 1}</span><button type="button" class="rlink prb-block-remove" onclick="prbRemoveBlock(${activeBlock})">Remove</button>`;
 }
+
+/** Moves proposal `from` to position `to` in the builder, keeping the open one open. */
+function moveBlock(from: number, to: number): void {
+  if (from === to || from < 0 || to < 0 || from >= blocks.length || to >= blocks.length) return;
+  syncActiveBlock();
+  const open = blocks[activeBlock];
+  const [b] = blocks.splice(from, 1);
+  blocks.splice(to, 0, b);
+  activeBlock = blocks.indexOf(open);
+  loadBlock(activeBlock);
+}
+
+registerDragSource('prb-block');
+registerDropTarget('prb-block-order', {
+  accepts: ['prb-block'],
+  onDrop: ({ ids }, { value, beforeId }) => {
+    const from = ids[0];
+    // Dropped among the proposals above the open one, or below it.
+    let to = beforeId != null ? beforeId : value === 'before' ? activeBlock : blocks.length;
+    if (from < to) to -= 1;
+    moveBlock(from, to);
+    return to;
+  },
+});
+
+/** ⌥↑ / ⌥↓ in the builder (outside a text field) moves the open proposal. */
+document.addEventListener('keydown', (e) => {
+  if (!S.proposalBuilderOpen || !e.altKey || (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') || blocks.length < 2) return;
+  if ((e.target as HTMLElement | null)?.closest?.('input, textarea, select, [contenteditable="true"]')) return;
+  e.preventDefault();
+  moveBlock(activeBlock, activeBlock + (e.key === 'ArrowDown' ? 1 : -1));
+});
 
 export function prbAddBlock(): void {
   syncActiveBlock();

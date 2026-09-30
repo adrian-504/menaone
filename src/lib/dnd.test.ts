@@ -16,3 +16,14 @@ describe('reordering', () => {
     expect(ids(reorder(items, [2, 3], 3))).toEqual([1, 4, 5, 2, 3]);
   });
 });
+
+describe('making room while dragging (shiftOffsets)', () => {
+  it('moving down: the items passed slide up; moving up: they slide down; in place: nothing', async () => {
+    const { shiftOffsets } = await import('./dnd');
+    expect(shiftOffsets(4, 0, 3, 40)).toEqual([0, -40, -40, 0]);
+    expect(shiftOffsets(4, 0, 4, 40)).toEqual([0, -40, -40, -40]);
+    expect(shiftOffsets(4, 3, 1, 40)).toEqual([0, 40, 40, 0]);
+    expect(shiftOffsets(4, 2, 2, 40)).toEqual([0, 0, 0, 0]);
+    expect(shiftOffsets(4, 2, 3, 40)).toEqual([0, 0, 0, 0]);
+  });
+});
