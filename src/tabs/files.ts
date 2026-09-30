@@ -10,10 +10,12 @@
 // (up, path bar, search, sort, list/icons) · items · info panel for the
 // selected item. Single click selects, double-click or Enter opens.
 
+import { registerKey } from '../core/keys';
 import { S } from '../lib/state';
 import { escHtml, expose, fmtDateFromIso } from '../lib/utils';
 import { registerTabRenderer, getActiveTabId } from '../lib/registry';
 import { showContextMenu } from '../lib/contextMenu';
+import { quickLook } from '../lib/quickLook';
 import { icon } from '../lib/icons';
 import { emptyState, skeleton, toast } from '../lib/ui';
 import { renderIcons } from '../core/chrome';
@@ -184,6 +186,17 @@ function loadCurrentLevel(): Promise<void> {
   });
 }
 
+/** The folder open in Files (a drop from Finder lands here), or null. */
+export function msFilesCurrentFolder(): string | null {
+  return view === 'browse' ? crumbs[crumbs.length - 1].path : null;
+}
+
+/** Reads the open folder again (after files were dropped into it). */
+export async function msFilesReloadCurrent(): Promise<void> {
+  await loadCurrentLevel();
+  render();
+}
+
 /** Jumps straight to a folder, rebuilding the path from the OneDrive root —
  * used by a company's Files section and by the places sidebar. */
 export async function msFilesNavigateToPath(fullPath: string): Promise<void> {
@@ -308,6 +321,7 @@ function contextItems(item: RowItem) {
   const pinned = isPinned(item.path);
   return [
     { label: item.isFolder ? 'Open folder' : 'Open', iconName: 'document', run: () => { void msFilesOpenItem(item.path); } },
+    ...(item.isFolder ? [] : [{ label: 'Quick Look', iconName: 'eye', run: () => { void quickLookRow(item.path); } }]),
     { label: 'Reveal in Finder', iconName: 'folder', run: () => { void filesRevealInFinder(item.path); } },
     { label: 'Copy path', iconName: 'copy', run: () => msFilesCopyPath(item.path) },
     { label: 'Show info and notes', iconName: 'note', run: () => { void openMsFilesInspector(item.path, item.name, item.isFolder, item.size, item.modifiedAt); } },
@@ -315,6 +329,12 @@ function contextItems(item: RowItem) {
     { label: 'Link to company…', iconName: 'building', run: () => openMsFilesLinkModal(item.path, item.name, item.isFolder, 'company') },
     { label: 'Link to project…', iconName: 'target', run: () => openMsFilesLinkModal(item.path, item.name, item.isFolder, 'project') },
   ];
+}
+
+/** Quick Look on a row; the row keeps the selection and the keyboard after. */
+async function quickLookRow(path: string): Promise<void> {
+  const row = () => [...document.querySelectorAll<HTMLElement>('#msf-body [data-item-path]')].find((el) => el.dataset.itemPath === path) ?? null;
+  await quickLook(path, row);
 }
 
 export function msFilesContextMenu(e: MouseEvent, path: string): void {
@@ -497,27 +517,27 @@ expose('renderFilesTabRetry', renderFilesTabRetry);
 
 // ── Keyboard: ↑/↓ (←/→ in icons) select, Enter opens, ⌘↑ goes up, ⌘F searches ──
 
-document.addEventListener('keydown', (e) => {
-  if (getActiveTabId() !== 'files' || document.querySelector('.modal-ov.open')) return;
-  const t = e.target as HTMLElement;
-  const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || t.isContentEditable;
-  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'f') { e.preventDefault(); (document.getElementById('msf-search') as HTMLInputElement | null)?.focus(); return; }
-  if (typing) { if (e.key === 'Escape') t.blur(); return; }
-  if ((e.metaKey || e.ctrlKey) && e.key === 'ArrowUp') { e.preventDefault(); msFilesGoBack(); return; }
-  if (e.metaKey || e.ctrlKey || e.altKey) return;
+// Files' keys (core/keys.ts).
+registerKey({ scope: 'list', tabs: ['files'], combo: 'mod+f', inInputs: true, label: 'Search this folder', group: 'Files', run: () => { (document.getElementById('msf-search') as HTMLInputElement | null)?.focus(); } });
+registerKey({ scope: 'list', tabs: ['files'], combo: ['mod+arrowup', 'backspace'], label: 'Up one folder', group: 'Files', id: 'files-up', run: () => msFilesGoBack() });
+const fileStep = (key: 'down' | 'up' | 'left' | 'right') => {
   const rows = currentRows();
-  if (!rows.length) return;
+  if (!rows.length) return false;
   const idx = rows.findIndex((r) => r.path === selectedPath);
   const perRow = prefs.layout === 'icons' ? Math.max(1, Math.floor((document.querySelector('.fx-grid')?.clientWidth || 1) / 120)) : 1;
   let next = -1;
-  if (e.key === 'ArrowDown') next = idx < 0 ? 0 : Math.min(rows.length - 1, idx + perRow);
-  else if (e.key === 'ArrowUp') next = idx < 0 ? 0 : Math.max(0, idx - perRow);
-  else if (prefs.layout === 'icons' && e.key === 'ArrowRight') next = Math.min(rows.length - 1, idx + 1);
-  else if (prefs.layout === 'icons' && e.key === 'ArrowLeft') next = Math.max(0, idx - 1);
-  else if (e.key === 'Enter' && idx >= 0) { e.preventDefault(); void msFilesOpenItem(rows[idx].path); return; }
-  else if (e.key === 'Backspace') { e.preventDefault(); msFilesGoBack(); return; }
-  if (next < 0) return;
-  e.preventDefault();
+  if (key === 'down') next = idx < 0 ? 0 : Math.min(rows.length - 1, idx + perRow);
+  else if (key === 'up') next = idx < 0 ? 0 : Math.max(0, idx - perRow);
+  else if (prefs.layout !== 'icons') return false;
+  else if (key === 'right') next = Math.min(rows.length - 1, idx + 1);
+  else next = Math.max(0, idx - 1);
   msFilesSelect(rows[next].path);
   document.querySelector(`#msf-body [data-item-path="${CSS.escape(rows[next].path)}"]`)?.scrollIntoView({ block: 'nearest' });
-});
+  return true;
+};
+registerKey({ scope: 'list', tabs: ['files'], combo: ['arrowdown', 'j'], label: 'Select', group: 'Files', run: () => fileStep('down') });
+registerKey({ scope: 'list', tabs: ['files'], combo: ['arrowup', 'k'], run: () => fileStep('up') });
+registerKey({ scope: 'list', tabs: ['files'], combo: 'arrowright', run: () => fileStep('right') });
+registerKey({ scope: 'list', tabs: ['files'], combo: 'arrowleft', run: () => fileStep('left') });
+registerKey({ scope: 'list', tabs: ['files'], combo: 'space', label: 'Quick Look', group: 'Files', when: () => currentRows().some((r) => r.path === selectedPath && !r.isFolder), run: () => { void quickLookRow(selectedPath!); } });
+registerKey({ scope: 'list', tabs: ['files'], combo: 'enter', label: 'Open', group: 'Files', when: () => currentRows().some((r) => r.path === selectedPath), run: () => { void msFilesOpenItem(selectedPath!); } });

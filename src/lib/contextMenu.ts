@@ -1,5 +1,6 @@
 import { escHtml, expose, positionDropdown, positionFloatingPopup } from './utils';
 import { icon } from './icons';
+import { registerKey } from '../core/keys';
 
 export interface ContextMenuItem {
   label: string;
@@ -82,20 +83,18 @@ document.addEventListener('click', () => closeContextMenu());
 document.addEventListener('contextmenu', (e) => {
   if (!(e.target as HTMLElement | null)?.closest('#ctx-menu')) closeContextMenu();
 });
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') closeContextMenu();
+// A menu's keys: arrows move, Enter picks (Esc is in core/appKeys.ts).
+const menuOpen = () => !!document.getElementById('ctx-menu')?.classList.contains('open');
+const menuMove = (delta: number) => {
   const menu = document.getElementById('ctx-menu');
-  if (!menu?.classList.contains('open') || !menu.contains(document.activeElement)) return;
-  const items = [...menu.querySelectorAll<HTMLElement>('.ctx-menu-item')];
+  const items = [...(menu?.querySelectorAll<HTMLElement>('.ctx-menu-item') ?? [])];
+  if (!items.length) return;
   const at = items.indexOf(document.activeElement as HTMLElement);
-  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-    e.preventDefault();
-    items[(at + (e.key === 'ArrowDown' ? 1 : items.length - 1)) % items.length]?.focus();
-  } else if (e.key === 'Enter' && at >= 0) {
-    e.preventDefault();
-    items[at].click();
-  }
-});
+  items[(at + delta + items.length) % items.length]?.focus();
+};
+registerKey({ scope: 'dialog', combo: 'arrowdown', when: menuOpen, run: () => menuMove(1) });
+registerKey({ scope: 'dialog', combo: 'arrowup', when: menuOpen, run: () => menuMove(-1) });
+registerKey({ scope: 'dialog', combo: 'enter', when: () => menuOpen() && !!document.activeElement?.closest?.('#ctx-menu'), run: () => { (document.activeElement as HTMLElement).click(); } });
 // A long menu scrolls; only scrolling something else closes it.
 document.addEventListener('scroll', (e) => {
   if (e.target instanceof Element && e.target.closest('#ctx-menu')) return;

@@ -1,10 +1,11 @@
+import { OFFLINE_LABEL } from '../lib/offline';
 import { allSaved } from '../lib/persist';
 import { savedTick } from '../lib/motion';
 import { S } from '../lib/state';
 import { toast } from '../lib/ui';
 import { escHtml, expose, showConfirm, fmtDateTime } from '../lib/utils';
 import { registerTabRenderer } from '../lib/registry';
-import { ms365GetClientId, ms365SetClientId, ms365GetTenantId, ms365SetTenantId, ms365Status, ms365Connect, ms365Disconnect, runCompanyMigration, getCompanies, listLocalBackups, backupDatabaseNow, revealBackupsFolder } from '../lib/db';
+import { rebuildSearchIndex, revealLogsFolder, ms365GetClientId, ms365SetClientId, ms365GetTenantId, ms365SetTenantId, ms365Status, ms365Connect, ms365Disconnect, runCompanyMigration, getCompanies, listLocalBackups, backupDatabaseNow, revealBackupsFolder } from '../lib/db';
 import { THEMES } from '../core/theme';
 import { applyMs365SidebarVisibility } from '../core/chrome';
 import { renderTab } from '../lib/registry';
@@ -108,6 +109,22 @@ async function backupDatabaseNowFromSettings(): Promise<void> {
 }
 expose('backupDatabaseNowFromSettings', backupDatabaseNowFromSettings);
 expose('revealBackupsFolderFromSettings', () => { void revealBackupsFolder(); });
+expose('revealLogsFolder', () => { void revealLogsFolder().catch((e) => toast("Couldn't open the logs folder", { tone: 'error', detail: String(e) })); });
+
+/** Settings → Data: rebuild search on demand (foundations P1). */
+async function rebuildSearchIndexFromSettings(): Promise<void> {
+  const btn = document.getElementById('rebuild-index-btn') as HTMLButtonElement | null;
+  if (btn) btn.disabled = true;
+  try {
+    await rebuildSearchIndex();
+    toast('Search index rebuilt', { tone: 'success' });
+  } catch (err) {
+    toast("Couldn't rebuild the search index", { tone: 'error', detail: String(err) });
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+expose('rebuildSearchIndexFromSettings', rebuildSearchIndexFromSettings);
 
 function renderMs365Status(): void {
   applyMs365SidebarVisibility();
@@ -134,7 +151,7 @@ function renderMs365Status(): void {
   if (st.status === 'connected') {
     dot.style.background = 'var(--green)';
     text.textContent = `Connected${st.displayName ? ` as ${st.displayName}` : ''}`;
-    sub.textContent = [st.accountEmail, st.lastSyncAt ? `Last synced ${st.lastSyncAt}` : null].filter(Boolean).join(' · ');
+    sub.textContent = [st.accountEmail, S.ms365Offline ? OFFLINE_LABEL : st.lastSyncAt ? `Last synced ${st.lastSyncAt}` : null].filter(Boolean).join(' · ');
     disconnectBtn.style.display = '';
   } else if (st.status === 'expired' || st.status === 'error') {
     dot.style.background = 'var(--red)';
@@ -227,3 +244,5 @@ document.addEventListener('change', (e) => {
   void allSaved().then(() => savedTick(field));
 });
 
+// Repainted when Outlook goes offline or comes back (lib/offline.ts).
+expose('renderMs365Status', renderMs365Status);

@@ -81,7 +81,8 @@ export function updateRecordRail(kind: RecordKind | undefined, key: number | str
   if (toggle) {
     toggle.hidden = !supported;
     toggle.classList.toggle('active', supported && railEnabled());
-    toggle.title = railEnabled() ? 'Hide the list (⇧⌘\\)' : 'Show the list beside the record (⇧⌘\\)';
+    toggle.dataset.tip = railEnabled() ? 'Hide the list' : 'Show the list beside the record';
+    toggle.dataset.key = '⇧⌘\\';
   }
   const on = supported && railEnabled();
   main?.classList.toggle('with-rail', on);

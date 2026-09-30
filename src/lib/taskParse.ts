@@ -173,8 +173,10 @@ export function parseTaskInput(input: string, ctx: ParseContext, ignored: Set<st
   scan(/\b(?:(next)\s+|on\s+)?(sun|mon|tue|tues|wed|thu|thur|thurs|fri|sat)(?:day|nesday|urday|sday)?\b/gi, (m) => {
     const idx = dayIndex(m[2]);
     if (idx < 0) return;
-    let diff = (idx - today.getDay() + 7) % 7 || 7;
-    if (m[1]) diff += diff < 7 ? 7 : 0;
+    // A bare weekday is the next one after today; "next Tue" is the Tuesday of
+    // next week (Mon–Sun weeks, as the calendar shows them).
+    const toMonday = (8 - today.getDay()) % 7 || 7;
+    const diff = m[1] ? toMonday + ((idx + 6) % 7) : (idx - today.getDay() + 7) % 7 || 7;
     const d = addDays(today, diff);
     add(m.index, m.index + m[0].length, dateToken(m[0], d), setDate(d));
   });

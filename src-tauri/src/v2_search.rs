@@ -305,3 +305,76 @@ pub fn rebuild_all(conn: &Connection) -> rusqlite::Result<()> {
 
     Ok(())
 }
+
+// ── Launch: rebuild only when something changed outside the app ─────────────
+// (foundations P1). Every save in the app re-indexes its own row, and at quit
+// the app rebuilds once if anything changed during the session, then records a
+// fingerprint of the indexed tables. At launch, a matching fingerprint means
+// the index is already right; anything else — an edit made outside the app, a
+// restore, a crash before quit, a new index format — rebuilds it.
+
+const INDEX_FORMAT: i64 = 1;
+const FINGERPRINT_KEY: &str = "search_index_fingerprint";
+const INDEXED: &[&str] = &[
+    "proposals", "contacts", "agreements", "todos", "notes", "projects", "opportunities",
+    "documents", "meetings", "commitments", "intelligence_items", "companies",
+];
+
+fn has_column(conn: &Connection, table: &str, column: &str) -> rusqlite::Result<bool> {
+    let mut stmt = conn.prepare(&format!("PRAGMA table_info({table})"))?;
+    let names = stmt.query_map([], |r| r.get::<_, String>(1))?.collect::<rusqlite::Result<Vec<_>>>()?;
+    Ok(names.iter().any(|n| n == column))
+}
+
+/// Row counts, highest ids and latest `updated_at` of every indexed table.
+pub fn index_fingerprint(conn: &Connection) -> rusqlite::Result<String> {
+    let mut parts = vec![format!("f{INDEX_FORMAT}")];
+    for table in INDEXED {
+        let exists: bool = conn.query_row("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?1)", params![table], |r| r.get(0))?;
+        if !exists { continue; }
+        let updated = if has_column(conn, table, "updated_at")? { "COALESCE(MAX(updated_at), '')" } else { "''" };
+        let row: (i64, i64, String) = conn.query_row(
+            &format!("SELECT COUNT(*), COALESCE(MAX(rowid), 0), {updated} FROM {table}"), [],
+            |r| Ok((r.get(0)?, r.get(1)?, r.get::<_, Option<String>>(2)?.unwrap_or_default())),
+        )?;
+        parts.push(format!("{table}:{}:{}:{}", row.0, row.1, row.2));
+    }
+    Ok(parts.join("|"))
+}
+
+fn stored_fingerprint(conn: &Connection) -> Option<String> {
+    conn.query_row("SELECT value FROM app_meta WHERE key = ?1", params![FINGERPRINT_KEY], |r| r.get(0)).ok()
+}
+
+/// Full rebuild (index and note links), then remember what it was built from.
+pub fn rebuild_and_remember(conn: &Connection) -> rusqlite::Result<()> {
+    rebuild_all(conn)?;
+    rebuild_note_links(conn)?;
+    let fp = index_fingerprint(conn)?;
+    conn.execute(
+        "INSERT INTO app_meta (key, value) VALUES (?1, ?2) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        params![FINGERPRINT_KEY, fp],
+    )?;
+    Ok(())
+}
+
+/// At launch: rebuild only when the data isn't what the index was built from.
+/// Returns whether it rebuilt.
+pub fn rebuild_if_stale(conn: &Connection) -> rusqlite::Result<bool> {
+    if stored_fingerprint(conn).as_deref() == Some(index_fingerprint(conn)?.as_str()) {
+        return Ok(false);
+    }
+    rebuild_and_remember(conn)?;
+    Ok(true)
+}
+
+/// At quit: if anything changed since `at_launch`, rebuild once so the next
+/// launch can skip it. Returns whether it rebuilt.
+pub fn refresh_at_quit(conn: &Connection, at_launch: &str) -> rusqlite::Result<bool> {
+    if index_fingerprint(conn)? == at_launch && stored_fingerprint(conn).as_deref() == Some(at_launch) {
+        return Ok(false);
+    }
+    rebuild_and_remember(conn)?;
+    Ok(true)
+}
+

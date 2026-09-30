@@ -2,6 +2,7 @@
 // its context and one-click fixes, or as a list with the same fixes applied
 // to many records. Every fix can be undone.
 
+import { registerKey } from '../core/keys';
 import { S } from '../lib/state';
 import { escHtml, expose, today } from '../lib/utils';
 import { icon } from '../lib/icons';
@@ -491,16 +492,15 @@ function updateCleanupBadge(): void {
 }
 registerBadgeUpdater(updateCleanupBadge);
 
-document.addEventListener('keydown', (e) => {
-  if (getActiveTabId() !== 'cleanup' || mode !== 'step' || e.metaKey || e.ctrlKey || e.altKey) return;
-  const t = e.target as HTMLElement;
-  if (/^(INPUT|SELECT|TEXTAREA)$/.test(t.tagName) || t.isContentEditable || document.querySelector('.modal-ov.open')) return;
-  const q = activeQueue();
-  if (!q) return;
-  if (e.key === 'ArrowRight') { e.preventDefault(); cleanupSkip(); return; }
-  const n = Number(e.key);
-  if (n >= 1 && n <= q.actions.length) { e.preventDefault(); cleanupAction(q.actions[n - 1]); }
-});
+// Clean-up's keys (core/keys.ts): 1–9 apply the numbered fix, → skips.
+registerKey({ scope: 'list', tabs: ['cleanup'], combo: 'arrowright', label: 'Skip to the next record', group: 'Clean-up', when: () => mode === 'step' && !!activeQueue(), run: () => cleanupSkip() });
+for (let n = 1; n <= 9; n++) {
+  registerKey({
+    scope: 'list', tabs: ['cleanup'], combo: String(n), ...(n === 1 ? { label: 'Apply the numbered fix', group: 'Clean-up', note: '1 to 9' } : {}),
+    when: () => mode === 'step' && (activeQueue()?.actions.length ?? 0) >= n,
+    run: () => cleanupAction(activeQueue()!.actions[n - 1]),
+  });
+}
 
 let pendingRender: ReturnType<typeof setTimeout> | null = null;
 onChange(() => {

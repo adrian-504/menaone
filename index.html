@@ -11,7 +11,7 @@
   <div class="sb-header" data-tauri-drag-region="deep">
     <img class="sb-logo-img" src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAAsADkDASIAAhEBAxEB/8QAHAAAAgIDAQEAAAAAAAAAAAAABgcAAgEDBQQI/8QAPRAAAQMDAgIECQkJAAAAAAAAAQIDBAAFEQYSByExQWFxExQVFlFVlLLhIiQyNTdydJHwIzZCVHOBkrPS/8QAGgEAAgIDAAAAAAAAAAAAAAAAAAUBBgIDBP/EAC0RAAEDAgIIBQUAAAAAAAAAAAEAAhEDIQQxBRITFSJBUaEUYbHC0SMyQlLw/9oADAMBAAIRAxEAPwBjp4t6PU4E+UHUgnG4xnMDt6KjnFrR7a1J8oOqCTjcmM4Qe7lSbsFogzdD6ouMhjfKhJjmO5uI2blkK5A4OR6ard7RBjcPLBc2mNsyW9IS85uJ3hJISMdAxjqq0bpwevqS7OOWca3Tolviq0TbKe8J43XiTpmzXFyDMlupfbCVKCY61DCkhQ5gegipH4k6Zk2uZcW5jpjw1NpeJjrBBWSE4GOfQaWr0K23HjUYt3Q0uEthsuJdXtTkRkkZOR14oatQA0JqsDoEiEB3eEXWlui8M5jc5hh5RxGOiyOJqBxyi/ZORHFrSLjiUCc/lRAGYq+v+1em5cTNMWq5SIEuY8mRHWUOJTHWoA94HOkve7XChad0dLjR0tyJja1yFgnLhC0gE/nRCmyxrrxY1I1cYRejpRIdTvCgncAnacipdo3CDi4oh3SbEDogYiqbWm3cJlxLxbNcwlLtElTiIzm1wONqRzIyOkfrn0V7PIEj+aR/ir/qgXgV9T3b8Q37lNmleMHhq7qNM2C6aX1GB7syvnDS/wBmutvuxffNVv32TaW/ESveNdTTen7yxw+1hGdtM5t95McNNKjqCnMLJO0YycdlVvWn707ww03FbtM5chp+SXGkx1FaAVHGRjIzVk2rNvMj7/Yl4adTLl7lLrYGtT8YHLS+8tlt5lslaACRtjJV191Xn2zTtt0Bf02G9OXJSpEQP72tng8LVtxyGc8/yrdfWtSWTic7e7ZY5UpTbTaUExnFtqywlB5p9HPr6RXMtenr4NEalbcs89Dzz8RTbZjLCl4WsqwMZOMisGuJZTcX8IDLSM5vPPop/Jwi/F6Kmpf3R0H/AEHP9ia6d7uOrLvr2+2i13mQ20yp1YaU+UIDaQMgcu2sah0/eXtL6JaatM5bjDKw8hMdRLZK0kbhjly9NVu7WprNxFvlyttilyUvqdaSoxXFIUhYHMFPdQxzHARBPHEx+yCCDeYt6Ij4F/VF3x0eMN+5TZpY8GLXPtlquiZ8GTFK30FAfaKCoBHSM0zqr+lCDi3kf1gu/DCKQQwkSUtIbMa8HaMA/s89v8dZHjIz81u5Oc7lBsnq5fT7B+iaA/OU+p7R7L8annKfU9o9l+NJ9qVZN3M8u/yj5wyHFuqEW8pDhJ2gt4GfR8vu/LvrDnhlg/M7whRJO5GwEA55fT7f1igLzlPqe0ey/Gp5yn1PaPZfjRtSjdzPLv8AKP2FPNLSpUG7r2gcj4PGcYz9PprWBIHPxa8ZxjkGxjHo+X09vaaBPOU+p7R7L8annKfU9o9l+NG1KN3M8u/ymjat5Q8pxqWhal5PjJHP7oBOBXRoT0LcTcIkxRiRI+x1IxHb2A8uvnRZW5pkSlGIpinVLByX/9k=" alt="MENA One">
     <div class="sb-logo-text">MENA One<div class="sb-logo-sub">Workspace</div></div>
-    <button class="sb-collapse-btn" id="sb-collapse-btn" onclick="toggleSidebar()" data-tip="Collapse sidebar" data-key="⌘\" aria-label="Collapse sidebar">
+    <button class="sb-collapse-btn" id="sb-collapse-btn" onclick="toggleSidebar()" data-tip="Collapse sidebar" data-shortcut="toggle-sidebar" aria-label="Collapse sidebar">
       <span class="sb-icon" data-icon="sidebar"></span>
     </button>
   </div>
@@ -145,7 +145,7 @@
 
 <div id="app-main">
 
-<button class="sb-expand-btn" id="sb-expand-btn" onclick="toggleSidebar()" data-tip="Show sidebar" data-key="⌘\" aria-label="Show sidebar">
+<button class="sb-expand-btn" id="sb-expand-btn" onclick="toggleSidebar()" data-tip="Show sidebar" data-shortcut="toggle-sidebar" aria-label="Show sidebar">
   <span class="sb-icon" data-icon="sidebar"></span>
 </button>
 
@@ -155,11 +155,11 @@
 
 <header class="loc-bar" id="loc-bar" data-tauri-drag-region="deep">
   <div class="loc-nav-group">
-    <button class="loc-nav" id="loc-back" onclick="navBack()" data-tip="Back" data-key="⌘[" aria-label="Back" disabled><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3.5 5.5 8l4.5 4.5"/></svg></button>
-    <button class="loc-nav" id="loc-fwd" onclick="navForward()" data-tip="Forward" data-key="⌘]" aria-label="Forward" disabled><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3.5 10.5 8 6 12.5"/></svg></button>
+    <button class="loc-nav" id="loc-back" onclick="navBack()" data-tip="Back" data-shortcut="nav-back" aria-label="Back" disabled><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3.5 5.5 8l4.5 4.5"/></svg></button>
+    <button class="loc-nav" id="loc-fwd" onclick="navForward()" data-tip="Forward" data-shortcut="nav-forward" aria-label="Forward" disabled><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3.5 10.5 8 6 12.5"/></svg></button>
   </div>
   <nav class="loc-crumbs" id="loc-crumbs" aria-label="Location"></nav>
-  <button class="loc-nav loc-rail" id="loc-rail" onclick="toggleRecordRail()" data-tip="Show the list beside the record" aria-label="Toggle the list" hidden><span data-icon="sidebar" data-icon-size="15"></span></button>
+  <button class="loc-nav loc-rail" id="loc-rail" onclick="toggleRecordRail()" data-tip="Show the list beside the record" data-key="⇧⌘\" aria-label="Toggle the list" hidden><span data-icon="sidebar" data-icon-size="15"></span></button>
 </header>
 
 <!-- DASHBOARD -->
@@ -578,7 +578,7 @@
         <button data-when="past" onclick="setMeetingFilter('past')">Past</button>
         <button data-when="writeup" onclick="setMeetingFilter('writeup')" data-tip="Past meetings with no notes, decisions or action items">Needs write-up</button>
       </div>
-      <input type="text" class="f-search" id="meeting-search" placeholder="Search title, company, attendee…" oninput="renderMeetingsTab()" aria-label="Search meetings">
+      <input type="text" class="f-search" id="meeting-search" placeholder="Search title, company, attendee…" oninput="filterSoon('renderMeetingsTab')" aria-label="Search meetings">
       <span class="rcnt" id="meeting-count"></span>
     </div>
     <div id="meeting-list"></div>
@@ -693,7 +693,7 @@
     <nav class="fx-places" id="msf-places" aria-label="Places"></nav>
     <section class="fx-main">
       <div class="fx-toolbar">
-        <button class="loc-nav" id="msf-back-btn" onclick="msFilesGoBack()" data-tip="Up one folder" data-key="⌘↑" aria-label="Up one folder"><span data-icon="chevronLeft" data-icon-size="15"></span></button>
+        <button class="loc-nav" id="msf-back-btn" onclick="msFilesGoBack()" data-tip="Up one folder" data-shortcut="files-up" aria-label="Up one folder"><span data-icon="chevronLeft" data-icon-size="15"></span></button>
         <div class="fx-folder-title" id="msf-folder-title"></div>
         <input type="text" class="f-search fx-search" id="msf-search" placeholder="Search" oninput="msFilesSearchChanged()" aria-label="Search this folder">
         <button class="btn-secondary btn-sm fx-sort" onclick="msFilesSortMenu(event)" data-tip="Sort by">Sort: <span id="msf-sort-label">Name</span></button>
@@ -871,7 +871,13 @@
       <div class="btn-row">
         <button class="btn-secondary" id="backup-now-btn" onclick="backupDatabaseNowFromSettings()">Back Up Now</button>
         <button class="btn-secondary" onclick="revealBackupsFolderFromSettings()">Show backups folder</button>
+        <button class="btn-secondary" onclick="revealLogsFolder()">Show logs</button>
       </div>
+    </div>
+    <div class="settings-subsection">
+      <div class="settings-subsection-title">Search index</div>
+      <p class="settings-card-desc">Search is rebuilt by itself when your data changed outside the app. If a record is missing from search, rebuild it here.</p>
+      <div class="btn-row"><button class="btn-secondary" id="rebuild-index-btn" onclick="rebuildSearchIndexFromSettings()">Rebuild search index</button></div>
     </div>
   </div>
     </section>
@@ -897,7 +903,7 @@
         <button onclick="setProjectFilter('client')">Client</button>
         <button onclick="setProjectFilter('internal')">Internal</button>
       </div>
-      <input type="text" class="f-search" id="proj-search" placeholder="Search projects…" oninput="renderProjects()">
+      <input type="text" class="f-search" id="proj-search" placeholder="Search projects…" oninput="filterSoon('renderProjects')">
       <select class="ssel" id="proj-status-filter" onchange="renderProjects()">
         <option value="">All Statuses</option>
         <option>Idea</option><option>Planning</option><option>Not Started</option><option>In Progress</option>
@@ -1194,7 +1200,7 @@
           <div class="notes-list-count" id="notes-list-count"></div>
         </div>
         <div class="notes-new-group">
-          <button class="loc-nav" onclick="createNewNote(null)" data-tip="New note" data-key="⌘N" aria-label="New note"><span data-icon="edit" data-icon-size="15"></span></button>
+          <button class="loc-nav" onclick="createNewNote(null)" data-tip="New note" data-shortcut="notes-new" aria-label="New note"><span data-icon="edit" data-icon-size="15"></span></button>
           <button class="loc-nav" onclick="toggleNewNoteMenu(event)" data-tip="New from template" aria-label="New from template"><span data-icon="chevronDown" data-icon-size="13"></span></button>
           <div class="wikilink-menu" id="new-note-menu"></div>
         </div>
@@ -1210,7 +1216,7 @@
       <div class="notes-topbar">
         <div class="notes-topbar-group">
           <button class="loc-nav" onclick="toggleNotesSidebar()" data-tip="Show or hide the library" aria-label="Toggle library"><span data-icon="sidebar" data-icon-size="15"></span></button>
-          <button class="loc-nav" id="notes-focus-btn" onclick="toggleNotesFocus()" data-tip="Focus mode" data-key="⌘." aria-label="Focus mode"><svg width="15" height="15" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3 7V4a1 1 0 0 1 1-1h3M11 3h3a1 1 0 0 1 1 1v3M15 11v3a1 1 0 0 1-1 1h-3M7 15H4a1 1 0 0 1-1-1v-3"/></svg></button>
+          <button class="loc-nav" id="notes-focus-btn" onclick="toggleNotesFocus()" data-tip="Focus mode" data-shortcut="notes-focus" aria-label="Focus mode"><svg width="15" height="15" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3 7V4a1 1 0 0 1 1-1h3M11 3h3a1 1 0 0 1 1 1v3M15 11v3a1 1 0 0 1-1 1h-3M7 15H4a1 1 0 0 1-1-1v-3"/></svg></button>
         </div>
         <div class="notes-topbar-status">
           <span id="notes-save-status"></span>
@@ -1340,7 +1346,7 @@
   </div>
   <nav class="pr-views" data-pr-views aria-label="Proposal views"></nav>
   <div class="fbar">
-    <input type="text" class="f-search" id="wq-search" placeholder="Search client, type, owner…" oninput="renderPending()">
+    <input type="text" class="f-search" id="wq-search" placeholder="Search client, type, owner…" oninput="filterSoon('renderPending')">
     <select class="fsel" id="wq-filter-status" onchange="renderPending()">
       <option value="">All stages</option>
       <option value="Proposal Request Received">Request received</option>
@@ -1412,7 +1418,7 @@
   <div class="ct-people-banner" id="ct-people-banner" hidden></div>
   <div class="ct-people-banner" id="ct-email-banner" hidden></div>
   <div class="fbar">
-    <input type="text" class="f-search" id="ct-search" placeholder="Search name, company, email, role, service…" oninput="renderContacts()">
+    <input type="text" class="f-search" id="ct-search" placeholder="Search name, company, email, role, service…" oninput="filterSoon('renderContacts')">
     <select class="fsel" id="ct-client" onchange="renderContacts()"><option value="">All Clients</option></select>
     <select class="fsel" id="ct-list-filter" onchange="renderContacts()"><option value="">All lists</option></select>
     <select class="fsel" id="ct-type-filter" onchange="renderContacts()" title="Contacts at companies that were offered or are on retainer for this service"><option value="">All services</option></select>
@@ -1465,7 +1471,7 @@
     <div class="co-review-queue" id="co-review-queue" style="display:none"></div>
     <div class="co-quality-bar" id="co-quality-bar"></div>
     <div class="co-search-bar">
-      <input type="text" class="f-search" id="co-search" placeholder="Search companies…" oninput="renderCompanyList()">
+      <input type="text" class="f-search" id="co-search" placeholder="Search companies…" oninput="filterSoon('renderCompanyList')">
       <select class="fsel" id="co-filter-status" onchange="renderCompanyList()" aria-label="Relationship">
         <option value="">Any relationship</option>
         <option value="client">Active clients</option>
@@ -1680,7 +1686,7 @@
   </div>
   <div id="agr-summary" class="kpi-row-auto"></div>
   <div class="fbar">
-    <input type="text" class="f-search" id="agr-search" placeholder="Search client, reference, service, remarks…" oninput="renderAgreements()">
+    <input type="text" class="f-search" id="agr-search" placeholder="Search client, reference, service, remarks…" oninput="filterSoon('renderAgreements')">
     <select class="fsel" id="agr-status" onchange="renderAgreements()"><option value="">All statuses</option></select>
     <select class="fsel" id="agr-service" onchange="renderAgreements()"><option value="">Any service status</option></select>
     <select class="fsel" id="agr-type" onchange="renderAgreements()"><option value="">All types</option></select>
@@ -1991,7 +1997,7 @@
     </div>
   </div>
   <div class="fbar">
-    <input type="text" class="f-search" id="r-search" placeholder="Search client…" oninput="renderReports()">
+    <input type="text" class="f-search" id="r-search" placeholder="Search client…" oninput="filterSoon('renderReports')">
     <select class="fsel" id="r-status" onchange="renderReports()"><option value="">All</option></select>
     <select class="fsel" id="r-type" onchange="renderReports()"><option value="">All</option></select>
     <span class="fbar-range">Sent <input type="date" id="r-df" onchange="renderReports()" aria-label="Sent from"> to <input type="date" id="r-dt" onchange="renderReports()" aria-label="Sent to"></span>
@@ -2084,7 +2090,7 @@
     <button class="seg-btn" data-svc-view="templates" onclick="setServicesView('templates')">Proposal templates</button>
   </div>
   <div class="fbar">
-    <input type="text" class="f-search" id="price-search" placeholder="Search services…" oninput="renderPricingTab()">
+    <input type="text" class="f-search" id="price-search" placeholder="Search services…" oninput="filterSoon('renderPricingTab')">
     <select class="fsel" id="price-filter" onchange="renderPricingTab()"><option value="">All categories</option></select>
     <label class="check-label" id="svc-inactive-wrap"><input type="checkbox" id="svc-show-inactive" onchange="renderPricingTab()"> Show retired services</label>
   </div>

@@ -8,7 +8,7 @@
 //! can see here — read-only, never copied anywhere.
 
 use crate::db::DbState;
-use rusqlite::{params, OptionalExtension};
+use rusqlite::{params, Connection, OptionalExtension};
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 use tauri::State;
@@ -243,6 +243,11 @@ pub fn files_get_or_create_msfile(state: State<DbState>, path: String, name: Str
 pub fn files_get_by_ids(state: State<DbState>, ids: Vec<i64>) -> CmdResult<Vec<LocalFileItem>> {
     if ids.is_empty() { return Ok(vec![]); }
     let conn = state.0.lock().map_err(err)?;
+    files_by_ids(&conn, &ids)
+}
+
+pub fn files_by_ids(conn: &Connection, ids: &[i64]) -> CmdResult<Vec<LocalFileItem>> {
+    if ids.is_empty() { return Ok(vec![]); }
     let placeholders = ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
     let sql = format!("SELECT path, name, item_type FROM microsoft_files WHERE id IN ({placeholders})");
     let mut stmt = conn.prepare(&sql).map_err(err)?;
@@ -383,4 +388,103 @@ mod tests {
         assert!(!is_within_onedrive(Path::new("/tmp/../etc")));
         assert!(!is_within_onedrive(Path::new("/etc/passwd")));
     }
+}
+
+// ── Files dropped from Finder (foundations F2) ──────────────────────────────
+
+/// Apps and scripts are never copied in from a drop.
+pub const REFUSED_EXTENSIONS: &[&str] = &["app", "exe", "command", "sh", "pkg", "dmg", "bat", "msi", "jar", "scpt", "tool", "workflow"];
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DropResult {
+    /// Where each accepted file now is (a copy; the original stays where it was).
+    pub copied: Vec<String>,
+    /// Names refused (apps, scripts, folders, missing files).
+    pub refused: Vec<String>,
+}
+
+/// `name.ext`, then `name 2.ext`, `name 3.ext`… the first that's free in `dir`.
+pub fn free_name(dir: &Path, file_name: &str) -> PathBuf {
+    let first = dir.join(file_name);
+    if !first.exists() { return first; }
+    let (stem, ext) = match file_name.rfind('.') {
+        Some(i) if i > 0 => (&file_name[..i], &file_name[i..]),
+        _ => (file_name, ""),
+    };
+    (2..).map(|n| dir.join(format!("{stem} {n}{ext}"))).find(|p| !p.exists()).unwrap()
+}
+
+/// Copies dropped files into `dest_dir` (made if its parent exists), keeping
+/// the originals; refuses apps, scripts and folders.
+pub fn copy_into(paths: &[String], dest_dir: &Path) -> Result<DropResult, String> {
+    if !dest_dir.exists() {
+        let parent_ok = dest_dir.parent().map(|p| p.exists()).unwrap_or(false);
+        if !parent_ok { return Err(format!("{} doesn't exist", dest_dir.display())); }
+        std::fs::create_dir(dest_dir).map_err(|e| e.to_string())?;
+    }
+    let mut out = DropResult { copied: vec![], refused: vec![] };
+    for p in paths {
+        let src = Path::new(p);
+        let name = src.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| p.clone());
+        let ext = src.extension().map(|e| e.to_string_lossy().to_lowercase()).unwrap_or_default();
+        if !src.is_file() || REFUSED_EXTENSIONS.contains(&ext.as_str()) {
+            out.refused.push(name);
+            continue;
+        }
+        let to = free_name(dest_dir, &name);
+        std::fs::copy(src, &to).map_err(|e| format!("couldn't copy {name}: {e}"))?;
+        log::info!("files: dropped file copied into {}", dest_dir.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default());
+        out.copied.push(to.to_string_lossy().to_string());
+    }
+    Ok(out)
+}
+
+#[tauri::command]
+pub fn files_copy_into(paths: Vec<String>, dest_dir: String) -> Result<DropResult, String> {
+    copy_into(&paths, Path::new(&dest_dir))
+}
+
+// ═══════════════ Quick Look (foundations F3) ═══════════════
+// Space on a file shows it in macOS Quick Look, as in Finder. Only real files
+// on this Mac (OneDrive's local copies included) under the home folder; a
+// link to a web page has nothing to preview.
+
+/// The file Quick Look may show, or why not.
+pub fn quick_look_target(path: &Path, home: &Path) -> Result<PathBuf, String> {
+    let canonical = path
+        .canonicalize()
+        .map_err(|_| "This file could no longer be found — it may have been moved, renamed, or deleted.".to_string())?;
+    if !canonical.is_file() {
+        return Err("Quick Look shows files, not folders.".to_string());
+    }
+    let home = home.canonicalize().unwrap_or_else(|_| home.to_path_buf());
+    if !canonical.starts_with(&home) {
+        return Err("That file isn't in your folders on this Mac.".to_string());
+    }
+    Ok(canonical)
+}
+
+/// Shows the file in Quick Look and waits for the preview to close, then
+/// brings MENA One back to the front so the keyboard is where it was.
+#[tauri::command]
+pub async fn files_quick_look(app: tauri::AppHandle, path: String) -> Result<(), String> {
+    let home = std::env::var_os("HOME").map(PathBuf::from).ok_or("No home folder")?;
+    let target = quick_look_target(Path::new(&path), &home)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        std::process::Command::new("/usr/bin/qlmanage")
+            .arg("-p")
+            .arg(&target)
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status()
+    })
+    .await
+    .map_err(|e| e.to_string())?
+    .map_err(|e| format!("Quick Look didn't open: {e}"))?;
+    use tauri::Manager;
+    if let Some(w) = app.get_webview_window("main") {
+        let _ = w.set_focus();
+    }
+    Ok(())
 }

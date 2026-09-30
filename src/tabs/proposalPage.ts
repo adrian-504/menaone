@@ -5,6 +5,7 @@
 // commercials, the client's OneDrive folder and documents, what it's linked
 // to, notes and activity.
 
+import { registerKey } from '../core/keys';
 import { registerDragSource, registerDropTarget } from '../lib/dnd';
 import { arrive, settleNew, shake } from '../lib/motion';
 import { statusBadge } from '../lib/statusTone';
@@ -631,7 +632,7 @@ async function renderDocuments(p: Proposal): Promise<void> {
   const rows: string[] = [];
   for (const d of [...recorded].sort((a, b) => (b.version ?? 0) - (a.version ?? 0) || b.id - a.id)) {
     const path = d.path ? escHtml(d.path.replace(/'/g, "\\'")) : '';
-    rows.push(`<div class="rec-row"${d.path ? ` onclick="proposalOpenFile('${path}')"` : d.url ? ` onclick="openExternalUrl('${escHtml(d.url)}')"` : ''}>
+    rows.push(`<div class="rec-row"${d.path ? ` tabindex="0" data-ql-path="${escHtml(d.path)}" onkeydown="if(event.key==='Enter'&&event.target===this)this.click()" onclick="proposalOpenFile('${path}')"` : d.url ? ` onclick="openExternalUrl('${escHtml(d.url)}')"` : ''}>
       <span class="rec-row-icon">${icon('document', 15)}</span>
       <div class="rec-row-main"><div class="rec-row-title">${escHtml(d.fileName)}</div><div class="rec-row-sub">${kindLabel[d.kind] || 'Document'}${d.version ? ` · V${d.version}` : ''}${d.createdAt ? ` · added ${fmtDate(d.createdAt)}` : ''}</div></div>
       <div class="rec-row-actions"><button class="rec-icon-btn" onclick="event.stopPropagation();proposalRemoveDocument(${d.id})" data-tip="Remove from this proposal" aria-label="Remove from this proposal">${icon('close', 13)}</button></div>
@@ -682,7 +683,7 @@ expose('generateCurrentProposal', generateCurrentProposal);
 
 function folderFileRow(f: LocalFileItem): string {
   const path = escHtml(f.path.replace(/'/g, "\\'"));
-  return `<div class="rec-row pr-folder-file" tabindex="0" onkeydown="if(event.key==='Enter'&&event.target===this)this.click()" onclick="proposalOpenFile('${path}')">
+  return `<div class="rec-row pr-folder-file" tabindex="0" data-ql-path="${escHtml(f.path)}" onkeydown="if(event.key==='Enter'&&event.target===this)this.click()" onclick="proposalOpenFile('${path}')">
     <span class="rec-row-icon">${icon('document', 15)}</span>
     <div class="rec-row-main"><div class="rec-row-title">${escHtml(f.name)}</div><div class="rec-row-sub">In the client folder${f.modifiedAt ? ` · modified ${fmtDate(f.modifiedAt.slice(0, 10))}` : ''}</div></div>
     <div class="rec-row-actions"><button class="btn-secondary btn-sm" onclick="event.stopPropagation();proposalAttachFile('${path}')">Add to proposal</button></div>
@@ -693,7 +694,7 @@ function deckMatchBlock(p: Proposal, matches: LocalFileItem[]): string {
   const taken = (p.documents || []).filter((d) => d.kind === 'proposal').map((d) => d.version ?? 0);
   return `<div class="pr-deck-match"><div class="rec-eyebrow">Looks like this proposal's deck</div>${matches.map((f) => {
     const path = escHtml(f.path.replace(/'/g, "\\'"));
-    return `<div class="rec-row" tabindex="0" onkeydown="if(event.key==='Enter'&&event.target===this)this.click()" onclick="proposalOpenFile('${path}')">
+    return `<div class="rec-row" tabindex="0" data-ql-path="${escHtml(f.path)}" onkeydown="if(event.key==='Enter'&&event.target===this)this.click()" onclick="proposalOpenFile('${path}')">
       <span class="rec-row-icon">${icon('document', 15)}</span>
       <div class="rec-row-main"><div class="rec-row-title" title="${escHtml(f.name)}">${escHtml(f.name)}</div><div class="rec-row-sub">${f.modifiedAt ? `Modified ${fmtDate(f.modifiedAt.slice(0, 10))}` : 'In the client folder'}</div></div>
       <div class="rec-row-actions"><button class="btn-secondary btn-sm" onclick="event.stopPropagation();proposalAttachFile('${path}')">Add as V${deckVersion(f.name, taken)}</button></div>
@@ -717,11 +718,25 @@ export async function proposalCreateFolder(): Promise<void> {
 }
 expose('proposalCreateFolder', proposalCreateFolder);
 
+/** Reads the client folder again (files were just dropped into it) and redraws. */
+export async function proposalRefreshFolder(): Promise<void> {
+  const p = currentProposal();
+  if (!p) return;
+  const info = await proposalFolderLookup(p.client, p.folderPath ?? null);
+  folderCache = { proposalId: p.id, client: p.client, info };
+  renderProposalPage();
+}
+
+/** A file attached as the deck when it is one (pptx/key/pdf with "proposal" in the name). Pure. */
+export function isDeckFile(name: string): boolean {
+  return /\.(pptx|ppt|key|pdf)$/i.test(name) && /proposal/i.test(name);
+}
+
 export function proposalAttachFile(path: string): void {
   const p = currentProposal();
   const file = folderCache?.info.files.find((f) => f.path === path);
   if (!p || !file) return;
-  const isDeck = /\.(pptx|ppt|key|pdf)$/i.test(file.name) && /proposal/i.test(file.name);
+  const isDeck = isDeckFile(file.name);
   const isCommercials = /\.(xlsx|xls)$/i.test(file.name) || /commercial|pricing|quotation/i.test(file.name);
   const docs = p.documents || [];
   // A deck keeps the version in its name unless that number is already taken; otherwise it is the next one.
@@ -1183,13 +1198,9 @@ registerDropTarget('prb-block-order', {
   },
 });
 
-/** ⌥↑ / ⌥↓ in the builder (outside a text field) moves the open proposal. */
-document.addEventListener('keydown', (e) => {
-  if (!S.proposalBuilderOpen || !e.altKey || (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') || blocks.length < 2) return;
-  if ((e.target as HTMLElement | null)?.closest?.('input, textarea, select, [contenteditable="true"]')) return;
-  e.preventDefault();
-  moveBlock(activeBlock, activeBlock + (e.key === 'ArrowDown' ? 1 : -1));
-});
+/** ⌥↑ / ⌥↓ in the builder (outside a text field) moves the open proposal (core/keys.ts). */
+registerKey({ combo: 'alt+arrowup', label: 'Move the open proposal up / down', group: 'New proposal', when: () => S.proposalBuilderOpen && blocks.length > 1, run: () => moveBlock(activeBlock, activeBlock - 1) });
+registerKey({ combo: 'alt+arrowdown', when: () => S.proposalBuilderOpen && blocks.length > 1, run: () => moveBlock(activeBlock, activeBlock + 1) });
 
 export function prbAddBlock(): void {
   syncActiveBlock();

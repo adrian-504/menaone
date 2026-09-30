@@ -181,6 +181,8 @@ export const S = {
   calendarAnchor: localToday as string,
   calendarSyncing: false,
   calendarSyncError: null as string | null,
+  /** Microsoft can't be reached right now (lib/offline.ts): a quiet mark, retried. */
+  ms365Offline: false,
   outlookMeetingEditId: null as number | null,
 
   // Intelligence (Regulatory Watch / Business Watch)

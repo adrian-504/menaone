@@ -31,7 +31,15 @@ import { switchTab } from './core/nav';
 import { renderIcons, initSidebarCollapsed, applyMs365SidebarVisibility } from './core/chrome';
 import { initTheme } from './core/theme';
 import { startMotion } from './lib/motion';
+import { registerAppKeys } from './core/appKeys';
+import { startKeys } from './core/keys';
 import { startTooltips } from './lib/tooltip';
+import { startFileDrop } from './lib/fileDrop';
+import { startQuickLook } from './lib/quickLook';
+import { startDateFields } from './lib/dateField';
+import { startErrorReporting } from './lib/errors';
+import { logFrontend } from './lib/db';
+import pkg from '../package.json';
 import { startRollingNumbers } from './lib/rollNumber';
 import './core/router';
 import './lib/links';
@@ -84,7 +92,17 @@ initTheme();
 initSidebarCollapsed();
 renderIcons();
 startMotion();
+// One registry for every shortcut (foundations O4).
+registerAppKeys();
+startKeys();
 startTooltips();
+void startFileDrop();
+startQuickLook();
+// One date control: every date input takes typed dates (foundations F1).
+startDateFields();
+// Uncaught errors go to the app's log, with one quiet toast (foundations O1).
+(window as any).__menaLog = (level: string, message: string) => logFrontend(level, message).catch(() => undefined);
+startErrorReporting(pkg.version, () => S.currentTab || 'start', (level, message) => { void logFrontend(level, message).catch(() => undefined); });
 
 /** Populate every filter/select that isn't already refreshed by its own tab's
  * registered render function (Pending/Agreements populate their own filters
@@ -197,6 +215,11 @@ export function closeOpportunityBackfillReport(): void {
 }
 expose('closeOpportunityBackfillReport', closeOpportunityBackfillReport);
 
+/** Launch-to-first-paint, written to the app's log (foundations O1). */
+async function logLaunch(ms: number): Promise<void> {
+  try { await (window as any).__menaLog?.('info', `launch: My Day painted ${Math.round(ms)} ms after page load`); } catch { /* the log is best-effort */ }
+}
+
 async function init(): Promise<void> {
   const data = await loadAllData();
   S.proposals = data.proposals;
@@ -209,40 +232,24 @@ async function init(): Promise<void> {
   S.contactLists = data.contactLists;
   S.companyNotes = data.companyNotes;
   markLoadedAsSaved();
-  applyCommercialSetup(await getCommercialSetup());
-  [S.projects, S.areas, S.noteTemplates, S.allTags, S.inboxItems, S.meetings, S.companies, S.opportunities, S.ms365Status, S.savedLists, S.touches] = await Promise.all([
-    getProjects(true), getAreas(), getNoteTemplates(), getAllTags(), getInboxItems(), getMeetings(), getCompanies(), getOpportunities(), ms365Status(), getSavedLists(), getTouches(),
+  // Everything My Day needs, in parallel (foundations P1: nothing sequential before the first paint).
+  let commercial: Awaited<ReturnType<typeof getCommercialSetup>>;
+  [commercial, [S.projects, S.areas, S.noteTemplates, S.allTags, S.inboxItems, S.meetings, S.companies, S.opportunities, S.ms365Status, S.savedLists, S.touches]] = await Promise.all([
+    getCommercialSetup(),
+    Promise.all([getProjects(true), getAreas(), getNoteTemplates(), getAllTags(), getInboxItems(), getMeetings(), getCompanies(), getOpportunities(), ms365Status(), getSavedLists(), getTouches()]),
   ]);
+  applyCommercialSetup(commercial);
   // Calendar/Action Required/the Settings shortcut are gated behind an active
   // Microsoft 365 connection (data-ms365-gated in index.html) — previously
   // nothing ever fetched the status at startup or applied it, so they stayed
   // hidden even when already connected.
   applyMs365SidebarVisibility();
-  await loadClientMatchSettings();
-  // The launch check and the OneDrive copy run in the background; read their outcome a little later.
-  loadHousekeepingSoon();
-  void autoLinkMeetings();
-
   backfillMilestoneDates();
 
   populateAllSelects();
   populatePeriodSelector();
   renderStageMappingTable();
   refreshBadges();
-
-  // One-time Notes HTML→Markdown migration (Phase 3) — safe to call on every
-  // launch, it no-ops once the app_meta flag is set. Runs after S.notes is
-  // loaded but before the user can open Notes.
-  const { migrateNotesToMarkdownIfNeeded } = await import('./lib/migrateNotesMarkdown');
-  const report = await migrateNotesToMarkdownIfNeeded();
-  if (report) showMigrationReport(report);
-
-  // One-time backfill: Proposals sitting at "Lead" status (pre-proposal,
-  // nothing else filled in) become the first real Opportunities — same
-  // gated-by-app_meta-flag pattern as the Notes migration above.
-  const { migrateLeadsToOpportunitiesIfNeeded } = await import('./lib/migrateOpportunitiesBackfill');
-  const oppReport = await migrateLeadsToOpportunitiesIfNeeded();
-  if (oppReport) showOpportunityBackfillReport(oppReport);
 
   // My Day — not Dashboard — is the landing view: "what needs my attention
   // today" is a more useful first screen than a KPI wall. Dashboard is still
@@ -264,6 +271,24 @@ async function init(): Promise<void> {
   // background and never holds up the start.
   void identityCurrentUser().then((id) => { S.currentUserId = id; }).catch(() => undefined);
   switchTab('myday');
+  // First paint (foundations P1): scripts/launch-check.mjs reads this mark; the real app logs it (O1).
+  performance.mark('myday-painted');
+  void logLaunch(performance.now());
+
+  // Behind the first paint, in parallel: nothing below holds the window up.
+  void loadClientMatchSettings();
+  // The launch check and the OneDrive copy run in the background; read their outcome a little later.
+  loadHousekeepingSoon();
+  void autoLinkMeetings();
+  // One-time migrations, idempotent (they no-op once their app_meta flag is set).
+  void import('./lib/migrateNotesMarkdown').then(async ({ migrateNotesToMarkdownIfNeeded }) => {
+    const report = await migrateNotesToMarkdownIfNeeded();
+    if (report) showMigrationReport(report);
+  });
+  void import('./lib/migrateOpportunitiesBackfill').then(async ({ migrateLeadsToOpportunitiesIfNeeded }) => {
+    const oppReport = await migrateLeadsToOpportunitiesIfNeeded();
+    if (oppReport) showOpportunityBackfillReport(oppReport);
+  });
 
   // Native-only wiring (no-op in browser dev-preview — no Tauri event bridge):
   // the native menu

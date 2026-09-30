@@ -1,3 +1,4 @@
+import { noteSync, OFFLINE_LABEL } from '../lib/offline';
 import { S } from '../lib/state';
 import { emptyState } from '../lib/ui';
 import { renderIcons } from '../core/chrome';
@@ -60,8 +61,10 @@ async function syncNow(silent: boolean): Promise<void> {
   if (!silent) paintActionRequired();
   try {
     S.emails = await ms365SyncFlaggedEmails();
+    noteSync('flagged', null, () => syncNow(true));
   } catch (e) {
-    if (!silent) toast('Could not sync with Outlook', { tone: 'error', detail: String(e) });
+    // Offline is not an error: a quiet mark, and it tries again by itself (O3).
+    if (!noteSync('flagged', e, () => syncNow(true)) && !silent) toast('Could not sync with Outlook', { tone: 'error', detail: String(e) });
   }
   S.ms365Syncing = false;
   updateActionRequiredBadge();
@@ -118,7 +121,7 @@ function paintActionRequired(): void {
 
   if (syncBtn) (syncBtn as HTMLButtonElement).disabled = S.ms365Syncing;
   if (syncBtn) syncBtn.textContent = S.ms365Syncing ? 'Syncing…' : 'Sync Now';
-  if (syncedSub) syncedSub.textContent = S.ms365Status?.lastSyncAt ? `Last synced ${fmtDate(S.ms365Status.lastSyncAt)}` : '';
+  if (syncedSub) syncedSub.textContent = S.ms365Offline ? OFFLINE_LABEL : S.ms365Status?.lastSyncAt ? `Last synced ${fmtDate(S.ms365Status.lastSyncAt)}` : '';
 
   document.querySelectorAll('.ar-fbtn').forEach((b) => b.classList.toggle('active', (b as HTMLElement).dataset.filter === S.arFilter));
 
@@ -509,3 +512,6 @@ export async function arSaveLinks(id: number): Promise<void> {
   renderActionRequired();
 }
 expose('arSaveLinks', arSaveLinks);
+
+// Repainted when Outlook goes offline or comes back (lib/offline.ts).
+expose('paintActionRequired', paintActionRequired);

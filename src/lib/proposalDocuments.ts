@@ -29,7 +29,7 @@ export function proposalDeckRows(p: Pick<Proposal, 'documents'>, files: FileStat
   return decks.map((d, i) => {
     const status = deckStatus(d, files);
     const canOpen = !!d.path && files.get(d.path) !== false;
-    return `<div class="rec-row pr-deck" data-doc-id="${d.id}"${canOpen ? ` onclick="proposalOpenFile('${attr(d.path!)}')"` : ''}>
+    return `<div class="rec-row pr-deck" data-doc-id="${d.id}"${canOpen ? ` tabindex="0" data-ql-path="${attr(d.path!)}" onkeydown="if(event.key==='Enter'&&event.target===this)this.click()" onclick="proposalOpenFile('${attr(d.path!)}')"` : ''}>
       <span class="pr-deck-version">V${d.version ?? '?'}</span>
       <div class="rec-row-main">
         <div class="rec-row-title" title="${escHtml(d.fileName)}">${escHtml(d.fileName)}</div>

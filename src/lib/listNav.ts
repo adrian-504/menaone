@@ -9,6 +9,7 @@
 import { S } from './state';
 import { getActiveTabId } from './registry';
 import { keyTravel } from './motion';
+import { registerKey } from '../core/keys';
 
 export interface ListNavConfig<T extends number | string> {
   /** Ids of every currently-rendered row, in visual order. Called fresh on
@@ -62,15 +63,12 @@ export function createListNav<T extends number | string>(config: ListNavConfig<T
     keyTravel(config.getEl(items[next]));
   }
 
-  document.addEventListener('keydown', (e) => {
-    if (getActiveTabId() !== config.tabId) return;
-    if (anyModalOpen() || isTypingTarget()) return;
-    if (e.metaKey || e.ctrlKey || e.altKey) return;
-    if (e.key === 'ArrowDown' || e.key === 'j') { e.preventDefault(); moveBy(1); }
-    else if (e.key === 'ArrowUp' || e.key === 'k') { e.preventDefault(); moveBy(-1); }
-    else if (e.key === 'Enter') { if (state.selected != null) { e.preventDefault(); config.onOpen(state.selected); } }
-    else if (e.key === ' ') { if (state.selected != null && config.onToggle) { e.preventDefault(); config.onToggle(state.selected); } }
-  });
+  // Registered keys (core/keys.ts): this page's list, when nothing is being typed.
+  registerKey({ scope: 'list', tabs: [config.tabId], combo: ['arrowdown', 'j'], label: 'Move through a list', group: 'Lists and records', run: () => moveBy(1) });
+  registerKey({ scope: 'list', tabs: [config.tabId], combo: ['arrowup', 'k'], run: () => moveBy(-1) });
+  registerKey({ scope: 'list', tabs: [config.tabId], combo: 'enter', label: 'Open the selected record', group: 'Lists and records', when: () => state.selected != null, run: () => config.onOpen(state.selected!) });
+  if (config.onToggle) registerKey({ scope: 'list', tabs: [config.tabId], combo: 'space', when: () => state.selected != null, run: () => config.onToggle!(state.selected!) });
+
 
   return state;
 }

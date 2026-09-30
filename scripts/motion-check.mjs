@@ -160,6 +160,13 @@ export function checkMarkup(sources) {
     for (const m of text.matchAll(/<button\b[^>]*?\stitle=/g)) {
       problems.push({ selector: `${file}:${text.slice(0, m.index).split('\n').length}`, why: 'title on a button (use data-tip)' });
     }
+    // The same set from code: `x.title = …` where x is a button.
+    for (const m of text.matchAll(/\b(\w+)\.title\s*=[^=]/g)) {
+      const decl = new RegExp(`\\b(?:const|let|var)\\s+${m[1]}\\b[^;\\n]*(?:HTMLButtonElement|createElement\\(['"]button['"]\\)|\\bbtn\\b)`);
+      if (/btn|button/i.test(m[1]) || decl.test(text)) {
+        problems.push({ selector: `${file}:${text.slice(0, m.index).split('\n').length}`, why: `${m[1]}.title on a button (use dataset.tip)` });
+      }
+    }
   }
   return problems;
 }

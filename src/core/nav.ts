@@ -25,19 +25,8 @@ function closeTopmostModal(): boolean {
  * when nothing else already owns Escape (the command palette). While typing
  * in a field of a record page, the first Escape only leaves the field (which
  * saves it) — closing the page there would drop what was just typed. */
-document.addEventListener('keydown', (e) => {
-  if (e.key !== 'Escape') return;
-  if (S.commandPaletteOpen) return;
-  if (closeTopmostModal()) return;
-  // An open Watch story closes before the record behind it.
-  if ((window as any).closeIntelRow?.()) return;
-  const t = e.target as HTMLElement | null;
-  if (t && (/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || t.isContentEditable || t.closest?.('.cm-editor'))) {
-    t.blur();
-    return;
-  }
-  closeCurrentRecord({ fromEscape: true });
-});
+// Escape is a registered key (core/appKeys.ts): the topmost dialog, then a field, then the open record.
+expose('closeTopmostModal', closeTopmostModal);
 
 /** Marks an open modal "dirty" the moment any of its fields are touched, so
  * the backdrop-click guard below can ask before discarding — generic across

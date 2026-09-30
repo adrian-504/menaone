@@ -163,15 +163,7 @@ export function pendingUndo(): (() => void) | null {
   return undoRun;
 }
 
-const typing = (t: EventTarget | null) => t instanceof HTMLElement && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || !!t.closest('.cm-editor'));
-if (typeof document !== 'undefined') {
-  document.addEventListener('keydown', (e) => {
-    if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'z' && undoRun && !typing(e.target)) {
-      e.preventDefault();
-      undoRun();
-    }
-  });
-}
+// ⌘Z is a registered key (core/appKeys.ts).
 
 export interface EmptyStateOptions {
   /** Name from lib/icons.ts, rendered by renderIcons(). */

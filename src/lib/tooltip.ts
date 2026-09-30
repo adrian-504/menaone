@@ -6,6 +6,7 @@
 // --dur-fast; hides on press, leave or scroll; one at a time.
 
 import { menuPlacement, visibleBounds } from './utils';
+import { keysFor } from '../core/keys';
 
 const DELAY = 600;
 let tipEl: HTMLElement | null = null;
@@ -15,7 +16,10 @@ let current: HTMLElement | null = null;
 /** The label for an element, or null when it has none to show. */
 export function tipFor(el: Element): { tip: string; key: string | null } | null {
   const tip = el.getAttribute('data-tip');
-  if (tip) return { tip, key: el.getAttribute('data-key') };
+  // data-shortcut names a registered key (core/keys.ts): the tooltip shows what the key really is.
+  const shortcut = el.getAttribute('data-shortcut');
+  const key = (shortcut && keysFor(shortcut)) || el.getAttribute('data-key');
+  if (tip) return { tip, key };
   const label = el.getAttribute('aria-label');
   const iconOnly = !(el.textContent || '').trim();
   if (label && iconOnly && (el.tagName === 'BUTTON' || el.getAttribute('role') === 'button')) return { tip: label, key: el.getAttribute('data-key') };

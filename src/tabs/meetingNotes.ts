@@ -13,7 +13,6 @@ import { fmtDate, escHtml, expose, today, inCompany } from '../lib/utils';
 import { persistMeeting, persistTodos } from '../lib/persist';
 import { refreshBadges } from '../lib/registry';
 import { icon } from '../lib/icons';
-import { createNoteEditor } from '../lib/markdownEditor';
 import { parseTaskInput } from '../lib/taskParse';
 import { contextFromMeeting, taskFields } from '../lib/workGraph';
 import { blankTask, taskRowHtml, toggleTodoDone } from './todo';
@@ -53,9 +52,18 @@ export function isOver(m: Meeting): boolean {
 
 // ── Notes ──────────────────────────────────────────────────────────────────
 
+// The editor is its own chunk (foundations P2), loaded the first time a meeting page opens.
+let md: typeof import('../lib/markdownEditor') | null = null;
+let mdLoading: Promise<unknown> | null = null;
+
 export function renderMeetingNotes(m: Meeting, focus?: SectionKey): void {
   const el = document.getElementById('md-notes');
   if (!el) return;
+  if (!md) {
+    mdLoading ??= import('../lib/markdownEditor').then((mod) => { md = mod; });
+    void mdLoading.then(() => { if (document.getElementById('md-notes')) renderMeetingNotes(m, focus); });
+    return;
+  }
   if (openedFor !== m.id) { opened = new Set(); openedFor = m.id; }
   destroyEditors();
   const over = isOver(m);
@@ -88,7 +96,7 @@ export function renderMeetingNotes(m: Meeting, focus?: SectionKey): void {
     const host = document.getElementById(`md-ed-${k}`);
     if (!host) continue;
     const field = k;
-    editors.set(field, createNoteEditor(host, {
+    editors.set(field, md.createNoteEditor(host, {
       doc: m[field] || '',
       placeholder: PLACEHOLDER[field],
       onChange: (doc) => saveField(m.id, field, doc),

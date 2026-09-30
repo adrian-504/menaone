@@ -3,6 +3,10 @@
 One entry per install, newest first: the version, the day it was installed, and in two lines what changed.
 Settings → Data shows the last five. `scripts/release-check.mjs` refuses a build whose version has no entry here.
 
+## 1.54 — 2026-09-30
+Faster and sturdier: My Day paints first, the company page loads in one go, a log file and checked backups, and offline just waits and retries.
+Type dates ("next Tue"), one set of shortcuts everywhere, drop files from Finder onto a company or proposal, and Space for Quick Look.
+
 ## 1.53 — 2026-09-30
 The small things: the sidebar slides, every button and row presses, tooltips name their shortcut, numbers roll, ⌘K drops in, and what you add or remove eases in and out.
 Undo for nearly everything (⌘Z, bottom-left), including your timeline; ↑↓ or j k move through lists; drag milestones and proposals with weight.

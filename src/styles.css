@@ -3026,3 +3026,23 @@ body.dnd-active [data-sort-shift] .dnd-source{opacity:0}
 @keyframes cmdk-in{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
 @keyframes cmdk-out{to{opacity:0;transform:translateY(-8px)}}
 .cmdk-list{min-height:280px;position:relative}
+/* F1. One date control: type a date; what it means shows beneath; a small calendar on click. */
+.date-field{font-variant-numeric:tabular-nums}
+.df-hint{position:fixed;z-index:3000;padding:3px 8px;border-radius:6px;background:var(--text);color:var(--bg);font-size:12px;font-weight:500;pointer-events:none;opacity:0;transform:translateY(-4px);transition:opacity var(--dur-fast) var(--ease-out),transform var(--dur-fast) var(--ease-out)}
+.df-hint.open{opacity:1;transform:none}
+.df-hint.is-bad{background:var(--red-bg);color:var(--red)}
+.df-cal{position:fixed;z-index:3000;width:244px;padding:8px;background:var(--surface);border:1px solid var(--border);border-radius:13px;box-shadow:var(--shadow-md);display:none}
+.df-cal.open{display:block;animation:menu-in var(--dur-base) var(--ease-out)}
+.df-cal-hd{display:flex;align-items:center;justify-content:space-between;font-weight:600;font-size:var(--type-secondary);margin-bottom:6px}
+.df-cal-dow,.df-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;text-align:center}
+.df-cal-dow span{font-size:11px;color:var(--muted);font-weight:500}
+.df-day{height:30px;border:0;background:none;border-radius:9px;font:inherit;font-size:var(--type-secondary);color:var(--text);cursor:pointer;font-variant-numeric:tabular-nums;transition:background-color var(--dur-fast) var(--ease-out)}
+.df-day:hover{background:var(--surface-hover)}
+.df-day:active{background:var(--surface-pressed)}
+.df-day:focus-visible{outline:none;box-shadow:0 0 0 2px var(--accent-border)}
+.df-day.is-today{color:var(--accent);font-weight:600}
+.df-day.is-on{background:var(--accent);color:var(--on-accent)}
+
+/* A file from Finder hovering over where it will land (foundations F2): a 1px accent line inside the edge, no overlay. */
+.record-page, .tab { transition: box-shadow var(--dur-fast) var(--ease-out); }
+.file-drop-target { box-shadow: inset 0 0 0 1px var(--accent); }
