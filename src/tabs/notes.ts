@@ -5,6 +5,7 @@
 // mode that hides everything but the writing.
 
 import { collapseRow, collapseRows, keyTravel, savedTick, settleNew } from '../lib/motion';
+import { registerKey } from '../core/keys';
 import { S } from '../lib/state';
 import { toast, emptyState, undoToast } from '../lib/ui';
 import { companyLink, recordLink } from '../lib/links';
@@ -455,29 +456,25 @@ export function toggleNotesFormatBar(): void {
 }
 expose('toggleNotesFormatBar', toggleNotesFormatBar);
 
-document.addEventListener('keydown', (e) => {
-  if (getActiveTabId() !== 'notes' || S.commandPaletteOpen || document.querySelector('.modal-ov.open')) return;
-  const mod = e.metaKey || e.ctrlKey;
-  if (mod && e.key === '.') { e.preventDefault(); toggleNotesFocus(); return; }
-  if (mod && e.shiftKey && e.key.toLowerCase() === 'f') { e.preventDefault(); if (focusMode) toggleNotesFocus(); (document.getElementById('notes-search') as HTMLInputElement | null)?.focus(); return; }
-  if (mod && !e.shiftKey && e.key.toLowerCase() === 'n') { e.preventDefault(); createNewNote(null); return; }
-  if (e.key === 'Escape' && focusMode) { e.preventDefault(); toggleNotesFocus(); }
-  // ↑/↓ outside the editor and inputs: the highlight moves at once; the note loads a moment later, the last one asked for.
-  const t = e.target as HTMLElement | null;
-  const typing = !!t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable);
-  if (!mod && !typing && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
-    const rows = [...document.querySelectorAll<HTMLElement>('#notes-list .note-item[data-note-id]')];
-    if (!rows.length) return;
-    e.preventDefault();
-    const at = rows.findIndex((r) => Number(r.dataset.noteId) === (pendingNoteId ?? S.currentNoteId));
-    const next = rows[Math.min(rows.length - 1, Math.max(0, at + (e.key === 'ArrowDown' ? 1 : -1)))];
-    const id = Number(next.dataset.noteId);
-    rows.forEach((r) => r.classList.toggle('active', r === next));
-    next.scrollIntoView({ block: 'nearest' });
-    keyTravel(next, document.getElementById('notes-list'));
-    requestNote(id);
-  }
-});
+// Notes' keys (core/keys.ts).
+registerKey({ scope: 'list', tabs: ['notes'], combo: 'mod+.', inInputs: true, label: 'Focus mode', group: 'Notes', id: 'notes-focus', run: () => toggleNotesFocus() });
+registerKey({ scope: 'list', tabs: ['notes'], combo: 'mod+shift+f', inInputs: true, label: 'Search notes', group: 'Notes', run: () => { if (focusMode) toggleNotesFocus(); (document.getElementById('notes-search') as HTMLInputElement | null)?.focus(); } });
+registerKey({ scope: 'list', tabs: ['notes'], combo: 'mod+n', inInputs: true, label: 'New note', group: 'Notes', id: 'notes-new', run: () => createNewNote(null) });
+registerKey({ scope: 'list', tabs: ['notes'], combo: 'escape', inInputs: true, when: () => focusMode, run: () => toggleNotesFocus() });
+// ↑/↓ outside the editor and inputs: the highlight moves at once; the note loads a moment later, the last one asked for.
+const noteStep = (delta: number) => {
+  const rows = [...document.querySelectorAll<HTMLElement>('#notes-list .note-item[data-note-id]')];
+  if (!rows.length) return false;
+  const at = rows.findIndex((r) => Number(r.dataset.noteId) === (pendingNoteId ?? S.currentNoteId));
+  const next = rows[Math.min(rows.length - 1, Math.max(0, at + delta))];
+  rows.forEach((r) => r.classList.toggle('active', r === next));
+  next.scrollIntoView({ block: 'nearest' });
+  keyTravel(next, document.getElementById('notes-list'));
+  requestNote(Number(next.dataset.noteId));
+  return true;
+};
+registerKey({ scope: 'list', tabs: ['notes'], combo: ['arrowdown', 'j'], label: 'Next / previous note', group: 'Notes', run: () => noteStep(1) });
+registerKey({ scope: 'list', tabs: ['notes'], combo: ['arrowup', 'k'], run: () => noteStep(-1) });
 
 /** The note the arrow keys last asked for, not loaded yet: only the latest one is opened. */
 let pendingNoteId: number | null = null;

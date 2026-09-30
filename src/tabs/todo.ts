@@ -5,6 +5,7 @@
 // the same list's tasks.
 
 import { collapseRow, collapseRows, keyTravel, settleNew } from '../lib/motion';
+import { registerKey } from '../core/keys';
 import { foldMoreDetails } from '../lib/moreDetails';
 import { S } from '../lib/state';
 import { toast, undoToast, emptyState } from '../lib/ui';
@@ -690,39 +691,44 @@ function isTyping(target: EventTarget | null): boolean {
   return !!el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName));
 }
 
-document.addEventListener('keydown', (e) => {
-  if (getActiveTabId() !== 'todo' || S.commandPaletteOpen || document.querySelector('.modal-ov.open')) return;
-  if (isTyping(e.target) || e.metaKey || e.ctrlKey || e.altKey) return;
-  const ids = selectedOrDetail();
-  const key = e.key;
-  const run = (fn: () => void) => { e.preventDefault(); fn(); };
-  if (key === 'ArrowDown' || key === 'ArrowUp') return run(() => moveSelection(key === 'ArrowDown' ? 1 : -1, e.shiftKey));
-  if (key === 'j' || key === 'k') return run(() => moveSelection(key === 'j' ? 1 : -1, false));
-  if (key === 'n' || key === 'q') return run(() => document.getElementById('quick-task-input')?.focus());
-  if (!ids.length) return;
-  if (key === 'Enter') return run(() => { openTaskDetail(ids[0]); setTimeout(() => (document.getElementById('td-title') as HTMLTextAreaElement | null)?.focus(), 30); });
-  if (key === ' ') return run(() => ids.forEach((id) => completeTask(id)));
-  if (key === 'Backspace' || key === 'Delete') return run(() => deleteTasks(ids));
-  if (key === 't') return run(() => scheduleTasks(ids, { dueDate: todayIso() }));
-  if (key === 's') return run(() => { const all = ids.every((id) => S.todos.find((t) => t.id === id)?.someday); scheduleTasks(ids, all ? { someday: false } : { someday: true, dueDate: null, dueTime: null }); });
-  if (key === 'd') return run(() => {
+// Tasks' keys (registered in core/keys.ts, so the shortcut sheet lists exactly these).
+{
+  const T = (combo: string | string[], run: (ids: number[]) => void, label?: string, needsSelection = true) => registerKey({
+    scope: 'list', tabs: ['todo'], combo, group: 'Tasks', label,
+    when: needsSelection ? () => selectedOrDetail().length > 0 : undefined,
+    run: () => run(selectedOrDetail()),
+  });
+  T('arrowdown', () => moveSelection(1, false), 'Move (hold ⇧ to select several)', false);
+  T('arrowup', () => moveSelection(-1, false), undefined, false);
+  T('shift+arrowdown', () => moveSelection(1, true), undefined, false);
+  T('shift+arrowup', () => moveSelection(-1, true), undefined, false);
+  T('j', () => moveSelection(1, false), undefined, false);
+  T('k', () => moveSelection(-1, false), undefined, false);
+  T(['n', 'q'], () => document.getElementById('quick-task-input')?.focus(), 'Add a task', false);
+  T('enter', (ids) => { openTaskDetail(ids[0]); setTimeout(() => (document.getElementById('td-title') as HTMLTextAreaElement | null)?.focus(), 30); }, 'Open the task');
+  T('space', (ids) => ids.forEach((id) => completeTask(id)), 'Complete');
+  T(['backspace', 'delete'], (ids) => deleteTasks(ids), 'Delete, with undo');
+  T('t', (ids) => scheduleTasks(ids, { dueDate: todayIso() }), 'Due today');
+  T('s', (ids) => { const all = ids.every((id) => S.todos.find((t) => t.id === id)?.someday); scheduleTasks(ids, all ? { someday: false } : { someday: true, dueDate: null, dueTime: null }); }, 'Someday');
+  T('d', (ids) => {
     const row = document.querySelector<HTMLElement>(`#todo-list .task-row[data-task-id="${ids[0]}"] .task-hover-btn`) ?? document.getElementById('td-when');
     if (row) openDatePopover(row, ids);
-  });
-  if (key === 'p') return run(() => {
+  }, 'Pick a date');
+  T('p', (ids) => {
     const order = ['High', 'Medium', 'Low'];
     const first = S.todos.find((t) => t.id === ids[0]);
     const next = order[(order.indexOf(first?.priority || 'Medium') + 1) % 3];
     ids.forEach((id) => { const t = S.todos.find((x) => x.id === id); if (t) t.priority = next; });
     afterTodoListChange();
-  });
-  if (key === 'm') return run(() => {
+  }, 'Change priority');
+  T('m', (ids) => {
     const anchor = document.querySelector<HTMLElement>(`#todo-list .task-row[data-task-id="${ids[0]}"]`);
     if (anchor) moveTasksMenu(anchor, ids);
-  });
-  // The first Escape closes the panel (handled by the router); a second clears the selection.
-  if (key === 'Escape' && selection.size && S.taskDetailId == null && Date.now() - detailClosedAt > 100) return run(() => { selection.clear(); paintSelection(); });
-});
+  }, 'Move to a project');
+  // The date popover closes first; then (with the detail panel shut) Esc clears the selection.
+  registerKey({ scope: 'list', tabs: ['todo'], combo: 'escape', when: () => !!document.getElementById('task-date-pop')?.classList.contains('open'), run: () => { document.getElementById('task-date-pop')?.classList.remove('open'); } });
+  registerKey({ scope: 'list', tabs: ['todo'], combo: 'escape', when: () => selection.size > 0 && S.taskDetailId == null && Date.now() - detailClosedAt > 100, run: () => { selection.clear(); paintSelection(); } });
+}
 
 // ── Actions ─────────────────────────────────────────────────────────────────
 
@@ -1023,7 +1029,6 @@ export function openDatePopover(anchor: HTMLElement, ids: number[]): void {
     pop.addEventListener('click', (e) => e.stopPropagation());
     document.body.appendChild(pop);
     document.addEventListener('click', () => pop?.classList.remove('open'));
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') pop?.classList.remove('open'); });
   }
   const t0 = todayIso();
   const sat = addDaysIso(t0, (6 - new Date().getDay() + 7) % 7 || 7);

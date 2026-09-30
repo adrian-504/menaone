@@ -5,6 +5,7 @@
 // People from meetings (addPeopleAsContacts), and a dismissed person stays
 // dismissed in both lists.
 
+import { registerKey } from '../core/keys';
 import { S } from '../lib/state';
 import { renderIcons } from '../core/chrome';
 import { toast, emptyState } from '../lib/ui';
@@ -296,14 +297,12 @@ export function setTriageKinds(on: boolean): void { reviewKinds = on; renderList
 expose('setTriageKinds', setTriageKinds);
 
 // 1 / 2 / 3 / S / U while sorting companies (not while typing in a field).
-document.addEventListener('keydown', (e) => {
-  if (view !== 'domains' || !document.getElementById('modal-email-people')?.classList.contains('open')) return;
-  const t = e.target as HTMLElement;
-  if (/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || e.metaKey || e.ctrlKey || e.altKey) return;
-  const k = e.key.toLowerCase();
-  const run: Record<string, () => void> = { '1': () => void triageAdd(), '2': triagePickExisting, '3': () => void triageDismiss(), s: triageSkip, u: () => void undoTriage() };
-  if (run[k]) { e.preventDefault(); run[k](); }
-});
+// Triage keys while the People-from-email dialog sorts domains (core/keys.ts).
+{
+  const triaging = () => view === 'domains' && !!document.getElementById('modal-email-people')?.classList.contains('open') && !(document.activeElement && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName));
+  const K = (combo: string, run: () => void) => registerKey({ scope: 'dialog', combo, when: triaging, run });
+  K('1', () => void triageAdd()); K('2', triagePickExisting); K('3', () => void triageDismiss()); K('s', triageSkip); K('u', () => void undoTriage());
+}
 
 export async function openEmailPeople(): Promise<void> {
   document.getElementById('modal-email-people')?.classList.add('open');

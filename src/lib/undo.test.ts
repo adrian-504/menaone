@@ -14,6 +14,12 @@ vi.mock('./db', async (orig) => ({ ...(await orig<typeof import('./db')>()), ...
 
 import { S } from './state';
 import { undoToast, withUndo, pendingUndo } from './ui';
+import { registerAppKeys } from '../core/appKeys';
+import { startKeys } from '../core/keys';
+
+// ⌘Z is a registered key (foundations O4).
+registerAppKeys();
+startKeys();
 import { snapshotProposal, snoozeProposal } from '../core/proposals';
 import { deleteNote } from '../tabs/notes';
 import { dismissInboxItem } from '../tabs/inbox';

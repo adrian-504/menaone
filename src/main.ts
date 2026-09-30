@@ -31,6 +31,8 @@ import { switchTab } from './core/nav';
 import { renderIcons, initSidebarCollapsed, applyMs365SidebarVisibility } from './core/chrome';
 import { initTheme } from './core/theme';
 import { startMotion } from './lib/motion';
+import { registerAppKeys } from './core/appKeys';
+import { startKeys } from './core/keys';
 import { startTooltips } from './lib/tooltip';
 import { startErrorReporting } from './lib/errors';
 import { logFrontend } from './lib/db';
@@ -87,6 +89,9 @@ initTheme();
 initSidebarCollapsed();
 renderIcons();
 startMotion();
+// One registry for every shortcut (foundations O4).
+registerAppKeys();
+startKeys();
 startTooltips();
 // Uncaught errors go to the app's log, with one quiet toast (foundations O1).
 (window as any).__menaLog = (level: string, message: string) => logFrontend(level, message).catch(() => undefined);

@@ -446,17 +446,7 @@ function inEditable(target: EventTarget | null): boolean {
   return !!el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName) || !!el.closest?.('.cm-editor'));
 }
 
-document.addEventListener('keydown', (e) => {
-  if (S.commandPaletteOpen || document.querySelector('.modal-ov.open')) return;
-  const mod = e.metaKey || e.ctrlKey;
-  // ⌘[ / ⌘] (Ctrl on Windows) like Finder and browsers; Alt+←/→ like Windows Explorer.
-  const back = (mod && !e.altKey && e.key === '[') || (e.altKey && !mod && e.key === 'ArrowLeft');
-  const fwd = (mod && !e.altKey && e.key === ']') || (e.altKey && !mod && e.key === 'ArrowRight');
-  if (!back && !fwd) return;
-  if (inEditable(e.target)) return;
-  e.preventDefault();
-  if (back) navBack(); else navForward();
-});
+// ⌘[ / ⌘] and ⌥← / ⌥→ are registered keys (core/appKeys.ts).
 
 // Any click may navigate (list row → record page): note the scroll position first.
 document.addEventListener('click', saveScroll, true);

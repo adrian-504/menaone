@@ -1,4 +1,5 @@
 import { keyTravel } from '../lib/motion';
+import { registerKey } from './keys';
 import { S } from '../lib/state';
 import { briefCommandMatches } from '../lib/companyBrief';
 import { escHtml, expose } from '../lib/utils';
@@ -274,15 +275,12 @@ export function activatePaletteItem(idx: number): void {
 }
 expose('activatePaletteItem', activatePaletteItem);
 
-document.addEventListener('keydown', (e) => {
-  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-    e.preventDefault();
-    if (S.commandPaletteOpen) closeCommandPalette(); else openCommandPalette();
-    return;
-  }
-  if (!S.commandPaletteOpen) return;
-  if (e.key === 'Escape') { e.preventDefault(); closeCommandPalette(); return; }
-  if (e.key === 'ArrowDown') { e.preventDefault(); setPaletteSel(Math.min(selIndex + 1, currentItems.length - 1)); keyTravel(document.querySelectorAll('#cmdk-list .cmdk-item')[selIndex], document.getElementById('cmdk-list')); return; }
-  if (e.key === 'ArrowUp') { e.preventDefault(); setPaletteSel(Math.max(selIndex - 1, 0)); keyTravel(document.querySelectorAll('#cmdk-list .cmdk-item')[selIndex], document.getElementById('cmdk-list')); return; }
-  if (e.key === 'Enter') { e.preventDefault(); activatePaletteItem(selIndex); return; }
-});
+// The palette's own keys (⌘K and Esc are in core/appKeys.ts).
+const palette = () => !!S.commandPaletteOpen;
+const move = (delta: number) => {
+  setPaletteSel(Math.max(0, Math.min(selIndex + delta, currentItems.length - 1)));
+  keyTravel(document.querySelectorAll('#cmdk-list .cmdk-item')[selIndex], document.getElementById('cmdk-list'));
+};
+registerKey({ scope: 'dialog', combo: 'arrowdown', when: palette, run: () => move(1) });
+registerKey({ scope: 'dialog', combo: 'arrowup', when: palette, run: () => move(-1) });
+registerKey({ scope: 'dialog', combo: 'enter', when: palette, run: () => activatePaletteItem(selIndex) });

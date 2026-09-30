@@ -5,6 +5,7 @@
 // commercials, the client's OneDrive folder and documents, what it's linked
 // to, notes and activity.
 
+import { registerKey } from '../core/keys';
 import { registerDragSource, registerDropTarget } from '../lib/dnd';
 import { arrive, settleNew, shake } from '../lib/motion';
 import { statusBadge } from '../lib/statusTone';
@@ -1183,13 +1184,9 @@ registerDropTarget('prb-block-order', {
   },
 });
 
-/** ⌥↑ / ⌥↓ in the builder (outside a text field) moves the open proposal. */
-document.addEventListener('keydown', (e) => {
-  if (!S.proposalBuilderOpen || !e.altKey || (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') || blocks.length < 2) return;
-  if ((e.target as HTMLElement | null)?.closest?.('input, textarea, select, [contenteditable="true"]')) return;
-  e.preventDefault();
-  moveBlock(activeBlock, activeBlock + (e.key === 'ArrowDown' ? 1 : -1));
-});
+/** ⌥↑ / ⌥↓ in the builder (outside a text field) moves the open proposal (core/keys.ts). */
+registerKey({ combo: 'alt+arrowup', label: 'Move the open proposal up / down', group: 'New proposal', when: () => S.proposalBuilderOpen && blocks.length > 1, run: () => moveBlock(activeBlock, activeBlock - 1) });
+registerKey({ combo: 'alt+arrowdown', when: () => S.proposalBuilderOpen && blocks.length > 1, run: () => moveBlock(activeBlock, activeBlock + 1) });
 
 export function prbAddBlock(): void {
   syncActiveBlock();

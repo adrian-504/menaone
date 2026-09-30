@@ -4,67 +4,43 @@
 import { S } from '../lib/state';
 import { escHtml, expose } from '../lib/utils';
 import { getActiveTabId } from '../lib/registry';
+import { allBindings, capsOf } from './keys';
 
-const isMac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
-const MOD = isMac ? '⌘' : 'Ctrl';
-
-/** Keys are shown as key caps; alternatives are separate arrays. */
-interface Shortcut { keys: string[][]; does: string; note?: string }
-interface Group { title: string; tabs?: string[]; items: Shortcut[] }
-const k = (does: string, ...keys: string[][]): Shortcut => ({ keys, does });
-
-const GROUPS: Group[] = [
-  { title: 'Everywhere', items: [
-    k('Search and commands', [MOD, 'K']),
-    k('Back / forward', [MOD, '['], [MOD, ']']),
-    k('Show or hide the sidebar', [MOD, '\\']),
-    k('Show or hide the list beside a record', [MOD, '⇧', '\\']),
-    { keys: [[MOD, '1']], does: 'The sidebar, top to bottom: My Day first', note: `${MOD} 1 to ${MOD} 9` },
-    { keys: [['>>']], does: 'At the start of a line in notes, meeting notes or quick capture: something we promised the client (it gets a task)' },
-    { keys: [['<<']], does: 'Same, for something the client promised us (tracked, no task)' },
-    k('New task / new note', [MOD, 'T'], [MOD, 'N']),
-    k('Close a dialog or the open record', ['Esc']),
-    k('This list', ['?']),
-  ] },
-  { title: 'Dialogs and pickers', items: [
-    k('Choose in a company list', ['↑'], ['↓']),
-    k('Pick the highlighted company', ['Enter']),
-    k('Close the list, then the dialog', ['Esc']),
-  ] },
-  { title: 'Lists and records', tabs: ['companies', 'contacts', 'database', 'agreements', 'opportunities', 'projects', 'meetings'], items: [
-    k('Move through a list', ['↑'], ['↓']),
-    k('Open the selected record', ['Enter']),
-    { keys: [['↑'], ['↓']], does: 'Previous / next record', note: 'in the side list' },
-  ] },
-  { title: 'Tasks', tabs: ['todo'], items: [
-    k('Add a task', ['N'], ['Q']),
-    { keys: [['↑'], ['↓']], does: 'Move', note: 'hold ⇧ to select several' },
-    k('Open the task', ['Enter']),
-    k('Complete', ['Space']),
-    k('Due today', ['T']),
-    k('Pick a date', ['D']),
-    k('Someday', ['S']),
-    k('Change priority', ['P']),
-    k('Move to a project', ['M']),
-    k('Delete, with undo', ['Delete']),
-  ] },
-  { title: 'Notes', tabs: ['notes'], items: [
-    k('New note', [MOD, 'N']),
-    k('Search notes', [MOD, '⇧', 'F']),
-    k('Focus mode', [MOD, '.']),
-    { keys: [['/']], does: 'Formatting menu', note: 'while writing' },
-  ] },
-  { title: 'Clean-up', tabs: ['cleanup'], items: [
-    { keys: [['1']], does: 'Apply the numbered fix', note: '1 to 9' },
-    k('Skip to the next record', ['→']),
-  ] },
-  { title: 'Files', tabs: ['files'], items: [
-    k('Select', ['↑'], ['↓']),
-    k('Open', ['Enter']),
-    k('Up one folder', [MOD, '↑'], ['Delete']),
-    k('Search this folder', [MOD, 'F']),
-  ] },
+/** Written help that isn't a key the app answers (typed markers, editor formatting). */
+interface Hint { keys: string[][]; does: string; note?: string; group: string }
+const HINTS: Hint[] = [
+  { group: 'Everywhere', keys: [['>>']], does: 'At the start of a line in notes, meeting notes or quick capture: something we promised the client (it gets a task)' },
+  { group: 'Everywhere', keys: [['<<']], does: 'Same, for something the client promised us (tracked, no task)' },
+  { group: 'Dialogs and pickers', keys: [['↑'], ['↓']], does: 'Choose in a company list' },
+  { group: 'Dialogs and pickers', keys: [['Enter']], does: 'Pick the highlighted company' },
+  { group: 'Notes', keys: [['/']], does: 'Formatting menu', note: 'while writing' },
 ];
+
+/** Which groups belong to which pages (their group comes first on that page). */
+const GROUP_TABS: Record<string, string[]> = {
+  'Lists and records': ['companies', 'contacts', 'database', 'agreements', 'opportunities', 'projects', 'meetings', 'pending', 'followup'],
+  Tasks: ['todo'], Notes: ['notes'], 'Clean-up': ['cleanup'], Files: ['files'],
+};
+const ORDER = ['Everywhere', 'Dialogs and pickers', 'Lists and records', 'Tasks', 'Notes', 'Clean-up', 'Files', 'New proposal'];
+
+interface Row { keys: string[][]; does: string; note?: string }
+/** The sheet's groups, drawn from the registry (so it can't drift from the keys). */
+export function sheetGroups(): { title: string; tabs?: string[]; items: Row[] }[] {
+  const groups = new Map<string, Row[]>();
+  const add = (group: string, row: Row) => {
+    const list = groups.get(group) ?? [];
+    if (!list.some((r) => r.does === row.does)) list.push(row);
+    groups.set(group, list);
+  };
+  for (const b of allBindings()) {
+    if (!b.label || !b.group) continue;
+    add(b.group, { keys: (Array.isArray(b.combo) ? b.combo : [b.combo]).map(capsOf), does: b.label, note: b.note });
+  }
+  for (const h of HINTS) add(h.group, h);
+  return [...groups.entries()]
+    .sort((a, b) => (ORDER.indexOf(a[0]) + 99) % 99 - (ORDER.indexOf(b[0]) + 99) % 99)
+    .map(([title, items]) => ({ title, tabs: GROUP_TABS[title], items }));
+}
 
 const caps = (combo: string[]) => combo.map((c) => `<kbd>${escHtml(c)}</kbd>`).join('');
 
@@ -78,7 +54,7 @@ export function openShortcutSheet(): void {
     document.body.appendChild(ov);
   }
   const tab = getActiveTabId();
-  const groups = [...GROUPS].sort((a, b) => Number(!!b.tabs?.includes(tab)) - Number(!!a.tabs?.includes(tab)));
+  const groups = [...sheetGroups()].sort((a, b) => Number(!!b.tabs?.includes(tab)) - Number(!!a.tabs?.includes(tab)));
   ov.innerHTML = `<div class="modal modal-lg shortcut-sheet" role="dialog" aria-label="Keyboard shortcuts">
     <div class="modal-hd"><div class="modal-title">Keyboard shortcuts</div><button class="modal-close" onclick="closeShortcutSheet()">×</button></div>
     <div class="shortcut-groups">${groups.map((g) => `<section class="shortcut-group${g.tabs?.includes(tab) ? ' is-current' : ''}">
@@ -95,24 +71,4 @@ export function closeShortcutSheet(): void {
 }
 expose('closeShortcutSheet', closeShortcutSheet);
 
-// ⌘1–⌘9: the first nine modules in the sidebar, in the order shown there
-// (modules hidden until Microsoft 365 is connected are skipped).
-document.addEventListener('keydown', (e) => {
-  if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey || !/^[1-9]$/.test(e.key)) return;
-  if (S.commandPaletteOpen || document.querySelector('.modal-ov.open')) return;
-  const items = [...document.querySelectorAll<HTMLElement>('#sidebar .sb-item[data-tab]')].filter((b) => b.offsetParent !== null);
-  const target = items[Number(e.key) - 1];
-  if (!target) return;
-  e.preventDefault();
-  (window as any).navToModule?.(target.dataset.tab);
-});
-
-document.addEventListener('keydown', (e) => {
-  const t = e.target as HTMLElement;
-  if (/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || t.isContentEditable || t.closest?.('.cm-editor') || S.commandPaletteOpen) return;
-  const open = document.getElementById('modal-shortcuts')?.classList.contains('open');
-  if (e.key === '?' || ((e.metaKey || e.ctrlKey) && e.key === '/')) {
-    e.preventDefault();
-    if (open) closeShortcutSheet(); else if (!document.querySelector('.modal-ov.open')) openShortcutSheet();
-  }
-});
+// The keys themselves are registered (core/appKeys.ts and each page); this file only draws the sheet.
