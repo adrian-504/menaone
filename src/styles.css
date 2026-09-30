@@ -3370,10 +3370,10 @@ body.dnd-active [data-sort-shift] .dnd-source{opacity:0}
 .sb-switch-name{flex:1;font-size:var(--type-body)}
 .sb-switch-row{transition:background-color var(--dur-fast) var(--ease-out)}.sb-switch-row:hover{background:var(--surface-hover)}.sb-switch-row:active{background:var(--surface-pressed)}
 
-/* ═══════════════ My Day, focused (1.57) ═══════════════
-   Main: Now → Needs your attention → Today. Rail: Proposals in play, Coming
-   up, Regulatory. Under 1,101px the two columns become one list in this
-   order: Now, attention, proposals, Today, coming up, regulatory. */
+/* ═══════════════ My Day, focused (1.57; order 1.58) ═══════════════
+   Main: Now → Today → Needs your attention. Rail: Coming up, Proposals in
+   play, Regulatory. Under 1,101px the two columns become one list in this
+   order: Now, Today, attention, coming up, proposals, regulatory. */
 @media (min-width:1101px){
   .mdy-layout{grid-template-columns:minmax(0,1fr) 360px}
   .mdy-rail{background:var(--bg)!important;padding-left:28px!important}
@@ -3381,7 +3381,7 @@ body.dnd-active [data-sort-shift] .dnd-source{opacity:0}
 @media (max-width:1100px){
   .mdy-layout{display:flex;flex-direction:column;gap:0}
   .mdy-main,.mdy-rail{display:contents}
-  #myday-now-sec{order:1}#myday-attention-sec{order:2}#myday-inplay-sec{order:3}#myday-today-sec{order:4}#myday-upcoming-sec{order:5}#myday-reg-sec{order:6}
+  #myday-now-sec{order:1}#myday-today-sec{order:2}#myday-attention-sec{order:3}#myday-upcoming-sec{order:4}#myday-inplay-sec{order:5}#myday-reg-sec{order:6}
 }
 .mdy-hd-cnt{font-family:var(--font-mono);font-size:12px;font-weight:500;color:var(--sub)}
 .mdy-nowtag{margin-left:8px;font-family:var(--font-mono);font-size:11px;font-weight:500;color:var(--coral-text)}
