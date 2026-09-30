@@ -96,6 +96,21 @@ export function expandSelectors(selector) {
   });
 }
 
+/** Everything that can be clicked: the fixed list plus every class styled with cursor:pointer. */
+export const ALSO_INTERACTIVE = ['sb-add-btn', 'sb-collapse-btn', 'sb-expand-btn', 'task-check', 'toast-action', 'toast-close', 'sb-item'];
+export function clickableClasses(all) {
+  const found = new Set([...INTERACTIVE, ...ALSO_INTERACTIVE]);
+  for (const r of all) {
+    if (!r.decls.some((d) => d.prop === 'cursor' && /pointer/.test(d.value))) continue;
+    for (const sel of expandSelectors(r.selector)) {
+      const last = sel.trim().split(/[\s>+~]+/).pop() || '';
+      const m = /^[a-z]*\.([\w-]+)/i.exec(last);
+      if (m) found.add(m[1]);
+    }
+  }
+  return [...found].sort();
+}
+
 export function checkStates(all) {
   const selectors = all.flatMap((r) => expandSelectors(r.selector));
   const has = (cls, state) => selectors.some((s) => new RegExp(`\\.${cls}(?![\\w-])[^\\s]*${state.replace(/[.:()]/g, (c) => `\\${c}`)}`).test(s));
@@ -105,7 +120,12 @@ export function checkStates(all) {
     if (!has(cls, ':active') && !has(cls, '.is-pressed')) missing.push(':active');
     if (!has(cls, ':focus-visible')) missing.push(':focus-visible');
     return missing.length ? [{ selector: `.${cls}`, why: `no ${missing.join(', ')}` }] : [];
-  });
+  }).concat(
+    // Every clickable thing presses (delight 1).
+    clickableClasses(all).filter((cls) => !INTERACTIVE.includes(cls) && !has(cls, ':active') && !has(cls, '.is-pressed')).map((cls) => ({ selector: `.${cls}`, why: 'clickable, no :active' })),
+    // The app is flat: nothing lifts on hover.
+    all.filter((r) => /:hover/.test(r.selector) && r.decls.some((d) => d.prop === 'transform' && /translateY\(-/.test(d.value))).map((r) => ({ line: r.line, selector: r.selector, why: 'lifts on hover' })),
+  );
 }
 
 export function checkCraft(all) {

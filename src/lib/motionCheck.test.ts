@@ -21,5 +21,7 @@ describe('motion and craft (scripts/motion-check.mjs)', () => {
     expect(checkMotion(bad).map((p) => p.why)).toEqual(expect.arrayContaining(['animates width', 'literal duration in transition: width .3s ease', 'uses --ease-spring']));
     expect(checkCraft(bad).map((p) => p.why)).toEqual(['radius 7px', 'weight 700']);
     expect(expandSelectors(':is(.x,.y):hover, .z')).toEqual(['.x:hover', '.y:hover', '.z']);
+    const states = checkStates(rules('.pill{cursor:pointer}.card:hover{transform:translateY(-1px)}')).map((p) => p.why);
+    expect(states).toEqual(expect.arrayContaining(['clickable, no :active', 'lifts on hover']));
   });
 });
