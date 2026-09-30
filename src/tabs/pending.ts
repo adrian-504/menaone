@@ -1,3 +1,4 @@
+import { createListNav } from '../lib/listNav';
 import { S } from '../lib/state';
 import { emptyState } from '../lib/ui';
 import { companyLink } from '../lib/links';
@@ -205,3 +206,11 @@ export function wqClear(): void {
   renderPending();
 }
 expose('wqClear', wqClear);
+
+// ↑↓ or j k move through the rows, Enter opens one (delight 7).
+createListNav<number>({
+  tabId: 'pending',
+  getItems: () => [...document.querySelectorAll<HTMLElement>('#tab-pending .pq-row[data-row-id]')].map((el) => Number(el.dataset.rowId)),
+  getEl: (id) => document.querySelector<HTMLElement>(`#tab-pending .pq-row[data-row-id="${id}"]`),
+  onOpen: (id) => (window as any).openRecord('proposal', id),
+});

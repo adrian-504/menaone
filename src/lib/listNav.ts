@@ -8,6 +8,7 @@
 // are left as-is — not touching working code just to consolidate it.
 import { S } from './state';
 import { getActiveTabId } from './registry';
+import { keyTravel } from './motion';
 
 export interface ListNavConfig<T extends number | string> {
   /** Ids of every currently-rendered row, in visual order. Called fresh on
@@ -58,13 +59,15 @@ export function createListNav<T extends number | string>(config: ListNavConfig<T
     const idx = state.selected == null ? -1 : items.indexOf(state.selected);
     const next = Math.min(Math.max(idx + delta, 0), items.length - 1);
     state.selectId(items[next]);
+    keyTravel(config.getEl(items[next]));
   }
 
   document.addEventListener('keydown', (e) => {
     if (getActiveTabId() !== config.tabId) return;
     if (anyModalOpen() || isTypingTarget()) return;
-    if (e.key === 'ArrowDown') { e.preventDefault(); moveBy(1); }
-    else if (e.key === 'ArrowUp') { e.preventDefault(); moveBy(-1); }
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.key === 'ArrowDown' || e.key === 'j') { e.preventDefault(); moveBy(1); }
+    else if (e.key === 'ArrowUp' || e.key === 'k') { e.preventDefault(); moveBy(-1); }
     else if (e.key === 'Enter') { if (state.selected != null) { e.preventDefault(); config.onOpen(state.selected); } }
     else if (e.key === ' ') { if (state.selected != null && config.onToggle) { e.preventDefault(); config.onToggle(state.selected); } }
   });

@@ -160,3 +160,39 @@ export function collapseRows(els: Iterable<Element>): Promise<void> {
   return Promise.all([...els].map(collapseRow)).then(() => undefined);
 }
 
+// ── Travelling focus in lists (delight 7) ───────────────────────────────────
+
+/** Keyboard moves in a list (↑↓, j k): a focus ring slides to the new row —
+ * --dur-fast to a neighbour, --dur-base for a longer jump. Only called from
+ * keyboard handlers; the mouse never moves it, and pressing in the list hides it. */
+export function keyTravel(row: Element | null | undefined, container?: Element | null): void {
+  if (!(row instanceof HTMLElement)) return;
+  const list = (container as HTMLElement | null) || (row.closest('.tbl-wrap') as HTMLElement | null) || row.parentElement;
+  if (!list) return;
+  if (getComputedStyle(list).position === 'static') list.style.position = 'relative';
+  let hl = list.querySelector<HTMLElement>(':scope > .key-hl');
+  const fresh = !hl;
+  if (!hl) {
+    hl = document.createElement('span');
+    hl.className = 'key-hl';
+    hl.setAttribute('aria-hidden', 'true');
+    list.prepend(hl);
+    list.addEventListener('pointerdown', () => { if (hl) hl.style.opacity = '0'; });
+  }
+  const l = list.getBoundingClientRect();
+  const r = row.getBoundingClientRect();
+  const x = Math.round(r.left - l.left + list.scrollLeft);
+  const y = Math.round(r.top - l.top + list.scrollTop);
+  const prev = Number(hl.dataset.y);
+  const hidden = hl.style.opacity === '0';
+  hl.classList.toggle('is-jump', Number.isFinite(prev) && Math.abs(y - prev) > r.height * 1.5);
+  const jumpNow = fresh || hidden || reduced();
+  if (jumpNow) hl.style.transition = 'none';
+  hl.style.width = `${Math.round(r.width)}px`;
+  hl.style.height = `${Math.round(r.height)}px`;
+  hl.style.transform = `translate(${x}px, ${y}px)`;
+  hl.dataset.y = String(y);
+  hl.style.opacity = '1';
+  if (jumpNow) { void hl.offsetWidth; hl.style.transition = ''; }
+}
+

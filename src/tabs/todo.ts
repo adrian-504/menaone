@@ -4,7 +4,7 @@
 // beside the list instead of an edit dialog. Board and Calendar views show
 // the same list's tasks.
 
-import { collapseRow, collapseRows, settleNew } from '../lib/motion';
+import { collapseRow, collapseRows, keyTravel, settleNew } from '../lib/motion';
 import { foldMoreDetails } from '../lib/moreDetails';
 import { S } from '../lib/state';
 import { toast, undoToast, emptyState } from '../lib/ui';
@@ -679,7 +679,9 @@ function moveSelection(delta: number, extend: boolean): void {
   selection.add(next);
   anchorId = next;
   paintSelection();
-  document.querySelector(`#todo-list .task-row[data-task-id="${next}"]`)?.scrollIntoView({ block: 'nearest' });
+  const row = document.querySelector(`#todo-list .task-row[data-task-id="${next}"]`);
+  row?.scrollIntoView({ block: 'nearest' });
+  keyTravel(row, document.getElementById('todo-list'));
   if (!extend && S.taskDetailId != null) openTaskDetail(next);
 }
 
@@ -695,6 +697,7 @@ document.addEventListener('keydown', (e) => {
   const key = e.key;
   const run = (fn: () => void) => { e.preventDefault(); fn(); };
   if (key === 'ArrowDown' || key === 'ArrowUp') return run(() => moveSelection(key === 'ArrowDown' ? 1 : -1, e.shiftKey));
+  if (key === 'j' || key === 'k') return run(() => moveSelection(key === 'j' ? 1 : -1, false));
   if (key === 'n' || key === 'q') return run(() => document.getElementById('quick-task-input')?.focus());
   if (!ids.length) return;
   if (key === 'Enter') return run(() => { openTaskDetail(ids[0]); setTimeout(() => (document.getElementById('td-title') as HTMLTextAreaElement | null)?.focus(), 30); });

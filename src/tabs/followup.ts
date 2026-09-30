@@ -1,3 +1,4 @@
+import { createListNav } from '../lib/listNav';
 import { PS, proposalSentDate } from '../lib/commercial';
 import { S } from '../lib/state';
 import { emptyState } from '../lib/ui';
@@ -107,3 +108,11 @@ export function fuCard(p: Proposal, isArchived: boolean): string {
   </div>`;
 }
 expose('renderFollowup', renderFollowup);
+
+// ↑↓ or j k move through the rows, Enter opens one (delight 7).
+createListNav<number>({
+  tabId: 'followup',
+  getItems: () => [...document.querySelectorAll<HTMLElement>('#tab-followup .pq-row[data-row-id]')].map((el) => Number(el.dataset.rowId)),
+  getEl: (id) => document.querySelector<HTMLElement>(`#tab-followup .pq-row[data-row-id="${id}"]`),
+  onOpen: (id) => (window as any).openRecord('proposal', id),
+});

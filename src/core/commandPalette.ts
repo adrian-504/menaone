@@ -1,3 +1,4 @@
+import { keyTravel } from '../lib/motion';
 import { S } from '../lib/state';
 import { briefCommandMatches } from '../lib/companyBrief';
 import { escHtml, expose } from '../lib/utils';
@@ -272,7 +273,7 @@ document.addEventListener('keydown', (e) => {
   }
   if (!S.commandPaletteOpen) return;
   if (e.key === 'Escape') { e.preventDefault(); closeCommandPalette(); return; }
-  if (e.key === 'ArrowDown') { e.preventDefault(); setPaletteSel(Math.min(selIndex + 1, currentItems.length - 1)); return; }
-  if (e.key === 'ArrowUp') { e.preventDefault(); setPaletteSel(Math.max(selIndex - 1, 0)); return; }
+  if (e.key === 'ArrowDown') { e.preventDefault(); setPaletteSel(Math.min(selIndex + 1, currentItems.length - 1)); keyTravel(document.querySelectorAll('#cmdk-list .cmdk-item')[selIndex], document.getElementById('cmdk-list')); return; }
+  if (e.key === 'ArrowUp') { e.preventDefault(); setPaletteSel(Math.max(selIndex - 1, 0)); keyTravel(document.querySelectorAll('#cmdk-list .cmdk-item')[selIndex], document.getElementById('cmdk-list')); return; }
   if (e.key === 'Enter') { e.preventDefault(); activatePaletteItem(selIndex); return; }
 });

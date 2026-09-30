@@ -1,3 +1,4 @@
+import { createListNav } from '../lib/listNav';
 import { suggestWebsites } from '../lib/clientMatch';
 import { proposalSentDate, isAgreementActive, isOpenProposal, isLost, isWon, activeMrr as computeActiveMrr, fmtMoney, fmtMoneyByCurrency, toReporting, currencyOf, agreementMonthly, activeTeam, matchesOwnerFilter, ownerFilterOptions, type MoneyByCurrency } from '../lib/commercial';
 import { S } from '../lib/state';
@@ -1715,3 +1716,11 @@ function updateCoBulkBar(): void {
     { label: 'Archive', danger: true, run: () => { void coBulkChange('Archived', (c) => ({ ...c, archived: true })); } },
   ], 'coClearSelection()', () => S.currentTab === 'companies' && !document.getElementById('co-detail')?.classList.contains('open') && S.coListView === 'list');
 }
+
+// ↑↓ or j k move through the list, Enter opens the company (delight 7).
+createListNav<string>({
+  tabId: 'companies',
+  getItems: () => (S.currentCompany ? [] : [...document.querySelectorAll<HTMLElement>('#co-tbody tr[data-company]')].map((el) => el.dataset.company || '')),
+  getEl: (name) => [...document.querySelectorAll<HTMLElement>('#co-tbody tr[data-company]')].find((el) => el.dataset.company === name) || null,
+  onOpen: (name) => (window as any).openCompanyDetail?.(name),
+});

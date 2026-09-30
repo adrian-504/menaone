@@ -57,3 +57,26 @@ describe('new items settle in (settleNew)', () => {
     expect(el.classList.contains('is-new')).toBe(false);
   });
 });
+
+describe('travelling focus (keyTravel)', () => {
+  it('puts one ring in the list, slides it, marks long jumps, hides on a press', async () => {
+    const { keyTravel } = await import('./motion');
+    document.body.innerHTML = '<div id="list"><div class="r">a</div><div class="r">b</div><div class="r">c</div></div>';
+    const list = document.getElementById('list')!;
+    const rows = [...list.querySelectorAll<HTMLElement>('.r')];
+    rows.forEach((r, i) => { r.getBoundingClientRect = () => ({ top: i * 40, left: 0, width: 300, height: 40, bottom: i * 40 + 40, right: 300 } as DOMRect); });
+    list.getBoundingClientRect = () => ({ top: 0, left: 0, width: 300, height: 120, bottom: 120, right: 300 } as DOMRect);
+    keyTravel(rows[0], list);
+    const hl = list.querySelector<HTMLElement>('.key-hl')!;
+    expect(list.querySelectorAll('.key-hl')).toHaveLength(1);
+    expect(hl.style.transform).toBe('translate(0px, 0px)');
+    keyTravel(rows[1], list);
+    expect(hl.style.transform).toBe('translate(0px, 40px)');
+    expect(hl.classList.contains('is-jump')).toBe(false);
+    keyTravel(rows[0], list);
+    keyTravel(rows[2], list);
+    expect(hl.classList.contains('is-jump')).toBe(true);
+    list.dispatchEvent(new Event('pointerdown'));
+    expect(hl.style.opacity).toBe('0');
+  });
+});

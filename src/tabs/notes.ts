@@ -4,7 +4,7 @@
 // on selection), links and backlinks at the foot of the note, and a focus
 // mode that hides everything but the writing.
 
-import { collapseRow, collapseRows, settleNew } from '../lib/motion';
+import { collapseRow, collapseRows, keyTravel, settleNew } from '../lib/motion';
 import { S } from '../lib/state';
 import { toast, emptyState, undoToast } from '../lib/ui';
 import { companyLink, recordLink } from '../lib/links';
@@ -468,6 +468,7 @@ document.addEventListener('keydown', (e) => {
     const id = Number(next.dataset.noteId);
     rows.forEach((r) => r.classList.toggle('active', r === next));
     next.scrollIntoView({ block: 'nearest' });
+    keyTravel(next, document.getElementById('notes-list'));
     requestNote(id);
   }
 });
