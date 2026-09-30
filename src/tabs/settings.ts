@@ -1,4 +1,8 @@
 import { bandSource, renderMe, setBandSource, setTint, setYourName, tint, yourName, type BandSource, type Tint } from '../lib/appearance';
+import { icon } from '../lib/icons';
+import { getActiveTabId } from '../lib/registry';
+import { OPTIONAL_MODULES, applySidebarModules, moduleShown, setModuleShown } from '../lib/sidebarModules';
+import { collapseRow, settleNew } from '../lib/motion';
 import { OFFLINE_LABEL } from '../lib/offline';
 import { allSaved } from '../lib/persist';
 import { savedTick } from '../lib/motion';
@@ -45,6 +49,7 @@ async function renderAppearance(): Promise<void> {
   document.querySelectorAll<HTMLElement>('#band-picker .seg-btn').forEach((b) => { const on = b.dataset.band === bandSource(); b.classList.toggle('active', on); b.setAttribute('aria-checked', String(on)); });
   const name = document.getElementById('appearance-name') as HTMLInputElement | null;
   if (name && document.activeElement !== name) name.value = yourName();
+  renderSidebarSwitches();
   const count = document.getElementById('band-count');
   if (count && (window as any).__TAURI_INTERNALS__?.invoke) {
     const { invoke } = await import('@tauri-apps/api/core');
@@ -52,6 +57,24 @@ async function renderAppearance(): Promise<void> {
     count.textContent = n ? `${n} photo${n === 1 ? '' : 's'} chosen` : 'No photos chosen yet';
   }
 }
+function renderSidebarSwitches(): void {
+  const el = document.getElementById('sidebar-switches');
+  if (!el) return;
+  el.innerHTML = OPTIONAL_MODULES.map((m) => {
+    const iconName = document.querySelector<HTMLElement>(`#sidebar .sb-item[data-tab="${m.tab}"] [data-icon]`)?.dataset.icon || m.icon;
+    const on = moduleShown(m.tab);
+    return `<label class="sb-switch-row"><span class="sb-switch-icon">${icon(iconName, 15)}</span><span class="sb-switch-name">${escHtml(m.name)}</span><input type="checkbox" class="switch" ${on ? 'checked' : ''} onchange="appearanceToggleModule('${m.tab}', this.checked)" aria-label="Show ${escHtml(m.name)} in the sidebar"></label>`;
+  }).join('');
+}
+expose('appearanceToggleModule', (tab: string, on: boolean) => {
+  setModuleShown(tab, on);
+  const item = document.querySelector<HTMLElement>(`#sidebar .sb-item[data-tab="${tab}"]`);
+  const apply = () => applySidebarModules(getActiveTabId());
+  if (on) { apply(); settleNew(item); return; }
+  // Leaving: the row closes, then it's hidden (unless it's the page you're on).
+  if (item && !item.hidden && getActiveTabId() !== tab) void collapseRow(item).then(apply); else apply();
+});
+
 expose('appearanceSetTint', (t: Tint) => { setTint(t); void renderAppearance(); });
 expose('appearanceSetBand', (b: BandSource) => { setBandSource(b); void renderAppearance(); });
 expose('appearanceSetName', (v: string) => { setYourName(v); renderMe(); toast(v.trim() ? 'Name saved' : 'Name cleared', { tone: 'success' }); });

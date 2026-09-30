@@ -47,6 +47,8 @@ const VIEWS = [
   ['Meeting', "openRecord('meeting', 2)", {}],
   ['New proposal', "openProposalBuilder({})", { fitsScreen: true }],
   ['Settings → Appearance', "navToModule('settings'), setSettingsPane('appearance')", {}],
+  // Identity: Agreements is hidden in the sidebar by default; while it's open its item shows, highlighted.
+  ['Sidebar → hidden module active', "navToModule('agreements')", { activeShown: true }],
   // Studio: the Generate sheet over a proposal (counted inside the sheet), and the builder's
   // company suggestion list must not survive leaving the builder.
   ['Generate sheet', "openRecord('proposal', 3), openGenerateProposal(3)", {}],
@@ -85,7 +87,9 @@ const COUNT = `(() => {
     return own && shown(el) && !el.parentElement.closest('[data-eyebrow-counted]') && (el.setAttribute('data-eyebrow-counted', ''), true);
   }).length;
   document.querySelectorAll('[data-eyebrow-counted]').forEach((el) => el.removeAttribute('data-eyebrow-counted'));
-  return JSON.stringify({ errorToasts, popover, inputs: inputs.length, filters, buttons, primary, height: document.scrollingElement.scrollHeight, names, rowSelects, emptyBoxFirst, isNew, eyebrows });
+    const act = document.querySelector('#sidebar .sb-item.active');
+  const activeShown = !!act && !act.hidden && act.offsetParent !== null;
+  return JSON.stringify({ activeShown, errorToasts, popover, inputs: inputs.length, filters, buttons, primary, height: document.scrollingElement.scrollHeight, names, rowSelects, emptyBoxFirst, isNew, eyebrows });
 })()`;
 
 const port = 9400 + Math.floor(Math.random() * 400);
@@ -135,6 +139,7 @@ for (const [name, js, t] of VIEWS.filter(([n]) => !process.env.ONLY || n.startsW
   if (c.cls > 0.01) problems.push(`layout shift ${c.cls}`);
   if (c.isNew) problems.push(`${c.isNew} .is-new on a cold render`);
   if (c.scrollLost) problems.push(`scroll not kept (${c.scroll})`);
+  if (t.activeShown && !c.activeShown) problems.push('the open module has no visible sidebar item');
   if (c.errorToasts.length) problems.push(`error toast: ${c.errorToasts.join(' | ')}`);
   if (t.noPopover && c.popover) problems.push('the company suggestion list is still open');
   results.push({ name, ...c, problems });

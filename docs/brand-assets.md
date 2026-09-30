@@ -16,6 +16,10 @@ From Fontsource 5.3.0 (npm), woff2, latin and latin-ext subsets. All under the S
 
 The company's own marks and photograph, from the MENA BIG design system: `logo-primary.png`, `logo-white.png` (the full lockup, 160 px), `mark-primary.png`, `mark-white.png` (the wordmark and the three bars without the subtitle, which is unreadable at sidebar size — the sidebar uses these), `office-band.jpg` (the office banner, cropped to leave out the logo).
 
+## The app mark — `src-tauri/icons/`, `src/assets/brand/mark-tile.png`
+
+The MENA "m" traced pixel-exact from `logo-primary.png` (its first letter), white on brand blue #014B8C, with the three coral bars in the letterhead mark's proportions. The app icon follows Apple's macOS grid (an 824 px continuous-corner squircle on a 1024 canvas; macOS doesn't round a bundle's icon itself), and its 16 and 32 px sizes are drawn on the pixel grid so the bars stay three lines. `python3 scripts/icon/make-icon.py <brand assets> <out>` makes the master, the small sizes and the sidebar tile; `npx tauri icon` the PNG set; the .icns and .ico are assembled from the hand-drawn small sizes.
+
 ## My Day's city photographs — `src/assets/band/`
 
 One per office city (two for Riyadh, Dubai and Barcelona, shown on alternate days), 1600 × 600 webp. Picked with the owner (30-Sep-2026). The band's scrim keeps the greeting at 4.5:1 or more on each (`python3 scripts/band-contrast.py`).

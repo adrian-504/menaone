@@ -69,6 +69,8 @@ Some of the MENA BIG design system, not all of it (owner, 30-Sep-2026: 1.54 was 
 - **Initials tiles:** one of six brand colours by the name (`strColor` → `--tile-1…6`), white initials, radius 9.
 - **Record figures:** a header shows two or three display figures (Saira 20px, a small muted label) from existing fields — a company's monthly fee, agreement end and open proposals; a proposal's value, status and days with the client or with us; a project's progress and next milestone; an agreement's contracted value, monthly fee and end; a contact's role, company and last contact.
 - **My Day:** a photograph band (the office, or your own photos in turn, Settings → Appearance) under a blue scrim that follows the time of day, the greeting in Saira 34px and the three bars; the index row under it (`01 3 need you · 02 1 meeting to go …`, zeros hidden); the Now panel for the meeting running or next. The band's height is fixed and its photo arrives after the first paint, so nothing moves.
+- **Identity:** the sidebar's top row (under the traffic lights) is the app mark (28 px tile) and "MENA One" in Saira; the full lockup is for documents and About.
+- **Sidebar modules:** optional modules (Action Required, Agreements, Services, Watch, Dashboard, Reports, Analytics) can be hidden in Settings → Appearance → Sidebar, and start hidden. A hidden module still works — search, record links, the Navigate menu — and its item shows while it's the page you're on; a group with nothing visible goes. ⌘1–9 only name core modules.
 - **Shell tint** is a setting: Blue (the brand's lightest blue, default) or Grey (`[data-tint="grey"]`). Both are themed for dark.
 
 ## Surfaces
