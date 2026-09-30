@@ -3,6 +3,7 @@
 // and reading `>>` / `<<` lines out of meeting notes, notes and quick
 // capture (the rules are in src/lib/commitments.ts, storage in commitments.rs).
 
+import { collapseRow, collapseRows } from '../lib/motion';
 import { foldMoreDetails } from '../lib/moreDetails';
 import { S } from '../lib/state';
 import { renderIcons } from '../core/chrome';
@@ -149,10 +150,10 @@ export function commitmentRow(c: Commitment, opts: { showCompany?: boolean; plai
     c.status === 'dropped' ? `dropped${c.dropReason ? `: ${escHtml(c.dropReason)}` : ''}` : '',
   ].filter(Boolean).join(' · ');
   return `<div class="cm-row${closed ? ' is-closed' : ''}${c.status === 'dropped' ? ' is-dropped' : ''}" data-commitment-id="${c.id}">
-    <button class="task-check${c.status === 'kept' ? ' checked' : ''}" onclick="toggleCommitmentKept(${c.id})" ${c.status === 'dropped' ? 'disabled' : ''} aria-label="${c.status === 'kept' ? 'Mark as open again' : 'Mark kept'}" title="${c.status === 'kept' ? 'Kept — click to reopen' : 'Mark kept'}"></button>
+    <button class="task-check${c.status === 'kept' ? ' checked' : ''}" onclick="toggleCommitmentKept(${c.id})" ${c.status === 'dropped' ? 'disabled' : ''} aria-label="${c.status === 'kept' ? 'Mark as open again' : 'Mark kept'}" data-tip="${c.status === 'kept' ? 'Kept — click to reopen' : 'Mark kept'}"></button>
     ${dir}
     <div class="cm-main"><div class="cm-text">${escHtml(c.text)}</div><div class="cm-meta">${meta}</div></div>
-    <button class="rec-icon-btn" onclick="commitmentMenu(event, ${c.id})" title="More" aria-label="More">${icon('more', 14)}</button>
+    <button class="rec-icon-btn" onclick="commitmentMenu(event, ${c.id})" data-tip="More" aria-label="More">${icon('more', 14)}</button>
   </div>`;
 }
 
@@ -233,7 +234,8 @@ export function setCommitmentKept(id: number, kept: boolean): void {
   c.closedAt = kept ? new Date().toISOString() : null;
   persistCommitments();
   refreshBadges();
-  refreshCommitmentViews();
+  if (kept) void collapseRows(document.querySelectorAll(`.cm-row[data-commitment-id="${id}"]:not(.is-closed)`)).then(refreshCommitmentViews);
+  else refreshCommitmentViews();
   // A promise kept can be taken back (owner, 30-Sep-2026: Undo where a save is reversible).
   if (kept && was.status !== 'kept') {
     undoToast(`Kept: ${c.text}`, () => {

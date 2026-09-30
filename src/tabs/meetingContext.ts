@@ -48,7 +48,7 @@ export function renderMeetingContext(m: Meeting): void {
     out.push(panel('Open promises', ctx.openPromises.map((c) => {
       const late = !!c.dueDate && c.dueDate < todayIso;
       return `<div class="md-ctx-promise">
-        <button class="md-ctx-box" onclick="meetingContextKept(${c.id})" title="Mark kept" aria-label="Mark kept"></button>
+        <button class="md-ctx-box" onclick="meetingContextKept(${c.id})" data-tip="Mark kept" aria-label="Mark kept"></button>
         <span class="md-ctx-main">${escHtml(c.text)}<span class="md-ctx-sub${late ? ' is-late' : ''}">${c.direction === 'ours' ? 'We owe' : 'They owe'}${c.dueDate ? ` · ${late ? 'late since' : 'by'} ${escHtml(fmtDate(c.dueDate))}` : ''}</span></span>
       </div>`;
     }).join('')));

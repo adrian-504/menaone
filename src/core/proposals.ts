@@ -1,18 +1,20 @@
+import { collapseRow, collapseRows } from '../lib/motion';
 import { backInDays, lastTouch, FOLLOW_UP_AFTER_DAYS, WAIT_LONGER_DAYS, type LastTouch } from '../lib/followup';
 import { ownDomains } from '../lib/clientMatch';
 import { S } from '../lib/state';
 import { STATUSES, WIN_REASONS, LOSS_REASONS } from '../lib/constants';
 import { today, fmtDate, daysSince, daysUntil, escHtml, expose, showTextPrompt, showConfirm, localIsoDate } from '../lib/utils';
 import { matchesProposalPeriod } from '../lib/period';
-import { persistProposals } from '../lib/persist';
+import { persistProposals, saved } from '../lib/persist';
 import { registerBadgeUpdater, refreshAll, getActiveTabId, renderTab } from '../lib/registry';
 import { toast, undoToast } from '../lib/ui';
+import { optimistic } from '../lib/optimistic';
 import { draftAgreementsFromProposals } from './agreements';
 import { PS, stageIndex, isLost, isWithdrawn, defaultReviewer, teamMember, renewalsDue, activeMrr, pipelineMonthly, fmtMoneyByCurrency } from '../lib/commercial';
 import { applyRevisionRequest, applyRevisionSent } from '../lib/revisions';
-import { touchesAdd, touchesDelete } from '../lib/db';
+import { activityForget, touchesAdd, touchesDelete } from '../lib/db';
 import { showMenuAt, type ContextMenuItem } from '../lib/contextMenu';
-import type { Proposal, TouchKind } from '../lib/types';
+import type { Proposal, Touch, TouchKind } from '../lib/types';
 
 // ═══════════════ PERSISTENCE / LOAD ═══════════════
 
@@ -54,17 +56,20 @@ const TOUCH_WORD: Record<TouchKind, string> = { email_out: 'email', email_in: 'e
 export async function logTouch(proposalId: number, kind: TouchKind, direction: 'out' | 'in' = 'out'): Promise<void> {
   const p = S.proposals.find((x) => x.id === proposalId);
   if (!p) return;
-  try {
-    const t = await touchesAdd({ proposalId, companyId: p.companyId ?? null, kind, direction, at: today(), contactId: p.primaryContactId ?? null });
-    S.touches = [...S.touches.filter((x) => x.id !== t.id), t];
-    updateBadge();
-    refreshAll();
-    if (S.currentProposalId === proposalId) (window as any).renderProposalPage?.();
-    const what = direction === 'in' ? `client replied by ${TOUCH_WORD[kind]} today` : `${TOUCH_WORD[kind]} today`;
-    toast(`Logged: ${what}`, { tone: 'success', action: { label: 'Undo', run: () => { void undoTouch(t.id); } } });
-  } catch (err) {
-    toast('Could not log it', { tone: 'error', detail: String(err) });
-  }
+  const draft = { proposalId, companyId: p.companyId ?? null, kind, direction, at: today(), contactId: p.primaryContactId ?? null };
+  // Shown at once with a stand-in id; the saved row replaces it (delight 2: optimistic).
+  const temp = { ...draft, id: -Date.now(), subject: null, source: 'manual', sourceId: null, createdAt: new Date().toISOString() } as unknown as Touch;
+  const redraw = () => { updateBadge(); refreshAll(); if (S.currentProposalId === proposalId) (window as any).renderProposalPage?.(); };
+  const t = await optimistic({
+    apply: () => { S.touches = [...S.touches, temp]; redraw(); },
+    commit: () => touchesAdd(draft),
+    revert: () => { S.touches = S.touches.filter((x) => x.id !== temp.id); redraw(); },
+  });
+  if (!t) return;
+  S.touches = [...S.touches.filter((x) => x.id !== temp.id && x.id !== t.id), t];
+  redraw();
+  const what = direction === 'in' ? `client replied by ${TOUCH_WORD[kind]} today` : `${TOUCH_WORD[kind]} today`;
+  undoToast(`Logged: ${what}`, () => { void undoTouch(t.id); });
 }
 expose('logTouch', logTouch);
 
@@ -323,16 +328,39 @@ export async function removeProposal(id: number): Promise<void> {
 }
 expose('removeProposal', removeProposal);
 
+// ═══════════════ UNDO ═══════════════
+
+/** Undo for any change to a proposal (owner, 30-Sep-2026: "Undo everywhere"):
+ * call before the change; the returned function puts the proposal back exactly
+ * as it was and removes the timeline rows written since (the change's and the
+ * undo's own), once the restore has been saved. */
+export function snapshotProposal(p: Proposal): () => void {
+  const before = JSON.parse(JSON.stringify(p)) as Proposal;
+  const since = new Date(Date.now() - 250).toISOString();
+  return () => {
+    const cur = S.proposals.find((x) => x.id === p.id);
+    if (!cur) return;
+    for (const k of Object.keys(cur)) delete (cur as any)[k];
+    Object.assign(cur, before);
+    persistProposals();
+    void saved('proposals').then(() => activityForget('proposal', p.id, since)).catch(() => undefined);
+    refreshAll();
+    (window as any).renderProposalPage?.();
+  };
+}
+
 // ═══════════════ SNOOZE ═══════════════
 
 export function snoozeProposal(id: number, days: number): void {
   const p = S.proposals.find((x) => x.id === id);
   if (!p) return;
+  const restore = snapshotProposal(p);
   const d = new Date();
   d.setDate(d.getDate() + days);
   p.snoozedUntil = localIsoDate(d);
   persistProposals();
-  refreshAll();
+  undoToast(`Snoozed ${p.client} for ${days} day${days === 1 ? '' : 's'}`, restore);
+  void collapseRows(document.querySelectorAll(`.pq-row[data-row-id="${id}"]`)).then(refreshAll);
 }
 expose('snoozeProposal', snoozeProposal);
 
@@ -379,7 +407,7 @@ export function archiveProposal(id: number): void {
   p.archived = true;
   p.archivedAt = today();
   persistProposals();
-  refreshAll();
+  void collapseRows(document.querySelectorAll(`.pq-row[data-row-id="${id}"]`)).then(refreshAll);
   undoToast(`Archived ${p.client}`, () => { unarchiveProposal(id); (window as any).renderProposalPage?.(); });
 }
 expose('archiveProposal', archiveProposal);

@@ -161,10 +161,10 @@ function stepHtml(q: CleanupQueue): string {
     </div>
     <dl class="cu-facts">${item.facts.map(([k, v]) => `<dt>${escHtml(k)}</dt><dd>${escHtml(v)}</dd>`).join('')}</dl>
     <div class="cu-actions">
-      ${q.actions.map((a, i) => `<button class="${chooser === a ? 'btn-primary' : ACTION_TONE[a] === 'danger' ? 'btn-secondary cu-danger' : 'btn-secondary'}" onclick="cleanupAction('${a}')" title="Shortcut: ${i + 1}"><kbd>${i + 1}</kbd>${escHtml(ACTION_LABEL[a])}</button>`).join('')}
+      ${q.actions.map((a, i) => `<button class="${chooser === a ? 'btn-primary' : ACTION_TONE[a] === 'danger' ? 'btn-secondary cu-danger' : 'btn-secondary'}" onclick="cleanupAction('${a}')" data-tip="Shortcut: ${i + 1}" aria-label="Shortcut: ${i + 1}"><kbd>${i + 1}</kbd>${escHtml(ACTION_LABEL[a])}</button>`).join('')}
       <span class="cu-spacer"></span>
       <button class="btn-secondary btn-sm" onclick="cleanupOpen()">Open</button>
-      <button class="btn-secondary btn-sm" onclick="cleanupSkip()" title="Shortcut: →">Skip <kbd>→</kbd></button>
+      <button class="btn-secondary btn-sm" onclick="cleanupSkip()" data-tip="Shortcut: →">Skip <kbd>→</kbd></button>
     </div>
     ${chooser && q.actions.includes(chooser) ? chooserHtml(q, item) : ''}
   </article>`;

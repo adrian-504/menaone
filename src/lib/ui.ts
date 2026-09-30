@@ -103,9 +103,74 @@ export function deferWhileHovered(list: HTMLElement | null, render: () => void):
   wait();
 }
 
-/** "Task deleted · Undo" — the pattern for reversible deletes. */
-export function undoToast(message: string, undo: () => void): void {
-  toast(message, { action: { label: 'Undo', run: undo } });
+// ── Undo (owner, 30-Sep-2026: "Undo everywhere") ───────────────────────────
+// One undo at a time, bottom-left, for 7 s; a new one replaces it; ⌘Z runs it
+// (unless you're typing, where ⌘Z undoes the text).
+
+let undoEl: HTMLElement | null = null;
+let undoRun: (() => void) | null = null;
+let undoTimer = 0;
+
+function clearUndo(): void {
+  window.clearTimeout(undoTimer);
+  undoRun = null;
+  const el = undoEl;
+  undoEl = null;
+  if (!el?.isConnected) return;
+  el.classList.add('leaving');
+  window.setTimeout(() => el.remove(), 180);
+}
+
+function undoStack(): HTMLElement {
+  let el = document.getElementById('undo-stack');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'undo-stack';
+    el.className = 'undo-stack';
+    el.setAttribute('role', 'status');
+    el.setAttribute('aria-live', 'polite');
+    document.body.appendChild(el);
+  }
+  return el;
+}
+
+/** "Task deleted · Undo" — the pattern for every reversible action. */
+export function undoToast(message: string, undo: () => void, ms = 7000): void {
+  clearUndo();
+  const el = document.createElement('div');
+  el.className = 'toast toast-neutral toast-undo';
+  el.innerHTML = `<div class="toast-body"><div class="toast-msg">${esc(message)}</div></div><button class="toast-action">Undo <kbd>⌘Z</kbd></button><button class="toast-close" aria-label="Dismiss">×</button>`;
+  const run = () => { clearUndo(); undo(); };
+  el.querySelector('.toast-action')?.addEventListener('click', run);
+  el.querySelector('.toast-close')?.addEventListener('click', clearUndo);
+  el.addEventListener('mouseenter', () => window.clearTimeout(undoTimer));
+  el.addEventListener('mouseleave', () => { undoTimer = window.setTimeout(clearUndo, 2500); });
+  undoStack().appendChild(el);
+  undoEl = el;
+  undoRun = run;
+  undoTimer = window.setTimeout(clearUndo, ms);
+}
+
+/** Does it now, offers Undo for 7 s. */
+export function withUndo<T>(label: string, commit: () => T, undo: () => void): T {
+  const out = commit();
+  undoToast(label, undo);
+  return out;
+}
+
+/** The undo on screen, if any (for tests and ⌘Z). */
+export function pendingUndo(): (() => void) | null {
+  return undoRun;
+}
+
+const typing = (t: EventTarget | null) => t instanceof HTMLElement && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || !!t.closest('.cm-editor'));
+if (typeof document !== 'undefined') {
+  document.addEventListener('keydown', (e) => {
+    if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'z' && undoRun && !typing(e.target)) {
+      e.preventDefault();
+      undoRun();
+    }
+  });
 }
 
 export interface EmptyStateOptions {
@@ -141,6 +206,11 @@ export async function loadInto(el: HTMLElement | null, what: string, retryOnclic
   if (el && empty) el.innerHTML = skeleton(variant === 'cards' ? 3 : 4, variant);
   try {
     await load();
+    // What replaces the placeholders fades in (delight 11): rows or the empty state, never a flash.
+    if (el && el.querySelector('.skel-wrap')) {
+      el.classList.add('arriving');
+      window.setTimeout(() => el.classList.remove('arriving'), 260);
+    }
     return true;
   } catch (err) {
     console.error(`[load] ${what}:`, err);

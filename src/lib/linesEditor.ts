@@ -112,7 +112,7 @@ function ratesBlock(key: string, line: CommercialLine, card: PricingService, kin
         : `<span class="le-rate-value"><input class="td-input le-rate-price" type="number" min="0" step="50" value="${r.price ?? ''}" placeholder="0" aria-label="Price" ${attr('price')}><span class="t-muted">${kind === 'category' ? '/person' : ''}</span></span>`}
       ${kind === 'row' || kind === 'country' ? `<label class="le-comm" title="Counts in the proposal's monthly value"><input type="checkbox"${r.counts ? ' checked' : ''} onchange="linesRate('${key}', ${line.id}, ${i}, 'counts', this.checked ? '1' : '')"> In totals</label>` : ''}
       ${rateHint(r, preset, currency)}
-      <button type="button" class="rec-icon-btn le-rate-remove" onclick="linesRate('${key}', ${line.id}, ${i}, 'remove', '')" title="Remove ${noun}" aria-label="Remove ${noun}">${icon('close', 12)}</button>
+      <button type="button" class="rec-icon-btn le-rate-remove" onclick="linesRate('${key}', ${line.id}, ${i}, 'remove', '')" data-tip="Remove ${noun}" aria-label="Remove ${noun}">${icon('close', 12)}</button>
     </div>`;
   };
   return `<div class="le-rates">
@@ -136,7 +136,7 @@ function singleHint(key: string, line: CommercialLine, card: PricingService | nu
   if (o.unit === 'percent') return `<div class="le-hint">Usually ${o.standard}% (${o.min}–${o.max}%)</div>`;
   const check = checkPrice(o, line.unitPrice);
   const range = o.min === o.max ? n(o.min) : `${n(o.min)}–${n(o.max)}`;
-  const use = line.unitPrice !== o.standard ? ` <button type="button" class="le-use" onclick="linesEdit('${key}', ${line.id}, 'unitPrice', '${o.standard}')" title="Use the standard price">Use ${n(o.standard)}</button>` : '';
+  const use = line.unitPrice !== o.standard ? ` <button type="button" class="le-use" onclick="linesEdit('${key}', ${line.id}, 'unitPrice', '${o.standard}')" data-tip="Use the standard price">Use ${n(o.standard)}</button>` : '';
   const flag = check === 'above' ? '<span class="le-flag">Above the rate card</span> ' : check === 'below' ? '<span class="le-flag">Below the rate card</span> ' : '';
   return `<div class="le-hint${check && check !== 'within' ? ' le-hint-off' : ''}">${flag}Standard ${n(o.standard)} · ${range}${use}</div>`;
 }
@@ -195,7 +195,7 @@ export function renderLinesEditor(key: string, containerId: string, ctx: LinesEd
           : `<input class="td-input le-price" type="number" min="0" step="50" value="${l.unitPrice ?? ''}" placeholder="0" aria-label="Unit price" onchange="linesEdit('${k}', ${l.id}, 'unitPrice', this.value)">${singleHint(k, l, card, currency)}`}
       </td>
       <td class="num strong le-amount">${amount != null ? fmtMoney(amount, currency) : '—'}</td>
-      <td class="le-remove"><button type="button" class="rec-icon-btn" onclick="linesEdit('${k}', ${l.id}, 'remove', '')" title="Remove service" aria-label="Remove service">${icon('close', 13)}</button></td>
+      <td class="le-remove"><button type="button" class="rec-icon-btn" onclick="linesEdit('${k}', ${l.id}, 'remove', '')" data-tip="Remove service" aria-label="Remove service">${icon('close', 13)}</button></td>
     </tr>${byRows ? `<tr class="le-rates-tr" data-line-id="${l.id}"><td colspan="6">${ratesBlock(k, l, card!, kind!, currency)}</td></tr>` : ''}`;
   }).join('');
   const months = ctx.contractMonths();
@@ -207,9 +207,9 @@ export function renderLinesEditor(key: string, containerId: string, ctx: LinesEd
     <div class="le-footer">
       ${ctx.editable ? `<button type="button" class="btn-secondary btn-sm" onclick="linesEdit('${k}', 0, 'add', '')">${icon('plus', 13)} Add service</button>` : '<span></span>'}
       <dl class="le-totals">
-        <div><dt>Monthly</dt><dd>${totals.monthly != null ? fmtMoney(totals.monthly, currency) : '—'}</dd></div>
-        <div><dt>One-time</dt><dd>${totals.oneTime != null ? fmtMoney(totals.oneTime, currency) : '—'}</dd></div>
-        <div class="le-total-main"><dt>Contract value${months ? ` · ${months} mo` : ''}</dt><dd>${totals.contractValue != null ? fmtMoney(totals.contractValue, currency) : '—'}</dd></div>
+        <div><dt>Monthly</dt><dd data-roll="${k}-monthly">${totals.monthly != null ? fmtMoney(totals.monthly, currency) : '—'}</dd></div>
+        <div><dt>One-time</dt><dd data-roll="${k}-onetime">${totals.oneTime != null ? fmtMoney(totals.oneTime, currency) : '—'}</dd></div>
+        <div class="le-total-main"><dt>Contract value${months ? ` · ${months} mo` : ''}</dt><dd data-roll="${k}-value">${totals.contractValue != null ? fmtMoney(totals.contractValue, currency) : '—'}</dd></div>
       </dl>
     </div>`;
 }

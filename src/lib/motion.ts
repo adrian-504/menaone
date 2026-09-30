@@ -10,7 +10,7 @@
 //   the new item (180 ms) instead of jumping: one highlight element per group,
 //   moved with transform.
 
-const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+const reduced = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 // ── Dialogs ────────────────────────────────────────────────────────────────
 
@@ -97,6 +97,8 @@ function attachHighlights(root: ParentNode): void {
 
 export function startMotion(): void {
   watchDialogs();
+  // A required field left empty (or any other failed check) shakes.
+  document.addEventListener('invalid', (e) => shake(e.target as Element), true);
   attachHighlights(document);
   // Segments drawn later (status views, filters) get one too.
   const SEG = '.seg-btns, .segmented';
@@ -108,3 +110,130 @@ export function startMotion(): void {
     }
   }).observe(document.body, { subtree: true, childList: true });
 }
+
+// ── New items settle in (delight 3) ─────────────────────────────────────────
+
+/** Something the user just added fades up 4 px into place (--dur-base). Only
+ * ever called right after a user action, never on a render or a data load. */
+export function settleNew(el: Element | null | undefined): void {
+  if (!(el instanceof HTMLElement) || reduced()) return;
+  el.classList.remove('is-new');
+  void el.offsetWidth;
+  el.classList.add('is-new');
+  const done = () => el.classList.remove('is-new');
+  el.addEventListener('animationend', done, { once: true });
+  window.setTimeout(done, 400);
+}
+
+// ── Rows leave (delight 4) ──────────────────────────────────────────────────
+
+const token = (name: string, fallback: number) => {
+  const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  const n = parseFloat(v);
+  return Number.isFinite(n) ? (v.endsWith('ms') ? n : n * 1000) : fallback;
+};
+
+/** A row that is going away fades (--dur-fast) and then closes up (--dur-base,
+ * --ease-in), so the rows below slide up instead of jumping. Resolves when it
+ * is done — or at once with reduced motion, no animation support, or a table
+ * row (which can't shrink) — and never waits on a paused (hidden) window. */
+export function collapseRow(el: Element | null | undefined): Promise<void> {
+  if (!(el instanceof HTMLElement) || reduced() || typeof el.animate !== 'function') return Promise.resolve();
+  const fast = token('--dur-fast', 120);
+  const base = token('--dur-base', 180);
+  const easeIn = getComputedStyle(document.documentElement).getPropertyValue('--ease-in').trim() || 'ease-in';
+  const cs = getComputedStyle(el);
+  el.style.pointerEvents = 'none';
+  const fade = el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: fast, easing: easeIn, fill: 'forwards' });
+  const settle = (a: Animation, ms: number) => Promise.race([a.finished.then(() => undefined, () => undefined), new Promise<void>((r) => window.setTimeout(r, ms + 60))]);
+  return settle(fade, fast).then(() => {
+    if (el.tagName === 'TR') return undefined;
+    el.style.overflow = 'hidden';
+    const close = el.animate([
+      { height: `${el.offsetHeight}px`, marginTop: cs.marginTop, marginBottom: cs.marginBottom, paddingTop: cs.paddingTop, paddingBottom: cs.paddingBottom },
+      { height: '0px', marginTop: '0px', marginBottom: '0px', paddingTop: '0px', paddingBottom: '0px' },
+    ], { duration: base, easing: easeIn, fill: 'forwards' });
+    return settle(close, base);
+  });
+}
+
+/** Every matching row collapses together. */
+export function collapseRows(els: Iterable<Element>): Promise<void> {
+  return Promise.all([...els].map(collapseRow)).then(() => undefined);
+}
+
+// ── Travelling focus in lists (delight 7) ───────────────────────────────────
+
+/** Keyboard moves in a list (↑↓, j k): a focus ring slides to the new row —
+ * --dur-fast to a neighbour, --dur-base for a longer jump. Only called from
+ * keyboard handlers; the mouse never moves it, and pressing in the list hides it. */
+export function keyTravel(row: Element | null | undefined, container?: Element | null): void {
+  if (!(row instanceof HTMLElement)) return;
+  const list = (container as HTMLElement | null) || (row.closest('.tbl-wrap') as HTMLElement | null) || row.parentElement;
+  if (!list) return;
+  if (getComputedStyle(list).position === 'static') list.style.position = 'relative';
+  let hl = list.querySelector<HTMLElement>(':scope > .key-hl');
+  const fresh = !hl;
+  if (!hl) {
+    hl = document.createElement('span');
+    hl.className = 'key-hl';
+    hl.setAttribute('aria-hidden', 'true');
+    list.prepend(hl);
+    list.addEventListener('pointerdown', () => { if (hl) hl.style.opacity = '0'; });
+  }
+  const l = list.getBoundingClientRect();
+  const r = row.getBoundingClientRect();
+  const x = Math.round(r.left - l.left + list.scrollLeft);
+  const y = Math.round(r.top - l.top + list.scrollTop);
+  const prev = Number(hl.dataset.y);
+  const hidden = hl.style.opacity === '0';
+  hl.classList.toggle('is-jump', Number.isFinite(prev) && Math.abs(y - prev) > r.height * 1.5);
+  const jumpNow = fresh || hidden || reduced();
+  if (jumpNow) hl.style.transition = 'none';
+  hl.style.width = `${Math.round(r.width)}px`;
+  hl.style.height = `${Math.round(r.height)}px`;
+  hl.style.transform = `translate(${x}px, ${y}px)`;
+  hl.dataset.y = String(y);
+  hl.style.opacity = '1';
+  if (jumpNow) { void hl.offsetWidth; hl.style.transition = ''; }
+}
+
+// ── Inputs acknowledge (delight 9) ──────────────────────────────────────────
+
+/** A small tick at the right edge of a field for a second after a real save. */
+export function savedTick(target: Element | DOMRect | null | undefined): void {
+  const r = target instanceof DOMRect ? target : target instanceof HTMLElement && target.isConnected ? target.getBoundingClientRect() : null;
+  if (!r || r.width === 0) return;
+  const tick = document.createElement('span');
+  tick.className = 'saved-tick';
+  tick.setAttribute('aria-hidden', 'true');
+  tick.textContent = '✓';
+  tick.style.top = `${Math.round(r.top + r.height / 2 - 8)}px`;
+  tick.style.left = `${Math.round(r.right - 22)}px`;
+  document.body.appendChild(tick);
+  void tick.offsetWidth;
+  tick.classList.add('on');
+  window.setTimeout(() => tick.classList.remove('on'), 1000);
+  window.setTimeout(() => tick.remove(), 1300);
+}
+
+/** A field that failed a check shakes (4px, twice, 260 ms); the message says why. */
+export function shake(el: Element | null | undefined): void {
+  if (!(el instanceof HTMLElement) || reduced()) return;
+  el.classList.remove('shake');
+  void el.offsetWidth;
+  el.classList.add('shake');
+  window.setTimeout(() => el.classList.remove('shake'), 320);
+}
+
+// ── Content that arrives (delight 11) ───────────────────────────────────────
+
+/** A section filled after a load fades in (--dur-base) instead of popping. */
+export function arrive(el: Element | null | undefined): void {
+  if (!(el instanceof HTMLElement) || reduced()) return;
+  el.classList.remove('arriving');
+  void el.offsetWidth;
+  el.classList.add('arriving');
+  window.setTimeout(() => el.classList.remove('arriving'), 260);
+}
+

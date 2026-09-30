@@ -294,6 +294,7 @@ pub fn run() {
             commands::save_company_note,
             commands::export_backup_json,
             activity::get_activity,
+            activity::activity_forget,
             ms365::commands::ms365_get_emails_by_address,
             activity::rename_company,
             activity::company_note_entries,

@@ -1,3 +1,4 @@
+import { settleNew } from '../lib/motion';
 import { S } from '../lib/state';
 import { foldMoreDetails } from '../lib/moreDetails';
 import { companyLink, recordLink } from '../lib/links';
@@ -62,18 +63,21 @@ export function submitContact(e: Event): void {
     whatsapp: (f.elements.namedItem('ct-wa') as HTMLInputElement).value.trim(),
   };
   if (!obj.name || !obj.clientName) return;
+  let newId: number | null = null;
   if (S.ctEditId) {
     const idx = S.contacts.findIndex((c) => c.id === S.ctEditId);
     if (idx > -1) S.contacts[idx] = { ...S.contacts[idx], ...obj };
   } else {
     // Kept by id while the field still shows the company it was started from.
     const { companyId } = companyFromForm(contactModalCompany, obj.clientName);
-    S.contacts.push({ id: nextCtId(), ...obj, companyId, service: '', lists: [] });
+    newId = nextCtId();
+    S.contacts.push({ id: newId, ...obj, companyId, service: '', lists: [] });
   }
   persistContacts();
   closeContactModal();
   renderContacts();
   refreshCompanyViewIfOpen();
+  if (newId != null) settleNew(document.querySelector(`#ct-tbody tr[data-contact-id="${newId}"]`));
 }
 expose('submitContact', submitContact);
 
@@ -294,7 +298,7 @@ function renderListsBar(filters: Record<string, string>): void {
   });
   const companyChips = companyLists().map((l) => {
     const on = filters.list === `company:${l.id}` && !smartOpen;
-    return `<span class="list-chip-wrap${on ? ' active' : ''}"><button class="list-chip list-chip-company${on ? ' active' : ''}" onclick="filterContactsByList('company:${l.id}')" oncontextmenu="companyListContactsMenu(event, ${l.id})" title="Contacts at the companies in this list">${icon('building', 11)}${escHtml(l.name)}<span>${contactsInCompanyList(l).length}</span></button>${on ? more(`companyListContactsMenu(event, ${l.id})`) : ''}</span>`;
+    return `<span class="list-chip-wrap${on ? ' active' : ''}"><button class="list-chip list-chip-company${on ? ' active' : ''}" onclick="filterContactsByList('company:${l.id}')" oncontextmenu="companyListContactsMenu(event, ${l.id})" data-tip="Contacts at the companies in this list" aria-label="Contacts at the companies in this list">${icon('building', 11)}${escHtml(l.name)}<span>${contactsInCompanyList(l).length}</span></button>${on ? more(`companyListContactsMenu(event, ${l.id})`) : ''}</span>`;
   });
   // Only a list chosen isn't worth saving as a smart list.
   const canSave = Object.keys(filters).some((k) => k !== 'list') && !smartOpen;
@@ -407,7 +411,7 @@ expose('companyListContactsMenu', companyListContactsMenu);
 interface CtRow { c: Contact; relationship: { label: string; tone: string } | null; industry: string; services: string[]; lastTouch: string | null }
 
 const muted = '<span class="t-muted">—</span>';
-const copyBtn = (v: string, what: string) => `<button class="rec-icon-btn ct-copy" onclick="copyText('${escHtml(v).replace(/'/g, '&#39;')}','${what} copied')" title="Copy ${what.toLowerCase()}" aria-label="Copy ${what.toLowerCase()}">${icon('copy', 12)}</button>`;
+const copyBtn = (v: string, what: string) => `<button class="rec-icon-btn ct-copy" onclick="copyText('${escHtml(v).replace(/'/g, '&#39;')}','${what} copied')" data-tip="Copy ${what.toLowerCase()}" aria-label="Copy ${what.toLowerCase()}">${icon('copy', 12)}</button>`;
 
 const CONTACT_COLUMNS: Column<CtRow>[] = [
   { key: 'name', label: 'Name', shown: true, fixed: true, sort: (r) => (r.c.name || '').toLowerCase(),
@@ -428,10 +432,10 @@ const CONTACT_COLUMNS: Column<CtRow>[] = [
     cell: (r) => {
       const wa = (r.c.whatsapp || r.c.phone || '').replace(/[^0-9]/g, '');
       return [
-        r.c.phone ? `<button class="rec-icon-btn" onclick="openExternalUrl('tel:${escHtml(r.c.phone.replace(/[^+0-9]/g, ''))}')" title="Call" aria-label="Call">☎</button>` : '',
+        r.c.phone ? `<button class="rec-icon-btn" onclick="openExternalUrl('tel:${escHtml(r.c.phone.replace(/[^+0-9]/g, ''))}')" data-tip="Call" aria-label="Call">☎</button>` : '',
         wa ? `<a href="https://wa.me/${wa}" target="_blank" class="rec-icon-btn ct-wa-link" title="WhatsApp" aria-label="WhatsApp">WA</a>` : '',
-        `<button class="rec-icon-btn" onclick="openAssignListModal(${r.c.id})" title="Add to lists" aria-label="Add to lists">${icon('tag', 13)}</button>`,
-        `<button class="rec-icon-btn danger" onclick="deleteContactWithUndo(${r.c.id})" title="Delete" aria-label="Delete">${icon('trash', 13)}</button>`,
+        `<button class="rec-icon-btn" onclick="openAssignListModal(${r.c.id})" data-tip="Add to lists" aria-label="Add to lists">${icon('tag', 13)}</button>`,
+        `<button class="rec-icon-btn danger" onclick="deleteContactWithUndo(${r.c.id})" data-tip="Delete" aria-label="Delete">${icon('trash', 13)}</button>`,
       ].join('');
     } },
 ];

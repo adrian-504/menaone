@@ -1,5 +1,7 @@
+import { collapseRow, collapseRows, settleNew } from '../lib/motion';
+import { optimistic } from '../lib/optimistic';
 import { S } from '../lib/state';
-import { emptyState } from '../lib/ui';
+import { emptyState, undoToast } from '../lib/ui';
 import { today, escHtml, expose, nextNoteId } from '../lib/utils';
 import { registerTabRenderer, registerBadgeUpdater } from '../lib/registry';
 import { addInboxItem, resolveInboxItem, deleteInboxItem } from '../lib/db';
@@ -43,13 +45,13 @@ registerTabRenderer('inbox', renderInbox);
 expose('renderInbox', renderInbox);
 
 function inboxRow(i: InboxItem): string {
-  return `<div class="inbox-item">
+  return `<div class="inbox-item" data-inbox-id="${i.id}">
     <div class="inbox-item-type" title="${TYPE_LABEL[i.itemType] || i.itemType}">${icon(TYPE_ICON[i.itemType] || 'inbox', 15)}</div>
     <div class="inbox-item-content">${escHtml(i.content)}</div>
     <div class="inbox-item-actions">
-      <button class="btn-secondary btn-sm" onclick="convertInboxToTask(${i.id})" title="Turn into a task — dates, times, !priority and company names are picked up">&rarr; Task</button>
-      <button class="btn-secondary btn-sm" onclick="convertInboxToNote(${i.id})" title="Turn into a note">&rarr; Note</button>
-      <button class="rec-icon-btn" onclick="inboxItemMenu(event, ${i.id})" title="More" aria-label="More">${icon('more', 14)}</button>
+      <button class="btn-secondary btn-sm" onclick="convertInboxToTask(${i.id})" data-tip="Turn into a task — dates, times, !priority and company names are picked up">&rarr; Task</button>
+      <button class="btn-secondary btn-sm" onclick="convertInboxToNote(${i.id})" data-tip="Turn into a note">&rarr; Note</button>
+      <button class="rec-icon-btn" onclick="inboxItemMenu(event, ${i.id})" data-tip="More" aria-label="More">${icon('more', 14)}</button>
     </div>
   </div>`;
 }
@@ -71,6 +73,7 @@ export async function captureInboxItem(e: Event): Promise<void> {
   (f.elements.namedItem('inboxContent') as HTMLInputElement).focus();
   updateInboxBadge();
   renderInbox();
+  settleNew(document.querySelector(`.inbox-item[data-inbox-id="${created.id}"]`));
   (window as any).renderMyDay?.();
 }
 expose('captureInboxItem', captureInboxItem);
@@ -108,11 +111,18 @@ export async function convertInboxToNote(id: number): Promise<void> {
 expose('convertInboxToNote', convertInboxToNote);
 
 export async function dismissInboxItem(id: number): Promise<void> {
-  await deleteInboxItem(id);
-  S.inboxItems = S.inboxItems.filter((i) => i.id !== id);
-  updateInboxBadge();
-  renderInbox();
-  (window as any).renderMyDay?.();
+  const item = S.inboxItems.find((i) => i.id === id);
+  if (!item) return;
+  const redraw = () => { updateInboxBadge(); renderInbox(); (window as any).renderMyDay?.(); };
+  await collapseRow(document.querySelector(`.inbox-item[data-inbox-id="${id}"]`));
+  await optimistic({
+    apply: () => { S.inboxItems = S.inboxItems.filter((i) => i.id !== id); redraw(); },
+    commit: () => deleteInboxItem(id),
+    revert: () => { if (!S.inboxItems.some((i) => i.id === id)) S.inboxItems = [...S.inboxItems, item]; redraw(); },
+  });
+  undoToast('Dismissed', () => {
+    void addInboxItem(item.itemType, item.content).then((back) => { S.inboxItems = [back, ...S.inboxItems]; redraw(); });
+  });
 }
 expose('dismissInboxItem', dismissInboxItem);
 

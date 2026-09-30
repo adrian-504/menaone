@@ -20,6 +20,8 @@ export const S = {
   /** Backups and the launch database check (housekeeping.rs), read after start-up. */
   housekeeping: null as HousekeepingStatus | null,
   notes: [] as Note[],
+  /** Deleted a moment ago, still in the database until their Undo has passed. */
+  notesPendingDelete: [] as Note[],
   noteFolders: ['Meeting Notes', 'Client Notes', 'Internal'] as string[],
   contactLists: [] as string[],
   companyNotes: {} as Record<string, string>,

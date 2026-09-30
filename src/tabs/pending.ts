@@ -1,3 +1,4 @@
+import { createListNav } from '../lib/listNav';
 import { S } from '../lib/state';
 import { emptyState } from '../lib/ui';
 import { companyLink } from '../lib/links';
@@ -139,9 +140,9 @@ export function wqCard(p: Proposal): string {
   const nc = (p.notes || []).length;
   const reviewer = teamMember(p.reviewerId)?.name || defaultReviewer()?.name || 'the reviewer';
   const primary = step <= 1 ? `<button class="btn-secondary btn-sm" onclick="wqAdvance(${p.id},'${PS.DRAFTING}')">Start drafting</button>`
-    : step === 2 ? `<button class="btn-secondary btn-sm" onclick="wqAdvance(${p.id},'${PS.REVIEW}')" title="Send to ${escHtml(reviewer)} for review">Send for review</button>`
+    : step === 2 ? `<button class="btn-secondary btn-sm" onclick="wqAdvance(${p.id},'${PS.REVIEW}')" data-tip="Send to ${escHtml(reviewer)} for review">Send for review</button>`
     : p.reviewStatus === 'approved' ? `<button class="btn-primary btn-sm" onclick="wqAdvance(${p.id},'${PS.SENT}')">Mark sent</button>`
-    : `<button class="btn-secondary btn-sm" onclick="openRecord('proposal', ${p.id})" title="Record ${escHtml(reviewer)}'s review">Record review</button>`;
+    : `<button class="btn-secondary btn-sm" onclick="openRecord('proposal', ${p.id})" data-tip="Record ${escHtml(reviewer)}'s review">Record review</button>`;
   const meta = [
     step === 3 ? `<span class="${p.reviewStatus === 'approved' ? 't-positive' : ''}">${p.reviewStatus === 'approved' ? 'Approved by' : 'With'} ${escHtml(reviewer)}</span>` : '',
     ownerName(p) ? escHtml(ownerName(p)) : '',
@@ -151,7 +152,7 @@ export function wqCard(p: Proposal): string {
     (p.revision ?? 1) > 1 ? `Revision ${p.revision}` : '',
     nc ? `<a href="#" class="rlink" onclick="event.preventDefault();openNotesModal(${p.id})">${nc} note${nc === 1 ? '' : 's'}</a>` : '',
   ].filter(Boolean).join('<span class="pq-sep">·</span>');
-  return `<div class="pq-row" onclick="if(!event.target.closest('a,button'))openRecord('proposal', ${p.id})" oncontextmenu="pqMenu(event, ${p.id})">
+  return `<div class="pq-row" data-row-id="${p.id}" onclick="if(!event.target.closest('a,button'))openRecord('proposal', ${p.id})" oncontextmenu="pqMenu(event, ${p.id})">
     <span class="pq-age ${wqAgeClass(days)}" title="${days ?? '?'} days since it was added">${days ?? '?'}<small>d</small></span>
     <div class="pq-main">
       <div class="pq-title">${companyLink(p.companyId, p.client)}<span class="pq-services">${escHtml(p.type || '')}</span></div>
@@ -159,7 +160,7 @@ export function wqCard(p: Proposal): string {
       ${p.remarks ? `<div class="pq-remarks" title="${escHtml(p.remarks)}">${escHtml(p.remarks)}</div>` : ''}
     </div>
     ${p.monthlyFee ? `<span class="pq-fee">${fmtMoney(p.monthlyFee, currencyOf(p))}<small>/mo</small></span>` : '<span class="pq-fee"></span>'}
-    <div class="pq-actions">${primary}<button class="rec-icon-btn" onclick="pqMenu(event, ${p.id})" title="More" aria-label="More">${icon('more', 14)}</button></div>
+    <div class="pq-actions">${primary}<button class="rec-icon-btn" onclick="pqMenu(event, ${p.id})" data-tip="More" aria-label="More">${icon('more', 14)}</button></div>
   </div>`;
 }
 
@@ -205,3 +206,11 @@ export function wqClear(): void {
   renderPending();
 }
 expose('wqClear', wqClear);
+
+// ↑↓ or j k move through the rows, Enter opens one (delight 7).
+createListNav<number>({
+  tabId: 'pending',
+  getItems: () => [...document.querySelectorAll<HTMLElement>('#tab-pending .pq-row[data-row-id]')].map((el) => Number(el.dataset.rowId)),
+  getEl: (id) => document.querySelector<HTMLElement>(`#tab-pending .pq-row[data-row-id="${id}"]`),
+  onOpen: (id) => (window as any).openRecord('proposal', id),
+});

@@ -48,7 +48,7 @@ function renderTeam(): void {
     <input class="td-input" type="email" value="${escHtml(t.email || '')}" placeholder="Email" aria-label="Email" onchange="teamFieldChanged(${t.id}, 'email', this.value)">
     <label class="check-label" title="Offered as a reviewer on proposals"><input type="checkbox" ${t.isReviewer ? 'checked' : ''} onchange="teamFieldChanged(${t.id}, 'isReviewer', this.checked)"> Reviewer</label>
     <label class="check-label" title="Inactive people stay on old records but aren't offered for new ones"><input type="checkbox" ${t.active ? 'checked' : ''} onchange="teamFieldChanged(${t.id}, 'active', this.checked)"> Active</label>
-    <button class="rec-icon-btn" onclick="removeTeamMember(${t.id})" title="Remove" aria-label="Remove ${escHtml(t.name)}">${icon('trash', 13)}</button>
+    <button class="rec-icon-btn" onclick="removeTeamMember(${t.id})" data-tip="Remove" aria-label="Remove ${escHtml(t.name)}">${icon('trash', 13)}</button>
   </div>`).join('');
   const suggestions = unmatchedNames();
   el.innerHTML = `<div class="team-list">${rows || '<div class="feed-empty">No one added yet.</div>'}</div>

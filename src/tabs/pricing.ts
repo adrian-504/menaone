@@ -156,7 +156,7 @@ function renderCatalog(search: string, cat: string): string {
         <div class="svc-row-price">${catalogPrice(s)}</div>
         <div class="svc-row-use">${used || '<span class="t-muted">0</span>'}</div>
         <div class="svc-row-actions">
-          <button class="btn-ghost btn-sm" onclick="event.stopPropagation();openServiceMerge(${s.id})" title="Merge this service into another">Merge…</button>
+          <button class="btn-ghost btn-sm" onclick="event.stopPropagation();openServiceMerge(${s.id})" data-tip="Merge this service into another">Merge…</button>
         </div>
       </div>`;
     }).join('')}</div>

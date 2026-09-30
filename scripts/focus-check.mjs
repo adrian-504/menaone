@@ -63,7 +63,9 @@ const COUNT = `(() => {
   // The first thing on a page shouldn't be an empty box asking to be filled (a create page's first field is an input, not this).
   const first = inputs.slice().sort((a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top)[0];
   const emptyBoxFirst = !!first && first.tagName === 'TEXTAREA' && !first.value.trim() && !first.hasAttribute('data-typing'); // data-typing: a box whose job right now is to be typed in (rule 2)
-  return JSON.stringify({ inputs: inputs.length, filters, buttons, primary, height: document.scrollingElement.scrollHeight, names, rowSelects, emptyBoxFirst });
+  // Settle-in (.is-new) is for things the user just added, never for a render.
+  const isNew = document.querySelectorAll('.is-new').length;
+  return JSON.stringify({ inputs: inputs.length, filters, buttons, primary, height: document.scrollingElement.scrollHeight, names, rowSelects, emptyBoxFirst, isNew });
 })()`;
 
 const port = 9400 + Math.floor(Math.random() * 400);
@@ -111,8 +113,20 @@ for (const [name, js, t] of VIEWS.filter(([n]) => !process.env.ONLY || n.startsW
   if (c.rowSelects) problems.push(`${c.rowSelects} selects in list rows`);
   if (c.emptyBoxFirst) problems.push('an empty text box comes first');
   if (c.cls > 0.01) problems.push(`layout shift ${c.cls}`);
+  if (c.isNew) problems.push(`${c.isNew} .is-new on a cold render`);
   if (c.scrollLost) problems.push(`scroll not kept (${c.scroll})`);
   results.push({ name, ...c, problems });
+}
+// The sidebar toggle is measured after its slide (delight 0a): once it has
+// settled, nothing on the page moves.
+if (!process.env.ONLY) {
+  await send('Page.navigate', { url: URL });
+  await sleep(2500);
+  await evalJs(`switchTab('myday'), toggleSidebar(), new Promise(r => setTimeout(r, 700))`);
+  await evalJs(`window.__cls = 0; new PerformanceObserver((l) => { for (const e of l.getEntries()) if (!e.hadRecentInput) window.__cls += e.value; }).observe({ type: 'layout-shift', buffered: false })`);
+  const cls = await evalJs('new Promise(r => setTimeout(() => r(Math.round(window.__cls * 1000) / 1000), 1500))');
+  await evalJs('toggleSidebar()');
+  results.push({ name: 'Sidebar collapsed', inputs: 0, buttons: 0, primary: 0, cls, names: [], problems: cls > 0.01 ? [`layout shift ${cls} after the slide`] : [] });
 }
 ws.close(); chrome.kill();
 if (process.env.ONLY) for (const r of results) console.log(r.name, r.names.join(' | '));

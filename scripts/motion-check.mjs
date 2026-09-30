@@ -52,7 +52,11 @@ export function checkMotion(all) {
   for (const r of all) {
     for (const d of r.decls) {
       if (!/^(transition|animation)(-duration|-timing-function)?$/.test(d.prop)) continue;
-      if (/^(none|unset|initial)$/.test(d.value)) continue;
+      if (/^(none|unset|initial)$/.test(d.value)) {
+        // The page's layout containers always animate what they change.
+        if (d.prop === 'transition' && /#app-main|\.app-main/.test(r.selector)) problems.push({ line: r.line, selector: r.selector, why: 'transition:none on a layout container' });
+        continue;
+      }
       // The reduced-motion switch: everything to 1ms.
       if (/^1ms\s*!important$/.test(d.value)) continue;
       const bare = withoutVars(d.value);
@@ -62,6 +66,10 @@ export function checkMotion(all) {
       if (d.prop === 'transition' || d.prop === 'transition-property') {
         for (const part of d.value.split(/,(?![^(]*\))/)) {
           const prop = part.trim().split(/\s+/)[0];
+          // One layout exception: the page's left padding follows the sidebar as it slides.
+          if (prop === 'padding-left' && /#app-main/.test(r.selector)) continue;
+          // …and a search field grows 40px while you type in it.
+          if (prop === 'flex-basis' && /\.f-search/.test(r.selector)) continue;
           if (prop && !ALLOWED_PROPS.has(prop)) problems.push({ line: r.line, selector: r.selector, why: `animates ${prop}` });
         }
       }
@@ -90,6 +98,21 @@ export function expandSelectors(selector) {
   });
 }
 
+/** Everything that can be clicked: the fixed list plus every class styled with cursor:pointer. */
+export const ALSO_INTERACTIVE = ['sb-add-btn', 'sb-collapse-btn', 'sb-expand-btn', 'task-check', 'toast-action', 'toast-close', 'sb-item'];
+export function clickableClasses(all) {
+  const found = new Set([...INTERACTIVE, ...ALSO_INTERACTIVE]);
+  for (const r of all) {
+    if (!r.decls.some((d) => d.prop === 'cursor' && /pointer/.test(d.value))) continue;
+    for (const sel of expandSelectors(r.selector)) {
+      const last = sel.trim().split(/[\s>+~]+/).pop() || '';
+      const m = /^[a-z]*\.([\w-]+)/i.exec(last);
+      if (m) found.add(m[1]);
+    }
+  }
+  return [...found].sort();
+}
+
 export function checkStates(all) {
   const selectors = all.flatMap((r) => expandSelectors(r.selector));
   const has = (cls, state) => selectors.some((s) => new RegExp(`\\.${cls}(?![\\w-])[^\\s]*${state.replace(/[.:()]/g, (c) => `\\${c}`)}`).test(s));
@@ -99,7 +122,12 @@ export function checkStates(all) {
     if (!has(cls, ':active') && !has(cls, '.is-pressed')) missing.push(':active');
     if (!has(cls, ':focus-visible')) missing.push(':focus-visible');
     return missing.length ? [{ selector: `.${cls}`, why: `no ${missing.join(', ')}` }] : [];
-  });
+  }).concat(
+    // Every clickable thing presses (delight 1).
+    clickableClasses(all).filter((cls) => !INTERACTIVE.includes(cls) && !has(cls, ':active') && !has(cls, '.is-pressed')).map((cls) => ({ selector: `.${cls}`, why: 'clickable, no :active' })),
+    // The app is flat: nothing lifts on hover.
+    all.filter((r) => /:hover/.test(r.selector) && r.decls.some((d) => d.prop === 'transform' && /translateY\(-/.test(d.value))).map((r) => ({ line: r.line, selector: r.selector, why: 'lifts on hover' })),
+  );
 }
 
 export function checkCraft(all) {
@@ -125,10 +153,35 @@ export function checkCraft(all) {
   return problems;
 }
 
+/** Buttons show their label through lib/tooltip.ts (data-tip), not the slow native title. */
+export function checkMarkup(sources) {
+  const problems = [];
+  for (const [file, text] of sources) {
+    for (const m of text.matchAll(/<button\b[^>]*?\stitle=/g)) {
+      problems.push({ selector: `${file}:${text.slice(0, m.index).split('\n').length}`, why: 'title on a button (use data-tip)' });
+    }
+  }
+  return problems;
+}
+
+async function markupSources() {
+  const { readdirSync, statSync } = await import('node:fs');
+  const out = [['index.html', readFileSync(resolve(root, 'index.html'), 'utf8')]];
+  const walk = (dir) => {
+    for (const name of readdirSync(dir)) {
+      const p = resolve(dir, name);
+      if (statSync(p).isDirectory()) walk(p);
+      else if (/\.ts$/.test(name) && !/\.test\.ts$/.test(name)) out.push([p.slice(root.length + 1), readFileSync(p, 'utf8')]);
+    }
+  };
+  walk(resolve(root, 'src'));
+  return out;
+}
+
 const isMain = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (isMain) {
   const all = rules(css);
-  const result = { motion: checkMotion(all), states: checkStates(all), craft: checkCraft(all) };
+  const result = { motion: checkMotion(all), states: checkStates(all), craft: checkCraft(all), markup: checkMarkup(await markupSources()) };
   if (process.argv.includes('--json')) console.log(JSON.stringify(result, null, 1));
   else {
     for (const [pass, list] of Object.entries(result)) {

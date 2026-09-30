@@ -143,3 +143,20 @@ Page = white, panel = reference (owner, 22-Sep-2026: the page stays white; tinte
 - **Marks:** status dots 7 px; one chip look; badges one height and weight.
 - **Cursor:** pointer only on things that do something; disabled controls use the default cursor.
 
+
+## Small interactions
+
+(owner, 30-Sep-2026: "It's the small things, the small clicks and buttons…" — 1.53.) Same tokens and rules as Motion.
+
+- **The sidebar slides.** It keeps its width and moves with transform while the page's left padding closes up (`--dur-slow`); its contents fade first on close and last on open; the expand button fades in.
+- **Everything clickable presses.** Every `cursor:pointer` class has a pressed state: a translucent `--surface-pressed` layer over whatever its background is, `.98` on controls (`.96` on small icon buttons), no scale on rows, `--accent-pressed` on inline links. Nothing lifts on hover. motion-check fails a clickable class without `:active`, and a hover lift.
+- **Optimistic.** The page shows the result at once and saves behind it; only a failed save puts things back ("Couldn't save — try again", `lib/optimistic.ts`). Animate "done", never "processing".
+- **What you add settles in; what leaves closes up.** A new row fades up 4 px (`settleNew`); a row that goes fades, then the list closes the gap (`collapseRow`). Never on a render or a load (focus-check fails any `.is-new` on a cold render).
+- **Tooltips name the shortcut.** `data-tip` (+ `data-key`), after 600 ms, below the element; never a native `title` on a button (motion-check markup pass).
+- **Undo everywhere.** One undo, bottom-left, 7 s, ⌘Z; it also removes the timeline rows the action wrote (`activity_forget`).
+- **Keyboard focus travels.** ↑↓ / j k slide a focus ring between rows (`keyTravel`); the mouse never moves it.
+- **Numbers roll** to a new value over `--dur-slow` — never on load (`lib/rollNumber.ts`).
+- **Inputs acknowledge.** Search grows 40 px while focused; a tick after a real save; a failed check shakes (4 px, twice, 260 ms).
+- **Drag has weight.** The item in flight lifts (1.02, `--shadow-md`); neighbours make room; the drop settles. ⌥↑/⌥↓ is the keyboard way.
+- **Content arrives.** Nothing says "No … yet" before its data has loaded; what arrives fades in.
+- **⌘K drops in** 8 px over `--dur-base` and leaves the same way over `--dur-fast`.

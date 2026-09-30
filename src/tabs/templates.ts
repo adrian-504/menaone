@@ -120,7 +120,7 @@ function renderGeneratePreview(): void {
   const empty = Object.entries(pv.values).filter(([, v]) => !v).map(([k]) => k);
   const errors = pv.errors || [];
   const confirm = document.getElementById('gen-confirm') as HTMLButtonElement | null;
-  if (confirm) { confirm.disabled = errors.length > 0; confirm.title = errors.length ? 'Fix what is missing first' : ''; }
+  if (confirm) { confirm.disabled = errors.length > 0; confirm.dataset.tip = errors.length ? 'Fix what is missing first' : ''; }
   body.innerHTML = `
     ${errors.length ? `<div class="gen-errors" role="alert"><div class="gen-errors-title">${icon('warning', 13)} Cannot generate this proposal. Missing:</div><ul>${errors.map((e) => `<li>${escHtml(e)}</li>`).join('')}</ul></div>` : ''}
     <div class="gen-basis">${icon('document', 13)}<span id="gen-version-note">${versionNote()}</span></div>

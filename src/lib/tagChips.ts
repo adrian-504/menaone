@@ -27,7 +27,7 @@ function paint(
 ): void {
   const listId = `${container.id || 'tagchips'}-suggestions`;
   container.innerHTML = `
-    ${tags.map((t, i) => `<span class="tag-chip">${escHtml(t)}<button type="button" class="tag-chip-remove" data-i="${i}" title="Remove">&times;</button></span>`).join('')}
+    ${tags.map((t, i) => `<span class="tag-chip">${escHtml(t)}<button type="button" class="tag-chip-remove" data-i="${i}" data-tip="Remove">&times;</button></span>`).join('')}
     <input type="text" class="tag-chip-input-field" placeholder="${escHtml(opts.placeholder || 'Add tag…')}" list="${listId}" autocomplete="off">
     ${opts.suggestions?.length ? `<datalist id="${listId}">${opts.suggestions.map((s) => `<option value="${escHtml(s)}">`).join('')}</datalist>` : ''}
   `;

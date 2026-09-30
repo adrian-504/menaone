@@ -1,3 +1,4 @@
+import { arrive, settleNew } from '../lib/motion';
 import { S } from '../lib/state';
 import { emptyState, undoToast } from '../lib/ui';
 import { recordLink } from '../lib/links';
@@ -231,6 +232,7 @@ async function renderLinkedFiles(projectId: number): Promise<void> {
   if (!el) return;
   const links = await getLinksFor('project', projectId);
   if (S.currentProjectId !== projectId) return;
+  arrive(el);
   const msfileIds = links.filter((l) => l.fromType === 'msfile' && l.toType === 'project').map((l) => l.fromId);
   if (cntEl) cntEl.textContent = msfileIds.length ? String(msfileIds.length) : '';
   if (msfileIds.length === 0) {
@@ -334,8 +336,25 @@ registerDropTarget('milestone-order', {
     reorder(ordered, ids, beforeId).forEach((m, i) => { m.sortOrder = i; });
     renderMilestones();
     void persistMilestones(S.currentProjectId, S.currentProjectMilestones);
+    return ids[0];
   },
 });
+
+/** ⌥↑ / ⌥↓ on a focused milestone moves it (the keyboard way to reorder). */
+export function milestoneKey(e: KeyboardEvent, id: number): void {
+  if (!e.altKey || (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') || S.currentProjectId == null) return;
+  e.preventDefault();
+  const ordered = [...S.currentProjectMilestones].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+  const at = ordered.findIndex((m) => m.id === id);
+  const to = at + (e.key === 'ArrowDown' ? 1 : -1);
+  if (at < 0 || to < 0 || to >= ordered.length) return;
+  [ordered[at], ordered[to]] = [ordered[to], ordered[at]];
+  ordered.forEach((m, i) => { m.sortOrder = i; });
+  renderMilestones();
+  void persistMilestones(S.currentProjectId, S.currentProjectMilestones);
+  document.querySelector<HTMLElement>(`#pd-milestones .milestone-row[data-drag-id="${id}"]`)?.focus();
+}
+expose('milestoneKey', milestoneKey);
 
 /** Header: Edit, the next step (blue), "…" (owner, 30-Sep-2026: one pattern for every record). */
 function renderProjectActions(p: Project): void {
@@ -355,11 +374,12 @@ function renderMilestones(): void {
   if (cnt) cnt.textContent = `${done}/${list.length}`;
   if (list.length === 0) { el.innerHTML = `<div class="feed-empty">No milestones yet — add the first one below.</div>`; return; }
   el.dataset.sort = 'milestone-order';
-  el.innerHTML = [...list].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)).map((m) => `<div class="milestone-row" data-drag-kind="milestone" data-drag-id="${m.id}">
+  el.setAttribute('data-sort-shift', '');
+  el.innerHTML = [...list].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)).map((m) => `<div class="milestone-row" data-drag-kind="milestone" data-drag-id="${m.id}" tabindex="0" onkeydown="milestoneKey(event, ${m.id})" aria-label="${escHtml(m.name)} — ⌥↑ or ⌥↓ to move">
     <div class="milestone-dot ${m.status === 'Done' ? 'done' : m.status === 'In Progress' ? 'in-progress' : ''}" onclick="cycleMilestoneStatus(${m.id})" title="Click to change status">${m.status === 'Done' ? '&#10003;' : ''}</div>
     <div class="milestone-name">${escHtml(m.name)}</div>
     ${m.targetDate ? `<div class="milestone-date">${fmtDate(m.targetDate)}</div>` : ''}
-    <button class="btn-ghost btn-sm" onclick="deleteMilestone(${m.id})" title="Remove">&times;</button>
+    <button class="btn-ghost btn-sm" onclick="deleteMilestone(${m.id})" data-tip="Remove">&times;</button>
   </div>`).join('');
 }
 
@@ -449,6 +469,9 @@ export async function addMilestone(e: Event): Promise<void> {
   S.currentProjectMilestones = await getMilestones(S.currentProjectId);
   f.reset();
   renderMilestones();
+  const rows = document.querySelectorAll('#pd-milestones .milestone-row');
+  settleNew(rows[rows.length - 1]);
+  (f.elements.namedItem('msName') as HTMLInputElement | null)?.focus();
 }
 expose('addMilestone', addMilestone);
 

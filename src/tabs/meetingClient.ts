@@ -278,7 +278,7 @@ function personRow(m: Meeting, p: MeetingPerson): string {
     <div class="md-person-main"><div class="md-person-name">${escHtml(p.name)}</div><div class="md-person-sub">${escHtml(p.email)} · ${sub}</div></div>
     ${p.status === 'new' ? `<div class="md-person-actions">
       <button class="btn-secondary btn-sm" onclick="editMeetingPerson(${m.id}, '${attr(p.email)}')">${icon('plus', 12)} Add to contacts</button>
-      <button class="rec-icon-btn" onclick="dismissMeetingPerson(${m.id}, '${attr(p.email)}')" title="Not a contact" aria-label="Not a contact">${icon('close', 12)}</button>
+      <button class="rec-icon-btn" onclick="dismissMeetingPerson(${m.id}, '${attr(p.email)}')" data-tip="Not a contact" aria-label="Not a contact">${icon('close', 12)}</button>
     </div>` : ''}
   </div>`;
 }
@@ -409,7 +409,7 @@ export async function openPeopleFromMeetings(): Promise<void> {
       <td class="t-muted">${escHtml(p.email)}</td>
       <td><input class="finp" data-f="company" list="people-review-companies" value="${attr(p.guess?.name || '')}" placeholder="Company">${p.guess && !p.guess.company ? '<div class="pr-new">New company</div>' : ''}</td>
       <td>${recordLink('meeting', p.lastMeetingId, p.lastMeetingTitle)}${p.meetings > 1 ? ` <span class="t-muted">+${p.meetings - 1}</span>` : ''}</td>
-      <td><button class="rec-icon-btn" onclick="dismissReviewPerson(${i})" title="Not a contact" aria-label="Not a contact">${icon('close', 12)}</button></td>
+      <td><button class="rec-icon-btn" onclick="dismissReviewPerson(${i})" data-tip="Not a contact" aria-label="Not a contact">${icon('close', 12)}</button></td>
     </tr>`).join('')}</tbody></table></div>`
     : emptyState({ icon: 'people', title: 'Everyone you meet is already a contact', body: 'People from future Outlook meetings show up here.', compact: true });
   renderIcons(body);

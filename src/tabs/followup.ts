@@ -1,3 +1,4 @@
+import { createListNav } from '../lib/listNav';
 import { PS, proposalSentDate } from '../lib/commercial';
 import { S } from '../lib/state';
 import { emptyState } from '../lib/ui';
@@ -90,20 +91,28 @@ export function fuCard(p: Proposal, isArchived: boolean): string {
   const contact = touch ? escHtml(touchLabel(touch, fmtDate(sent), followUpCount(p, S.touches))).split(' · ').join('<span class="pq-sep">·</span>') : `Sent ${fmtDate(sent)}`;
   const rev = Math.max(1, p.revision ?? 1);
   const meta = [contact, rev > 1 ? `Revision ${rev}` : '', `SL# ${p.id}`, p.owner ? escHtml(p.owner) : '', p.winLossReason ? `previously: ${escHtml(p.winLossReason)}` : ''].filter(Boolean).join('<span class="pq-sep">·</span>');
-  return `<div class="pq-row${isArchived ? ' is-archived' : ''}" onclick="if(!event.target.closest('a,button'))openRecord('proposal', ${p.id})" oncontextmenu="pqMenu(event, ${p.id})">
+  return `<div class="pq-row${isArchived ? ' is-archived' : ''}" data-row-id="${p.id}" onclick="if(!event.target.closest('a,button'))openRecord('proposal', ${p.id})" oncontextmenu="pqMenu(event, ${p.id})">
     <span class="pq-age ${isArchived ? '' : tone}" title="${days} days since the last contact">${days}<small>d</small></span>
     <div class="pq-main">
       <div class="pq-title">${companyLink(p.companyId, p.client)}<span class="pq-services">${escHtml(p.type || '')}</span></div>
       <div class="pq-meta">${meta}</div>
-      ${latest?.text ? `<button class="pq-note" onclick="openNotesModal(${p.id}${isArchived ? '' : ", 'followup'"})" title="All notes">${icon('note', 11)} <strong>${fmtDate(latest.date)}</strong> ${escHtml(latest.text.length > 120 ? `${latest.text.slice(0, 120)}…` : latest.text)}</button>` : ''}
+      ${latest?.text ? `<button class="pq-note" onclick="openNotesModal(${p.id}${isArchived ? '' : ", 'followup'"})" data-tip="All notes" aria-label="All notes">${icon('note', 11)} <strong>${fmtDate(latest.date)}</strong> ${escHtml(latest.text.length > 120 ? `${latest.text.slice(0, 120)}…` : latest.text)}</button>` : ''}
     </div>
     ${p.monthlyFee ? `<span class="pq-fee">${fmtMoney(p.monthlyFee, currencyOf(p))}<small>/mo</small></span>` : '<span class="pq-fee"></span>'}
     <div class="pq-actions">
       ${isArchived ? `<button class="btn-secondary btn-sm" onclick="unarchiveProposal(${p.id});renderFollowup()">Unarchive</button>`
-        : `<button class="btn-secondary btn-sm" onclick="openRevisionDialog(${p.id})" title="Record what the client wants changed; the proposal goes back to drafting as a revision">Client asked for changes</button>
-      <button class="btn-secondary btn-sm" onclick="followUpMenu(event, ${p.id})" title="Log an email, call, WhatsApp or meeting in one click" aria-haspopup="menu">Followed up ${icon('chevronDown', 11)}</button>`}
-      <button class="rec-icon-btn" onclick="pqMenu(event, ${p.id})" title="More" aria-label="More">${icon('more', 14)}</button>
+        : `<button class="btn-secondary btn-sm" onclick="openRevisionDialog(${p.id})" data-tip="Record what the client wants changed; the proposal goes back to drafting as a revision">Client asked for changes</button>
+      <button class="btn-secondary btn-sm" onclick="followUpMenu(event, ${p.id})" data-tip="Log an email, call, WhatsApp or meeting in one click" aria-haspopup="menu">Followed up ${icon('chevronDown', 11)}</button>`}
+      <button class="rec-icon-btn" onclick="pqMenu(event, ${p.id})" data-tip="More" aria-label="More">${icon('more', 14)}</button>
     </div>
   </div>`;
 }
 expose('renderFollowup', renderFollowup);
+
+// ↑↓ or j k move through the rows, Enter opens one (delight 7).
+createListNav<number>({
+  tabId: 'followup',
+  getItems: () => [...document.querySelectorAll<HTMLElement>('#tab-followup .pq-row[data-row-id]')].map((el) => Number(el.dataset.rowId)),
+  getEl: (id) => document.querySelector<HTMLElement>(`#tab-followup .pq-row[data-row-id="${id}"]`),
+  onOpen: (id) => (window as any).openRecord('proposal', id),
+});

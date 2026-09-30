@@ -4,13 +4,14 @@
 // beside the list instead of an edit dialog. Board and Calendar views show
 // the same list's tasks.
 
+import { collapseRow, collapseRows, keyTravel, settleNew } from '../lib/motion';
 import { foldMoreDetails } from '../lib/moreDetails';
 import { S } from '../lib/state';
 import { toast, undoToast, emptyState } from '../lib/ui';
 import { companyLink, recordLink } from '../lib/links';
 import { fmtDate, escHtml, nextTodoId, getClients, expose, positionFloatingPopup, inCompany, fmtWeekday, fmtDateShort, fmtMonth, fmtDayLong } from '../lib/utils';
-import { persistTodos, saveTodosNow } from '../lib/persist';
-import { getLinksFor, setLinksFrom } from '../lib/db';
+import { persistTodos, saveTodosNow, saved } from '../lib/persist';
+import { activityForget, getLinksFor, setLinksFrom } from '../lib/db';
 import { addLinks, companyFromForm, companyOf, contextFromMeeting, contextFromOpportunity, contextFromProject, inheritCompany, taskFields, EMPTY_CONTEXT, type WorkContext } from '../lib/workGraph';
 import { registerTabRenderer, registerBadgeUpdater, refreshProjectViewIfOpen, refreshCompanyViewIfOpen, notifyNavigated, getActiveTabId } from '../lib/registry';
 import { renderTagChips } from '../lib/tagChips';
@@ -441,14 +442,14 @@ export function taskRowHtml(t: Todo, opts: { list?: string; compact?: boolean } 
   if (t.description) meta.push(`<span class="task-icon-meta" title="Has notes">${icon('note', 11)}</span>`);
   const pri = t.priority === 'High' ? ' pri-high' : t.priority === 'Low' ? ' pri-low' : '';
   return `<div class="task-row${done ? ' done' : ''}${over ? ' overdue' : ''}${S.taskDetailId === t.id ? ' open' : ''}" data-task-id="${t.id}" data-drag-kind="task" data-drag-id="${t.id}" onclick="taskRowClick(event,${t.id})" oncontextmenu="todoContextMenu(event,${t.id})">
-    <button class="task-check${pri}${done ? ' checked' : ''}" onclick="event.stopPropagation();completeTask(${t.id})" aria-label="${done ? 'Mark as not done' : 'Complete'}" title="${t.priority === 'High' ? 'High priority · ' : ''}${done ? 'Mark as not done' : 'Complete'}"></button>
+    <button class="task-check${pri}${done ? ' checked' : ''}" onclick="event.stopPropagation();completeTask(${t.id})" aria-label="${done ? 'Mark as not done' : 'Complete'}" data-tip="${t.priority === 'High' ? 'High priority · ' : ''}${done ? 'Mark as not done' : 'Complete'}"></button>
     <div class="task-main">
       <div class="task-title">${escHtml(t.title)}</div>
       ${meta.length ? `<div class="task-meta">${meta.join('')}</div>` : ''}
     </div>
     ${opts.compact ? '' : `<div class="task-hover-actions">
-      <button class="task-hover-btn" onclick="event.stopPropagation();openDatePopover(this,[${t.id}])" title="Schedule (D)" aria-label="Schedule">${icon('calendar', 14)}</button>
-      <button class="task-hover-btn" onclick="event.stopPropagation();todoContextMenu(event,${t.id})" title="More" aria-label="More">${icon('more', 14)}</button>
+      <button class="task-hover-btn" onclick="event.stopPropagation();openDatePopover(this,[${t.id}])" data-tip="Schedule (D)" aria-label="Schedule">${icon('calendar', 14)}</button>
+      <button class="task-hover-btn" onclick="event.stopPropagation();todoContextMenu(event,${t.id})" data-tip="More" aria-label="More">${icon('more', 14)}</button>
     </div>`}
   </div>`;
 }
@@ -533,7 +534,7 @@ export function quickAddPreview(): void {
   if (!input || !el) return;
   if (!input.value.trim()) { dismissedTokens = new Set(); el.innerHTML = ''; return; }
   const parsed = parseQuickAdd(input.value);
-  el.innerHTML = parsed.tokens.map((tk) => `<button type="button" class="qa-chip qa-${tk.kind}" onclick="dismissQuickAddToken('${escHtml(tk.text.toLowerCase()).replace(/'/g, "\\'")}')" title="Recognised as ${tk.kind} — click to keep it as plain text">${icon(TOKEN_ICON[tk.kind] || 'tag', 11)}${escHtml(tk.label)}<span class="qa-chip-x">×</span></button>`).join('');
+  el.innerHTML = parsed.tokens.map((tk) => `<button type="button" class="qa-chip qa-${tk.kind}" onclick="dismissQuickAddToken('${escHtml(tk.text.toLowerCase()).replace(/'/g, "\\'")}')" data-tip="Recognised as ${tk.kind} — click to keep it as plain text">${icon(TOKEN_ICON[tk.kind] || 'tag', 11)}${escHtml(tk.label)}<span class="qa-chip-x">×</span></button>`).join('');
 }
 expose('quickAddPreview', quickAddPreview);
 
@@ -589,7 +590,7 @@ export function quickAddTask(e: Event): void {
   dismissedTokens = new Set();
   quickAddPreview();
   const row = document.querySelector<HTMLElement>(`.task-row[data-task-id="${task.id}"]`);
-  if (row) { row.classList.add('just-added'); row.scrollIntoView({ block: 'nearest' }); }
+  if (row) { row.classList.add('just-added'); settleNew(row); row.scrollIntoView({ block: 'nearest' }); }
   else undoToast(`Added "${task.title}" to ${task.someday ? 'Someday' : task.dueDate && task.dueDate > todayIso() ? 'Upcoming' : 'Anytime'}`, () => { deleteTodo(task.id, { silent: true }); });
 }
 expose('quickAddTask', quickAddTask);
@@ -678,7 +679,9 @@ function moveSelection(delta: number, extend: boolean): void {
   selection.add(next);
   anchorId = next;
   paintSelection();
-  document.querySelector(`#todo-list .task-row[data-task-id="${next}"]`)?.scrollIntoView({ block: 'nearest' });
+  const row = document.querySelector(`#todo-list .task-row[data-task-id="${next}"]`);
+  row?.scrollIntoView({ block: 'nearest' });
+  keyTravel(row, document.getElementById('todo-list'));
   if (!extend && S.taskDetailId != null) openTaskDetail(next);
 }
 
@@ -694,6 +697,7 @@ document.addEventListener('keydown', (e) => {
   const key = e.key;
   const run = (fn: () => void) => { e.preventDefault(); fn(); };
   if (key === 'ArrowDown' || key === 'ArrowUp') return run(() => moveSelection(key === 'ArrowDown' ? 1 : -1, e.shiftKey));
+  if (key === 'j' || key === 'k') return run(() => moveSelection(key === 'j' ? 1 : -1, false));
   if (key === 'n' || key === 'q') return run(() => document.getElementById('quick-task-input')?.focus());
   if (!ids.length) return;
   if (key === 'Enter') return run(() => { openTaskDetail(ids[0]); setTimeout(() => (document.getElementById('td-title') as HTMLTextAreaElement | null)?.focus(), 30); });
@@ -752,6 +756,7 @@ export function completeTask(id: number): void {
     return;
   }
   const before = { status: t.status, completedAt: t.completedAt };
+  const since = new Date(Date.now() - 250).toISOString();
   const spawned = markDone(t);
   persistTodos();
   updateTodoBadge();
@@ -763,16 +768,19 @@ export function completeTask(id: number): void {
   window.setTimeout(() => {
     const list = currentList();
     if (getActiveTabId() === 'todo' && list !== 'completed' && S.taskView === 'list') {
-      // Ticked: the row holds 400 ms, then fades in 180 ms (motion system; no height animation).
-      document.querySelectorAll<HTMLElement>(`#todo-list .task-row[data-task-id="${id}"]`).forEach((row) => row.classList.add('leaving'));
+      // Ticked: the row holds 400 ms, then leaves — it fades and the list closes up (delight 4).
+      void collapseRows(document.querySelectorAll(`#todo-list .task-row[data-task-id="${id}"]`)).then(() => afterTodoListChange());
+      return;
     }
-    window.setTimeout(() => afterTodoListChange(), 180);
+    afterTodoListChange();
   }, reduceMotion() ? 0 : 400);
   undoToast(`Completed "${t.title}"`, () => {
     t.status = before.status;
     t.completedAt = before.completedAt;
     if (spawned) S.todos = S.todos.filter((x) => x.id !== spawned.id);
     afterTodoListChange();
+    // The "completed" line in the timeline goes too.
+    void saved('todos').then(() => activityForget('task', id, since)).catch(() => undefined);
   });
 }
 expose('completeTask', completeTask);
@@ -884,7 +892,9 @@ export function deleteTasks(ids: number[], opts: { silent?: boolean } = {}): voi
   S.todos = S.todos.filter((x) => !doomed.has(x.id));
   ids.forEach((id) => selection.delete(id));
   if (S.taskDetailId != null && doomed.has(S.taskDetailId)) closeTaskDetail();
-  afterTodoListChange();
+  // The deleted rows close up before the list redraws.
+  const rows = [...doomed].flatMap((id) => [...document.querySelectorAll(`#todo-list .task-row[data-task-id="${id}"]`)]);
+  void collapseRows(rows).then(() => afterTodoListChange());
   if (opts.silent) return;
   const subtasks = removed.length - tasks.length;
   const what = tasks.length === 1 ? `"${tasks[0].title}"` : `${tasks.length} tasks`;
@@ -1100,10 +1110,10 @@ function renderTaskDetail(): void {
     `<div class="segmented td-seg">${options.map(([v, label]) => `<button class="${(value || options[0][0]) === v ? 'active' : ''}" onclick="taskDetailSet('${field}','${v}')">${label}</button>`).join('')}</div>`;
   panel.innerHTML = `
     <div class="td-top">
-      <button class="loc-nav" onclick="closeTaskDetail()" title="Close (Esc)" aria-label="Close">${icon('close', 15)}</button>
+      <button class="loc-nav" onclick="closeTaskDetail()" data-tip="Close" data-key="Esc" aria-label="Close">${icon('close', 15)}</button>
       <div class="td-top-actions">
-        <button class="loc-nav" onclick="duplicateTask(${t.id})" title="Duplicate" aria-label="Duplicate">${icon('copy', 15)}</button>
-        <button class="loc-nav td-danger" onclick="deleteTodo(${t.id})" title="Delete" aria-label="Delete">${icon('trash', 15)}</button>
+        <button class="loc-nav" onclick="duplicateTask(${t.id})" data-tip="Duplicate" aria-label="Duplicate">${icon('copy', 15)}</button>
+        <button class="loc-nav td-danger" onclick="deleteTodo(${t.id})" data-tip="Delete" aria-label="Delete">${icon('trash', 15)}</button>
       </div>
     </div>
     <div class="td-scroll">
@@ -1118,8 +1128,8 @@ function renderTaskDetail(): void {
         ${subs.map((s) => `<div class="td-check-item${isOpenTask(s) ? '' : ' done'}" data-drag-kind="subtask" data-drag-id="${s.id}"><span class="td-grip" aria-hidden="true">${icon('grip', 12)}</span>
           <button class="task-check small${isOpenTask(s) ? '' : ' checked'}" onclick="toggleSubtask(${s.id})" aria-label="Complete subtask"></button>
           <input value="${escHtml(s.title)}" onchange="renameSubtask(${s.id}, this.value)" onkeydown="if(event.key==='Enter')this.blur()" aria-label="Subtask">
-          <button class="td-check-open" onclick="openTaskDetail(${s.id})" title="Open subtask">${icon('chevronRight', 12)}</button>
-          <button class="td-check-remove" onclick="deleteTodo(${s.id})" title="Remove" aria-label="Remove subtask">×</button>
+          <button class="td-check-open" onclick="openTaskDetail(${s.id})" data-tip="Open subtask" aria-label="Open subtask">${icon('chevronRight', 12)}</button>
+          <button class="td-check-remove" onclick="deleteTodo(${s.id})" data-tip="Remove" aria-label="Remove subtask">×</button>
         </div>`).join('')}
         <div class="td-check-add">${icon('plus', 13)}<input id="td-add-sub" placeholder="Add a subtask" onkeydown="if(event.key==='Enter'){event.preventDefault();addSubtask(this.value)}"></div>
       </div>

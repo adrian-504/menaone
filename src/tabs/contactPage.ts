@@ -108,7 +108,7 @@ function renderContactProps(c: Contact): void {
   const fields: PropField[] = FIELDS.map((f) => {
     const value = (c[f.key] as string | null) || '';
     const copy = value && (f.key === 'email' || f.key === 'phone' || f.key === 'whatsapp')
-      ? `<button class="rec-icon-btn ctd-copy" onclick="copyText('${jsString(value)}','${f.label} copied')" title="Copy ${f.label.toLowerCase()}" aria-label="Copy ${f.label.toLowerCase()}">${icon('copy', 13)}</button>` : '';
+      ? `<button class="rec-icon-btn ctd-copy" onclick="copyText('${jsString(value)}','${f.label} copied')" data-tip="Copy ${f.label.toLowerCase()}" aria-label="Copy ${f.label.toLowerCase()}">${icon('copy', 13)}</button>` : '';
     const display = !value ? ''
       : f.key === 'clientName' ? companyLink(c.companyId, value)
       : f.key === 'email' ? `<a href="#" class="rlink" onclick="event.preventDefault();openExternalUrl('mailto:${escHtml(value)}')">${escHtml(value)}</a>${copy}`

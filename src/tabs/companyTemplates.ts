@@ -79,7 +79,7 @@ function draw(d: Block): void {
       ${left.length ? `<p class="co-tpl-left">To fill in: ${left.map((h) => `{${escHtml(h)}}`).join(', ')}</p>` : ''}
       <div class="btn-row">
         <button class="btn-secondary btn-sm" onclick="coTemplateCopy()">Copy</button>
-        <button class="btn-primary btn-sm" onclick="coTemplateOpen()"${noEmail ? ` disabled title="${contact ? `${escHtml(contact.name || 'This contact')} has no email address` : 'No contact to send it to'}"` : ''}>Open in Outlook</button>
+        <button class="btn-primary btn-sm" onclick="coTemplateOpen()"${noEmail ? ` disabled data-tip="${contact ? `${escHtml(contact.name || 'This contact')} has no email address` : 'No contact to send it to'}"` : ''}>Open in Outlook</button>
       </div>
     </div>`;
   }

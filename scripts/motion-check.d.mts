@@ -5,3 +5,4 @@ export declare function expandSelectors(selector: string): string[];
 export declare function checkMotion(all: Rule[]): Problem[];
 export declare function checkStates(all: Rule[]): Problem[];
 export declare function checkCraft(all: Rule[]): Problem[];
+export declare function checkMarkup(sources: [string, string][]): Problem[];

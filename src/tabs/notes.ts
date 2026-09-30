@@ -4,15 +4,16 @@
 // on selection), links and backlinks at the foot of the note, and a focus
 // mode that hides everything but the writing.
 
+import { collapseRow, collapseRows, keyTravel, savedTick, settleNew } from '../lib/motion';
 import { S } from '../lib/state';
-import { toast, emptyState } from '../lib/ui';
+import { toast, emptyState, undoToast } from '../lib/ui';
 import { companyLink, recordLink } from '../lib/links';
 import { meetingNotesList, type MeetingNoteRow } from '../lib/meetingNotesList';
 import { clientFolder, clientNotesList, clientsWithNotes, parseClientFolder, SOURCE_LABEL, type CompanyEntry } from '../lib/clientNotes';
 import { allCompanyNoteEntries } from '../lib/db';
 import { today, fmtDate, escHtml, nextNoteId, expose, positionFloatingPopup, showTextPrompt, showConfirm, debounce, inCompany, fmtMonth } from '../lib/utils';
 import { showContextMenu, showMenuAt, type ContextMenuItem } from '../lib/contextMenu';
-import { persistNotes, persistNoteFolders, persistTodos, saveNotesNow, saveTodosNow } from '../lib/persist';
+import { persistNotes, persistNoteFolders, persistTodos, saved, saveNotesNow, saveTodosNow } from '../lib/persist';
 import { readCommitmentsFrom } from './commitments';
 import { contextFromNote, replaceLinks, taskFields, unconvertedActionItems, actionItems } from '../lib/workGraph';
 import { blankTask } from './todo';
@@ -467,6 +468,7 @@ document.addEventListener('keydown', (e) => {
     const id = Number(next.dataset.noteId);
     rows.forEach((r) => r.classList.toggle('active', r === next));
     next.scrollIntoView({ block: 'nearest' });
+    keyTravel(next, document.getElementById('notes-list'));
     requestNote(id);
   }
 });
@@ -598,7 +600,7 @@ function closeNoteEditor(): void {
 
 function updatePinButton(n: Note): void {
   const pinBtn = document.getElementById('notes-pin-btn');
-  if (pinBtn) { pinBtn.classList.toggle('active', !!n.pinned); pinBtn.title = n.pinned ? 'Unpin' : 'Pin'; }
+  if (pinBtn) { pinBtn.classList.toggle('active', !!n.pinned); pinBtn.dataset.tip = n.pinned ? 'Unpin' : 'Pin'; pinBtn.setAttribute('aria-label', pinBtn.dataset.tip); }
 }
 
 // ── Properties under the title ──────────────────────────────────────────────
@@ -738,6 +740,7 @@ export function createNewNote(templateId?: number | null): void {
   noteLinks = [];
   noteProjectLoadedFor = newNote.id;
   openNote(newNote.id);
+  settleNew(document.querySelector(`.note-item[data-note-id="${newNote.id}"]`));
   closeNewNoteMenu();
   setTimeout(() => document.getElementById('notes-title-inp')?.focus(), 50);
 }
@@ -752,8 +755,8 @@ export function toggleNewNoteMenu(e: Event): void {
     (S.noteTemplates.length ? `<div class="menu-sep"></div><div class="menu-label">Templates</div>` : '') +
     S.noteTemplates.map((t) => `<div class="wikilink-menu-item row-center">
       <span class="flex-fill clickable" onclick="createNewNote(${t.id})">${escHtml(t.name)}</span>
-      <button onclick="event.stopPropagation();renameNoteTemplate(${t.id})" title="Rename" class="menu-inline-btn">${icon('edit', 12)}</button>
-      <button onclick="event.stopPropagation();removeNoteTemplate(${t.id})" title="Delete" class="menu-inline-btn">${icon('trash', 12)}</button>
+      <button onclick="event.stopPropagation();renameNoteTemplate(${t.id})" data-tip="Rename" aria-label="Rename" class="menu-inline-btn">${icon('edit', 12)}</button>
+      <button onclick="event.stopPropagation();removeNoteTemplate(${t.id})" data-tip="Delete" aria-label="Delete" class="menu-inline-btn">${icon('trash', 12)}</button>
     </div>`).join('') +
     (S.currentNoteId ? `<div class="menu-sep"></div><div class="wikilink-menu-item" onclick="saveCurrentNoteAsTemplate()">Save current note as template…</div>` : '');
   menu.classList.add('open');
@@ -822,10 +825,13 @@ export function saveCurrentNote(): void {
     const st = document.getElementById('notes-save-status'); if (st?.textContent === 'Editing…') st.textContent = '';
     return;
   }
+  const titleChanged = title !== (n.title || 'Untitled');
   n.title = title;
   n.content = content;
   n.updatedAt = today();
   persistNotes();
+  // The title was really changed and saved: a brief tick at its edge.
+  if (titleChanged) { const inp = document.getElementById('notes-title-inp'); void saved('notes').then(() => savedTick(inp)); }
   // A checklist line added or removed changes the "Create tasks" offer.
   if (renderedActionItems.noteId === n.id && actionItems(n.content).length !== renderedActionItems.count) void renderRelationsPanel(n);
   S.noteChanged = false;
@@ -868,14 +874,27 @@ export function duplicateNote(id: number): void {
 }
 expose('duplicateNote', duplicateNote);
 
-/** Deleting still asks first: a note's attachments go with it and can't be restored by Undo. */
+/** Deleting offers Undo: the note leaves the list at once but stays in the
+ * database (with its images) until the undo window has passed. */
 export async function deleteNote(id: number): Promise<void> {
   const n = S.notes.find((x) => x.id === id);
-  if (!(await showConfirm(`"${n?.title || 'Untitled'}" and any images in it will be deleted.`, { title: 'Delete note?', confirmLabel: 'Delete' }))) return;
+  if (!n) return;
+  await collapseRow(document.querySelector(`.note-item[data-note-id="${id}"]`));
+  const index = S.notes.indexOf(n);
   S.notes = S.notes.filter((x) => x.id !== id);
-  persistNotes();
+  S.notesPendingDelete = [...S.notesPendingDelete, n];
   if (id === S.currentNoteId) closeNoteEditor();
   renderNotesTab();
+  const forget = window.setTimeout(() => {
+    S.notesPendingDelete = S.notesPendingDelete.filter((x) => x.id !== id);
+    persistNotes();
+  }, 7500);
+  undoToast(`Deleted "${n.title || 'Untitled'}"`, () => {
+    window.clearTimeout(forget);
+    S.notesPendingDelete = S.notesPendingDelete.filter((x) => x.id !== id);
+    S.notes.splice(Math.min(index, S.notes.length), 0, n);
+    renderNotesTab();
+  });
 }
 expose('deleteNote', deleteNote);
 
@@ -975,7 +994,7 @@ async function renderRelationsPanel(n: Note): Promise<void> {
     group('Linked from', backlinks.map((b) => recordLink('note', b.id, b.title || 'Untitled', { chip: true }))),
   ].join('');
   const convert = pending.length
-    ? `<div class="relations-group"><div class="relations-group-label">Action items</div><div class="relations-chips"><button class="btn-secondary btn-sm" onclick="createTasksFromNoteActionItems()" title="${escHtml(pending.join('\n'))}">Create ${pending.length === 1 ? 'a task' : `${pending.length} tasks`} from action items</button></div></div>`
+    ? `<div class="relations-group"><div class="relations-group-label">Action items</div><div class="relations-chips"><button class="btn-secondary btn-sm" onclick="createTasksFromNoteActionItems()" data-tip="${escHtml(pending.join('\n'))}">Create ${pending.length === 1 ? 'a task' : `${pending.length} tasks`} from action items</button></div></div>`
     : '';
   el.innerHTML = html || convert ? `<div class="relations-title">Connections</div>${html}${convert}` : '';
 }

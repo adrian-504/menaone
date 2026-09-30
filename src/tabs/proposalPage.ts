@@ -5,6 +5,8 @@
 // commercials, the client's OneDrive folder and documents, what it's linked
 // to, notes and activity.
 
+import { registerDragSource, registerDropTarget } from '../lib/dnd';
+import { arrive, settleNew, shake } from '../lib/motion';
 import { statusBadge } from '../lib/statusTone';
 import { blockSummary, blocksToSave, emptyBlock, proposalsFromBlocks, type ProposalBlock, type SharedProposalFields } from '../lib/proposalBlocks';
 import { proposalDeckRows } from '../lib/proposalDocuments';
@@ -29,7 +31,7 @@ import { endPropsEdit, mountPropsList, propsEditButton, propsListHtml, resetProp
 import { renderIcons } from '../core/chrome';
 import { ST, LEAD_SOURCES } from '../lib/constants';
 import { renderLinesEditor, lineForService } from '../lib/linesEditor';
-import { changeProposalStatus, contactFirstName, recordReview, undoReview, openRevisionDialog, openWlModal, updateStatus, archiveProposal, unarchiveProposal, snoozeProposal, isSnoozed } from '../core/proposals';
+import { snapshotProposal, changeProposalStatus, contactFirstName, recordReview, undoReview, openRevisionDialog, openWlModal, updateStatus, archiveProposal, unarchiveProposal, snoozeProposal, isSnoozed } from '../core/proposals';
 import {
   PS, PROPOSAL_STAGES, proposalSentDate, stageIndex, isWon, isLost, isWithdrawn, isClosed, lineTotals, syncProposalTotals, fmtMoney, currencyOf,
   teamMember, reviewers, defaultReviewer, activeTeam, ownerName, entityById, defaultEntity, activeServices, newLine,
@@ -105,7 +107,7 @@ export function renderProposalPage(): void {
   const page = document.getElementById('pr-detail');
   const avatar = document.getElementById('prd-avatar');
   if (avatar) { avatar.textContent = initials(p.client); avatar.style.background = strColor(p.client); }
-  const eyebrow = document.getElementById('prd-eyebrow'); if (eyebrow) eyebrow.innerHTML = `Proposal · SL# ${p.id}<button class="rec-icon-btn rec-eyebrow-copy" onclick="copyText('SL# ${p.id}','Reference copied')" title="Copy reference" aria-label="Copy reference">${icon('copy', 11)}</button>`;
+  const eyebrow = document.getElementById('prd-eyebrow'); if (eyebrow) eyebrow.innerHTML = `Proposal · SL# ${p.id}<button class="rec-icon-btn rec-eyebrow-copy" onclick="copyText('SL# ${p.id}','Reference copied')" data-tip="Copy reference" aria-label="Copy reference">${icon('copy', 11)}</button>`;
   const title = document.getElementById('prd-title');
   if (title) title.innerHTML = `${companyLink(p.companyId, p.client)}<span class="pr-title-services">${escHtml(lineTotals(p.lines, p.contractMonths).serviceNames.join(' + ') || p.type || 'Services to be confirmed')}</span>`;
   const entity = entityById(p.businessEntityId);
@@ -160,15 +162,17 @@ export function renderActions(p: Proposal): void {
     tool ? `<button class="btn-secondary" onclick="${tool.run}">${escHtml(tool.label)}</button>` : '',
     secondary ? `<button class="btn-secondary" onclick="${secondary.run}">${escHtml(secondary.label)}</button>` : '',
     primary ? `<button class="btn-primary" onclick="${primary.run}">${escHtml(primary.label)}</button>` : '',
-    `<button class="loc-nav rec-more" onclick="proposalMoreMenu(event)" title="More" aria-label="More">${icon('more', 16)}</button>`,
+    `<button class="loc-nav rec-more" onclick="proposalMoreMenu(event)" data-tip="More" aria-label="More">${icon('more', 16)}</button>`,
   ].join('');
 }
 
 export async function proposalStep(status: string): Promise<void> {
   const p = currentProposal();
   if (!p) return;
-  await changeProposalStatus(p.id, status);
+  const restore = snapshotProposal(p);
+  const changed = await changeProposalStatus(p.id, status);
   renderProposalPage();
+  if (changed) undoToast(`${p.client}: ${p.status}`, restore);
 }
 expose('proposalStep', proposalStep);
 
@@ -457,7 +461,7 @@ export function renderContact(p: Proposal): void {
     const who = t.contactId != null ? contactFirstName(t.contactId) : null;
     return `<li>${[fmtDate(t.at.slice(0, 10)), touchDoing(t, who), t.subject || ''].filter(Boolean).map(escHtml).join(' · ')}</li>`;
   }).join('');
-  el.innerHTML = `<div class="rec-section-hd"><h2>Follow-up</h2><div class="rec-section-actions"><button class="btn-secondary btn-sm" onclick="openRevisionDialog(${p.id})" title="Record what the client wants changed; the proposal goes back to drafting as a revision">Client asked for changes</button><button class="btn-secondary btn-sm" onclick="followUpMenu(event, ${p.id})" title="Log an email, call, WhatsApp or meeting in one click" aria-haspopup="menu">Followed up ${icon('chevronDown', 11)}</button></div></div>
+  el.innerHTML = `<div class="rec-section-hd"><h2>Follow-up</h2><div class="rec-section-actions"><button class="btn-secondary btn-sm" onclick="openRevisionDialog(${p.id})" data-tip="Record what the client wants changed; the proposal goes back to drafting as a revision">Client asked for changes</button><button class="btn-secondary btn-sm" onclick="followUpMenu(event, ${p.id})" data-tip="Log an email, call, WhatsApp or meeting in one click" aria-haspopup="menu">Followed up ${icon('chevronDown', 11)}</button></div></div>
     ${touches.length ? `<ul class="pr-contact-list">${rows}</ul>${touches.length > 5 && contactAll !== p.id ? `<a href="#" class="rlink pr-contact-all" onclick="event.preventDefault();proposalContactAll(${p.id})">Show all ${touches.length}</a>` : ''}` : `<p class="pr-review-note">${proposalSentDate(p) ? `Sent ${escHtml(fmtDate(proposalSentDate(p)))} · nothing logged since.` : 'Nothing logged since it was sent.'}</p>`}`;
   renderIcons(el);
 }
@@ -505,10 +509,11 @@ export function proposalRecordReview(outcome: 'approved' | 'changes_requested'):
   const p = currentProposal();
   if (!p) return;
   const note = (document.getElementById('prd-review-note') as HTMLTextAreaElement | null)?.value || null;
-  if (outcome === 'changes_requested' && !note?.trim()) { toast('Add what needs to change', { tone: 'error' }); document.getElementById('prd-review-note')?.focus(); return; }
+  if (outcome === 'changes_requested' && !note?.trim()) { toast('Add what needs to change', { tone: 'error' }); const box = document.getElementById('prd-review-note'); box?.focus(); shake(box); return; }
+  const restore = snapshotProposal(p);
   recordReview(p.id, outcome, note);
   renderProposalPage();
-  toast(outcome === 'approved' ? 'Review recorded — ready to send' : 'Changes requested — back to drafting', { tone: outcome === 'approved' ? 'success' : 'neutral' });
+  undoToast(outcome === 'approved' ? 'Review recorded — ready to send' : 'Changes requested — back to drafting', restore);
 }
 expose('proposalRecordReview', proposalRecordReview);
 
@@ -601,6 +606,7 @@ async function renderDocuments(p: Proposal): Promise<void> {
   const suggested = nextDeckFileName(p, serviceLabel, today(), info.files.map((f) => f.name));
   // The folder path below opens it in Finder; no second button for the same thing.
   if (actions) actions.innerHTML = '';
+  arrive(folderEl);
   if (!info.root) {
     folderEl.innerHTML = `<div class="pr-folder-line rec-muted">${icon('folder', 14)} No Proposals folder found in OneDrive. Choose it in Settings → Proposals.</div>`;
   } else if (!info.exists) {
@@ -608,8 +614,8 @@ async function renderDocuments(p: Proposal): Promise<void> {
   } else {
     // The folder by name (like Files); the full path is on hover.
     const folderName = (info.path || '').split('/').filter(Boolean).pop() || p.client;
-    folderEl.innerHTML = `<div class="pr-folder-line">${icon('folder', 14)}<button class="rlink pr-folder-path" onclick="proposalOpenFolder()" title="${escHtml(info.path || '')}">${escHtml(folderName)}</button></div>
-      <div class="pr-next-name"><span class="rec-muted">Next file name</span><code>${escHtml(suggested)}</code><button class="rec-icon-btn pr-copy-name" onclick="copyText('${escHtml(suggested.replace(/'/g, "\\'"))}','File name copied')" title="Copy file name" aria-label="Copy file name">${icon('copy', 13)}</button></div>`;
+    folderEl.innerHTML = `<div class="pr-folder-line">${icon('folder', 14)}<button class="rlink pr-folder-path" onclick="proposalOpenFolder()" data-tip="${escHtml(info.path || '')}" aria-label="${escHtml(info.path || '')}">${escHtml(folderName)}</button></div>
+      <div class="pr-next-name"><span class="rec-muted">Next file name</span><code>${escHtml(suggested)}</code><button class="rec-icon-btn pr-copy-name" onclick="copyText('${escHtml(suggested.replace(/'/g, "\\'"))}','File name copied')" data-tip="Copy file name" aria-label="Copy file name">${icon('copy', 13)}</button></div>`;
   }
 
   // Generated decks: their own version history above; everything else is supporting.
@@ -628,7 +634,7 @@ async function renderDocuments(p: Proposal): Promise<void> {
     rows.push(`<div class="rec-row"${d.path ? ` onclick="proposalOpenFile('${path}')"` : d.url ? ` onclick="openExternalUrl('${escHtml(d.url)}')"` : ''}>
       <span class="rec-row-icon">${icon('document', 15)}</span>
       <div class="rec-row-main"><div class="rec-row-title">${escHtml(d.fileName)}</div><div class="rec-row-sub">${kindLabel[d.kind] || 'Document'}${d.version ? ` · V${d.version}` : ''}${d.createdAt ? ` · added ${fmtDate(d.createdAt)}` : ''}</div></div>
-      <div class="rec-row-actions"><button class="rec-icon-btn" onclick="event.stopPropagation();proposalRemoveDocument(${d.id})" title="Remove from this proposal" aria-label="Remove from this proposal">${icon('close', 13)}</button></div>
+      <div class="rec-row-actions"><button class="rec-icon-btn" onclick="event.stopPropagation();proposalRemoveDocument(${d.id})" data-tip="Remove from this proposal" aria-label="Remove from this proposal">${icon('close', 13)}</button></div>
     </div>`);
   }
   if (p.docLink) {
@@ -1142,7 +1148,7 @@ function renderBlocks(): void {
   if (!before || !after || !hd) return;
   syncActiveBlock();
   const currency = val('prb-currency') || 'SAR';
-  const line = (b: ProposalBlock, i: number) => `<div class="prb-block-line">
+  const line = (b: ProposalBlock, i: number) => `<div class="prb-block-line" data-drag-kind="prb-block" data-drag-id="${i}">
     <button type="button" class="rlink prb-block-open" onclick="prbActivateBlock(${i})">${escHtml(blockSummary(b, i, currency))}</button>
     <button type="button" class="rlink prb-block-remove" onclick="prbRemoveBlock(${i})">Remove</button></div>`;
   before.innerHTML = blocks.slice(0, activeBlock).map((b, i) => line(b, i)).join('');
@@ -1153,11 +1159,44 @@ function renderBlocks(): void {
   hd.innerHTML = blocks.length < 2 ? '' : `<span>Proposal ${activeBlock + 1}</span><button type="button" class="rlink prb-block-remove" onclick="prbRemoveBlock(${activeBlock})">Remove</button>`;
 }
 
+/** Moves proposal `from` to position `to` in the builder, keeping the open one open. */
+function moveBlock(from: number, to: number): void {
+  if (from === to || from < 0 || to < 0 || from >= blocks.length || to >= blocks.length) return;
+  syncActiveBlock();
+  const open = blocks[activeBlock];
+  const [b] = blocks.splice(from, 1);
+  blocks.splice(to, 0, b);
+  activeBlock = blocks.indexOf(open);
+  loadBlock(activeBlock);
+}
+
+registerDragSource('prb-block');
+registerDropTarget('prb-block-order', {
+  accepts: ['prb-block'],
+  onDrop: ({ ids }, { value, beforeId }) => {
+    const from = ids[0];
+    // Dropped among the proposals above the open one, or below it.
+    let to = beforeId != null ? beforeId : value === 'before' ? activeBlock : blocks.length;
+    if (from < to) to -= 1;
+    moveBlock(from, to);
+    return to;
+  },
+});
+
+/** ⌥↑ / ⌥↓ in the builder (outside a text field) moves the open proposal. */
+document.addEventListener('keydown', (e) => {
+  if (!S.proposalBuilderOpen || !e.altKey || (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') || blocks.length < 2) return;
+  if ((e.target as HTMLElement | null)?.closest?.('input, textarea, select, [contenteditable="true"]')) return;
+  e.preventDefault();
+  moveBlock(activeBlock, activeBlock + (e.key === 'ArrowDown' ? 1 : -1));
+});
+
 export function prbAddBlock(): void {
   syncActiveBlock();
   // A new proposal starts with the same contract term; its services are its own.
   blocks.push(emptyBlock(blocks[activeBlock].contractMonths));
   loadBlock(blocks.length - 1);
+  settleNew(document.getElementById('prb-block-hd'));
   document.getElementById('prb-service-q')?.focus();
 }
 expose('prbAddBlock', prbAddBlock);
@@ -1187,7 +1226,7 @@ function renderBuilderSummary(): void {
   const currency = val('prb-currency') || 'SAR';
   const months = val('prb-months') ? Number(val('prb-months')) : null;
   const t = lineTotals(draftLines, months);
-  const row = (label: string, value: string | null, cls = '') => (value ? `<div${cls ? ` class="${cls}"` : ''}><dt>${label}</dt><dd>${value}</dd></div>` : '');
+  const row = (label: string, value: string | null, cls = '', roll = '') => (value ? `<div${cls ? ` class="${cls}"` : ''}><dt>${label}</dt><dd${roll ? ` data-roll="prb-${roll}"` : ''}>${value}</dd></div>` : '');
   if (blocks.length > 1) {
     syncActiveBlock();
     el.innerHTML = `<div class="rec-section-hd"><h2>Summary</h2></div>
@@ -1201,9 +1240,9 @@ function renderBuilderSummary(): void {
     <dl class="prb-sum">
       ${row('Client', client ? escHtml(client) : null)}
       ${row('Services', t.serviceNames.length ? t.serviceNames.map(escHtml).join('<br>') : null)}
-      ${row('Monthly', t.monthly ? fmtMoney(t.monthly, currency) : null)}
-      ${row('One-time', t.oneTime ? fmtMoney(t.oneTime, currency) : null)}
-      ${row(`Contract value${months ? ` · ${months} mo` : ''}`, t.contractValue ? fmtMoney(t.contractValue, currency) : null, 'prb-sum-main')}
+      ${row('Monthly', t.monthly ? fmtMoney(t.monthly, currency) : null, '', 'monthly')}
+      ${row('One-time', t.oneTime ? fmtMoney(t.oneTime, currency) : null, '', 'onetime')}
+      ${row(`Contract value${months ? ` · ${months} mo` : ''}`, t.contractValue ? fmtMoney(t.contractValue, currency) : null, 'prb-sum-main', 'value')}
     </dl>`;
 }
 

@@ -3,6 +3,7 @@
 // with quick capture, the pipeline, watch items and recent activity.
 // The rules live in lib/myday.ts; this file renders and handles actions.
 
+import { settleNew } from '../lib/motion';
 import { stripCompanyToken } from '../lib/commitments';
 import { setCommitmentKept, readCommitmentsFrom } from './commitments';
 import { parseTaskInput } from '../lib/taskParse';
@@ -161,7 +162,7 @@ function taskRow(t: Todo, opts: { overdue?: boolean } = {}): string {
     ${done ? '' : `<div class="mdy-row-actions">
       ${opts.overdue ? `<button class="btn-secondary btn-sm" onclick="mydayMoveTask(${t.id}, 0)">Today</button>` : ''}
       <button class="btn-secondary btn-sm" onclick="mydayMoveTask(${t.id}, 1)">Tomorrow</button>
-      <button class="rec-icon-btn" onclick="mydayTaskDate(event, ${t.id})" title="Pick a date" aria-label="Pick a date">${icon('calendar', 13)}</button>
+      <button class="rec-icon-btn" onclick="mydayTaskDate(event, ${t.id})" data-tip="Pick a date" aria-label="Pick a date">${icon('calendar', 13)}</button>
     </div>`}
   </div>`;
 }
@@ -242,7 +243,7 @@ function attentionRow(a: AttentionItem, child = false): string {
     ${a.when ? `<span class="mdy-when">${escHtml(a.when)}</span>` : ''}
     <div class="mdy-att-actions">
       <button class="btn-secondary btn-sm" onclick="mydayAct('${escHtml(a.key)}')">${escHtml(a.action.label)}</button>
-      <button class="rec-icon-btn" onclick="mydayItemMenu(event, '${escHtml(a.key)}')" title="More" aria-label="More">${icon('more', 14)}</button>
+      <button class="rec-icon-btn" onclick="mydayItemMenu(event, '${escHtml(a.key)}')" data-tip="More" aria-label="More">${icon('more', 14)}</button>
     </div>
   </div>
   ${isGroup && open ? `<div class="mdy-att-children">${a.children!.slice(0, 25).map((c) => attentionRow(c, true)).join('')}${a.children!.length > 25 ? `<button class="mdy-more" onclick="mydayAct('${escHtml(a.key)}')">${a.children!.length - 25} more</button>` : ''}</div>` : ''}`;
@@ -374,7 +375,7 @@ function pipelineHtml(): string {
   const money = (m: MoneyByCurrency) => (Object.values(m).some((v) => v) ? fmtMoneyByCurrency(m) : '—');
   const reporting = (m: MoneyByCurrency) => (Object.keys(m).length > 1 ? `≈ ${fmtMoney(toReporting(m))} total` : '');
   // One quiet line (Focus): the numbers, each a way into its list.
-  const part = (label: string, value: string, onclick: string, title: string) => value === '—' ? '' : `<button class="mdy-biz-part" onclick="${onclick}" title="${escHtml(title)}"><span class="mdy-biz-label">${escHtml(label)}</span> ${escHtml(value)}</button>`;
+  const part = (label: string, value: string, onclick: string, title: string) => value === '—' ? '' : `<button class="mdy-biz-part" onclick="${onclick}" data-tip="${escHtml(title)}" aria-label="${escHtml(title)}"><span class="mdy-biz-label">${escHtml(label)}</span> ${escHtml(value)}</button>`;
   const parts = [
     part('Pipeline', money(value), "navToModule('opportunities')", withValue < open.length ? `${open.length} open · ${open.length - withValue} without a value` : `${open.length} open ${open.length === 1 ? 'opportunity' : 'opportunities'}`),
     part('Weighted', money(weighted), "navToModule('analytics')", reporting(weighted) || 'Value × probability'),
@@ -497,6 +498,8 @@ export function mydayCapture(e: Event): void {
   input.value = '';
   mydayCapturePreview();
   renderMyDay();
+  settleNew(document.querySelector(`#tab-myday .task-row[data-task-id="${task.id}"]`));
+  input.focus();
   const where = task.someday ? 'Someday' : !task.dueDate ? 'Anytime' : task.dueDate === today() ? 'today' : fmtDate(task.dueDate);
   undoToast(`Added "${task.title}" to ${where}`, () => { deleteTodo(task.id, { silent: true }); renderMyDay(); });
 }

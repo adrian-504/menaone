@@ -79,7 +79,7 @@ export function renderDB(): void {
       <td class="td-id">${p.id}</td>
       <td class="td-c strong" title="${escHtml(p.client)}">${companyLink(p.companyId, p.client)}${p.archived ? ' <span class="chip">Archived</span>' : ''}</td>
       <td class="db-services" title="${escHtml(services.join(', '))}">${services.length ? services.map((sv) => `<span class="chip">${escHtml(sv)}</span>`).join(' ') : '<span class="t-muted">To be confirmed</span>'}</td>
-      <td class="td-status">${statusDot(cfg, p.status)}${review}<button class="rec-icon-btn row-more" onclick="proposalRowMenu(event, ${p.id})" title="Change status…" aria-label="Change status of SL# ${p.id}">${icon('more', 14)}</button></td>
+      <td class="td-status">${statusDot(cfg, p.status)}${review}<button class="rec-icon-btn row-more" onclick="proposalRowMenu(event, ${p.id})" data-tip="Change status…" aria-label="Change status of SL# ${p.id}">${icon('more', 14)}</button></td>
       <td class="t-sub">${escHtml(ownerName(p) || '—')}</td>
       <td class="td-d">${fmtDate(p.dateAdded)}</td>
       <td class="td-d"${p.lastSentAt && p.dateSentToClient ? ` title="First sent ${fmtDate(p.dateSentToClient)}"` : ''}>${fmtDate(proposalSentDate(p))}${fu ? ' <span class="db-fu" title="No answer for over 10 days">follow up</span>' : ''}</td>

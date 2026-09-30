@@ -36,9 +36,9 @@ export function proposalDeckRows(p: Pick<Proposal, 'documents'>, files: FileStat
         <div class="pr-deck-meta">${i === 0 ? '<span class="rec-badge tone-accent">Latest</span>' : ''}<span class="rec-badge tone-${status.tone}">${status.label}</span><span class="rec-row-sub">${[fileType(d.fileName), d.createdAt ? fmtDate(d.createdAt) : '', d.notes || ''].filter(Boolean).map(escHtml).join(' · ')}</span></div>
       </div>
       <div class="rec-row-actions">
-        ${canOpen ? `<button class="rec-icon-btn" onclick="event.stopPropagation();proposalOpenFile('${attr(d.path!)}')" title="Open" aria-label="Open ${escHtml(d.fileName)}">${icon('document', 13)}</button>
-        <button class="rec-icon-btn" onclick="event.stopPropagation();proposalRevealFile('${attr(d.path!)}')" title="Show in Finder" aria-label="Show ${escHtml(d.fileName)} in Finder">${icon('folder', 13)}</button>` : ''}
-        <button class="rec-icon-btn" onclick="event.stopPropagation();proposalRemoveDocument(${d.id})" title="Remove from this proposal (the file stays)" aria-label="Remove ${escHtml(d.fileName)} from this proposal">${icon('close', 13)}</button>
+        ${canOpen ? `<button class="rec-icon-btn" onclick="event.stopPropagation();proposalOpenFile('${attr(d.path!)}')" data-tip="Open" aria-label="Open ${escHtml(d.fileName)}">${icon('document', 13)}</button>
+        <button class="rec-icon-btn" onclick="event.stopPropagation();proposalRevealFile('${attr(d.path!)}')" data-tip="Show in Finder" aria-label="Show ${escHtml(d.fileName)} in Finder">${icon('folder', 13)}</button>` : ''}
+        <button class="rec-icon-btn" onclick="event.stopPropagation();proposalRemoveDocument(${d.id})" data-tip="Remove from this proposal (the file stays)" aria-label="Remove ${escHtml(d.fileName)} from this proposal">${icon('close', 13)}</button>
       </div>
     </div>`;
   }).join('');

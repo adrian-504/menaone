@@ -6,6 +6,7 @@
 // Notes/Contacts are linked through the existing entity_links Work Graph,
 // not new relationship fields — Meetings/Documents use a direct FK, same
 // convention Project already uses for those two.
+import { arrive } from '../lib/motion';
 import { foldMoreDetails } from '../lib/moreDetails';
 import { statusBadge } from '../lib/statusTone';
 import { addMoney, fmtMoneyByCurrency, currentUser, matchesOwnerFilter, ownerFilterOptions, type MoneyByCurrency } from '../lib/commercial';
@@ -646,7 +647,7 @@ async function renderOpportunityContacts(o: Opportunity): Promise<void> {
       : `<div class="rec-list">${linked.map((c) => `<div class="rec-row" onclick="openRecord('contact', ${c.id})">
           <span class="rec-row-icon">${icon('people', 15)}</span>
           <div class="rec-row-main"><div class="rec-row-title">${recordLink('contact', c.id, c.name || 'Unnamed contact')}</div><div class="rec-row-sub">${escHtml(c.role || c.email || '')}</div></div>
-          <button class="rec-icon-btn" title="Remove from this opportunity" aria-label="Remove" onclick="event.stopPropagation();removeOpportunityContact(${c.id})">${icon('close', 13)}</button>
+          <button class="rec-icon-btn" data-tip="Remove from this opportunity" aria-label="Remove" onclick="event.stopPropagation();removeOpportunityContact(${c.id})">${icon('close', 13)}</button>
         </div>`).join('')}</div>`) +
     (candidates.length > 0 ? `<select class="td-select rec-add-select" onchange="if(this.value)addOpportunityContact(+this.value);this.value=''"><option value="">+ Link a contact from ${escHtml(o.companyName || 'this company')}…</option>${candidates.map((c) => `<option value="${c.id}">${escHtml(c.name || '—')}</option>`).join('')}</select>` : '');
 }
@@ -854,12 +855,13 @@ async function renderOpportunityFiles(o: Opportunity): Promise<void> {
   const docs = proposal?.documents || [];
   const folder = client ? await proposalFolderLookup(client, proposal?.folderPath ?? null).catch(() => null) : null;
   if (S.currentOpportunityId !== o.id) return;
+  arrive(el);
   const files = (folder?.files || []).filter((f) => !f.isFolder).sort((a, b) => (b.modifiedAt || '').localeCompare(a.modifiedAt || '')).slice(0, 8);
   const attr = (v: string) => escHtml(v).replace(/'/g, "\\'");
   const row = (name: string, path: string | null, sub: string) => `<div class="rec-row" ${path ? `onclick="oppOpenFile('${attr(path)}')"` : ''}>
     <span class="rec-row-icon">${icon('document', 15)}</span>
     <div class="rec-row-main"><div class="rec-row-title">${escHtml(name)}</div><div class="rec-row-sub">${escHtml(sub)}</div></div>
-    ${path ? `<div class="rec-row-actions"><button class="rec-icon-btn" onclick="event.stopPropagation();filesRevealInFinderClick('${attr(path)}')" title="Show in Finder" aria-label="Show in Finder">${icon('folder', 13)}</button></div>` : ''}
+    ${path ? `<div class="rec-row-actions"><button class="rec-icon-btn" onclick="event.stopPropagation();filesRevealInFinderClick('${attr(path)}')" data-tip="Show in Finder" aria-label="Show in Finder">${icon('folder', 13)}</button></div>` : ''}
   </div>`;
   const docRows = docs.map((d) => row(d.fileName, d.path, `${d.kind === 'proposal' ? 'Proposal' : d.kind === 'commercials' ? 'Commercials' : 'Supporting document'}${d.version ? ` · V${d.version}` : ''}`));
   const docPaths = new Set(docs.map((d) => d.path));

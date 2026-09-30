@@ -1,7 +1,7 @@
 // Unified activity: triggers record what happens to every kind of record,
 // link it to the company, stay quiet during a restore, and company renames
 // keep ids.
-use menabig_tracker_lib::activity::{query_activity, rename_company_row, with_activity_muted, ActivityFilter};
+use menabig_tracker_lib::activity::{forget_activity_since, query_activity, rename_company_row, with_activity_muted, ActivityFilter};
 use menabig_tracker_lib::commands::{upsert_note_rows, upsert_proposal_rows, upsert_todo_rows, write_proposals};
 use menabig_tracker_lib::db::init_connection;
 use menabig_tracker_lib::models::{ActivityNote, Note, Proposal, Todo};
@@ -154,3 +154,25 @@ fn a_record_timeline_reads_several_records_and_the_work_on_them() {
     drop(conn);
     let _ = std::fs::remove_file(path);
 }
+
+#[test]
+fn undo_forgets_the_rows_an_action_and_its_undo_wrote() {
+    let (path, mut conn) = fresh_db("undo");
+    let proposal = |status: &str| Proposal { id: 1, client: "Acme Test Co".into(), status: status.into(), ..Default::default() };
+    let task = |status: &str| Todo { id: 7, title: "Send pack".into(), status: Some(status.into()), ..Default::default() };
+    upsert_proposal_rows(&mut conn, &[proposal("In Internal Review")]).unwrap();
+    upsert_todo_rows(&mut conn, &[task("Pending")]).unwrap();
+    // Everything before this moment stays.
+    conn.execute("UPDATE activity SET created_at = '2026-09-30T08:00:00.000Z'", []).unwrap();
+    let since = "2026-09-30T09:00:00.000Z";
+    upsert_proposal_rows(&mut conn, &[proposal("Sent to Client")]).unwrap(); // the action
+    upsert_proposal_rows(&mut conn, &[proposal("In Internal Review")]).unwrap(); // its undo
+    upsert_todo_rows(&mut conn, &[task("Done")]).unwrap();
+    upsert_todo_rows(&mut conn, &[task("Pending")]).unwrap();
+    assert_eq!(forget_activity_since(&conn, "proposal", 1, since).unwrap(), 2);
+    assert_eq!(forget_activity_since(&conn, "task", 7, since).unwrap(), 1);
+    let log = actions(&conn, ActivityFilter::default());
+    assert_eq!(log, vec!["company:created", "proposal:created", "task:created"], "only what came before the action is left");
+    let _ = std::fs::remove_file(&path);
+}
+

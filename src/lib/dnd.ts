@@ -36,7 +36,8 @@ export interface DropTarget {
   accepts: string[];
   /** Return false to show the target as unavailable for this payload. */
   canDrop?: (payload: DragPayload, value: string) => boolean;
-  onDrop: (payload: DragPayload, info: DropInfo) => void;
+  /** May return the id of the item to settle into place (defaults to the dragged one). */
+  onDrop: (payload: DragPayload, info: DropInfo) => void | number;
 }
 
 const sources = new Map<string, DragSource>();
@@ -168,7 +169,8 @@ function begin(s: Session): void {
 }
 
 function moveGhost(s: Session): void {
-  if (s.ghost) s.ghost.style.transform = `translate(${s.lastX - s.offsetX}px, ${s.lastY - s.offsetY}px)`;
+  // Lifted: a touch larger, with the one shadow allowed outside menus and dialogs (delight 10).
+  if (s.ghost) s.ghost.style.transform = `translate(${s.lastX - s.offsetX}px, ${s.lastY - s.offsetY}px) scale(1.02)`;
 }
 
 function clearOver(s: Session): void {
@@ -213,6 +215,13 @@ function placeLine(s: Session, container: HTMLElement): void {
     if (s.lastY < r.top + r.height / 2) { before = item; break; }
   }
   s.beforeId = before ? Number(before.dataset.dragId) : null;
+  // Lists marked data-sort-shift make room instead of drawing a line: the
+  // neighbours slide aside (--dur-base) to open a gap where the item will land.
+  if (container.hasAttribute('data-sort-shift')) {
+    if (line) line.style.display = 'none';
+    shiftSiblings(s, container, items, before);
+    return;
+  }
   if (!line) {
     line = document.createElement('div');
     line.className = 'dnd-line';
@@ -225,6 +234,43 @@ function placeLine(s: Session, container: HTMLElement): void {
   line.style.left = `${box.left + 6}px`;
   line.style.width = `${Math.max(40, box.width - 12)}px`;
   line.style.top = `${y}px`;
+}
+
+let shifted: HTMLElement[] = [];
+
+function clearShift(): void {
+  for (const el of shifted) el.style.transform = '';
+  shifted = [];
+}
+
+function shiftSiblings(s: Session, container: HTMLElement, items: HTMLElement[], before: HTMLElement | null): void {
+  const src = items.find((n) => s.payload.ids.includes(Number(n.dataset.dragId)));
+  if (!src || src.closest('[data-sort]') !== container) { clearShift(); return; }
+  const offsets = shiftOffsets(items.length, items.indexOf(src), before ? items.indexOf(before) : items.length, src.getBoundingClientRect().height);
+  clearShift();
+  items.forEach((n, i) => {
+    if (offsets[i]) { n.style.transform = `translateY(${offsets[i]}px)`; shifted.push(n); }
+  });
+}
+
+/** How far each item moves while item `from` is held over the gap before `before`
+ * (`count` = at the end): the ones in between slide by the held item's height. Pure. */
+export function shiftOffsets(count: number, from: number, before: number, h: number): number[] {
+  const to = before > from ? before - 1 : before;
+  return Array.from({ length: count }, (_, i) => (i === from ? 0 : from < to && i > from && i <= to ? -h : to < from && i >= to && i < from ? h : 0));
+}
+
+/** The dropped item eases from where the preview was into its new place (--dur-base). */
+function settle(kind: string, id: number, from: DOMRect | null): void {
+  const el = document.querySelector<HTMLElement>(`[data-drag-kind="${kind}"][data-drag-id="${id}"]`);
+  if (!el || !from || typeof el.animate !== 'function' || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const to = el.getBoundingClientRect();
+  const dx = from.left - to.left;
+  const dy = from.top - to.top;
+  if (Math.abs(dx) + Math.abs(dy) < 1) return;
+  const easeOut = getComputedStyle(document.documentElement).getPropertyValue('--ease-out').trim() || 'ease-out';
+  const base = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--dur-base')) * 1000 || 180;
+  el.animate([{ transform: `translate(${dx}px, ${dy}px) scale(1.02)` }, { transform: 'none' }], { duration: base, easing: easeOut });
 }
 
 function scrollableAt(x: number, y: number): HTMLElement | null {
@@ -260,6 +306,8 @@ function finish(s: Session, drop: boolean): void {
   const over = s.over;
   const beforeId = s.beforeId;
   s.started = false;
+  const ghostAt = s.ghost?.getBoundingClientRect() ?? null;
+  clearShift();
   s.ghost?.remove();
   document.body.classList.remove('dnd-active');
   document.querySelectorAll('.dnd-source').forEach((n) => n.classList.remove('dnd-source'));
@@ -268,7 +316,8 @@ function finish(s: Session, drop: boolean): void {
   const t = targets.get(over.type);
   const value = over.el.dataset.dropValue || '';
   if (!t || (t.canDrop && !t.canDrop(s.payload, value))) return;
-  t.onDrop(s.payload, { value, target: over.el, beforeId: over.sortable ? beforeId : null });
+  const landed = t.onDrop(s.payload, { value, target: over.el, beforeId: over.sortable ? beforeId : null });
+  if (over.sortable) settle(s.payload.kind, typeof landed === 'number' ? landed : s.payload.ids[0], ghostAt);
 }
 
 /** Moves `ids` to sit before `beforeId` (or at the end) within `order`. */
