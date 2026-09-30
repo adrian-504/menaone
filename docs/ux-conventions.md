@@ -61,7 +61,7 @@ Every page tells you where to look. The owner's test: opening any page should ne
 Page = white, panel = reference (owner, 22-Sep-2026: the page stays white; tinted pages were tried and rejected).
 
 - **Page:** `--bg` is white, the same as `--surface`; the tint belongs to the sidebar (`--sidebar-bg`).
-- **Neutrals are warm stone greys, not lavender** (owner, 30-Sep-2026: the lavender tint "cheapens it"; and not "a white page with text"). Sidebar, panels, borders and hairlines share one warm family; blue is kept for actions and selection.
+- **Neutrals are plain greys** (owner, 30-Sep-2026: the lavender tint "cheapens it", beige was rejected, and not "a white page with text"). Sidebar, panels, borders and hairlines share one neutral grey family; the page stays white; blue is kept for actions and selection.
 - **Panel:** `--surface-flat` is a quiet panel for reference blocks (the Details side panel of a record, the meeting Client brief, the proposal builder summary): no border, no shadow, radius 13, padding 16. My Day's rail docks to the window's right edge as a full-height pane with a hairline inner edge. Sections inside a panel keep their hairlines, except the first.
 - **Rhythm:** a section is `.sec`: a hairline above only, about 40px (`--space-7`) from one section to the next, and an uppercase caption heading (`--type-caption`, `--muted`). No box, shadow or radius. Sections side by side sit in columns with a wide gutter.
 - `.card` is only for things that float above the page: popovers, menus, dialogs. The record rail keeps its own floating panel.
