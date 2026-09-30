@@ -3,6 +3,10 @@
 One entry per install, newest first: the version, the day it was installed, and in two lines what changed.
 Settings → Data shows the last five. `scripts/release-check.mjs` refuses a build whose version has no entry here.
 
+## 1.53 — 2026-09-30
+The small things: the sidebar slides, every button and row presses, tooltips name their shortcut, numbers roll, ⌘K drops in, and what you add or remove eases in and out.
+Undo for nearly everything (⌘Z, bottom-left), including your timeline; ↑↓ or j k move through lists; drag milestones and proposals with weight.
+
 ## 1.52 — 2026-09-30
 Every click answers the same way: buttons press, menus open under their button, dialogs fade, the sidebar highlight slides, a ticked task pauses then fades — nothing jumps.
 Calmer look: plain grey instead of lavender, My Day's right column docks to the edge, one size and corner for every control, Undo on archive and "kept".

@@ -117,6 +117,17 @@ for (const [name, js, t] of VIEWS.filter(([n]) => !process.env.ONLY || n.startsW
   if (c.scrollLost) problems.push(`scroll not kept (${c.scroll})`);
   results.push({ name, ...c, problems });
 }
+// The sidebar toggle is measured after its slide (delight 0a): once it has
+// settled, nothing on the page moves.
+if (!process.env.ONLY) {
+  await send('Page.navigate', { url: URL });
+  await sleep(2500);
+  await evalJs(`switchTab('myday'), toggleSidebar(), new Promise(r => setTimeout(r, 700))`);
+  await evalJs(`window.__cls = 0; new PerformanceObserver((l) => { for (const e of l.getEntries()) if (!e.hadRecentInput) window.__cls += e.value; }).observe({ type: 'layout-shift', buffered: false })`);
+  const cls = await evalJs('new Promise(r => setTimeout(() => r(Math.round(window.__cls * 1000) / 1000), 1500))');
+  await evalJs('toggleSidebar()');
+  results.push({ name: 'Sidebar collapsed', inputs: 0, buttons: 0, primary: 0, cls, names: [], problems: cls > 0.01 ? [`layout shift ${cls} after the slide`] : [] });
+}
 ws.close(); chrome.kill();
 if (process.env.ONLY) for (const r of results) console.log(r.name, r.names.join(' | '));
 if (process.argv.includes('--json')) console.log(JSON.stringify(results, null, 1));
