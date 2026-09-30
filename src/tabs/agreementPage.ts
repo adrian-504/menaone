@@ -3,6 +3,7 @@
 // signature trail and activity. Active agreements make a company an active
 // client and count towards MRR; the end date drives renewal alerts.
 
+import { agreementFigures, paintFigures } from '../lib/recordFigures';
 import { statusBadge } from '../lib/statusTone';
 import { S } from '../lib/state';
 import { escHtml, expose, fmtDate, today, showConfirm } from '../lib/utils';
@@ -72,12 +73,12 @@ export function renderAgreementPage(): void {
   const title = document.getElementById('agd-title');
   if (title) title.innerHTML = `${escHtml(a.agrRef || 'Agreement')}${a.agrRef ? `<button class="rec-icon-btn rec-title-copy" onclick="copyText('${escHtml(a.agrRef)}','Reference copied')" data-tip="Copy reference" aria-label="Copy reference">${icon('copy', 14)}</button>` : ''}<span class="pr-title-services">${companyLink(a.companyId, a.client)}</span>`;
   const monthly = agreementMonthly(a);
+  paintFigures('agd-figures', agreementFigures(a, today()));
   const badges = document.getElementById('agd-badges');
   if (badges) badges.innerHTML = [
     statusBadge('agreement', a.status),
     a.serviceStatus ? statusBadge('service', a.serviceStatus, `Service ${a.serviceStatus.toLowerCase()}`) : '',
-    monthly ? `<span class="rec-meta">${fmtMoney(monthly, currencyOf(a))}/mo</span>` : '',
-    a.endDate ? `<span class="rec-meta">Ends ${fmtDate(a.endDate)}</span>` : '',
+
   ].filter(Boolean).join('');
   const actions = document.getElementById('agd-actions');
   if (actions) {

@@ -7,7 +7,7 @@ import { escHtml, expose, today } from '../lib/utils';
 import { recordLink } from '../lib/links';
 import { icon } from '../lib/icons';
 import { companyNoteEntries } from '../lib/db';
-import { buildCompanyState, type BriefClause, type CompanyBriefInput, type PinnedNote } from '../lib/companyBrief';
+import { buildCompanyState, clauseText, type BriefClause, type CompanyBriefInput, type PinnedNote } from '../lib/companyBrief';
 
 type CompanyKey = { id: number | null; name: string };
 
@@ -28,6 +28,11 @@ export function ensurePinnedNotes(c: CompanyKey, then: () => void): void {
   if (pinnedCache.has(cacheKey(c))) return;
   pinnedCache.set(cacheKey(c), []);
   void companyNoteEntries(c.id, c.name).then((entries) => { setCompanyNotesCache(c, entries); if (entries.some((e) => e.pinned)) then(); }).catch(() => undefined);
+}
+
+/** "Where we stand" in one line — the relationship, what's in flight, what's owed — as the Meetings list and My Day's Now panel show it. */
+export function standLine(c: CompanyKey): string {
+  return buildCompanyState(briefInputFor(c)).filter((x) => x.key === 'relationship' || x.key === 'inflight' || x.key === 'commitments').map(clauseText).join(' · ');
 }
 
 export function briefInputFor(c: CompanyKey): CompanyBriefInput {

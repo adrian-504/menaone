@@ -19,6 +19,7 @@ pub mod integrity;
 pub mod intel;
 pub mod lists;
 pub mod localfiles;
+pub mod appearance;
 pub mod models;
 pub mod ms365;
 pub mod opportunities;
@@ -313,6 +314,9 @@ pub fn run() {
             dossier::company_dossier,
             localfiles::files_copy_into,
             localfiles::files_quick_look,
+            appearance::band_photos_add,
+            appearance::band_photos_list,
+            appearance::band_photo_data,
             logfile::log_frontend,
             logfile::reveal_logs_folder,
             activity::activity_forget,

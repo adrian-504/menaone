@@ -39,7 +39,7 @@ function rules(text) {
 
 export const ALLOWED_PROPS = new Set(['transform', 'opacity', 'color', 'background-color', 'border-color', 'box-shadow', 'outline-color', 'text-decoration-color', 'fill', 'stroke', 'visibility', 'grid-template-rows']);
 export const RADII = new Set(['0', '6px', '9px', '13px', '18px', '50%', 'inherit']);
-export const WEIGHTS = new Set(['450', '500', '600', 'inherit']);
+export const WEIGHTS = new Set(['400', '500', '600', 'inherit']);
 export const HEIGHTS = new Set(['18px', '24px', '26px', '30px', '32px', '40px']);
 const CONTROL = /(^|[\s,>+~])(\.btn-(primary|secondary|ghost|danger)|\.seg-btn|\.chip|\.rlink-chip|\.sb-item|\.ctx-menu-item|\.rec-badge|input|select|\.fsel|\.finp)(?![\w-])/;
 const STATUS_DOT = /(^|[\s,.])(status-dot|pq-dot|sb-dot|ar-dot|mdy-dot-mark|dot)(?![\w-])/;
@@ -160,6 +160,10 @@ export function checkMarkup(sources) {
     for (const m of text.matchAll(/<button\b[^>]*?\stitle=/g)) {
       problems.push({ selector: `${file}:${text.slice(0, m.index).split('\n').length}`, why: 'title on a button (use data-tip)' });
     }
+    // Brand fonts are bundled: nothing is fetched from Google Fonts at runtime.
+    for (const m of text.matchAll(/fonts\.(googleapis|gstatic)\.com/g)) {
+      problems.push({ selector: `${file}:${text.slice(0, m.index).split('\n').length}`, why: 'loads a font from Google (bundle it in src/assets/fonts)' });
+    }
     // The same set from code: `x.title = …` where x is a button.
     for (const m of text.matchAll(/\b(\w+)\.title\s*=[^=]/g)) {
       const decl = new RegExp(`\\b(?:const|let|var)\\s+${m[1]}\\b[^;\\n]*(?:HTMLButtonElement|createElement\\(['"]button['"]\\)|\\bbtn\\b)`);
@@ -173,7 +177,7 @@ export function checkMarkup(sources) {
 
 async function markupSources() {
   const { readdirSync, statSync } = await import('node:fs');
-  const out = [['index.html', readFileSync(resolve(root, 'index.html'), 'utf8')]];
+  const out = [['index.html', readFileSync(resolve(root, 'index.html'), 'utf8')], ['src/styles.css', readFileSync(resolve(root, 'src/styles.css'), 'utf8')]];
   const walk = (dir) => {
     for (const name of readdirSync(dir)) {
       const p = resolve(dir, name);

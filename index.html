@@ -4,13 +4,15 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>MENA One</title>
+    <link rel="preload" href="./src/assets/fonts/ibm-plex-sans-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="./src/assets/fonts/saira-semi-condensed-latin-600-normal.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="./src/assets/fonts/ibm-plex-mono-latin-500-normal.woff2" as="font" type="font/woff2" crossorigin>
     <script type="module" src="/src/main.ts"></script>
   </head>
   <body>
 <div id="sidebar">
   <div class="sb-header" data-tauri-drag-region="deep">
-    <img class="sb-logo-img" src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAAsADkDASIAAhEBAxEB/8QAHAAAAgIDAQEAAAAAAAAAAAAABgcAAgEDBQQI/8QAPRAAAQMDAgIECQkJAAAAAAAAAQIDBAAFEQYSByExQWFxExQVFlFVlLLhIiQyNTdydJHwIzZCVHOBkrPS/8QAGgEAAgIDAAAAAAAAAAAAAAAAAAUBBgIDBP/EAC0RAAEDAgIIBQUAAAAAAAAAAAEAAhEDIQQxBRITFSJBUaEUYbHC0SMyQlLw/9oADAMBAAIRAxEAPwBjp4t6PU4E+UHUgnG4xnMDt6KjnFrR7a1J8oOqCTjcmM4Qe7lSbsFogzdD6ouMhjfKhJjmO5uI2blkK5A4OR6ard7RBjcPLBc2mNsyW9IS85uJ3hJISMdAxjqq0bpwevqS7OOWca3Tolviq0TbKe8J43XiTpmzXFyDMlupfbCVKCY61DCkhQ5gegipH4k6Zk2uZcW5jpjw1NpeJjrBBWSE4GOfQaWr0K23HjUYt3Q0uEthsuJdXtTkRkkZOR14oatQA0JqsDoEiEB3eEXWlui8M5jc5hh5RxGOiyOJqBxyi/ZORHFrSLjiUCc/lRAGYq+v+1em5cTNMWq5SIEuY8mRHWUOJTHWoA94HOkve7XChad0dLjR0tyJja1yFgnLhC0gE/nRCmyxrrxY1I1cYRejpRIdTvCgncAnacipdo3CDi4oh3SbEDogYiqbWm3cJlxLxbNcwlLtElTiIzm1wONqRzIyOkfrn0V7PIEj+aR/ir/qgXgV9T3b8Q37lNmleMHhq7qNM2C6aX1GB7syvnDS/wBmutvuxffNVv32TaW/ESveNdTTen7yxw+1hGdtM5t95McNNKjqCnMLJO0YycdlVvWn707ww03FbtM5chp+SXGkx1FaAVHGRjIzVk2rNvMj7/Yl4adTLl7lLrYGtT8YHLS+8tlt5lslaACRtjJV191Xn2zTtt0Bf02G9OXJSpEQP72tng8LVtxyGc8/yrdfWtSWTic7e7ZY5UpTbTaUExnFtqywlB5p9HPr6RXMtenr4NEalbcs89Dzz8RTbZjLCl4WsqwMZOMisGuJZTcX8IDLSM5vPPop/Jwi/F6Kmpf3R0H/AEHP9ia6d7uOrLvr2+2i13mQ20yp1YaU+UIDaQMgcu2sah0/eXtL6JaatM5bjDKw8hMdRLZK0kbhjly9NVu7WprNxFvlyttilyUvqdaSoxXFIUhYHMFPdQxzHARBPHEx+yCCDeYt6Ij4F/VF3x0eMN+5TZpY8GLXPtlquiZ8GTFK30FAfaKCoBHSM0zqr+lCDi3kf1gu/DCKQQwkSUtIbMa8HaMA/s89v8dZHjIz81u5Oc7lBsnq5fT7B+iaA/OU+p7R7L8annKfU9o9l+NJ9qVZN3M8u/yj5wyHFuqEW8pDhJ2gt4GfR8vu/LvrDnhlg/M7whRJO5GwEA55fT7f1igLzlPqe0ey/Gp5yn1PaPZfjRtSjdzPLv8AKP2FPNLSpUG7r2gcj4PGcYz9PprWBIHPxa8ZxjkGxjHo+X09vaaBPOU+p7R7L8annKfU9o9l+NG1KN3M8u/ymjat5Q8pxqWhal5PjJHP7oBOBXRoT0LcTcIkxRiRI+x1IxHb2A8uvnRZW5pkSlGIpinVLByX/9k=" alt="MENA One">
-    <div class="sb-logo-text">MENA One<div class="sb-logo-sub">Workspace</div></div>
+    <img class="sb-brand-logo on-light" src="./src/assets/brand/logo-primary.png" alt="MENA Business Investment Group" width="40" height="30"><img class="sb-brand-logo on-dark" src="./src/assets/brand/logo-white.png" alt="MENA Business Investment Group" width="40" height="30">
     <button class="sb-collapse-btn" id="sb-collapse-btn" onclick="toggleSidebar()" data-tip="Collapse sidebar" data-shortcut="toggle-sidebar" aria-label="Collapse sidebar">
       <span class="sb-icon" data-icon="sidebar"></span>
     </button>
@@ -131,6 +133,7 @@
       <span class="sb-label">Settings</span>
     </button>
     <button class="sb-add-btn" id="sb-new-btn" onclick="toggleNewMenu(event)"><span class="sb-icon" data-icon="plus"></span><span>New</span></button>
+    <button class="sb-me" id="sb-me" onclick="navToModule('settings')" aria-label="You — open Settings"><span class="sb-me-av" id="sb-me-av"></span><span class="sb-me-text"><span class="sb-me-name" id="sb-me-name"></span><span class="sb-me-sub" id="sb-me-sub"></span></span></button>
   </div>
 </div>
 <div class="cmdk-ov" id="cmdk-ov" onclick="if(event.target===this)closeCommandPalette()">
@@ -246,14 +249,26 @@
 <!-- MY DAY TAB -->
 <div id="tab-myday" class="tab">
   <header class="mdy-header">
-    <h1 class="mdy-greeting" id="myday-greeting">My Day</h1>
-    <div class="mdy-summary" id="myday-date"></div>
+    <div class="mdy-band" id="myday-band">
+      <img class="mdy-band-img" id="myday-band-img" alt="" decoding="async">
+      <div class="mdy-band-scrim" id="myday-band-scrim"></div>
+      <div class="mdy-band-in">
+        <div class="mdy-band-date" id="myday-date"></div>
+        <h1 class="mdy-greeting" id="myday-greeting">My Day</h1>
+        <span class="bars lg" aria-hidden="true"><i></i><i></i><i></i></span>
+      </div>
+    </div>
+    <nav class="mdy-index" id="myday-index" aria-label="Today at a glance"></nav>
     <div class="mdy-strip" id="myday-offices" hidden></div>
   </header>
   <div class="mdy-layout">
     <div class="mdy-main">
-      <section class="sec mdy-sec">
-        <div class="rec-section-hd"><h2>Today</h2></div>
+      <section class="sec mdy-sec mdy-now-sec" id="myday-now-sec" hidden>
+        <div class="rec-section-hd"><h2 class="hd-major">Now</h2></div>
+        <div id="myday-now"></div>
+      </section>
+      <section class="sec mdy-sec" id="myday-today-sec">
+        <div class="rec-section-hd"><h2 class="hd-major">Today</h2></div>
         <div id="myday-today"></div>
         <form class="task-quickadd mdy-capture" onsubmit="mydayCapture(event)" autocomplete="off">
           <span class="task-quickadd-plus" data-icon="plus" data-icon-size="14"></span>
@@ -261,8 +276,8 @@
           <div class="qa-chips" id="myday-capture-preview"></div>
         </form>
       </section>
-      <section class="sec mdy-sec">
-        <div class="rec-section-hd"><h2>Needs your attention</h2><span class="rcnt" id="myday-attention-cnt"></span></div>
+      <section class="sec mdy-sec" id="myday-attention-sec">
+        <div class="rec-section-hd"><h2 class="hd-major">Needs your attention</h2><span class="rcnt" id="myday-attention-cnt"></span></div>
         <div id="myday-attention"></div>
       </section>
     </div>
@@ -727,19 +742,44 @@
     </div>
   </div>
   <div class="settings-layout">
-    <nav class="settings-nav" aria-label="Settings sections"><button class="settings-nav-item" data-pane="general" onclick="setSettingsPane('general')"><span data-icon="gear" data-icon-size="15"></span>General</button><button class="settings-nav-item" data-pane="team" onclick="setSettingsPane('team')"><span data-icon="people" data-icon-size="15"></span>Team</button><button class="settings-nav-item" data-pane="business" onclick="setSettingsPane('business')"><span data-icon="dollar" data-icon-size="15"></span>Business</button><button class="settings-nav-item" data-pane="templates" onclick="setSettingsPane('templates')"><span data-icon="mail" data-icon-size="15"></span>Templates</button><button class="settings-nav-item" data-pane="connections" onclick="setSettingsPane('connections')"><span data-icon="link" data-icon-size="15"></span>Connections</button><button class="settings-nav-item" data-pane="data" onclick="setSettingsPane('data')"><span data-icon="archive" data-icon-size="15"></span>Data</button></nav>
+    <nav class="settings-nav" aria-label="Settings sections"><button class="settings-nav-item" data-pane="general" onclick="setSettingsPane('general')"><span data-icon="gear" data-icon-size="15"></span>General</button><button class="settings-nav-item" data-pane="appearance" onclick="setSettingsPane('appearance')"><span data-icon="sun" data-icon-size="15"></span>Appearance</button><button class="settings-nav-item" data-pane="team" onclick="setSettingsPane('team')"><span data-icon="people" data-icon-size="15"></span>Team</button><button class="settings-nav-item" data-pane="business" onclick="setSettingsPane('business')"><span data-icon="dollar" data-icon-size="15"></span>Business</button><button class="settings-nav-item" data-pane="templates" onclick="setSettingsPane('templates')"><span data-icon="mail" data-icon-size="15"></span>Templates</button><button class="settings-nav-item" data-pane="connections" onclick="setSettingsPane('connections')"><span data-icon="link" data-icon-size="15"></span>Connections</button><button class="settings-nav-item" data-pane="data" onclick="setSettingsPane('data')"><span data-icon="archive" data-icon-size="15"></span>Data</button></nav>
     <div class="settings-panes">
     <section class="settings-pane" data-pane="general" hidden>
       <h2 class="settings-pane-title">General</h2>
   <div id="reminder-settings-card"></div>
   <div id="office-strip-settings-card"></div>
+    </section>
+    <section class="settings-pane" data-pane="appearance" hidden>
+      <h2 class="settings-pane-title">Appearance</h2>
   <div class="sec settings-card">
-    <div class="settings-card-hd">
-      <span data-icon="sun"></span>
-      <div class="card-hd">Theme</div>
+    <div class="settings-card-hd"><div class="card-hd">Sidebar tint</div></div>
+    <p class="settings-card-desc">The colour of the sidebar and of the panels on each page. Remembered on this computer.</p>
+    <div class="seg-btns" id="tint-picker" role="radiogroup" aria-label="Sidebar tint">
+      <button class="seg-btn" data-tint="blue" role="radio" onclick="appearanceSetTint('blue')">Blue</button>
+      <button class="seg-btn" data-tint="grey" role="radio" onclick="appearanceSetTint('grey')">Grey</button>
     </div>
+  </div>
+  <div class="sec settings-card">
+    <div class="settings-card-hd"><div class="card-hd">Theme</div></div>
     <p class="settings-card-desc">Choose how MENA One looks. Your choice is remembered on this computer.</p>
     <div class="theme-picker" id="theme-picker"></div>
+  </div>
+  <div class="sec settings-card">
+    <div class="settings-card-hd"><div class="card-hd">My Day photo</div></div>
+    <p class="settings-card-desc">The photograph behind the greeting on My Day. Choose one or several of your own; with several, a different one shows each day. Your photos are copied into MENA One, so moving the originals doesn't matter.</p>
+    <div class="appearance-band-row">
+      <div class="seg-btns" id="band-picker" role="radiogroup" aria-label="My Day photo">
+        <button class="seg-btn" data-band="default" role="radio" onclick="appearanceSetBand('default')">The office</button>
+        <button class="seg-btn" data-band="mine" role="radio" onclick="appearanceSetBand('mine')">My photos</button>
+      </div>
+      <button class="btn-secondary btn-sm" onclick="appearanceChoosePhotos()">Choose photos…</button>
+      <span class="settings-card-desc" id="band-count"></span>
+    </div>
+  </div>
+  <div class="sec settings-card">
+    <div class="settings-card-hd"><div class="card-hd">Your name</div></div>
+    <p class="settings-card-desc">For the greeting and the sidebar when Microsoft 365 isn't connected (when it is, your account's name is used).</p>
+    <input class="finp appearance-name" id="appearance-name" placeholder="e.g. Ahmad Abdallah" onchange="appearanceSetName(this.value)" autocomplete="name">
   </div>
     </section>
     <section class="settings-pane" data-pane="team" hidden>
@@ -929,6 +969,7 @@
         <div class="rec-eyebrow">Project</div>
         <h1 class="rec-title" id="pd-name"></h1>
         <div class="rec-badges" id="pd-badges"></div>
+        <div class="rec-figures" id="pd-figures" hidden></div>
       </div>
       <div class="rec-actions" id="pd-actions"></div>
     </header>
@@ -1437,6 +1478,7 @@
       <div class="rec-eyebrow">Contact</div>
       <h1 class="rec-title" id="ctd-name"></h1>
       <div class="rec-badges" id="ctd-meta"></div>
+        <div class="rec-figures" id="ctd-figures" hidden></div>
     </div>
     <div class="rec-actions" id="ctd-actions"></div>
   </header>
@@ -1529,6 +1571,7 @@
         <div class="rec-eyebrow">Company</div>
         <h1 class="rec-title" id="co-detail-name"></h1>
         <div class="rec-badges" id="co-detail-meta"></div>
+        <div class="rec-figures" id="co-figures" hidden></div>
       </div>
       <div class="rec-actions">
         <button class="btn-primary" onclick="companyNewMenu(event)" aria-haspopup="menu"><span data-icon="plus" data-icon-size="13"></span> New</button>
@@ -1599,7 +1642,7 @@
     <div class="co-dossier">
     <aside class="co-dossier-side" aria-label="Company at a glance">
       <section class="co-panel" id="co-panel-details">
-        <div class="co-panel-hd"><span class="rec-eyebrow">Details</span></div>
+        <div class="co-panel-hd"><h2 class="brand-h hd-major">Details</h2></div>
         <dl class="co-details" id="co-details"></dl>
       </section>
       <section class="co-panel" id="co-sec-contacts" data-section="contacts">
@@ -1613,7 +1656,7 @@
     </aside>
     <div class="co-dossier-main">
     <!-- Where we stand, as labelled lines (tabs/companyState.ts, lib/companyDossier.ts). -->
-    <section class="rec-section co-standing" id="co-sec-overview" data-section="overview"><div id="co-state"></div></section>
+    <section class="rec-section co-standing" id="co-sec-overview" data-section="overview"><div class="rec-section-hd"><h2 class="hd-major">Where we stand</h2></div><div id="co-state"></div></section>
     <section class="rec-section co-nextrecent" id="co-sec-next" data-section="next">
       <div class="co-nr-grid">
         <div class="co-nr-col"><div class="co-nr-hd"><span class="rec-eyebrow">Next</span></div><div id="co-next"></div></div>
@@ -1719,6 +1762,7 @@
       <div class="rec-eyebrow">Agreement</div>
       <h1 class="rec-title" id="agd-title"></h1>
       <div class="rec-badges" id="agd-badges"></div>
+        <div class="rec-figures" id="agd-figures" hidden></div>
     </div>
     <div class="rec-actions" id="agd-actions"></div>
   </header>
@@ -1832,6 +1876,7 @@
       <div class="rec-eyebrow" id="prd-eyebrow">Proposal</div>
       <h1 class="rec-title" id="prd-title"></h1>
       <div class="rec-badges" id="prd-badges"></div>
+        <div class="rec-figures" id="prd-figures" hidden></div>
     </div>
     <div class="rec-actions" id="prd-actions"></div>
   </header>
@@ -1846,11 +1891,11 @@
       <section class="rec-section sec pr-review" id="prd-review"></section>
       <section class="rec-section sec pr-contact" id="prd-contact" hidden></section>
       <section class="rec-section sec" id="prd-commercials-sec">
-        <div class="rec-section-hd"><h2>Commercials</h2><span class="rec-count" id="prd-lines-count"></span><div class="rec-section-actions" id="prd-lines-act"></div></div>
+        <div class="rec-section-hd"><h2 class="hd-major">Commercials</h2><span class="rec-count" id="prd-lines-count"></span><div class="rec-section-actions" id="prd-lines-act"></div></div>
         <div id="prd-lines"></div>
       </section>
       <section class="rec-section sec" id="prd-decks-sec">
-        <div class="rec-section-hd"><h2>Proposal documents</h2><span class="rec-count" id="prd-decks-count"></span><div class="rec-section-actions"><button class="btn-secondary btn-sm" onclick="generateCurrentProposal()"><span data-icon="bolt" data-icon-size="12"></span> Generate proposal</button></div></div>
+        <div class="rec-section-hd"><h2 class="hd-major">Proposal documents</h2><span class="rec-count" id="prd-decks-count"></span><div class="rec-section-actions"><button class="btn-secondary btn-sm" onclick="generateCurrentProposal()"><span data-icon="bolt" data-icon-size="12"></span> Generate proposal</button></div></div>
         <div class="rec-list" id="prd-decks"></div>
       </section>
       <section class="rec-section sec" id="prd-documents-sec">

@@ -5,6 +5,7 @@
 // commercials, the client's OneDrive folder and documents, what it's linked
 // to, notes and activity.
 
+import { paintFigures, proposalFigures } from '../lib/recordFigures';
 import { registerKey } from '../core/keys';
 import { registerDragSource, registerDropTarget } from '../lib/dnd';
 import { arrive, settleNew, shake } from '../lib/motion';
@@ -114,8 +115,8 @@ export function renderProposalPage(): void {
   const entity = entityById(p.businessEntityId);
   const owner = ownerName(p);
   const badges = document.getElementById('prd-badges');
+  paintFigures('prd-figures', proposalFigures(p, today()));
   if (badges) badges.innerHTML = [
-    statusBadge('proposal', p.status),
     p.archived ? '<span class="rec-badge">Archived</span>' : '',
     isSnoozed(p) ? `<span class="rec-badge tone-amber">Snoozed until ${fmtDate(p.snoozedUntil)}</span>` : '',
     entity ? `<span class="rec-meta">${escHtml(entity.name)} · ${escHtml(currencyOf(p))}</span>` : `<span class="rec-meta">${escHtml(currencyOf(p))}</span>`,

@@ -9,6 +9,8 @@ import { setCommitmentKept, readCommitmentsFrom } from './commitments';
 import { parseTaskInput } from '../lib/taskParse';
 import { EMPTY_CONTEXT } from '../lib/workGraph';
 import { renderOfficeStrip } from './officeStrip';
+import { standLine } from './companyState';
+import { bandPhotoUrl, dayPart, displayName, scrimFor } from '../lib/appearance';
 import { nowLineHtml } from '../lib/timeline';
 import { S } from '../lib/state';
 import { companyLink, recordLink } from '../lib/links';
@@ -28,7 +30,7 @@ import { ownDomains } from '../lib/clientMatch';
 import { PS, activeMrr, addMoney, currencyOf, fmtMoneyByCurrency, teamMember, defaultReviewer, toReporting, fmtMoney, type MoneyByCurrency } from '../lib/commercial';
 import { isOpenOpportunity, monthlyOf, weightedValue } from '../lib/pipeline';
 import {
-  buildAttention, buildComingUp, buildTimeline, shownAttentionKeys, greeting, summaryLine, addDays, isClientMeeting,
+  buildAttention, buildComingUp, buildTimeline, shownAttentionKeys, greeting, summaryLine, addDays, isClientMeeting, buildIndex, nowMeeting,
   type AttentionItem, type MyDayInput, type Timeline, type UpcomingDay,
 } from '../lib/myday';
 import type { IntelligenceItem, Meeting, Todo } from '../lib/types';
@@ -104,9 +106,14 @@ export function renderMyDay(): void {
   for (const a of attention) { attentionByKey.set(a.key, a); a.children?.forEach((c) => attentionByKey.set(c.key, c)); }
 
   const now = data.now;
-  setHtml('myday-greeting', escHtml(`${greeting(now)}${firstName() ? `, ${firstName()}` : ''}`));
+  setHtml('myday-greeting', escHtml(`${greeting(now)}${firstName() ? `, ${firstName()}` : ''}.`));
   renderOfficeStrip();
-  setHtml('myday-date', `${escHtml(fmtDayLong(now))}<span class="mdy-dot">·</span>${escHtml(summaryLine(timeline, attention))}`);
+  setHtml('myday-date', escHtml(fmtDayLong(now, true).replace(',', '')));
+  paintBand(now);
+  setHtml('myday-index', indexHtml(buildIndex(timeline, attention)));
+  const nowPick = nowMeeting(timeline);
+  setHtml('myday-now', nowPick ? nowPanelHtml(nowPick.meeting, nowPick.current) : '');
+  const nowSec = document.getElementById('myday-now-sec'); if (nowSec) nowSec.hidden = !nowPick;
   setHtml('myday-today', todayHtml(timeline, data));
   setHtml('myday-attention-cnt', attention.length ? String(attention.length) : '');
   setHtml('myday-attention', attentionHtml(attention));
@@ -139,8 +146,57 @@ function setHtml(id: string, html: string): void {
 }
 
 function firstName(): string {
-  const n = S.ms365Status?.displayName?.trim();
+  const n = displayName();
   return n ? n.split(/\s+/)[0] : '';
+}
+
+// ── The band, the index row and the Now panel (brand slice) ─────────────────
+
+let bandPart = '';
+/** The photo decodes after the first paint (its box is reserved, so nothing moves); the scrim follows the time of day. */
+function paintBand(now: Date): void {
+  const scrim = document.getElementById('myday-band-scrim');
+  const part = dayPart(now.getHours());
+  if (scrim && bandPart !== part) { bandPart = part; scrim.style.background = scrimFor(part); }
+  const img = document.getElementById('myday-band-img') as HTMLImageElement | null;
+  if (!img) return;
+  requestAnimationFrame(() => {
+    void bandPhotoUrl(now).then((url) => {
+      if (img.getAttribute('src') === url) return;
+      img.classList.remove('is-in');
+      img.onload = () => img.classList.add('is-in');
+      img.src = url;
+    });
+  });
+}
+
+function indexHtml(items: ReturnType<typeof buildIndex>): string {
+  return items.map((x) => `<button class="mdy-ix" type="button" onclick="mydayIndexGo('${x.target}')"><span class="mdy-ix-n">${x.ix}</span><span class="mdy-ix-fig">${x.n}</span><span class="mdy-ix-label">${escHtml(x.label)}</span></button>`).join('');
+}
+
+export function mydayIndexGo(target: string): void {
+  if (target === 'followup') { (window as any).navToModule?.('followup'); return; }
+  const id = target === 'attention' ? 'myday-attention-sec' : target === 'overdue' ? 'myday-today' : 'myday-today-sec';
+  document.getElementById(id)?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+}
+expose('mydayIndexGo', mydayIndexGo);
+
+function nowPanelHtml(m: Meeting, current: boolean): string {
+  const stand = m.companyName ? standLine({ id: m.companyId ?? null, name: m.companyName }) : '';
+  const when = current ? (m.endAt ? `until ${hhmm(m.endAt)}` : 'now') : m.startAt ? `at ${hhmm(m.startAt)}` : '';
+  const who = [m.companyName ? companyLink(m.companyId, m.companyName) : '', (m.attendees || []).slice(0, 3).map((a) => escHtml(a.split('@')[0])).join(', '), m.isOnlineMeeting ? 'Teams' : m.location ? escHtml(m.location) : '']
+    .filter(Boolean).join('<span class="mdy-sep">·</span>');
+  return `<div class="mdy-np">
+    <div class="mdy-np-main">
+      <div class="mdy-np-title">${recordLink('meeting', m.id, m.title)}${when ? ` <span class="mdy-np-when">${escHtml(when)}</span>` : ''}</div>
+      ${who ? `<div class="mdy-meta">${who}</div>` : ''}
+      ${stand ? `<div class="mt-stand"><span class="mt-stand-label">Where we stand</span>${escHtml(stand)}</div>` : ''}
+    </div>
+    <div class="mdy-np-act">
+      ${m.onlineMeetingUrl ? `<button class="btn-primary btn-sm" onclick="mydayJoin(${m.id})">Join</button>` : ''}
+      <button class="btn-secondary btn-sm" onclick="openRecord('meeting', ${m.id})">Notes</button>
+    </div>
+  </div>`;
 }
 
 // ── Today ───────────────────────────────────────────────────────────────────
@@ -173,11 +229,11 @@ function meetingRow(m: Meeting, past: boolean, current: boolean, own: Set<string
   const where = [m.companyName ? companyLink(m.companyId, m.companyName) : '', m.location && !/microsoft teams/i.test(m.location) ? escHtml(m.location) : '', m.isOnlineMeeting ? 'Teams' : '']
     .filter(Boolean).join('<span class="mdy-sep">·</span>');
   return `<div class="mdy-slot-body">
-      <div class="mdy-meeting-title">${recordLink('meeting', m.id, m.title)}${current ? ' <span class="rec-badge tone-green">Now</span>' : ''}</div>
+      <div class="mdy-meeting-title">${recordLink('meeting', m.id, m.title)}${current ? ' <span class="rec-badge tone-coral">Now</span>' : ''}</div>
       ${where ? `<div class="mdy-meta">${where}</div>` : ''}
     </div>
     <div class="mdy-row-actions">
-      ${m.onlineMeetingUrl && !past ? `<button class="${current ? 'btn-primary' : 'btn-secondary'} btn-sm" onclick="mydayJoin(${m.id})">${icon('meeting', 12)} Join</button>` : ''}
+      ${m.onlineMeetingUrl && !past ? `<button class="btn-secondary btn-sm" onclick="mydayJoin(${m.id})">${icon('meeting', 12)} Join</button>` : ''}
       ${!past && client ? `<button class="btn-secondary btn-sm" onclick="openRecord('meeting', ${m.id})">${m.agenda ? 'Brief' : 'Prepare'}</button>` : ''}
       ${needsNotes ? `<button class="btn-secondary btn-sm" onclick="openRecord('meeting', ${m.id})">${icon('note', 12)} Add notes</button>` : ''}
     </div>`;

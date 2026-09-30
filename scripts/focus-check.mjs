@@ -65,7 +65,16 @@ const COUNT = `(() => {
   const emptyBoxFirst = !!first && first.tagName === 'TEXTAREA' && !first.value.trim() && !first.hasAttribute('data-typing'); // data-typing: a box whose job right now is to be typed in (rule 2)
   // Settle-in (.is-new) is for things the user just added, never for a render.
   const isNew = document.querySelectorAll('.is-new').length;
-  return JSON.stringify({ inputs: inputs.length, filters, buttons, primary, height: document.scrollingElement.scrollHeight, names, rowSelects, emptyBoxFirst, isNew });
+  // Eyebrows (brand slice): small uppercase labels anywhere on the page, not only the first screen.
+  const shown = (el) => { const r = el.getBoundingClientRect(); if (r.width < 2 || r.height < 2) return false; const s = getComputedStyle(el); return s.visibility !== 'hidden' && s.display !== 'none' && !el.closest(chrome); };
+  const eyebrows = [...document.querySelectorAll('body *')].filter((el) => {
+    const s = getComputedStyle(el);
+    if (s.textTransform !== 'uppercase' || parseFloat(s.fontSize) > 11.6) return false;
+    const own = [...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim());
+    return own && shown(el) && !el.parentElement.closest('[data-eyebrow-counted]') && (el.setAttribute('data-eyebrow-counted', ''), true);
+  }).length;
+  document.querySelectorAll('[data-eyebrow-counted]').forEach((el) => el.removeAttribute('data-eyebrow-counted'));
+  return JSON.stringify({ inputs: inputs.length, filters, buttons, primary, height: document.scrollingElement.scrollHeight, names, rowSelects, emptyBoxFirst, isNew, eyebrows });
 })()`;
 
 const port = 9400 + Math.floor(Math.random() * 400);
@@ -131,5 +140,5 @@ if (!process.env.ONLY) {
 ws.close(); chrome.kill();
 if (process.env.ONLY) for (const r of results) console.log(r.name, r.names.join(' | '));
 if (process.argv.includes('--json')) console.log(JSON.stringify(results, null, 1));
-else for (const r of results) console.log(`${r.problems.length ? '✗' : '✓'} ${r.name.padEnd(22)} inputs ${String(r.inputs).padStart(2)} · buttons ${String(r.buttons).padStart(2)} · blue ${r.primary}${r.filters ? ` · filters ${r.filters}` : ''} · shift ${r.cls}${r.scroll ? ` · scroll ${r.scroll}` : ''}${r.problems.length ? `  — ${r.problems.join(', ')}` : ''}`);
+else for (const r of results) console.log(`${r.problems.length ? '✗' : '✓'} ${r.name.padEnd(22)} inputs ${String(r.inputs).padStart(2)} · buttons ${String(r.buttons).padStart(2)} · blue ${r.primary}${r.filters ? ` · filters ${r.filters}` : ''}${r.eyebrows != null ? ` · eyebrows ${r.eyebrows}` : ''} · shift ${r.cls}${r.scroll ? ` · scroll ${r.scroll}` : ''}${r.problems.length ? `  — ${r.problems.join(', ')}` : ''}`);
 process.exit(results.some((r) => r.problems.length) ? 1 : 0);

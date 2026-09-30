@@ -542,3 +542,38 @@ export function summaryLine(t: Timeline, attention: AttentionItem[]): string {
   if (urgent) parts.push(`${urgent} urgent ${urgent === 1 ? 'item' : 'items'}`);
   return parts.length ? parts.join(' · ') : 'Nothing scheduled and nothing urgent — a good day to move deals forward.';
 }
+
+// ── The index row under the band (brand slice) ──────────────────────────────
+// The brand's zero-padded index device: "01 3 need you · 02 1 meeting to go …".
+// Each figure comes from a signal My Day already has; a zero is left out and
+// the rest are numbered in order.
+
+export type IndexTarget = 'attention' | 'today' | 'overdue' | 'followup';
+export interface IndexItem { ix: string; n: number; label: string; target: IndexTarget }
+
+const flat = (items: AttentionItem[]): AttentionItem[] => items.flatMap((a) => [a, ...(a.children ?? [])]);
+
+export function buildIndex(t: Timeline, attention: AttentionItem[]): IndexItem[] {
+  const all = flat(attention);
+  const toGo = t.timed.filter((e) => e.type === 'meeting' && !e.past).length;
+  const waiting = new Set(all.filter((a) => /^proposal:\d+:followup$|^commitment:\d+:(overdue|due)$/.test(a.key)).map((a) => (a.companyName || a.title).toLowerCase()));
+  const late = all.filter((a) => /^commitment:\d+:overdue$/.test(a.key)).length;
+  const word = (n: number, one: string, many: string) => (n === 1 ? one : many);
+  const rows: Omit<IndexItem, 'ix'>[] = [
+    { n: attention.length, label: 'need you', target: 'attention' },
+    { n: toGo, label: word(toGo, 'meeting to go', 'meetings to go'), target: 'today' },
+    { n: t.overdue.length, label: word(t.overdue.length, 'task overdue', 'tasks overdue'), target: 'overdue' },
+    { n: waiting.size, label: word(waiting.size, 'client waiting on you', 'clients waiting on you'), target: 'followup' },
+    { n: late, label: word(late, 'promise late', 'promises late'), target: 'attention' },
+  ];
+  return rows.filter((r) => r.n > 0).map((r, i) => ({ ...r, ix: String(i + 1).padStart(2, '0') }));
+}
+
+/** The meeting in the Now panel: the one running, else the next one today. */
+export function nowMeeting(t: Timeline): { meeting: Meeting; current: boolean } | null {
+  const meetings = t.timed.filter((e): e is Extract<TimelineEntry, { type: 'meeting' }> => e.type === 'meeting' && !e.meeting.isCancelled);
+  const running = meetings.find((e) => e.current);
+  if (running) return { meeting: running.meeting, current: true };
+  const next = meetings.find((e) => !e.past);
+  return next ? { meeting: next.meeting, current: false } : null;
+}
