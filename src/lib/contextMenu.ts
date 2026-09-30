@@ -16,7 +16,7 @@ let activeMenuItems: ContextMenuItem[] = [];
 
 function renderMenuItems(items: ContextMenuItem[]): string {
   return items
-    .map((item, i) => item.separator ? '<div class="ctx-menu-sep" role="separator"></div>' : item.heading ? `<div class="ctx-menu-hd">${escHtml(item.label)}</div>` : `<div class="ctx-menu-item${item.danger ? ' danger' : ''}" onclick="activateContextMenuItem(${i})">${item.iconName ? `<span>${icon(item.iconName, 14)}</span>` : ''}<span>${escHtml(item.label)}</span></div>`)
+    .map((item, i) => item.separator ? '<div class="ctx-menu-sep" role="separator"></div>' : item.heading ? `<div class="ctx-menu-hd">${escHtml(item.label)}</div>` : `<div class="ctx-menu-item${item.danger ? ' danger' : ''}" role="menuitem" tabindex="-1" onclick="activateContextMenuItem(${i})">${item.iconName ? `<span>${icon(item.iconName, 14)}</span>` : ''}<span>${escHtml(item.label)}</span></div>`)
     .join('');
 }
 
@@ -60,6 +60,8 @@ export function showMenuAt(anchorEl: HTMLElement, items: ContextMenuItem[]): voi
   menu.innerHTML = renderMenuItems(items);
   menu.classList.add('open');
   positionDropdown(menu, anchorEl);
+  // Keyboard focus lands in the menu (arrows move, Enter picks, Escape closes).
+  menu.querySelector<HTMLElement>('.ctx-menu-item')?.focus({ preventScroll: true });
 }
 expose('showMenuAt', showMenuAt);
 
@@ -82,6 +84,17 @@ document.addEventListener('contextmenu', (e) => {
 });
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') closeContextMenu();
+  const menu = document.getElementById('ctx-menu');
+  if (!menu?.classList.contains('open') || !menu.contains(document.activeElement)) return;
+  const items = [...menu.querySelectorAll<HTMLElement>('.ctx-menu-item')];
+  const at = items.indexOf(document.activeElement as HTMLElement);
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    items[(at + (e.key === 'ArrowDown' ? 1 : items.length - 1)) % items.length]?.focus();
+  } else if (e.key === 'Enter' && at >= 0) {
+    e.preventDefault();
+    items[at].click();
+  }
 });
 // A long menu scrolls; only scrolling something else closes it.
 document.addEventListener('scroll', (e) => {

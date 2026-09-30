@@ -64,6 +64,24 @@ describe('styles.css colours', () => {
   });
 });
 
+describe('interaction and motion tokens', () => {
+  const block = (selector: string) => {
+    const start = css.indexOf(`${selector}{`);
+    return start < 0 ? '' : css.slice(start, css.indexOf('}', start));
+  };
+  it('defines the state tokens in every theme', () => {
+    expect(block(':root')).toMatch(/--surface-hover:.*--surface-pressed:.*--surface-selected:/s);
+    for (const theme of [':root', ':root[data-theme="dark"]', ':root[data-theme="graphite"]']) {
+      for (const t of ['--surface-pressed', '--accent-hover', '--accent-pressed']) expect(block(theme), `${theme} ${t}`).toContain(`${t}:`);
+    }
+  });
+  it('has the motion tokens and no spring', () => {
+    expect(block(':root')).toMatch(/--ease-in:cubic-bezier\(\.4,0,1,1\)/);
+    expect(block(':root')).toMatch(/--dur-slow:\.26s/);
+    expect(css).not.toContain('--ease-spring');
+  });
+});
+
 // Colours in the TypeScript go through the same tokens. The theme picker's
 // swatches are the one exception: they preview palettes that aren't applied.
 const sources = import.meta.glob(['../**/*.ts', '!../**/*.test.ts', '!../core/theme.ts'], { query: '?raw', import: 'default', eager: true }) as Record<string, string>;

@@ -54,7 +54,7 @@ export function toast(message: string, opts: ToastOptions = {}): { dismiss: () =
     window.clearTimeout(timer);
     if (!el.isConnected) return;
     el.classList.add('leaving');
-    window.setTimeout(() => el.remove(), 160);
+    window.setTimeout(() => el.remove(), 180);
   };
   el.querySelector('.toast-close')?.addEventListener('click', dismiss);
   if (opts.action) {
@@ -62,7 +62,12 @@ export function toast(message: string, opts: ToastOptions = {}): { dismiss: () =
     el.querySelector('.toast-action')?.addEventListener('click', () => { dismiss(); run(); });
   }
   root.appendChild(el);
-  while (root.children.length > 3) root.firstElementChild?.remove();
+  // Three at most: the oldest fades out first.
+  const live = [...root.children].filter((c) => !c.classList.contains('leaving')) as HTMLElement[];
+  for (const old of live.slice(0, Math.max(0, live.length - 3))) {
+    old.classList.add('leaving');
+    window.setTimeout(() => old.remove(), 180);
+  }
 
   const duration = opts.duration ?? (tone === 'error' ? 8000 : opts.action ? 6000 : 3500);
   if (duration > 0) {
@@ -71,6 +76,31 @@ export function toast(message: string, opts: ToastOptions = {}): { dismiss: () =
     el.addEventListener('mouseleave', () => { timer = window.setTimeout(dismiss, 2500); });
   }
   return { dismiss };
+}
+
+/** Nothing moves under the pointer (owner, 30-Sep-2026: motion system): a
+ * re-render that can reorder a list waits while the pointer is over it or a
+ * row is pressed, and runs on pointer-leave or after 1.5 s without movement.
+ * The latest render wins; the Notes list fix, generalised. */
+const waiting = new WeakMap<HTMLElement, () => void>();
+export function deferWhileHovered(list: HTMLElement | null, render: () => void): void {
+  if (!list || !list.isConnected || !list.matches(':hover')) { render(); return; }
+  const first = !waiting.has(list);
+  waiting.set(list, render);
+  if (!first) return;
+  let idle = 0;
+  const run = () => {
+    window.clearTimeout(idle);
+    list.removeEventListener('pointerleave', run);
+    list.removeEventListener('pointermove', wait);
+    const fn = waiting.get(list);
+    waiting.delete(list);
+    fn?.();
+  };
+  const wait = () => { window.clearTimeout(idle); idle = window.setTimeout(() => (list.querySelector(':active') ? wait() : run()), 1500); };
+  list.addEventListener('pointerleave', run);
+  list.addEventListener('pointermove', wait);
+  wait();
 }
 
 /** "Task deleted · Undo" — the pattern for reversible deletes. */

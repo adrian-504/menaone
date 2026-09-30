@@ -78,5 +78,7 @@ const ICONS: Record<string, string> = {
 export function icon(name: keyof typeof ICONS | string, size = 18, cls = ''): string {
   const body = ICONS[name];
   if (!body) return '';
-  return `<svg class="icon ${cls}" width="${size}" height="${size}" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
+  // Three sizes (owner, 30-Sep-2026): 13 inline, 14 in buttons and rows, 16 in headers; larger only for illustrations.
+  const px = size <= 13 ? 13 : size === 14 ? 14 : size <= 17 ? 16 : size;
+  return `<svg class="icon ${cls}" width="${px}" height="${px}" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
 }
