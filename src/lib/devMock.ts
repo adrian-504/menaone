@@ -779,6 +779,7 @@ export async function installDevMockIfNeeded(): Promise<void> {
           return (mockOneDriveTree[path] || []).map((i) => ({ ...i, size: i.isFolder ? null : 2048, modifiedAt: '2026-09-01T00:00:00Z', exists: true }));
         }
         case 'files_open':
+        case 'files_quick_look':
         case 'files_reveal_in_finder':
           console.info(`[devMock] ${cmd} — only opens a real file in the built app, not this in-browser preview.`);
           return null;

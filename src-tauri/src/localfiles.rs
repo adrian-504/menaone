@@ -444,3 +444,47 @@ pub fn copy_into(paths: &[String], dest_dir: &Path) -> Result<DropResult, String
 pub fn files_copy_into(paths: Vec<String>, dest_dir: String) -> Result<DropResult, String> {
     copy_into(&paths, Path::new(&dest_dir))
 }
+
+// ═══════════════ Quick Look (foundations F3) ═══════════════
+// Space on a file shows it in macOS Quick Look, as in Finder. Only real files
+// on this Mac (OneDrive's local copies included) under the home folder; a
+// link to a web page has nothing to preview.
+
+/// The file Quick Look may show, or why not.
+pub fn quick_look_target(path: &Path, home: &Path) -> Result<PathBuf, String> {
+    let canonical = path
+        .canonicalize()
+        .map_err(|_| "This file could no longer be found — it may have been moved, renamed, or deleted.".to_string())?;
+    if !canonical.is_file() {
+        return Err("Quick Look shows files, not folders.".to_string());
+    }
+    let home = home.canonicalize().unwrap_or_else(|_| home.to_path_buf());
+    if !canonical.starts_with(&home) {
+        return Err("That file isn't in your folders on this Mac.".to_string());
+    }
+    Ok(canonical)
+}
+
+/// Shows the file in Quick Look and waits for the preview to close, then
+/// brings MENA One back to the front so the keyboard is where it was.
+#[tauri::command]
+pub async fn files_quick_look(app: tauri::AppHandle, path: String) -> Result<(), String> {
+    let home = std::env::var_os("HOME").map(PathBuf::from).ok_or("No home folder")?;
+    let target = quick_look_target(Path::new(&path), &home)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        std::process::Command::new("/usr/bin/qlmanage")
+            .arg("-p")
+            .arg(&target)
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status()
+    })
+    .await
+    .map_err(|e| e.to_string())?
+    .map_err(|e| format!("Quick Look didn't open: {e}"))?;
+    use tauri::Manager;
+    if let Some(w) = app.get_webview_window("main") {
+        let _ = w.set_focus();
+    }
+    Ok(())
+}

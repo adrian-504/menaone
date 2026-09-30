@@ -312,6 +312,7 @@ pub fn run() {
             activity::get_activity,
             dossier::company_dossier,
             localfiles::files_copy_into,
+            localfiles::files_quick_look,
             logfile::log_frontend,
             logfile::reveal_logs_folder,
             activity::activity_forget,

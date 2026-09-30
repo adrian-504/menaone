@@ -15,6 +15,7 @@ import { S } from '../lib/state';
 import { escHtml, expose, fmtDateFromIso } from '../lib/utils';
 import { registerTabRenderer, getActiveTabId } from '../lib/registry';
 import { showContextMenu } from '../lib/contextMenu';
+import { quickLook } from '../lib/quickLook';
 import { icon } from '../lib/icons';
 import { emptyState, skeleton, toast } from '../lib/ui';
 import { renderIcons } from '../core/chrome';
@@ -320,6 +321,7 @@ function contextItems(item: RowItem) {
   const pinned = isPinned(item.path);
   return [
     { label: item.isFolder ? 'Open folder' : 'Open', iconName: 'document', run: () => { void msFilesOpenItem(item.path); } },
+    ...(item.isFolder ? [] : [{ label: 'Quick Look', iconName: 'eye', run: () => { void quickLookRow(item.path); } }]),
     { label: 'Reveal in Finder', iconName: 'folder', run: () => { void filesRevealInFinder(item.path); } },
     { label: 'Copy path', iconName: 'copy', run: () => msFilesCopyPath(item.path) },
     { label: 'Show info and notes', iconName: 'note', run: () => { void openMsFilesInspector(item.path, item.name, item.isFolder, item.size, item.modifiedAt); } },
@@ -327,6 +329,12 @@ function contextItems(item: RowItem) {
     { label: 'Link to company…', iconName: 'building', run: () => openMsFilesLinkModal(item.path, item.name, item.isFolder, 'company') },
     { label: 'Link to project…', iconName: 'target', run: () => openMsFilesLinkModal(item.path, item.name, item.isFolder, 'project') },
   ];
+}
+
+/** Quick Look on a row; the row keeps the selection and the keyboard after. */
+async function quickLookRow(path: string): Promise<void> {
+  const row = () => [...document.querySelectorAll<HTMLElement>('#msf-body [data-item-path]')].find((el) => el.dataset.itemPath === path) ?? null;
+  await quickLook(path, row);
 }
 
 export function msFilesContextMenu(e: MouseEvent, path: string): void {
@@ -531,4 +539,5 @@ registerKey({ scope: 'list', tabs: ['files'], combo: ['arrowdown', 'j'], label: 
 registerKey({ scope: 'list', tabs: ['files'], combo: ['arrowup', 'k'], run: () => fileStep('up') });
 registerKey({ scope: 'list', tabs: ['files'], combo: 'arrowright', run: () => fileStep('right') });
 registerKey({ scope: 'list', tabs: ['files'], combo: 'arrowleft', run: () => fileStep('left') });
+registerKey({ scope: 'list', tabs: ['files'], combo: 'space', label: 'Quick Look', group: 'Files', when: () => currentRows().some((r) => r.path === selectedPath && !r.isFolder), run: () => { void quickLookRow(selectedPath!); } });
 registerKey({ scope: 'list', tabs: ['files'], combo: 'enter', label: 'Open', group: 'Files', when: () => currentRows().some((r) => r.path === selectedPath), run: () => { void msFilesOpenItem(selectedPath!); } });

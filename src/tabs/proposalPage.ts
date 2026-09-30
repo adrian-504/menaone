@@ -632,7 +632,7 @@ async function renderDocuments(p: Proposal): Promise<void> {
   const rows: string[] = [];
   for (const d of [...recorded].sort((a, b) => (b.version ?? 0) - (a.version ?? 0) || b.id - a.id)) {
     const path = d.path ? escHtml(d.path.replace(/'/g, "\\'")) : '';
-    rows.push(`<div class="rec-row"${d.path ? ` onclick="proposalOpenFile('${path}')"` : d.url ? ` onclick="openExternalUrl('${escHtml(d.url)}')"` : ''}>
+    rows.push(`<div class="rec-row"${d.path ? ` tabindex="0" data-ql-path="${escHtml(d.path)}" onkeydown="if(event.key==='Enter'&&event.target===this)this.click()" onclick="proposalOpenFile('${path}')"` : d.url ? ` onclick="openExternalUrl('${escHtml(d.url)}')"` : ''}>
       <span class="rec-row-icon">${icon('document', 15)}</span>
       <div class="rec-row-main"><div class="rec-row-title">${escHtml(d.fileName)}</div><div class="rec-row-sub">${kindLabel[d.kind] || 'Document'}${d.version ? ` · V${d.version}` : ''}${d.createdAt ? ` · added ${fmtDate(d.createdAt)}` : ''}</div></div>
       <div class="rec-row-actions"><button class="rec-icon-btn" onclick="event.stopPropagation();proposalRemoveDocument(${d.id})" data-tip="Remove from this proposal" aria-label="Remove from this proposal">${icon('close', 13)}</button></div>
@@ -683,7 +683,7 @@ expose('generateCurrentProposal', generateCurrentProposal);
 
 function folderFileRow(f: LocalFileItem): string {
   const path = escHtml(f.path.replace(/'/g, "\\'"));
-  return `<div class="rec-row pr-folder-file" tabindex="0" onkeydown="if(event.key==='Enter'&&event.target===this)this.click()" onclick="proposalOpenFile('${path}')">
+  return `<div class="rec-row pr-folder-file" tabindex="0" data-ql-path="${escHtml(f.path)}" onkeydown="if(event.key==='Enter'&&event.target===this)this.click()" onclick="proposalOpenFile('${path}')">
     <span class="rec-row-icon">${icon('document', 15)}</span>
     <div class="rec-row-main"><div class="rec-row-title">${escHtml(f.name)}</div><div class="rec-row-sub">In the client folder${f.modifiedAt ? ` · modified ${fmtDate(f.modifiedAt.slice(0, 10))}` : ''}</div></div>
     <div class="rec-row-actions"><button class="btn-secondary btn-sm" onclick="event.stopPropagation();proposalAttachFile('${path}')">Add to proposal</button></div>
@@ -694,7 +694,7 @@ function deckMatchBlock(p: Proposal, matches: LocalFileItem[]): string {
   const taken = (p.documents || []).filter((d) => d.kind === 'proposal').map((d) => d.version ?? 0);
   return `<div class="pr-deck-match"><div class="rec-eyebrow">Looks like this proposal's deck</div>${matches.map((f) => {
     const path = escHtml(f.path.replace(/'/g, "\\'"));
-    return `<div class="rec-row" tabindex="0" onkeydown="if(event.key==='Enter'&&event.target===this)this.click()" onclick="proposalOpenFile('${path}')">
+    return `<div class="rec-row" tabindex="0" data-ql-path="${escHtml(f.path)}" onkeydown="if(event.key==='Enter'&&event.target===this)this.click()" onclick="proposalOpenFile('${path}')">
       <span class="rec-row-icon">${icon('document', 15)}</span>
       <div class="rec-row-main"><div class="rec-row-title" title="${escHtml(f.name)}">${escHtml(f.name)}</div><div class="rec-row-sub">${f.modifiedAt ? `Modified ${fmtDate(f.modifiedAt.slice(0, 10))}` : 'In the client folder'}</div></div>
       <div class="rec-row-actions"><button class="btn-secondary btn-sm" onclick="event.stopPropagation();proposalAttachFile('${path}')">Add as V${deckVersion(f.name, taken)}</button></div>

@@ -24,3 +24,20 @@ fn a_drop_copies_files_and_refuses_apps_and_scripts() {
     assert!(again.copied[0].ends_with("Deck 2.pptx"));
     let _ = std::fs::remove_dir_all(&root);
 }
+
+#[test]
+fn quick_look_shows_only_files_under_home() {
+    use menabig_tracker_lib::localfiles::quick_look_target;
+    let home = std::env::temp_dir().join(format!("menabig_ql_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&home);
+    std::fs::create_dir_all(home.join("Docs")).unwrap();
+    std::fs::write(home.join("Docs").join("Deck.pdf"), "x").unwrap();
+    assert!(quick_look_target(&home.join("Docs").join("Deck.pdf"), &home).is_ok());
+    assert!(quick_look_target(&home.join("Docs"), &home).is_err(), "a folder isn't previewed");
+    assert!(quick_look_target(&home.join("Docs").join("Gone.pdf"), &home).is_err(), "a missing file isn't");
+    let outside = std::env::temp_dir().join(format!("menabig_ql_out_{}.pdf", std::process::id()));
+    std::fs::write(&outside, "x").unwrap();
+    assert!(quick_look_target(&outside, &home).is_err(), "nothing outside home");
+    let _ = std::fs::remove_dir_all(&home);
+    let _ = std::fs::remove_file(&outside);
+}

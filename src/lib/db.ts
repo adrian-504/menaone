@@ -302,6 +302,8 @@ export async function ms365CancelOutlookMeeting(outlookEventId: string): Promise
 export async function filesListRoots(): Promise<LocalFileItem[]> { return invoke<LocalFileItem[]>('files_list_roots'); }
 export async function filesListFolder(path: string): Promise<LocalFileItem[]> { return invoke<LocalFileItem[]>('files_list_folder', { path }); }
 export async function filesOpen(path: string): Promise<void> { await invoke('files_open', { path }); }
+/** Shows a file in Quick Look; resolves when the preview closes (foundations F3). */
+export async function filesQuickLook(path: string): Promise<void> { await invoke('files_quick_look', { path }); }
 export async function filesRevealInFinder(path: string): Promise<void> { await invoke('files_reveal_in_finder', { path }); }
 /** Copies files dropped from Finder into a folder (foundations F2). */
 export async function filesCopyInto(paths: string[], destDir: string): Promise<{ copied: string[]; refused: string[] }> { return invoke('files_copy_into', { paths, destDir }); }
