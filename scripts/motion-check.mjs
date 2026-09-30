@@ -52,7 +52,11 @@ export function checkMotion(all) {
   for (const r of all) {
     for (const d of r.decls) {
       if (!/^(transition|animation)(-duration|-timing-function)?$/.test(d.prop)) continue;
-      if (/^(none|unset|initial)$/.test(d.value)) continue;
+      if (/^(none|unset|initial)$/.test(d.value)) {
+        // The page's layout containers always animate what they change.
+        if (d.prop === 'transition' && /#app-main|\.app-main/.test(r.selector)) problems.push({ line: r.line, selector: r.selector, why: 'transition:none on a layout container' });
+        continue;
+      }
       // The reduced-motion switch: everything to 1ms.
       if (/^1ms\s*!important$/.test(d.value)) continue;
       const bare = withoutVars(d.value);
@@ -62,6 +66,8 @@ export function checkMotion(all) {
       if (d.prop === 'transition' || d.prop === 'transition-property') {
         for (const part of d.value.split(/,(?![^(]*\))/)) {
           const prop = part.trim().split(/\s+/)[0];
+          // One layout exception: the page's left padding follows the sidebar as it slides.
+          if (prop === 'padding-left' && /#app-main/.test(r.selector)) continue;
           if (prop && !ALLOWED_PROPS.has(prop)) problems.push({ line: r.line, selector: r.selector, why: `animates ${prop}` });
         }
       }

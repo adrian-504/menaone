@@ -463,12 +463,12 @@ input[type=text]:focus,input[type=date]:focus,input[type=number]:focus,select.fs
 /* ═══════════════════════════ SIDEBAR — native macOS source list ═══════════════════════════ */
 body{display:flex;min-height:100vh}
 #sidebar{width:230px;background:color-mix(in srgb,var(--sidebar-bg) 78%,transparent);backdrop-filter:blur(20px) saturate(1.6);-webkit-backdrop-filter:blur(20px) saturate(1.6);color:var(--text);flex-shrink:0;display:flex;flex-direction:column;position:fixed;left:0;top:0;bottom:0;z-index:1000;transition:transform var(--dur-base) var(--ease-out);overflow:hidden;border-right:1px solid color-mix(in srgb,var(--border) 65%,transparent)}
-#sidebar.collapsed{width:0;border-right:none}
-#app-main{padding-left:230px;flex:1;min-width:0;transition:none}
+#sidebar.collapsed{border-right:none}
+#app-main{padding-left:230px;flex:1;min-width:0}
 #app-main.sidebar-collapsed{padding-left:0}
-.sb-expand-btn{display:none;position:fixed;top:14px;left:14px;z-index:500;background:var(--surface);border:1px solid var(--border);color:var(--sub);width:30px;height:30px;border-radius:9px;align-items:center;justify-content:center;cursor:pointer;box-shadow:var(--shadow)}
+.sb-expand-btn{position:fixed;top:14px;left:14px;z-index:500;background:var(--surface);border:1px solid var(--border);color:var(--sub);width:30px;height:30px;border-radius:9px;align-items:center;justify-content:center;cursor:pointer;box-shadow:var(--shadow)}
 .sb-expand-btn:hover{color:var(--text);border-color:var(--border2)}
-#app-main.sidebar-collapsed .sb-expand-btn{display:flex}
+
 .sb-header{display:flex;align-items:center;gap:9px;padding:14px 12px 10px}
 /* macOS window chrome (see main.ts): the native title bar overlays the app and the
    traffic lights stay at the system position (close button 6pt from the top-left,
@@ -2953,3 +2953,17 @@ body.dnd-active .drop-target{transition:background-color var(--dur-fast) var(--e
 .pr-stages{box-shadow:none!important;border:none!important;background:var(--surface-flat)!important;border-radius:13px!important}
 .rec-avatar{box-shadow:none!important}
 :is(.ct-people-banner,.period-banner,.ar-task-draft){background:var(--surface-flat);border-color:var(--hairline)}
+
+/* ═══════════════ Delight (owner, 30-Sep-2026: "it's the small things, the small clicks") ═══════════════ */
+
+/* 0a. The sidebar slides: it keeps its width and moves out with transform while
+   the page's left padding closes up (--dur-slow; ease-out opening, ease-in
+   closing). Its contents fade first on close and last on open, so text never squashes. */
+#sidebar{transition:transform var(--dur-slow) var(--ease-out),visibility var(--dur-slow) var(--ease-out)}
+#sidebar.collapsed{width:230px;transform:translateX(-100%);visibility:hidden;transition:transform var(--dur-slow) var(--ease-in) var(--dur-fast),visibility var(--dur-slow) var(--ease-in) var(--dur-fast)}
+#sidebar > *{transition:opacity var(--dur-fast) var(--ease-out) var(--dur-slow)}
+#sidebar.collapsed > *{opacity:0;transition:opacity var(--dur-fast) var(--ease-in)}
+#app-main{transition:padding-left var(--dur-slow) var(--ease-out)}
+#app-main.sidebar-collapsed{transition:padding-left var(--dur-slow) var(--ease-in) var(--dur-fast)}
+.sb-expand-btn{display:flex;opacity:0;transform:translateY(4px);pointer-events:none;transition:opacity var(--dur-fast) var(--ease-in),transform var(--dur-fast) var(--ease-in)}
+#app-main.sidebar-collapsed .sb-expand-btn{opacity:1;transform:none;pointer-events:auto;transition:opacity var(--dur-base) var(--ease-out) var(--dur-slow),transform var(--dur-base) var(--ease-out) var(--dur-slow)}
