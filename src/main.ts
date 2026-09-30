@@ -34,6 +34,7 @@ import { startMotion } from './lib/motion';
 import { registerAppKeys } from './core/appKeys';
 import { startKeys } from './core/keys';
 import { startTooltips } from './lib/tooltip';
+import { startDateFields } from './lib/dateField';
 import { startErrorReporting } from './lib/errors';
 import { logFrontend } from './lib/db';
 import pkg from '../package.json';
@@ -93,6 +94,8 @@ startMotion();
 registerAppKeys();
 startKeys();
 startTooltips();
+// One date control: every date input takes typed dates (foundations F1).
+startDateFields();
 // Uncaught errors go to the app's log, with one quiet toast (foundations O1).
 (window as any).__menaLog = (level: string, message: string) => logFrontend(level, message).catch(() => undefined);
 startErrorReporting(pkg.version, () => S.currentTab || 'start', (level, message) => { void logFrontend(level, message).catch(() => undefined); });
