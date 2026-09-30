@@ -6,6 +6,8 @@
 // shows every field as the form it used to be. Agreement, proposal and the
 // record pages' Details panels use it.
 
+import { allSaved } from './persist';
+import { savedTick } from './motion';
 import { escHtml, expose } from './utils';
 
 export interface PropField {
@@ -56,7 +58,8 @@ export function mountPropsList(listId: string): void {
     if (!control) continue;
     const original = control.value;
     // A change is saved by the page, which then redraws: the row is text again.
-    dd.addEventListener('change', () => { editing = null; }, true);
+    // Once the save has landed, a brief tick where the field was (delight 9).
+    dd.addEventListener('change', () => { editing = null; const at = dd.getBoundingClientRect(); void allSaved().then(() => savedTick(at)); }, true);
     // Pages that save without redrawing (debounced autosave) still get the row back as text.
     dd.addEventListener('change', () => { window.setTimeout(() => { if (dd.isConnected && !editing) state.render(); }, 0); });
     control.focus();

@@ -1,3 +1,5 @@
+import { allSaved } from '../lib/persist';
+import { savedTick } from '../lib/motion';
 import { S } from '../lib/state';
 import { toast } from '../lib/ui';
 import { escHtml, expose, showConfirm, fmtDateTime } from '../lib/utils';
@@ -217,3 +219,11 @@ export async function runCompanyMigrationClick(): Promise<void> {
   }
 }
 expose('runCompanyMigrationClick', runCompanyMigrationClick);
+
+// A Settings field that saved shows a brief tick at its edge (delight 9).
+document.addEventListener('change', (e) => {
+  const field = e.target as HTMLElement | null;
+  if (!field?.closest?.('.settings-panes') || !field.matches('input, select, textarea')) return;
+  void allSaved().then(() => savedTick(field));
+});
+

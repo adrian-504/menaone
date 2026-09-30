@@ -80,3 +80,31 @@ describe('travelling focus (keyTravel)', () => {
     expect(hl.style.opacity).toBe('0');
   });
 });
+
+describe('inputs acknowledge', () => {
+  it('a saved tick appears at the field edge for a second, then goes', async () => {
+    const { savedTick } = await import('./motion');
+    vi.useFakeTimers();
+    document.body.innerHTML = '';
+    savedTick(new DOMRect(100, 50, 200, 32));
+    const tick = document.querySelector<HTMLElement>('.saved-tick')!;
+    expect(tick.classList.contains('on')).toBe(true);
+    expect(tick.style.left).toBe('278px');
+    vi.advanceTimersByTime(1000);
+    expect(tick.classList.contains('on')).toBe(false);
+    vi.advanceTimersByTime(400);
+    expect(document.querySelector('.saved-tick')).toBeNull();
+  });
+
+  it('a failed check shakes the field; reduced motion keeps it still', async () => {
+    const { shake } = await import('./motion');
+    noReducedMotion();
+    const el = document.createElement('input');
+    shake(el);
+    expect(el.classList.contains('shake')).toBe(true);
+    vi.stubGlobal('matchMedia', () => ({ matches: true }));
+    const still = document.createElement('input');
+    shake(still);
+    expect(still.classList.contains('shake')).toBe(false);
+  });
+});

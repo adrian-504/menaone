@@ -97,6 +97,8 @@ function attachHighlights(root: ParentNode): void {
 
 export function startMotion(): void {
   watchDialogs();
+  // A required field left empty (or any other failed check) shakes.
+  document.addEventListener('invalid', (e) => shake(e.target as Element), true);
   attachHighlights(document);
   // Segments drawn later (status views, filters) get one too.
   const SEG = '.seg-btns, .segmented';
@@ -194,5 +196,33 @@ export function keyTravel(row: Element | null | undefined, container?: Element |
   hl.dataset.y = String(y);
   hl.style.opacity = '1';
   if (jumpNow) { void hl.offsetWidth; hl.style.transition = ''; }
+}
+
+// ── Inputs acknowledge (delight 9) ──────────────────────────────────────────
+
+/** A small tick at the right edge of a field for a second after a real save. */
+export function savedTick(target: Element | DOMRect | null | undefined): void {
+  const r = target instanceof DOMRect ? target : target instanceof HTMLElement && target.isConnected ? target.getBoundingClientRect() : null;
+  if (!r || r.width === 0) return;
+  const tick = document.createElement('span');
+  tick.className = 'saved-tick';
+  tick.setAttribute('aria-hidden', 'true');
+  tick.textContent = '✓';
+  tick.style.top = `${Math.round(r.top + r.height / 2 - 8)}px`;
+  tick.style.left = `${Math.round(r.right - 22)}px`;
+  document.body.appendChild(tick);
+  void tick.offsetWidth;
+  tick.classList.add('on');
+  window.setTimeout(() => tick.classList.remove('on'), 1000);
+  window.setTimeout(() => tick.remove(), 1300);
+}
+
+/** A field that failed a check shakes (4px, twice, 260 ms); the message says why. */
+export function shake(el: Element | null | undefined): void {
+  if (!(el instanceof HTMLElement) || reduced()) return;
+  el.classList.remove('shake');
+  void el.offsetWidth;
+  el.classList.add('shake');
+  window.setTimeout(() => el.classList.remove('shake'), 320);
 }
 

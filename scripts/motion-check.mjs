@@ -68,6 +68,8 @@ export function checkMotion(all) {
           const prop = part.trim().split(/\s+/)[0];
           // One layout exception: the page's left padding follows the sidebar as it slides.
           if (prop === 'padding-left' && /#app-main/.test(r.selector)) continue;
+          // …and a search field grows 40px while you type in it.
+          if (prop === 'flex-basis' && /\.f-search/.test(r.selector)) continue;
           if (prop && !ALLOWED_PROPS.has(prop)) problems.push({ line: r.line, selector: r.selector, why: `animates ${prop}` });
         }
       }

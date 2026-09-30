@@ -4,7 +4,7 @@
 // on selection), links and backlinks at the foot of the note, and a focus
 // mode that hides everything but the writing.
 
-import { collapseRow, collapseRows, keyTravel, settleNew } from '../lib/motion';
+import { collapseRow, collapseRows, keyTravel, savedTick, settleNew } from '../lib/motion';
 import { S } from '../lib/state';
 import { toast, emptyState, undoToast } from '../lib/ui';
 import { companyLink, recordLink } from '../lib/links';
@@ -13,7 +13,7 @@ import { clientFolder, clientNotesList, clientsWithNotes, parseClientFolder, SOU
 import { allCompanyNoteEntries } from '../lib/db';
 import { today, fmtDate, escHtml, nextNoteId, expose, positionFloatingPopup, showTextPrompt, showConfirm, debounce, inCompany, fmtMonth } from '../lib/utils';
 import { showContextMenu, showMenuAt, type ContextMenuItem } from '../lib/contextMenu';
-import { persistNotes, persistNoteFolders, persistTodos, saveNotesNow, saveTodosNow } from '../lib/persist';
+import { persistNotes, persistNoteFolders, persistTodos, saved, saveNotesNow, saveTodosNow } from '../lib/persist';
 import { readCommitmentsFrom } from './commitments';
 import { contextFromNote, replaceLinks, taskFields, unconvertedActionItems, actionItems } from '../lib/workGraph';
 import { blankTask } from './todo';
@@ -825,10 +825,13 @@ export function saveCurrentNote(): void {
     const st = document.getElementById('notes-save-status'); if (st?.textContent === 'Editing…') st.textContent = '';
     return;
   }
+  const titleChanged = title !== (n.title || 'Untitled');
   n.title = title;
   n.content = content;
   n.updatedAt = today();
   persistNotes();
+  // The title was really changed and saved: a brief tick at its edge.
+  if (titleChanged) { const inp = document.getElementById('notes-title-inp'); void saved('notes').then(() => savedTick(inp)); }
   // A checklist line added or removed changes the "Create tasks" offer.
   if (renderedActionItems.noteId === n.id && actionItems(n.content).length !== renderedActionItems.count) void renderRelationsPanel(n);
   S.noteChanged = false;

@@ -5,7 +5,7 @@
 // commercials, the client's OneDrive folder and documents, what it's linked
 // to, notes and activity.
 
-import { settleNew } from '../lib/motion';
+import { settleNew, shake } from '../lib/motion';
 import { statusBadge } from '../lib/statusTone';
 import { blockSummary, blocksToSave, emptyBlock, proposalsFromBlocks, type ProposalBlock, type SharedProposalFields } from '../lib/proposalBlocks';
 import { proposalDeckRows } from '../lib/proposalDocuments';
@@ -508,7 +508,7 @@ export function proposalRecordReview(outcome: 'approved' | 'changes_requested'):
   const p = currentProposal();
   if (!p) return;
   const note = (document.getElementById('prd-review-note') as HTMLTextAreaElement | null)?.value || null;
-  if (outcome === 'changes_requested' && !note?.trim()) { toast('Add what needs to change', { tone: 'error' }); document.getElementById('prd-review-note')?.focus(); return; }
+  if (outcome === 'changes_requested' && !note?.trim()) { toast('Add what needs to change', { tone: 'error' }); const box = document.getElementById('prd-review-note'); box?.focus(); shake(box); return; }
   const restore = snapshotProposal(p);
   recordReview(p.id, outcome, note);
   renderProposalPage();

@@ -98,6 +98,11 @@ export function markLoadedAsSaved(): void {
   savedCompanyNotes = new Map(Object.entries(S.companyNotes).filter(([, v]) => (v || '').trim()));
 }
 
+/** Resolves once every queued save has reached the database. */
+export function allSaved(): Promise<void> {
+  return Promise.all(Object.values(trackers).map((t) => t.queue)).then(() => undefined);
+}
+
 /** Resolves once every queued save of these kinds has reached the database. */
 export function saved(...kinds: ('proposals' | 'todos' | 'notes' | 'commitments')[]): Promise<void> {
   return Promise.all(kinds.map((k) => trackers[k].queue)).then(() => undefined);
