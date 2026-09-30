@@ -3369,3 +3369,80 @@ body.dnd-active [data-sort-shift] .dnd-source{opacity:0}
 .sb-switch-icon{color:var(--sub);display:inline-flex}
 .sb-switch-name{flex:1;font-size:var(--type-body)}
 .sb-switch-row{transition:background-color var(--dur-fast) var(--ease-out)}.sb-switch-row:hover{background:var(--surface-hover)}.sb-switch-row:active{background:var(--surface-pressed)}
+
+/* ═══════════════ My Day, focused (1.57) ═══════════════
+   Main: Now → Needs your attention → Today. Rail: Proposals in play, Coming
+   up, Regulatory. Under 1,101px the two columns become one list in this
+   order: Now, attention, proposals, Today, coming up, regulatory. */
+@media (min-width:1101px){
+  .mdy-layout{grid-template-columns:minmax(0,1fr) 360px}
+  .mdy-rail{background:var(--bg)!important;padding-left:28px!important}
+}
+@media (max-width:1100px){
+  .mdy-layout{display:flex;flex-direction:column;gap:0}
+  .mdy-main,.mdy-rail{display:contents}
+  #myday-now-sec{order:1}#myday-attention-sec{order:2}#myday-inplay-sec{order:3}#myday-today-sec{order:4}#myday-upcoming-sec{order:5}#myday-reg-sec{order:6}
+}
+.mdy-hd-cnt{font-family:var(--font-mono);font-size:12px;font-weight:500;color:var(--sub)}
+.mdy-nowtag{margin-left:8px;font-family:var(--font-mono);font-size:11px;font-weight:500;color:var(--coral-text)}
+
+/* Attention rows: a 28px tile tinted by what the row is. */
+.mdy-att-icon{width:28px;height:28px;border-radius:6px;display:grid;place-items:center;flex:none}
+.mdy-att-icon.tint-red{background:var(--red-bg);color:var(--red)}
+.mdy-att-icon.tint-amber{background:var(--amber-bg);color:var(--amber)}
+.mdy-att-icon.tint-blue{background:var(--blue-50);color:var(--accent)}
+.mdy-att-icon.tint-green{background:var(--green-bg);color:var(--green)}
+.mdy-att .mdy-when{font-family:var(--font-mono);font-size:12px}
+
+/* Proposals in play. */
+.mdy-flow{display:grid;grid-template-columns:repeat(auto-fit,minmax(0,1fr));gap:8px;margin:6px 0 14px}
+.mdy-stage{font:inherit;position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:3px;padding:10px 12px 10px 14px;border:none;border-radius:9px;background:var(--panel-bg);text-align:left;cursor:pointer;overflow:hidden;--st:var(--accent);transition:background-color var(--dur-fast) var(--ease-out),transform var(--dur-fast) var(--ease-out)}
+.mdy-stage::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--st)}
+.mdy-stage:hover{background:color-mix(in srgb,var(--panel-bg) 88%,var(--accent))}
+.mdy-stage:active{transform:scale(.98)}
+.mdy-stage-n{font-family:var(--font-display);font-size:24px;font-weight:500;line-height:1;color:var(--navy)}
+.mdy-stage-l{font-size:var(--type-meta);color:var(--sub)}
+.mdy-stage-d{font-family:var(--font-mono);font-size:10.5px;font-weight:500;color:var(--st)}
+.st-coral{--st:var(--coral-text)}.st-amber{--st:var(--amber)}.st-blue{--st:var(--accent)}
+.mdy-stg{display:flex;align-items:center;gap:8px;margin:12px 0 2px;font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--st)}
+.mdy-stg i{width:7px;height:7px;border-radius:50%;background:var(--st)}
+.mdy-stg-cnt{font-family:var(--font-mono);font-size:11px;font-weight:500;color:var(--sub);letter-spacing:0}
+.mdy-stg-all{margin-left:auto;letter-spacing:0;text-transform:none;font-size:var(--type-meta)}
+.mdy-pr{display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px 6px;margin:0 -6px;border-top:1px solid var(--hairline);border-radius:6px;cursor:pointer}
+.mdy-pr-tile{width:28px;height:28px;border-radius:6px;display:grid;place-items:center;color:var(--on-tile);font-size:10.5px;font-weight:600}
+.mdy-pr-title{font-size:12.5px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mdy-pr-meta{font-size:11.5px;color:var(--sub)}
+.mdy-pr-right{display:flex;flex-direction:column;align-items:flex-end;gap:2px}
+.mdy-age{font-family:var(--font-mono);font-size:12px;font-weight:500;color:var(--sub);white-space:nowrap}
+.mdy-age.t-red{color:var(--red)}.mdy-age.t-amber{color:var(--amber)}
+.mdy-pr-act{font-size:11.5px;white-space:nowrap}
+
+/* Coming up: a date medallion per day. */
+.mdy-cday{display:grid;grid-template-columns:44px minmax(0,1fr);gap:12px;padding:8px 0;border-top:1px solid var(--hairline)}
+.mdy-cday:first-child{border-top:none}
+.mdy-med{text-align:center;padding-top:2px}
+.mdy-med b{display:block;font-family:var(--font-display);font-size:20px;font-weight:600;line-height:1;color:var(--navy)}
+.mdy-med span{display:block;margin-top:2px;font-family:var(--font-mono);font-size:10px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.mdy-cday.is-today .mdy-med b{color:var(--coral-text)}
+.mdy-cev{display:grid;grid-template-columns:16px minmax(0,1fr);gap:8px;align-items:start;padding:3px 0}
+.mdy-cev-k{width:16px;height:16px;border-radius:6px;display:grid;place-items:center;margin-top:1px}
+.mdy-cev-k.tint-blue{background:var(--blue-50);color:var(--accent)}.mdy-cev-k.tint-amber{background:var(--amber-bg);color:var(--amber)}
+.mdy-cev-k.tint-amber-outline{box-shadow:inset 0 0 0 1px var(--amber);color:var(--amber)}.mdy-cev-k.tint-red{background:var(--red-bg);color:var(--red)}.mdy-cev-k.tint-green{background:var(--green-bg);color:var(--green)}
+.mdy-cev-t{font-size:12.5px;font-weight:500}
+.mdy-cev-s{font-size:11.5px;color:var(--sub)}
+.mdy-cev-s .mono{font-family:var(--font-mono)}
+
+/* Regulatory: critical only. */
+.mdy-alert{position:relative;padding:12px 14px 12px 16px;border-radius:9px;background:var(--red-bg);overflow:hidden}
+.mdy-alert + .mdy-alert{margin-top:8px}
+.mdy-alert::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--red)}
+.mdy-alert-chip{font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--red)}
+.mdy-alert-t{margin-top:4px;font-weight:500}
+.mdy-alert-s{margin-top:2px;font-size:11.5px;color:var(--sub)}
+.mdy-alert-r{margin-top:6px;font-size:var(--type-secondary)}
+.mdy-pr:hover{background:var(--surface-hover)}.mdy-pr:active{background:var(--surface-pressed)}
+.mdy-att-actions{opacity:1} /* 1.57: every row shows its one action (the "…" still waits for hover) */
+.mdy-stage-d{white-space:nowrap}
+.mdy-stage-o{margin-right:4px;font-family:var(--font-text);font-size:9.5px;font-weight:400;color:var(--muted)}
+/* Stacked (under 1,101px): the rail's blocks take the column's full width. */
+@media (max-width:1100px){.mdy-layout{align-items:stretch}.mdy-layout > .mdy-main > .sec,.mdy-layout > .mdy-rail > .sec{width:100%}}

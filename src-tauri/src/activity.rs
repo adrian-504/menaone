@@ -171,6 +171,40 @@ pub fn activity_forget(state: State<DbState>, entity_type: String, entity_id: i6
     forget_activity_since(&conn, &entity_type, entity_id, &since).map_err(err)
 }
 
+/// A line the app writes itself (1.57: a nudge to the reviewer from My Day).
+/// Uses the existing table — no schema change — and returns the id so Undo can remove it.
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NewActivity {
+    pub action: String,
+    pub entity_type: String,
+    pub entity_id: i64,
+    pub entity_label: Option<String>,
+    pub detail: Option<String>,
+    pub company_id: Option<i64>,
+}
+
+pub fn insert_activity(conn: &Connection, e: &NewActivity) -> rusqlite::Result<i64> {
+    conn.execute(
+        "INSERT INTO activity (created_at, action, entity_type, entity_id, entity_label, detail, company_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+        params![crate::commands::now_iso(), e.action, e.entity_type, e.entity_id, e.entity_label, e.detail, e.company_id],
+    )?;
+    Ok(conn.last_insert_rowid())
+}
+
+#[tauri::command]
+pub fn activity_log(state: State<DbState>, entry: NewActivity) -> CmdResult<i64> {
+    let conn = state.0.lock().map_err(err)?;
+    insert_activity(&conn, &entry).map_err(err)
+}
+
+#[tauri::command]
+pub fn activity_remove(state: State<DbState>, id: i64) -> CmdResult<()> {
+    let conn = state.0.lock().map_err(err)?;
+    conn.execute("DELETE FROM activity WHERE id = ?1", params![id]).map_err(err)?;
+    Ok(())
+}
+
 #[tauri::command]
 pub fn rename_company(state: State<DbState>, id: i64, name: String) -> CmdResult<Company> {
     let conn = state.0.lock().map_err(err)?;

@@ -50,6 +50,13 @@ const SAMPLE: AppData = {
       lines: [{ id: 4, serviceId: 15, serviceName: 'Payroll', description: null, billing: 'monthly', quantity: 1, unitPrice: 5000, commission: false, sortOrder: 0 }],
       documents: [],
     },
+    // My Day 1.57 (Proposals in play): a request with a promise, one without, a revision the client asked for, an offer about to expire.
+    { id: 5, client: 'Northwind Trading', companyId: 2, type: 'GM Representative', status: 'Proposal Request Received', sentDate: null, dateAdded: '2026-09-24', promisedBy: '2026-10-02', monthlyFee: 6500, contractMonths: 12, dateSentToHassan: null, dateSentToClient: null, dblSignedDate: null, kickoffDate: null, finance: null, hubspot: null, owner: 'Ahmad', remarks: null, winLossReason: null, docLink: null, archived: false, archivedAt: null, snoozedUntil: null, dateSigned: null, notes: [], businessEntityId: 1, currency: 'SAR', documents: [],
+      lines: [{ id: 50, serviceId: null, serviceName: 'GM Representative', description: null, billing: 'monthly', quantity: 1, unitPrice: 6500, commission: false, sortOrder: 0 }] },
+    { id: 6, client: 'Elite HR', companyId: 5, type: 'Recruitment', status: 'Proposal Request Received', sentDate: null, dateAdded: '2026-09-27', monthlyFee: null, contractMonths: null, dateSentToHassan: null, dateSentToClient: null, dblSignedDate: null, kickoffDate: null, finance: null, hubspot: null, owner: 'Ahmad', remarks: null, winLossReason: null, docLink: null, archived: false, archivedAt: null, snoozedUntil: null, dateSigned: null, notes: [], businessEntityId: 1, currency: 'SAR', documents: [], lines: [] },
+    { id: 7, client: 'Globex', companyId: 3, type: 'Business setup', status: 'Drafting', sentDate: '2026-09-22', dateAdded: '2026-09-10', monthlyFee: null, contractMonths: null, dateSentToHassan: '2026-09-18', dateSentToClient: '2026-09-22', revision: 2, dblSignedDate: null, kickoffDate: null, finance: null, hubspot: null, owner: 'Ahmad', remarks: null, winLossReason: null, docLink: null, archived: false, archivedAt: null, snoozedUntil: null, dateSigned: null, notes: [], businessEntityId: 1, currency: 'SAR', documents: [],
+      revisions: [{ id: 70, number: 2, requestedAt: '2026-09-26', requestedByContactId: null, reason: 'Two people instead of three', linesBeforeJson: '[]', sentAt: null }], lines: [] },
+    { id: 8, client: 'Red Sea Global', companyId: 4, type: 'EOR', status: 'Sent to Client', sentDate: '2026-09-26', dateAdded: '2026-09-20', monthlyFee: 12000, contractMonths: 12, dateSentToHassan: '2026-09-24', dateSentToClient: '2026-09-26', validUntil: '2026-10-05', dblSignedDate: null, kickoffDate: null, finance: null, hubspot: null, owner: 'Ahmad', remarks: null, winLossReason: null, docLink: null, archived: false, archivedAt: null, snoozedUntil: null, dateSigned: null, notes: [], businessEntityId: 1, currency: 'SAR', documents: [], lines: [] },
   ],
   contacts: [
     { id: 1, clientName: 'Acme Holdings', companyId: 1, name: 'Jane Doe', role: 'CEO', email: 'jane@acme.test', phone: null, whatsapp: null, service: null, lists: [], isDecisionMaker: true },
@@ -65,6 +72,16 @@ const SAMPLE: AppData = {
         { id: 11, serviceId: 15, serviceName: 'Payroll', description: null, billing: 'monthly', quantity: 1, unitPrice: 9000, commission: false, sortOrder: 0 },
         { id: 12, serviceId: 17, serviceName: 'PRO', description: 'Up to 25 employees', billing: 'monthly', quantity: 1, unitPrice: 6000, commission: false, sortOrder: 1 },
       ],
+    },
+    // A client whose notice window opens this week, and one gone quiet (no meeting or email on record).
+    {
+      id: 2, agrRef: 'GLX_BS_001_0126', client: 'Globex', companyId: 3, type: 'Company maintenance', status: 'Signed', preparedBy: 'Hassan Balaghi', datePrepared: '2026-01-02', dateSentToClient: '2026-01-03', dateClientSigned: '2026-01-05', dateMenaSigned: '2026-01-05', dateFiled: '2026-01-06',
+      monthlyFee: 4000, contractMonths: 12, proposalId: null, hubspot: null, docLink: null, actionDate: null, remarks: null, createdAt: '2026-01-02', businessEntityId: 1, currency: 'SAR', startDate: '2026-01-06', endDate: '2026-12-31', serviceStatus: 'Active', autoRenew: false, noticeDays: 90, preparedById: 1, lines: [],
+    },
+    {
+      id: 3, agrRef: 'EHR_PAY_001_0326', client: 'Elite HR', companyId: 5, type: 'Payroll', status: 'Signed', preparedBy: 'Hassan Balaghi', datePrepared: '2026-03-01', dateSentToClient: '2026-03-02', dateClientSigned: '2026-03-04', dateMenaSigned: '2026-03-04', dateFiled: '2026-03-05',
+      monthlyFee: 3000, contractMonths: 12, proposalId: null, hubspot: null, docLink: null, actionDate: null, remarks: null, createdAt: '2026-03-01', businessEntityId: 1, currency: 'SAR', startDate: '2026-03-05', endDate: '2027-03-04', serviceStatus: 'Active', autoRenew: true, noticeDays: 60, preparedById: 1,
+      lines: [{ id: 31, serviceId: 15, serviceName: 'Payroll', description: null, billing: 'monthly', quantity: 1, unitPrice: 3000, commission: false, sortOrder: 0 }],
     },
   ],
   todos: [
@@ -169,6 +186,9 @@ function todaysMockMeetings(): Meeting[] {
     make(11, 'Proposals review', -2, 30, { attendeeEmails: ['hassan@menabig.test'], attendees: ['Hassan Balaghi'], organizerEmail: 'ahmad@menabig.test' }),
     make(12, 'Acme — renewal terms', -0.2, 45, { companyName: 'Acme Holdings', companyId: 1, attendeeEmails: ['jane@acme.test'], attendees: ['Jane Doe'], onlineMeetingUrl: 'https://teams.microsoft.com/l/meetup-join/demo' }),
     make(13, 'GM Representative', 2, 30, { companyName: 'Northwind', attendeeEmails: ['lina@northwind.test'], attendees: ['Lina Saleh'], isOnlineMeeting: false, location: 'Riyadh office' }),
+    // Ended earlier today with nothing written (My Day's write-up prompt), and one tomorrow (Coming up).
+    make(14, 'Payroll questions — Acme', -3.5, 30, { companyName: 'Acme Holdings', companyId: 1, attendeeEmails: ['omar@acme.test'], attendees: ['omar@acme.test'] }),
+    make(15, 'Payroll kickoff — month one', 21, 60, { companyName: 'Acme Holdings', companyId: 1, attendeeEmails: ['omar@acme.test'], attendees: ['omar@acme.test'], onlineMeetingUrl: 'https://teams.microsoft.com/l/meetup-join/demo', isOnlineMeeting: true }),
   ];
 }
 let companiesStore: Company[] = [];
@@ -190,6 +210,9 @@ companiesStore = [
   { ...makeMockCompany(1, 'Acme Holdings'), industries: ['Logistics'], owner: 'Ahmad', website: 'acme.test', country: 'Saudi Arabia', city: 'Riyadh' },
   // The near-empty prospect: one proposal out, nothing else yet.
   { ...makeMockCompany(2, 'Northwind Trading'), industries: ['Retail'], country: 'Saudi Arabia', city: 'Jeddah' },
+  { ...makeMockCompany(3, 'Globex'), industries: ['Manufacturing'], country: 'Saudi Arabia', city: 'Dammam' },
+  { ...makeMockCompany(4, 'Red Sea Global'), industries: ['Tourism'], country: 'Saudi Arabia', city: 'Jeddah' },
+  { ...makeMockCompany(5, 'Elite HR'), industries: ['Professional services'], country: 'Saudi Arabia', city: 'Riyadh' },
 ];
 let reviewQueueStore: ReviewQueueEntry[] = [];
 const mockOpp = (id: number, name: string, stage: string, value: number | null, created: string, extra: Partial<Opportunity> = {}): Opportunity => ({
@@ -779,6 +802,10 @@ export async function installDevMockIfNeeded(): Promise<void> {
           return (mockOneDriveTree[path] || []).map((i) => ({ ...i, size: i.isFolder ? null : 2048, modifiedAt: '2026-09-01T00:00:00Z', exists: true }));
         }
         // My Day's own photos (Settings → Appearance): none in the preview; adding one works only in the app.
+        case 'activity_log':
+          return Math.floor(Math.random() * 1e6);
+        case 'activity_remove':
+          return null;
         case 'band_photos_list':
           return [];
         case 'band_photos_add':

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildCompanyState, clauseText, lastContactByPerson, liveThreads, meetingBrief, orderPeople, DORMANT_DAYS, NEGLECT_DAYS, type CompanyBriefInput } from './companyBrief';
+import { buildCompanyState, clauseText, companyContact, lastContactByPerson, liveThreads, meetingBrief, orderPeople, DORMANT_DAYS, NEGLECT_DAYS, type CompanyBriefInput } from './companyBrief';
 import type { Agreement, Commitment, Contact, EmailRecord, Meeting, Opportunity, Project, Proposal, Todo } from './types';
 
 const today = '2026-09-21';
@@ -183,5 +183,14 @@ describe('proposals requested together', () => {
     expect(clauseText(inflight)).toMatch(/^2 in flight — /);
     expect(clauseText(inflight)).toContain('Payroll, PRO and Recruitment (requested together) with us 0 days');
     expect(inflight.links).toContainEqual({ kind: 'section', id: 'proposals', label: 'Payroll, PRO and Recruitment (requested together)' });
+  });
+});
+
+describe('last contact (1.57: shared with My Day\'s gone-quiet rule)', () => {
+  it('a follow-up logged on one of the company\'s proposals counts, even with no company on the touch', () => {
+    const touch = { id: 1, companyId: null, proposalId: 3, kind: 'email_out', direction: 'out', at: '2026-09-15', subject: null, contactId: null, source: 'manual', sourceId: null } as never;
+    const i = input({ proposals: [prop({ id: 3, companyId: CO.id, client: CO.name })], touches: [touch] });
+    expect(companyContact(i).lastContact).toBe('2026-09-15');
+    expect(companyContact(input({ touches: [touch] })).lastContact).toBeNull();
   });
 });

@@ -325,6 +325,8 @@ pub fn run() {
             logfile::log_frontend,
             logfile::reveal_logs_folder,
             activity::activity_forget,
+            activity::activity_log,
+            activity::activity_remove,
             ms365::commands::ms365_get_emails_by_address,
             activity::rename_company,
             activity::company_note_entries,

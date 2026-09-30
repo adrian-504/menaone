@@ -97,6 +97,9 @@ export async function setFxRate(currency: string, rate: number | null): Promise<
 export async function proposalFolderLookup(client: string, folderPath: string | null): Promise<ProposalFolder> { return invoke<ProposalFolder>('proposal_folder_lookup', { client, folderPath }); }
 export async function proposalFolderCreate(client: string): Promise<ProposalFolder> { return invoke<ProposalFolder>('proposal_folder_create', { client }); }
 export async function setProposalsRoot(path: string | null): Promise<CommercialSetup> { return invoke<CommercialSetup>('set_proposals_root', { path }); }
+/** One line in the activity log written by the app itself (a nudge to the reviewer); returns its id for Undo. */
+export async function activityLog(e: { action: string; entityType: string; entityId: number; entityLabel: string | null; detail: string | null; companyId: number | null }): Promise<number> { return invoke<number>('activity_log', { entry: e }); }
+export async function activityRemove(id: number): Promise<void> { await invoke('activity_remove', { id }); }
 export async function getActivity(filter: ActivityFilter): Promise<ActivityEntry[]> {
   const own = () => invoke<ActivityEntry[]>('get_activity', { filter });
   const keys = Object.keys(filter).filter((k) => (filter as any)[k] != null).sort().join(',');
