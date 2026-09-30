@@ -1110,6 +1110,9 @@ pub fn init_connection(path: &PathBuf) -> rusqlite::Result<Connection> {
         let _ = std::fs::create_dir_all(parent);
     }
     let conn = Connection::open(path)?;
+    // WAL: readers never wait on the writer and a crash mid-write can't leave a
+    // half-written page (housekeeping.rs). Set once, the file keeps it.
+    crate::housekeeping::use_wal(&conn)?;
     bring_up_to_date(&conn)?;
     Ok(conn)
 }

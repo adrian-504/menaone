@@ -83,6 +83,18 @@ export interface Touch {
   createdAt: string;
 }
 
+/** Backups, the database check and install backups, for Settings → Data (housekeeping.rs). */
+export interface HousekeepingStatus {
+  /** Seconds since the epoch of the newest daily snapshot. */
+  dailyLast: number | null;
+  onedriveLast: string | null;
+  onedriveKept: number;
+  onedriveError: string | null;
+  integrity: { at: string; ok: boolean; detail: string | null } | null;
+  installBackups: number;
+  installBackupsTidy: { moved: number; kept: number; archivedTo: string | null; at: string } | null;
+}
+
 /** A template email (email_templates.rs); the row named `_signature` is the signature. */
 export interface EmailTemplate {
   id: number;

@@ -27,7 +27,7 @@ Client 360 and contact pages · proposals with lines, versions and an internal r
 | Active clients and renewal alerts | The sales report spreadsheet | One-time import |
 | Proposal generator earning its keep | The master deck with tagged slides | Generate a real proposal end to end |
 | Cloud, colleagues, shared data | Azure Saudi Arabia East — **November 2026**, and the legal brief | Identity, API, migration |
-| Phone app (skeleton and API contract are in `mobile/`) | The cloud | Wrap the screens, TestFlight |
+| Phone app (the old skeleton and API contract are in history at 6e45525; the current plan is OneDrive phone sync, branch `phone-sync`, paused) | The cloud | Wrap the screens, TestFlight |
 | Windows rollout | Someone with a Windows PC | Install the CI artefact and test |
 | HR Advisory deck conversion | Owner — parked | — |
 

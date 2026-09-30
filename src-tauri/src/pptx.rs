@@ -4,7 +4,7 @@
 //! (also when PowerPoint split them across text runs) and repeats table rows
 //! that contain `{{line.…}}` tokens once per service line.
 //!
-//! Proven on the real templates in the Sprint 0 spike (spikes/pptx-generator).
+//! Proven on the real templates in the Sprint 0 spike (spikes/pptx-generator, (removed 30-Sep-2026; in history at 6e45525)).
 
 use regex::Regex;
 use serde::{Deserialize, Serialize};

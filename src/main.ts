@@ -67,6 +67,7 @@ import './tabs/commitments';
 import './tabs/emailPeople';
 import './tabs/files';
 import './tabs/settings';
+import { loadHousekeepingSoon } from './tabs/settingsData';
 import './tabs/actionRequired';
 import './tabs/calendar';
 import './tabs/intelligence';
@@ -212,6 +213,8 @@ async function init(): Promise<void> {
   // hidden even when already connected.
   applyMs365SidebarVisibility();
   await loadClientMatchSettings();
+  // The launch check and the OneDrive copy run in the background; read their outcome a little later.
+  loadHousekeepingSoon();
   void autoLinkMeetings();
 
   backfillMilestoneDates();

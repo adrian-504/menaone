@@ -1,4 +1,4 @@
-import type { PipelineFact, Service, RateCard, BusinessEntity, TeamMember, Proposal, Contact, Agreement, Todo, Note, Area, Project, Milestone, Meeting, InboxItem, NoteTemplate, MicrosoftAccountStatus, EmailRecord, EmailCompletedRecord, IntelligenceItem, Company, Opportunity, ThemeId, ReviewQueueEntry, SavedList, Commitment, Touch } from './types';
+import type { PipelineFact, Service, RateCard, BusinessEntity, TeamMember, Proposal, Contact, Agreement, Todo, Note, Area, Project, Milestone, Meeting, InboxItem, NoteTemplate, MicrosoftAccountStatus, EmailRecord, EmailCompletedRecord, IntelligenceItem, Company, Opportunity, ThemeId, ReviewQueueEntry, SavedList, Commitment, Touch, HousekeepingStatus } from './types';
 
 /** Today as YYYY-MM-DD in local time (state.ts can't import utils). */
 const localToday = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })();
@@ -17,6 +17,8 @@ export const S = {
   commitments: [] as Commitment[],
   /** Follow-up touches: emails, calls, WhatsApps and meetings logged against proposals (touches.rs). */
   touches: [] as Touch[],
+  /** Backups and the launch database check (housekeeping.rs), read after start-up. */
+  housekeeping: null as HousekeepingStatus | null,
   notes: [] as Note[],
   noteFolders: ['Meeting Notes', 'Client Notes', 'Internal'] as string[],
   contactLists: [] as string[],

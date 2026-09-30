@@ -8,7 +8,7 @@ import type {
   IntelligenceItem, IntelligenceKind, Attachment, Company, Opportunity, OpportunityActivity, ProjectActivity,
   CompanyMigrationReport, ReviewQueueEntry, RecordCompanyLink, LocalBackup, ActivityEntry, ActivityFilter,
   CommercialSetup, Service, RateCard, BusinessEntity, TeamMember, ProposalFolder,
-  PipelineFact, ProposalTemplate, TemplateDetail, TemplateInspection, TokenInfo, GenerateResult, ProposalLibraryInfo, SavedList, Commitment, Touch, TouchKind, EmailTemplate } from './types';
+  PipelineFact, ProposalTemplate, TemplateDetail, TemplateInspection, TokenInfo, GenerateResult, ProposalLibraryInfo, SavedList, Commitment, Touch, TouchKind, EmailTemplate, HousekeepingStatus } from './types';
 
 // Thin wrappers around the Rust/SQLite command layer (src-tauri/src/commands.rs).
 // Proposals, contacts, agreements, tasks and notes are written per record:
@@ -52,6 +52,9 @@ export interface NewTouch { companyId?: number | null; proposalId?: number | nul
 export async function getTouches(): Promise<Touch[]> { return invoke<Touch[]>('get_touches'); }
 export async function touchesAdd(touch: NewTouch): Promise<Touch> { return invoke<Touch>('touches_add', { touch }); }
 export async function touchesDelete(id: number): Promise<void> { await invoke('touches_delete', { id }); }
+
+// Backups and the database check (housekeeping.rs).
+export async function housekeepingStatus(): Promise<HousekeepingStatus | null> { return invoke<HousekeepingStatus | null>('housekeeping_status'); }
 
 // Template emails (email_templates.rs).
 export async function getEmailTemplates(): Promise<EmailTemplate[]> { return (await invoke<EmailTemplate[] | null>('get_email_templates')) ?? []; }

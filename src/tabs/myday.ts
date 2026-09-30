@@ -58,6 +58,7 @@ function input(): MyDayInput {
     proposals: S.proposals, opportunities: S.opportunities, pipelineFacts: S.pipelineFacts, agreements: S.agreements,
     meetings: S.meetings, todos: S.todos, projects: S.projects, emails: S.emails, inboxCount: unprocessedInboxItems().length,
     commitments: S.commitments, companies: S.companies, touches: S.touches, contactName: contactFirstName,
+    integrityFailed: S.housekeeping?.integrity?.ok === false,
     reviewerName: (p) => teamMember(p.reviewerId)?.name || reviewer,
     ownDomains: ownDomains(), snoozed,
   };
@@ -226,7 +227,7 @@ function todayHtml(t: Timeline, data: MyDayInput): string {
 
 const KIND_ICON: Record<AttentionItem['kind'], string> = {
   proposal: 'database', review: 'check', followup: 'repeat', opportunity: 'briefcase', agreement: 'document',
-  meeting: 'meeting', project: 'target', email: 'mail', inbox: 'inbox', commitment: 'flag',
+  meeting: 'meeting', project: 'target', email: 'mail', inbox: 'inbox', commitment: 'flag', system: 'warning',
 };
 
 function attentionRow(a: AttentionItem, child = false): string {
@@ -286,6 +287,7 @@ export async function mydayAct(key: string): Promise<void> {
     case 'open_opportunities': w.navToModule('opportunities'); return;
     case 'open_action_required': w.navToModule('action-required'); return;
     case 'open_inbox': w.navToModule('inbox'); return;
+    case 'open_data_settings': w.switchTab('settings'); w.setSettingsPane('data'); return;
     case 'open_cleanup': w.openCleanup(a.action.queue); return;
     case 'toggle_group': w.mydayToggleGroup(a.key); return;
     case 'mark_kept':

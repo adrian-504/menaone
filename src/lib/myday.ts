@@ -32,6 +32,8 @@ export interface MyDayInput {
   commitments?: Commitment[];
   /** Company names, for commitment rows. */
   companies?: { id: number; name: string }[];
+  /** The database check at launch failed (housekeeping.rs quick_check). */
+  integrityFailed?: boolean;
   /** Follow-ups logged against proposals: a sent proposal waits from the last contact, not from the send. */
   touches?: Touch[];
   contactName?: (id: number) => string | null;
@@ -53,12 +55,12 @@ export interface MyDayInput {
 export type AttentionAction =
   | 'open' | 'prepare' | 'follow_up' | 'send_to_client' | 'start_drafting'
   | 'open_followups' | 'open_action_required' | 'open_inbox' | 'open_opportunities' | 'open_review_queue' | 'open_cleanup'
-  | 'mark_kept' | 'toggle_group';
+  | 'mark_kept' | 'toggle_group' | 'open_data_settings';
 
 export interface AttentionItem {
   key: string;
   /** Section the rule belongs to — used for the icon and for grouping. */
-  kind: 'proposal' | 'review' | 'followup' | 'opportunity' | 'agreement' | 'meeting' | 'project' | 'email' | 'inbox' | 'commitment';
+  kind: 'proposal' | 'review' | 'followup' | 'opportunity' | 'agreement' | 'meeting' | 'project' | 'email' | 'inbox' | 'commitment' | 'system';
   score: number;
   tone: 'red' | 'amber' | 'accent';
   title: string;
@@ -346,6 +348,8 @@ export function buildAttention(i: MyDayInput): AttentionItem[] {
   let items = [
     ...proposalItems(i), ...opportunityItems(i), ...commitmentItems(i), ...agreementItems(i), ...meetingItems(i), ...projectItems(i), ...emailItems(i),
   ];
+  // The launch check found a problem: one red row, nothing done automatically.
+  if (i.integrityFailed) items.push({ key: 'db:integrity', kind: 'system', title: 'Database check failed — back up and tell Ahmad', score: 200, tone: 'red', reason: 'Settings → Data has the details and the backups', action: { kind: 'open_data_settings', label: 'Open' } });
   if (i.inboxCount > 0) items.push({ key: 'inbox', kind: 'inbox', title: `${plural(i.inboxCount, 'item')} in your Inbox`, score: 30, tone: 'accent', reason: 'Captured but not sorted yet', action: { kind: 'open_inbox', label: 'Sort' } });
   items = items.filter((x) => !snoozedNow(i, x.key));
 
