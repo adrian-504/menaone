@@ -12,18 +12,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Robot
 :root{
   --bg:#FFFFFF; /* the page is white; the tint is the sidebar's */
   --surface:#FFFFFF;
-  /* The neutral family waits for the owner's pick (grey was proposed 30-Sep-2026). */
-  --surface-2:#F7F6FC;
-  --sidebar-bg:#F5F4FB; /* one shade deeper than the page */
-  --border:#ECEAF4;
+  /* Neutral greys, not lavender ("cheapens it") and not beige (rejected earlier);
+     the page stays white, blue is kept for actions and selection (owner, 30-Sep-2026). */
+  --surface-2:#F6F6F6;
+  --sidebar-bg:#F5F5F5; /* one shade deeper than the page */
+  --border:#E3E3E3;
   /* Sections are separated by a hairline, not boxed. --surface-flat is the
      quiet fill for things inside a section (inputs, wells); --hover is the
      one hover tint for rows and flat buttons. */
-  --hairline:#ECEAF4;
-  --surface-flat:#F7F6FC; /* quiet panels for reference blocks */
-  --hover:rgba(30,27,60,.045);
+  --hairline:#E6E6E6;
+  --surface-flat:#F3F3F3; /* quiet panes for reference blocks */
+  --hover:rgba(0,0,0,.045);
   /* Interaction states, one set for every control and row (docs/ux-conventions.md, "Craft"). */
-  --surface-hover:var(--hover);--surface-pressed:rgba(30,27,60,.085);--surface-selected:var(--accent-bg);
+  --surface-hover:var(--hover);--surface-pressed:rgba(0,0,0,.085);--surface-selected:var(--accent-bg);
   --accent-hover:#2556D0;--accent-pressed:#1E4AB8;
   /* Chart series and name avatars: one categorical palette, readable in every theme. */
   --chart-1:#3D64C9;--chart-2:#7C6FCB;--chart-3:#3D9E8F;--chart-4:#C68A3D;--chart-5:#C15B4C;
@@ -40,7 +41,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Robot
   --whatsapp:#1FA855;--whatsapp-deep:#128C4B;
   /* On the always-dark toast and bulk bar. */
   --on-dark-success:#6EE7A8;--on-dark-danger:#FF9B8A;
-  --border2:#DEDBEA;
+  --border2:#D6D6D6;
   --accent:#2A5FE0;
   --accent-bg:#EEF2FE;
   --accent-border:#C7D5FB;
@@ -2942,6 +2943,10 @@ body.dnd-active .drop-target{transition:background-color var(--dur-fast) var(--e
 /* Icons: inline icons sit on the text's centre line and take its colour. */
 .icon{flex:none;color:inherit}
 :is(p,span,a,li,td,.rec-meta) > .icon{vertical-align:-2px}
+/* My Day's rail docks to the window edge as a quiet pane (not a floating box). */
+@media (min-width:1101px){
+  .mdy-rail{border-radius:0!important;margin:0 -26px -22px 0;padding:18px 26px 22px 24px!important;min-height:calc(100vh - 150px);border-left:1px solid var(--hairline)!important;background:var(--surface-flat)!important}
+}
 
 /* No shadows on the page: the proposal's stage strip and record avatars sit flat;
    information banners are quiet panes, not blue boxes (owner, 30-Sep-2026). */
