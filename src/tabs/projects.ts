@@ -1,4 +1,5 @@
 import { arrive, settleNew } from '../lib/motion';
+import { paintFigures, projectFigures } from '../lib/recordFigures';
 import { S } from '../lib/state';
 import { emptyState, undoToast } from '../lib/ui';
 import { recordLink } from '../lib/links';
@@ -166,6 +167,7 @@ async function renderProjectDetail(): Promise<void> {
   // Status/priority/owner are edited inline just below (see the control row
   // in index.html) rather than shown as read-only chips here too — showing
   // both would mean the chip goes stale between edits and a full re-render.
+  paintFigures('pd-figures', projectFigures(p, S.currentProjectMilestones, today()));
   (document.getElementById('pd-badges') as HTMLElement).innerHTML = [
     `<span class="rec-badge">${p.type === 'client' ? 'Client project' : 'Internal project'}</span>`,
     p.startDate ? `<span class="rec-meta">Started ${fmtDate(p.startDate)}</span>` : '',

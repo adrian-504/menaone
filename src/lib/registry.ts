@@ -82,4 +82,6 @@ export function onNavigated(fn: RenderFn): void {
 }
 export function notifyNavigated(): void {
   navigatedListener?.();
+  // Anything floating that belongs to the page just left (a suggestion list) closes.
+  if (typeof document !== 'undefined') document.dispatchEvent(new CustomEvent('app:navigated'));
 }

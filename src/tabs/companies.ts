@@ -1,4 +1,5 @@
 import { createListNav } from '../lib/listNav';
+import { companyFigures, paintFigures } from '../lib/recordFigures';
 import { arrive } from '../lib/motion';
 import { suggestWebsites } from '../lib/clientMatch';
 import { proposalSentDate, isAgreementActive, isOpenProposal, isLost, isWon, activeMrr as computeActiveMrr, fmtMoney, fmtMoneyByCurrency, toReporting, currencyOf, agreementMonthly, activeTeam, matchesOwnerFilter, ownerFilterOptions, type MoneyByCurrency } from '../lib/commercial';
@@ -1016,6 +1017,7 @@ function renderCompanyDetail(): void {
     co?.website ? `<span class="rec-meta"><a class="rlink" href="#" onclick="event.preventDefault();openExternalUrl('${escHtml(/^https?:/.test(co.website) ? co.website : `https://${co.website}`)}')">${escHtml(co.website.replace(/^https?:\/\//, '').replace(/\/$/, ''))}</a></span>` : '',
   ].filter(Boolean);
   (document.getElementById('co-detail-meta') as HTMLElement).innerHTML = badges.join('');
+  paintFigures('co-figures', companyFigures({ clientAgreements: d.clientAgreements, proposals: d.proposals, meetings }, today()));
 
   const key = { id: d.companyId, name: d.name };
   if (lastDetailName !== d.name) { lastDetailName = d.name; notesAll = false; resetDossierFolds(); }

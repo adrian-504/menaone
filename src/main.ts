@@ -30,6 +30,7 @@ expose('renderTab', renderTab);
 import { switchTab } from './core/nav';
 import { renderIcons, initSidebarCollapsed, applyMs365SidebarVisibility } from './core/chrome';
 import { initTheme } from './core/theme';
+import { applyTint, renderMe } from './lib/appearance';
 import { startMotion } from './lib/motion';
 import { registerAppKeys } from './core/appKeys';
 import { startKeys } from './core/keys';
@@ -89,6 +90,8 @@ import { renderStageMappingTable } from './tabs/hubspot';
 // already in the DOM by the time this module runs — set it up before the
 // async data load so there's no flash of the wrong theme/icons.
 initTheme();
+applyTint();
+renderMe();
 initSidebarCollapsed();
 renderIcons();
 startMotion();

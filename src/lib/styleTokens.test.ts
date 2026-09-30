@@ -55,10 +55,16 @@ describe('styles.css colours', () => {
     };
     const contrast = (a: string, b: string) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
     const light = tokens(block(':root'));
-    for (const theme of [':root', ':root[data-theme="dark"]', ':root[data-theme="graphite"]']) {
-      const t = { ...light, ...tokens(block(theme)) };
-      for (const bg of ['--bg', '--surface', '--surface-2', '--sidebar-bg', '--surface-flat']) {
-        expect(contrast(t['--muted'], t[bg]), `${theme} --muted on ${bg}`).toBeGreaterThanOrEqual(4.5);
+    // Each theme, and each with the Grey shell tint (Settings → Appearance) on top.
+    const variants: [string, string[]][] = [
+      [':root', []], [':root[data-theme="dark"]', []], [':root[data-theme="graphite"]', []],
+      [':root', [':root[data-tint="grey"]']], [':root[data-theme="dark"]', [':root[data-theme="dark"][data-tint="grey"]']],
+    ];
+    for (const [theme, extra] of variants) {
+      const t = { ...light, ...tokens(block(theme)), ...Object.assign({}, ...extra.map((x) => tokens(block(x)))) };
+      for (const bg of ['--bg', '--surface', '--surface-2', '--sidebar-bg', '--surface-flat', '--panel-bg']) {
+        expect(contrast(t['--muted'], t[bg]), `${theme}${extra.join('')} --muted on ${bg}`).toBeGreaterThanOrEqual(4.5);
+        if (bg === '--bg' || bg === '--panel-bg') expect(contrast(t['--coral-text'], t[bg]), `${theme}${extra.join('')} --coral-text on ${bg}`).toBeGreaterThanOrEqual(4.5);
       }
     }
   });

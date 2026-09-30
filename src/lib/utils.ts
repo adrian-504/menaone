@@ -329,10 +329,17 @@ export function expose(name: string, fn: (...args: any[]) => any): void {
 }
 
 /** A stable avatar colour for a name, from the chart palette (a CSS variable). */
+/** The initials tile colour for a name: one of six brand colours (--tile-1…6), always the same for the same name. */
 export function strColor(s: string): string {
+  return `var(--tile-${tileIndex(s)})`;
+}
+
+/** 1–6, stable per name (case and outer spaces don't count). Pure. */
+export function tileIndex(s: string): number {
+  const key = s.trim().toLowerCase();
   let h = 0;
-  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) & 0xffffffff;
-  return `var(--chart-${(Math.abs(h) % 10) + 1})`;
+  for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) | 0;
+  return (Math.abs(h) % 6) + 1;
 }
 
 /** The chart palette resolved to colours, for canvases (which can't read CSS variables). */

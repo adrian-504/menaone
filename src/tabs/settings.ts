@@ -1,3 +1,4 @@
+import { bandSource, renderMe, setBandSource, setTint, setYourName, tint, yourName, type BandSource, type Tint } from '../lib/appearance';
 import { OFFLINE_LABEL } from '../lib/offline';
 import { allSaved } from '../lib/persist';
 import { savedTick } from '../lib/motion';
@@ -16,6 +17,7 @@ import { renderDataStatus } from './settingsData';
 
 async function loadStatus(): Promise<void> {
   S.ms365Status = await ms365Status();
+  renderMe();
 }
 
 // setTheme() (core/theme.ts) is expose()d on window and, once it applies the
@@ -36,6 +38,39 @@ function renderThemePicker(): void {
       <span class="theme-swatch-label">${escHtml(t.name)}</span>
     </button>`).join('');
 }
+
+// ── Appearance (brand slice) ──
+async function renderAppearance(): Promise<void> {
+  document.querySelectorAll<HTMLElement>('#tint-picker .seg-btn').forEach((b) => { const on = b.dataset.tint === tint(); b.classList.toggle('active', on); b.setAttribute('aria-checked', String(on)); });
+  document.querySelectorAll<HTMLElement>('#band-picker .seg-btn').forEach((b) => { const on = b.dataset.band === bandSource(); b.classList.toggle('active', on); b.setAttribute('aria-checked', String(on)); });
+  const name = document.getElementById('appearance-name') as HTMLInputElement | null;
+  if (name && document.activeElement !== name) name.value = yourName();
+  const count = document.getElementById('band-count');
+  if (count && (window as any).__TAURI_INTERNALS__?.invoke) {
+    const { invoke } = await import('@tauri-apps/api/core');
+    const n = ((await invoke<string[] | null>('band_photos_list').catch(() => null)) ?? []).length;
+    count.textContent = n ? `${n} photo${n === 1 ? '' : 's'} chosen` : 'No photos chosen yet';
+  }
+}
+expose('appearanceSetTint', (t: Tint) => { setTint(t); void renderAppearance(); });
+expose('appearanceSetBand', (b: BandSource) => { setBandSource(b); void renderAppearance(); });
+expose('appearanceSetName', (v: string) => { setYourName(v); renderMe(); toast(v.trim() ? 'Name saved' : 'Name cleared', { tone: 'success' }); });
+expose('appearanceChoosePhotos', async () => {
+  if (!(window as any).__TAURI_INTERNALS__?.invoke) { toast('Choosing photos works in the app, not in this preview'); return; }
+  const { open } = await import('@tauri-apps/plugin-dialog');
+  const picked = await open({ multiple: true, directory: false, filters: [{ name: 'Photos', extensions: ['jpg', 'jpeg', 'png', 'heic', 'webp'] }], title: 'Choose photos for My Day' });
+  const paths = Array.isArray(picked) ? picked : typeof picked === 'string' ? [picked] : [];
+  if (!paths.length) return;
+  try {
+    const { invoke } = await import('@tauri-apps/api/core');
+    await invoke<string[]>('band_photos_add', { paths });
+    setBandSource('mine');
+    toast(`${paths.length} photo${paths.length === 1 ? '' : 's'} added to My Day`, { tone: 'success' });
+  } catch (err) {
+    toast("Couldn't add the photos", { tone: 'error', detail: String(err) });
+  }
+  void renderAppearance();
+});
 
 const PANE_KEY = 'menaone.settingsPane';
 
@@ -62,6 +97,7 @@ async function renderSettingsTab(): Promise<void> {
   (window as any).renderReminderSettings?.();
   (window as any).renderOfficeStripSettings?.();
   renderThemePicker();
+  void renderAppearance();
   renderCommercialSettings();
   void renderTemplatesSettings();
   void renderDataStatus();
@@ -185,6 +221,7 @@ export async function ms365ConnectClick(): Promise<void> {
   renderMs365Status();
   try {
     S.ms365Status = await ms365Connect();
+    renderMe();
   } catch (e) {
     toast('Could not connect to Microsoft 365', { tone: 'error', detail: String(e) });
     await loadStatus();

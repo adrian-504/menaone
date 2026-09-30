@@ -23,8 +23,7 @@ import { icon } from '../lib/icons';
 import { isMeetingOver, previewLines, writeUpState } from '../lib/meetingRecap';
 import { meetingExcerpt } from '../lib/meetingExcerpt';
 import { durationLabel, groupMeetingsByDay, meetingOutcomes, nextMeeting, placeLabel } from '../lib/meetingsList';
-import { buildCompanyState, clauseText } from '../lib/companyBrief';
-import { briefInputFor } from './companyState';
+import { standLine } from './companyState';
 import { flushMeetingNotes, isOver, renderEarlierMeetings, renderMeetingInvite, renderMeetingNotes } from './meetingNotes';
 import { renderMeetingClientSection, meetingSuggestionsBanner, meetingSuggestionChip } from './meetingClient';
 
@@ -147,7 +146,7 @@ function meetingRowHtml(m: Meeting, earlier: boolean, w: ReturnType<typeof write
  * (secondary: "+ New meeting" is the page's one primary). */
 function nextMeetingHtml(m: Meeting): string {
   const key = m.companyName ? { id: m.companyId ?? null, name: m.companyName } : null;
-  const stand = key ? buildCompanyState(briefInputFor(key)).filter((c) => c.key === 'relationship' || c.key === 'inflight' || c.key === 'commitments').map(clauseText).join(' · ') : '';
+  const stand = key ? standLine(key) : '';
   const initials = (m.attendees || []).slice(0, 5).map((a) => `<span class="mt-av" title="${escHtml(a)}">${escHtml(a.split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((w) => w[0] || '').join('').toUpperCase() || '?')}</span>`).join('');
   return `<div class="mt-row mt-next" onclick="openMeetingDetail(${m.id})">
     <div class="mt-time">${timeCell(m, false)}</div>

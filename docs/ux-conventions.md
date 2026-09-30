@@ -56,14 +56,29 @@ Every page tells you where to look. The owner's test: opening any page should ne
 - There is no orange: waiting and at-risk are amber. The violet `--accent-2` is for charts only.
 - `--muted` (dates, captions, secondary details) is at least 4.5:1 against `--bg`, `--surface`, `--surface-2`, `--surface-flat` and the sidebar in every theme (the test checks it); `--sub` stays darker than `--muted` so the two text levels remain distinct.
 
+## Brand
+
+Some of the MENA BIG design system, not all of it (owner, 30-Sep-2026: 1.54 was "calm become flat"; "a little bit of colour and excitement", not a redesign). The old rules against tint, shadows and depth are released where this section says so.
+
+- **Fonts** (bundled in `src/assets/fonts`, SIL Open Font Licence, never fetched): Saira SemiCondensed 500/600 for what you read first — the greeting, page titles, record names, section openers, display figures; IBM Plex Sans 400/500/600 for all other text; IBM Plex Mono 500 for times, dates in tables, references (SL#, agreement refs), amounts and index numerals, with tabular figures. Tokens: `--font-display`, `--font-text`, `--font-mono`.
+- **Colour roles:** brand blue `#014B8C` (`--accent`) for links, primary actions, selection and focus; coral (`--coral`, and `--coral-text` for text) for now / urgent and the brand's marks (the now-line, "until 14:35", index numerals, the three bars) — sparingly; green = kept, won, written up, done; amber = waiting on someone, no agenda, snoozed; red = late, overdue, at risk; navy (`--navy`) for headings and display figures. Nothing else gets colour.
+- **Depth — a container for a thing gets an edge; a section of a page does not.** Things: record headers, the company's Details / People / Remember panels, My Day's Now panel, dialogs and menus (`--shadow-md`), the search box, the sidebar's New button, inputs on focus (`--shadow-focus`). They get a hairline, `--shadow-sm` and radius 13. Sections, lists, tables and eyebrow blocks stay edgeless: whitespace and one hairline above. Shadows are navy-tinted, never black.
+- **The coral edge** (the brand's top bar, turned for a panel) is 3px, on My Day's Now panel and a record header's tile column — nowhere else.
+- **Headings, not eyebrows:** a section opener is a heading (Saira 600, 17px, navy). The three coral bars (`.hd-major`) mark the two or three major openers on a page (My Day: Now, Today, Needs your attention; a company: Where we stand, Details; a proposal: Commercials, Proposal documents). Eyebrows (10.5px, .14em tracking, muted) remain only as labels above lists and tables and inside panels. `focus-check` counts eyebrows per view.
+- **Buttons with depth:** primary = blue with `--shadow-sm`, hover darker with `--shadow-md`, pressed no shadow and .98; secondary = white, hairline, `--shadow-xs`, hover `--surface-2` with `--shadow-sm`. Nothing lifts.
+- **Initials tiles:** one of six brand colours by the name (`strColor` → `--tile-1…6`), white initials, radius 9.
+- **Record figures:** a header shows two or three display figures (Saira 20px, a small muted label) from existing fields — a company's monthly fee, agreement end and open proposals; a proposal's value, status and days with the client or with us; a project's progress and next milestone; an agreement's contracted value, monthly fee and end; a contact's role, company and last contact.
+- **My Day:** a photograph band (the office, or your own photos in turn, Settings → Appearance) under a blue scrim that follows the time of day, the greeting in Saira 34px and the three bars; the index row under it (`01 3 need you · 02 1 meeting to go …`, zeros hidden); the Now panel for the meeting running or next. The band's height is fixed and its photo arrives after the first paint, so nothing moves.
+- **Shell tint** is a setting: Blue (the brand's lightest blue, default) or Grey (`[data-tint="grey"]`). Both are themed for dark.
+
 ## Surfaces
 
 Page = white, panel = reference (owner, 22-Sep-2026: the page stays white; tinted pages were tried and rejected).
 
 - **Page:** `--bg` is white, the same as `--surface`; the tint belongs to the sidebar (`--sidebar-bg`).
-- **Neutrals are plain greys** (owner, 30-Sep-2026: the lavender tint "cheapens it", beige was rejected, and not "a white page with text"). Sidebar, panels, borders and hairlines share one neutral grey family; the page stays white; blue is kept for actions and selection.
-- **Panel:** `--surface-flat` is a quiet panel for reference blocks (the Details side panel of a record, the meeting Client brief, the proposal builder summary): no border, no shadow, radius 13, padding 16. My Day's rail docks to the window's right edge as a full-height pane with a hairline inner edge. Sections inside a panel keep their hairlines, except the first.
-- **Rhythm:** a section is `.sec`: a hairline above only, about 40px (`--space-7`) from one section to the next, and an uppercase caption heading (`--type-caption`, `--muted`). No box, shadow or radius. Sections side by side sit in columns with a wide gutter.
+- **Neutrals** follow the brand (see Brand): the sidebar and panels take the shell tint (Blue or Grey), borders and hairlines the brand greys; the page stays white.
+- **Panel:** `--panel-bg` is the panel for a thing (the company's Details, People and Remember): hairline, `--shadow-sm`, radius 13 (see Brand). Every quiet panel — the proposal stages, a record's Details column, My Day's rail, the next meeting, board cards, the meeting's client context, banners — uses `--panel-bg`, so it follows the shell tint; `--surface-flat` is only a pressed secondary button. My Day's rail docks to the window's right edge as a full-height pane with a hairline inner edge. Sections inside a panel keep their hairlines, except the first.
+- **Rhythm:** a section is `.sec`: a hairline above only, about 40px (`--space-7`) from one section to the next, and a heading (Saira 600, 17px — see Brand). No box, shadow or radius. Sections side by side sit in columns with a wide gutter.
 - `.card` is only for things that float above the page: popovers, menus, dialogs. The record rail keeps its own floating panel.
 - No card inside a card: figures (record stats, My Day's Business) sit on the page or panel without tiles and highlight with `--hover`.
 - Status dots are 7px.

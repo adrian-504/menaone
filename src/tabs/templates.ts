@@ -1,16 +1,24 @@
-// The proposal templates list (under Services) and the Generate proposal dialog.
+// The proposal templates list (under Services) and the Generate proposal studio
+// (studio slice: a sheet from the right, the slides as tiles, the summary in
+// plain words, the generating moment and what to do next).
 // Proposals are built from the service templates in "Proposals New Logo" (current
 // design) or the 2026 master. Generating writes the next version of the deck into
 // the client's OneDrive folder and records it on the proposal.
 
 import { S } from '../lib/state';
-import { escHtml, expose, localIsoDate } from '../lib/utils';
+import { escHtml, expose, localIsoDate, strColor } from '../lib/utils';
 import { icon } from '../lib/icons';
 import { emptyState, toast } from '../lib/ui';
-import { proposalGenerate, proposalLibrary, filesOpen, proposalFolderLookup } from '../lib/db';
+import { proposalGenerate, proposalLibrary, filesOpen, filesRevealInFinder, proposalFolderLookup } from '../lib/db';
+import { breadcrumb, feeLine, fillList, miniCoverHtml, slideGroups } from '../lib/studio';
+import { initialsOf } from '../lib/appearance';
+import { quickLook } from '../lib/quickLook';
+import { errorReport } from '../lib/errors';
+import { fmtDateShort } from '../lib/dates';
+import pkg from '../../package.json';
 import { persistProposals, proposalsAndAgreementsSaved } from '../lib/persist';
 import { renderIcons } from '../core/chrome';
-import { lineTotals, nextDeckFileName, applyGeneratedDocument, proposalDecks } from '../lib/commercial';
+import { lineTotals, nextDeckFileName, applyGeneratedDocument, proposalDecks, PS } from '../lib/commercial';
 import { designOptions } from '../lib/generateChoice';
 import type { GenerateResult } from '../lib/types';
 
@@ -41,9 +49,39 @@ export async function renderTemplatesView(container: HTMLElement): Promise<void>
   renderIcons(container);
 }
 
-// ═══════════════ Generate proposal dialog ═══════════════
+// ═══════════════ Generate proposal: the studio sheet ═══════════════
 
-let generating: { proposalId: number; preview: GenerateResult | null; keep: Set<number> | null } | null = null;
+type Phase = 'edit' | 'working' | 'done';
+let generating: { proposalId: number; preview: GenerateResult | null; keep: Set<number> | null; phase: Phase; result?: GenerateResult; error?: string } | null = null;
+
+const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T | null;
+const current = () => (generating ? S.proposals.find((x) => x.id === generating!.proposalId) : undefined);
+
+/** The version this generation records, as the generator will (past recorded decks and the file name's _Vn). */
+function nextVersion(): number {
+  const decks = proposalDecks(current() || {});
+  const fileName = $<HTMLInputElement>('gen-file-name')?.value || '';
+  const named = Number((fileName.match(/_V(\d+)\.pptx$/i) || [])[1] || 0);
+  return Math.max(Math.max(0, ...decks.map((d) => d.version ?? 0)) + 1, named);
+}
+
+function templateLabel(): string {
+  const sel = $<HTMLSelectElement>('gen-template');
+  return (sel?.selectedOptions[0]?.textContent || '').split(' — ')[0] || 'Current design';
+}
+
+/** The sheet's header: tile, "Acme Holdings — Payroll proposal", "Generate V2 · Current design", and the button's label. */
+function paintHeader(): void {
+  const p = current();
+  if (!p) return;
+  const services = lineTotals(p.lines, p.contractMonths).serviceNames.join(' & ') || p.type || 'Services';
+  const tile = $('gen-tile');
+  if (tile) { tile.textContent = initialsOf(p.client); tile.style.background = strColor(p.client); }
+  const title = $('gen-title'); if (title) title.textContent = `${p.client} — ${services} proposal`;
+  const v = nextVersion();
+  const sub = $('gen-sub'); if (sub) sub.textContent = `Generate V${v} · ${templateLabel()}`;
+  const btn = $<HTMLButtonElement>('gen-confirm'); if (btn && generating?.phase === 'edit') btn.textContent = `Generate V${v}`;
+}
 
 export async function openGenerateProposal(proposalId: number): Promise<void> {
   const p = S.proposals.find((x) => x.id === proposalId);
@@ -56,49 +94,55 @@ export async function openGenerateProposal(proposalId: number): Promise<void> {
     return;
   }
   // The current design (the team's service templates, combined) is the default; the 2026 master is second.
-  const sel = document.getElementById('gen-template') as HTMLSelectElement | null;
+  const sel = $<HTMLSelectElement>('gen-template');
   if (sel) {
     sel.innerHTML = designOptions(hasLibrary ? { count: library!.templates.length } : null, hasMaster)
       .map((o) => `<option value="${escHtml(o.value)}"${o.selected ? ' selected' : ''}>${escHtml(o.label)}</option>`).join('');
   }
   const folder = await proposalFolderLookup(p.client, p.folderPath ?? null).catch(() => null);
   const services = lineTotals(p.lines, p.contractMonths).serviceNames.join(' & ') || p.type || 'Services';
-  const name = document.getElementById('gen-file-name') as HTMLInputElement | null;
+  const name = $<HTMLInputElement>('gen-file-name');
   if (name) name.value = nextDeckFileName(p, services, localIsoDate(new Date()), (folder?.files || []).map((f) => f.name));
   const logos = (folder?.files || []).filter((f) => !f.isFolder && /\.(png|jpe?g)$/i.test(f.name));
   const likely = logos.filter((f) => /logo/i.test(f.name));
-  const logoSel = document.getElementById('gen-logo') as HTMLSelectElement | null;
+  const logoSel = $<HTMLSelectElement>('gen-logo');
   if (logoSel) {
     logoSel.innerHTML = `<option value="">No logo — remove the "Logo" box</option>` + [...likely, ...logos.filter((f) => !likely.includes(f))]
       .map((f, i) => `<option value="${escHtml(f.path)}"${i === 0 && likely.length ? ' selected' : ''}>${escHtml(f.name)}${/logo/i.test(f.name) ? '' : ' (image in the client folder)'}</option>`).join('');
   }
-  generating = { proposalId, preview: null, keep: null };
-  document.getElementById('modal-generate')?.classList.add('open');
+  generating = { proposalId, preview: null, keep: null, phase: 'edit' };
+  resetFooter();
+  const controls = $('gen-controls'); if (controls) controls.hidden = false;
+  paintHeader();
+  $('modal-generate')?.classList.add('open');
+  renderIcons($('modal-generate')!);
   await refreshGeneratePreview();
 }
 expose('openGenerateProposal', openGenerateProposal);
 
 export function closeGenerateProposal(): void {
+  if (generating?.phase === 'working') return; // the deck is being written; it closes itself when done
   generating = null;
-  document.getElementById('modal-generate')?.classList.remove('open');
+  $('modal-generate')?.classList.remove('open');
 }
 expose('closeGenerateProposal', closeGenerateProposal);
 
 function request(dryRun: boolean) {
-  const chosen = (document.getElementById('gen-template') as HTMLSelectElement).value;
+  const chosen = $<HTMLSelectElement>('gen-template')!.value;
   const fromLibrary = chosen === 'library';
   const fromMaster = chosen === 'master';
   const templateId = 0;
-  const fileName = (document.getElementById('gen-file-name') as HTMLInputElement).value.trim();
-  const logoPath = (document.getElementById('gen-logo') as HTMLSelectElement | null)?.value || null;
+  const fileName = $<HTMLInputElement>('gen-file-name')!.value.trim();
+  const logoPath = $<HTMLSelectElement>('gen-logo')?.value || null;
   return { proposalId: generating!.proposalId, templateId, date: localIsoDate(new Date()), fileName, keep: generating!.keep ? [...generating!.keep] : null, logoPath, dryRun, fromLibrary, fromMaster };
 }
 
 export async function refreshGeneratePreview(resetSlides = false): Promise<void> {
   if (!generating) return;
   if (resetSlides) generating.keep = null;
-  const body = document.getElementById('gen-preview');
-  if (body) body.innerHTML = '<div class="feed-empty">Putting the deck together…</div>';
+  paintHeader();
+  const body = $('gen-preview');
+  if (body && !generating.preview) body.innerHTML = '<div class="studio-loading"><span class="studio-bar"></span>Putting the deck together…</div>';
   try {
     const preview = await proposalGenerate(request(true));
     if (!generating) return;
@@ -106,45 +150,63 @@ export async function refreshGeneratePreview(resetSlides = false): Promise<void>
     if (!generating.keep) generating.keep = new Set(preview.slides.filter((s) => s.included).map((s) => s.index));
     renderGeneratePreview();
   } catch (err) {
-    if (body) body.innerHTML = `<p class="t-red">${escHtml(String(err))}</p>`;
+    if (body) body.innerHTML = `<p class="studio-err">${escHtml(String(err).replace(/^Error: /, ''))}</p>`;
   }
 }
 expose('refreshGeneratePreview', refreshGeneratePreview);
 
+function savedAsHtml(): string {
+  const decks = proposalDecks(current() || {}).slice().sort((a, b) => (b.version ?? 0) - (a.version ?? 0));
+  const last = decks[0];
+  const kept = !last ? '' : decks.length === 1 ? `V${last.version}${last.createdAt ? ` of ${fmtDateShort(last.createdAt)}` : ''} stays as it is` : `the ${decks.length} earlier versions stay as they are`;
+  return `<b>V${nextVersion()}</b>${kept ? ` <span class="studio-muted">· ${escHtml(kept)}</span>` : ''}`;
+}
+
+function slidesHtml(pv: GenerateResult, keep: Set<number>, client: string): string {
+  const groups = slideGroups(pv.slides, keep, pv.baseTemplate, shortTemplateName);
+  const first = pv.slides[0]?.index;
+  return groups.map((g) => `<div class="studio-group"><div class="eyebrow studio-group-hd">${escHtml(g.label)}</div><div class="slide-grid">${g.slides.map((s) => `
+    <label class="slide-tile${s.on ? '' : ' off'}">
+      ${s.index === first ? miniCoverHtml(client, pv.servicesTitle || 'Proposal') : `<span class="slide-face"><span class="slide-face-title">${escHtml(s.title)}</span></span>`}
+      <span class="slide-meta"><span class="slide-no">${s.number}</span><span class="slide-name">${escHtml(s.title)}</span><input type="checkbox" ${s.on ? 'checked' : ''} onchange="toggleGenerateSlide(${s.index}, this.checked)" aria-label="Include ${escHtml(s.title)}"></span>
+    </label>`).join('')}</div></div>`).join('');
+}
+
+function summaryHtml(pv: GenerateResult): string {
+  const p = current();
+  const smart = pv.report?.smart;
+  const fills = fillList(pv.values);
+  const blank = Object.entries(pv.values).filter(([, v]) => !v || !v.trim()).map(([k]) => k);
+  const checks = [...pv.warnings, ...(smart?.warnings || []), ...(smart?.checks || []), ...(smart?.feesToCheck || []).map(feeLine)];
+  const where = pv.folder ? `<span data-tip="${escHtml(pv.folder)}">${escHtml(breadcrumb(pv.folder))}</span>` : 'No Proposals folder set';
+  return `
+    ${pv.errors?.length ? `<div class="studio-errors" role="alert"><b>Can't generate yet.</b> ${pv.errors.map(escHtml).join(' · ')}</div>` : ''}
+    <dl class="studio-sum">
+      <div><dt>Client</dt><dd>${escHtml(p?.client || '')}</dd></div>
+      <div><dt>Template</dt><dd>${escHtml(templateLabel())}${pv.baseTemplate ? ` <span class="studio-muted">· starts from ${escHtml(shortTemplateName(pv.baseTemplate))}</span>` : ''}</dd></div>
+      <div><dt>Saved as</dt><dd id="gen-version-note">${savedAsHtml()}</dd></div>
+      <div><dt>${pv.folderExists ? 'Saves to' : 'Creates'}</dt><dd>${where}</dd></div>
+    </dl>
+    ${fills.length || smart?.filled.length ? `<h3 class="studio-h">Filled in</h3><ul class="studio-fill">${fills.map((f) => `<li>${icon('check', 12)}<span class="studio-fill-l">${escHtml(f.label)}</span><span class="studio-fill-v">${escHtml(f.value)}</span></li>`).join('')}${(smart?.filled || []).map((f) => `<li>${icon('check', 12)}<span class="studio-fill-v">${escHtml(f)}</span></li>`).join('')}</ul>` : ''}
+    ${blank.length ? `<p class="studio-muted studio-blank">Blank on this proposal: ${blank.map((k) => escHtml(fillList({ [k]: '-' })[0]?.label || k)).join(', ')}</p>` : ''}
+    ${checks.length ? `<h3 class="studio-h">Check in PowerPoint</h3><ul class="studio-checks">${checks.map((c) => `<li>${icon('warning', 12)}<span>${escHtml(c)}</span></li>`).join('')}</ul>` : ''}`;
+}
+
 function renderGeneratePreview(): void {
-  const body = document.getElementById('gen-preview');
-  if (!body || !generating?.preview) return;
+  const body = $('gen-preview');
+  if (!body || !generating?.preview || generating.phase !== 'edit') return;
   const pv = generating.preview;
   const keep = generating.keep!;
-  const filled = Object.entries(pv.values).filter(([, v]) => v);
-  const empty = Object.entries(pv.values).filter(([, v]) => !v).map(([k]) => k);
-  const errors = pv.errors || [];
-  const confirm = document.getElementById('gen-confirm') as HTMLButtonElement | null;
-  if (confirm) { confirm.disabled = errors.length > 0; confirm.dataset.tip = errors.length ? 'Fix what is missing first' : ''; }
+  const btn = $<HTMLButtonElement>('gen-confirm');
+  if (btn) { btn.disabled = (pv.errors || []).length > 0; btn.dataset.tip = btn.disabled ? 'Fix what is missing first' : ''; }
   body.innerHTML = `
-    ${errors.length ? `<div class="gen-errors" role="alert"><div class="gen-errors-title">${icon('warning', 13)} Cannot generate this proposal. Missing:</div><ul>${errors.map((e) => `<li>${escHtml(e)}</li>`).join('')}</ul></div>` : ''}
-    <div class="gen-basis">${icon('document', 13)}<span id="gen-version-note">${versionNote()}</span></div>
-    ${[...pv.warnings, ...(pv.report?.smart?.warnings || [])].length ? `<div class="gen-warnings">${[...pv.warnings, ...(pv.report?.smart?.warnings || [])].map((x) => `<div>${icon('warning', 13)} ${escHtml(x)}</div>`).join('')}</div>` : ''}
-    ${pv.baseTemplate ? `<div class="gen-basis">${icon('document', 13)} Starts from <b>${escHtml(pv.baseTemplate)}</b>${pv.servicesTitle ? ` · cover reads <b>${escHtml(pv.servicesTitle)}</b>` : ''}</div>` : ''}
-    ${pv.report?.smart?.filled.length ? `<div class="gen-filled">${pv.report.smart.filled.map((x) => `<span class="rec-badge tone-green">${icon('check', 11)} ${escHtml(x)}</span>`).join('')}</div>` : ''}
-    ${pv.report?.smart?.checks?.length ? `<details class="gen-fees gen-checks" open><summary>${icon('warning', 12)} Check before sending · ${pv.report.smart.checks.length}</summary><ul>${pv.report.smart.checks.map((f) => `<li>${escHtml(f)}</li>`).join('')}</ul></details>` : ''}
-    ${pv.report?.smart?.feesToCheck.length ? `<details class="gen-fees"><summary>${pv.report.smart.feesToCheck.length} amount${pv.report.smart.feesToCheck.length === 1 ? '' : 's'} left as in the template — check them in PowerPoint</summary><ul>${pv.report.smart.feesToCheck.map((f) => `<li>${escHtml(f)}</li>`).join('')}</ul></details>` : ''}
-    <div class="gen-folder">${icon('folder', 13)} ${pv.folderExists ? 'Saves to' : 'Creates and saves to'} <code class="path-code">${escHtml(pv.folder || 'No Proposals folder set')}</code></div>
-    <div class="gen-columns">
-      <div>
-        <div class="settings-subsection-title">Slides <span class="t-muted">${keep.size} of ${pv.slides.length}</span></div>
-        <div class="gen-slides">${pv.slides.map((s) => `<label class="gen-slide${keep.has(s.index) ? '' : ' off'}">
-          <input type="checkbox" ${keep.has(s.index) ? 'checked' : ''} onchange="toggleGenerateSlide(${s.index}, this.checked)">
-          <span class="tpl-slide-num">${s.index}</span><span class="gen-slide-title">${escHtml(s.title || 'Untitled')}</span><span class="t-meta t-muted">${escHtml(s.source && s.source !== pv.baseTemplate ? `From ${shortTemplateName(s.source)} · ${s.reason}` : s.reason)}</span>
-        </label>`).join('')}</div>
-      </div>
-      <div>
-        <div class="settings-subsection-title">Filled in</div>
-        <dl class="gen-values">${filled.map(([k, v]) => `<div><dt>${escHtml(k)}</dt><dd>${escHtml(v)}</dd></div>`).join('')}</dl>
-        ${empty.length ? `<p class="t-meta t-muted">Blank on this proposal: ${empty.map(escHtml).join(', ')}</p>` : ''}
-      </div>
+    ${generating.error ? `<div class="studio-errors" role="alert"><b>${escHtml(generating.error)}</b> <button class="rlink" type="button" onclick="copyGenerateError()">Copy details</button></div>` : ''}
+    <div class="studio-panes">
+      <section class="studio-slides" aria-label="Slides"><div class="studio-pane-hd"><h3 class="studio-h">Slides</h3><span class="studio-muted">${keep.size} of ${pv.slides.length}</span></div>${slidesHtml(pv, keep, current()?.client || '')}</section>
+      <section class="studio-summary" aria-label="Summary">${summaryHtml(pv)}</section>
     </div>`;
   renderIcons(body);
+  paintHeader();
 }
 
 /** "Labor Law - HR - Manpower Consultancy Services Proposal Template" → "Labor Law - HR - Manpower Consultancy". */
@@ -157,7 +219,7 @@ export async function chooseGenerateLogo(): Promise<void> {
     const { open } = await import('@tauri-apps/plugin-dialog');
     const picked = await open({ multiple: false, directory: false, filters: [{ name: 'Logo', extensions: ['png', 'jpg', 'jpeg'] }], title: 'Choose the client logo' });
     if (typeof picked !== 'string') return;
-    const sel = document.getElementById('gen-logo') as HTMLSelectElement | null;
+    const sel = $<HTMLSelectElement>('gen-logo');
     if (sel) {
       if (![...sel.options].some((o) => o.value === picked)) sel.insertAdjacentHTML('beforeend', `<option value="${escHtml(picked)}">${escHtml(picked.split('/').pop() || picked)}</option>`);
       sel.value = picked;
@@ -176,59 +238,105 @@ export function toggleGenerateSlide(index: number, on: boolean): void {
 }
 expose('toggleGenerateSlide', toggleGenerateSlide);
 
-/** "Will be saved as V3 — the 2 earlier versions stay as they are", matching the version the generator records. */
-function versionNote(): string {
-  if (!generating) return '';
-  const decks = proposalDecks(S.proposals.find((x) => x.id === generating!.proposalId) || {});
-  const fileName = (document.getElementById('gen-file-name') as HTMLInputElement | null)?.value || '';
-  const named = Number((fileName.match(/_V(\d+)\.pptx$/i) || [])[1] || 0);
-  const version = Math.max(Math.max(0, ...decks.map((d) => d.version ?? 0)) + 1, named);
-  const kept = decks.length === 0 ? '' : decks.length === 1 ? ` — V${decks[0].version} stays as it is` : ` — the ${decks.length} earlier versions stay as they are`;
-  return `Will be saved as <b>V${version}</b>${kept}`;
-}
-
 export function updateGenerateVersionNote(): void {
-  const el = document.getElementById('gen-version-note');
-  if (el) el.innerHTML = versionNote();
+  const el = $('gen-version-note');
+  if (el) el.innerHTML = savedAsHtml();
+  paintHeader();
 }
 expose('updateGenerateVersionNote', updateGenerateVersionNote);
 
+// ── The generating moment ──
+// The engine writes the deck in one call (proposal_generate), so nothing is
+// faked: one bar while it works, then each real step ticks as it completes.
+
+function resetFooter(): void {
+  const actions = $('gen-actions');
+  if (actions) actions.innerHTML = `<button class="btn-secondary" type="button" onclick="closeGenerateProposal()">Cancel</button><button class="btn-primary" id="gen-confirm" type="button" onclick="confirmGenerateProposal()">Generate</button>`;
+  const prog = $('gen-progress'); if (prog) { prog.hidden = true; prog.innerHTML = ''; }
+}
+
+function progressHtml(steps: { label: string; done: boolean }[], working: boolean): string {
+  return `${working ? '<span class="studio-bar" aria-hidden="true"></span>' : ''}<ol class="studio-steps">${steps.map((s) => `<li class="${s.done ? 'is-done' : ''}">${s.done ? icon('check', 12) : '<span class="studio-step-dot"></span>'}${escHtml(s.label)}</li>`).join('')}</ol>`;
+}
+
 export async function confirmGenerateProposal(): Promise<void> {
-  if (!generating) return;
+  if (!generating || generating.phase !== 'edit') return;
   const proposalId = generating.proposalId;
-  const btn = document.getElementById('gen-confirm') as HTMLButtonElement | null;
-  if (btn) { btn.disabled = true; btn.textContent = 'Generating…'; }
-  let generated = false;
+  const v = nextVersion();
+  const wasRequest = current()?.status === PS.REQUEST;
+  const steps = [{ label: `Writing V${v} from the templates`, done: false }, { label: 'Saved to the client folder', done: false }, { label: `Recorded on the proposal as V${v}`, done: false }, ...(wasRequest ? [{ label: 'Moved to Drafting', done: false }] : [])];
+  const prog = $('gen-progress');
+  const actions = $('gen-actions');
+  const paint = (working: boolean) => { if (prog) { prog.hidden = false; prog.innerHTML = progressHtml(steps, working); renderIcons(prog); } };
+  generating.phase = 'working';
+  generating.error = undefined;
+  if (actions) actions.hidden = true;
+  const controls = $('gen-controls'); if (controls) controls.hidden = true;
+  paint(true);
   try {
     // The generator reads the proposal from the database: save any pending edits first,
     // so the deck matches the page and a queued save can't drop the new version.
     persistProposals();
     await proposalsAndAgreementsSaved();
     const result = await proposalGenerate(request(false));
-    const p = S.proposals.find((x) => x.id === proposalId);
     if (!result.document || !result.path) throw new Error('The proposal was not recorded.');
+    steps[0].done = true; steps[1].done = true; paint(true);
+    const p = S.proposals.find((x) => x.id === proposalId);
     if (p) {
       applyGeneratedDocument(p, result.document, result.folder);
       persistProposals();
     }
-    generated = true;
-    closeGenerateProposal();
-    const missing = [...(result.report?.smart?.checks?.length ? [`${result.report.smart.checks.length} sentences to read`] : []), ...(result.report?.smart?.feesToCheck.length ? [`${result.report.smart.feesToCheck.length} amounts to check`] : [])];
-    toast(`V${result.document.version} generated`, {
-      tone: 'success',
-      detail: `${result.fileName}${result.report ? ` · ${result.report.slidesAfter} slides` : ''}${missing.length ? `\nCheck in PowerPoint: ${missing.join(', ')}` : ''}`,
-      action: { label: 'Open', run: () => void filesOpen(result.path!) },
-      duration: 8000,
-    });
+    steps[2].done = true; if (wasRequest && p?.status === PS.DRAFTING) steps[3].done = true; paint(false);
+    if (generating) { generating.phase = 'done'; generating.result = result; }
     w.renderProposalPage?.();
     requestAnimationFrame(() => document.querySelector(`[data-doc-id="${result.document!.id}"]`)?.classList.add('just-added'));
+    renderSuccess(result);
   } catch (err) {
-    // Nothing was recorded: earlier versions are unchanged. Keep the dialog open to fix and retry.
-    toast('Could not generate the proposal', { tone: 'error', detail: String(err).replace(/^Error: /, '') });
-    if (generating) void refreshGeneratePreview();
-  } finally {
-    if (btn && !generated) { btn.disabled = false; btn.textContent = 'Generate'; }
-    if (btn && generated) btn.textContent = 'Generate';
+    // Nothing was recorded: earlier versions are unchanged. The panes stay, to fix and retry.
+    if (!generating) return;
+    generating.phase = 'edit';
+    generating.error = `Couldn't generate V${v}: ${String(err).replace(/^Error: /, '')}`;
+    (generating as any).errorObj = err;
+    resetFooter();
+    if (actions) actions.hidden = false;
+    if (controls) controls.hidden = false;
+    renderGeneratePreview();
   }
 }
 expose('confirmGenerateProposal', confirmGenerateProposal);
+
+export function copyGenerateError(): void {
+  const err = (generating as any)?.errorObj ?? generating?.error;
+  void navigator.clipboard.writeText(errorReport(err, { version: pkg.version, page: 'proposal · generate' })).then(() => toast('Details copied'));
+}
+expose('copyGenerateError', copyGenerateError);
+
+function renderSuccess(r: GenerateResult): void {
+  const body = $('gen-preview');
+  const smart = r.report?.smart;
+  const toCheck = [...(smart?.checks || []), ...(smart?.feesToCheck || []).map(feeLine)];
+  if (body) {
+    body.innerHTML = `<div class="studio-done">
+      <span class="bars lg studio-done-bars" aria-hidden="true"><i></i><i></i><i></i></span>
+      <h3 class="studio-done-title">Saved to the client folder</h3>
+      <div class="studio-done-file">${escHtml(r.fileName)}</div>
+      <div class="studio-muted" data-tip="${escHtml(r.folder || '')}">${escHtml(breadcrumb(r.folder))}${r.report ? ` · ${r.report.slidesAfter} slides` : ''}</div>
+      ${toCheck.length ? `<ul class="studio-checks">${toCheck.map((c) => `<li>${icon('warning', 12)}<span>${escHtml(c)}</span></li>`).join('')}</ul>` : ''}
+    </div>`;
+    renderIcons(body);
+  }
+  const actions = $('gen-actions');
+  if (actions) {
+    actions.hidden = false;
+    actions.innerHTML = `<button class="btn-secondary" type="button" onclick="closeGenerateProposal()">Done</button>
+      <button class="btn-secondary" type="button" onclick="generatedQuickLook()">Quick Look</button>
+      <button class="btn-secondary" type="button" onclick="generatedReveal()">Show in Finder</button>
+      <button class="btn-primary" type="button" onclick="generatedOpen()">Open in PowerPoint</button>`;
+  }
+  const sub = $('gen-sub'); if (sub) sub.textContent = `V${r.document?.version ?? ''} generated · ${templateLabel()}`;
+}
+
+const lastPath = () => generating?.result?.path || null;
+expose('generatedOpen', () => { const p = lastPath(); if (p) void filesOpen(p).catch((e) => toast("Couldn't open the deck", { tone: 'error', detail: String(e) })); });
+expose('generatedReveal', () => { const p = lastPath(); if (p) void filesRevealInFinder(p).catch((e) => toast("Couldn't show the deck", { tone: 'error', detail: String(e) })); });
+expose('generatedQuickLook', () => { const p = lastPath(); if (p) void quickLook(p); });

@@ -63,18 +63,31 @@ function hide(): void {
   activeIndex = -1;
 }
 
+/** Closes the suggestion list (a pick, Esc, blur, a click elsewhere, or leaving the page). */
+export function closeCompanySelector(): void {
+  hide();
+}
+
+/** True while a pick is being written into the input: its own input event must not reopen the list. */
+let committing = false;
+
 function isOpen(): boolean {
   return !!popover?.classList.contains('open');
 }
 
 function commit(name: string): void {
-  if (activeInput) {
-    activeInput.value = name;
-    activeInput.dispatchEvent(new Event('input', { bubbles: true }));
-    activeInput.dispatchEvent(new Event('change', { bubbles: true }));
+  committing = true;
+  try {
+    if (activeInput) {
+      activeInput.value = name;
+      activeInput.dispatchEvent(new Event('input', { bubbles: true }));
+      activeInput.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+  } finally {
+    committing = false;
   }
-  activeOptions.onSelect?.(name);
   hide();
+  activeOptions.onSelect?.(name);
 }
 
 function pick(i: number): void {
@@ -181,6 +194,8 @@ export function attachCompanySelector(input: HTMLInputElement, opts: CompanySele
   input.removeAttribute('list');
   input.setAttribute('autocomplete', 'off');
   const open = () => {
+    // Not while a pick is being written, and never for an input that isn't on screen.
+    if (committing || !input.isConnected || (typeof input.checkVisibility === 'function' && !input.checkVisibility())) return;
     activeInput = input;
     activeOptions = opts;
     render(input.value);
@@ -199,6 +214,16 @@ export function attachCompanySelector(input: HTMLInputElement, opts: CompanySele
     // Delay so a mousedown on a popover row fires before the popover is torn down.
     setTimeout(() => { if (activeInput === input) hide(); }, 150);
   });
+}
+
+// Leaving the page, or clicking anywhere but the input and the list, closes it.
+if (typeof document !== 'undefined') {
+  document.addEventListener('app:navigated', hide);
+  document.addEventListener('mousedown', (e) => {
+    const t = e.target as Node | null;
+    if (!isOpen() || (popover && t && popover.contains(t)) || (activeInput && t === activeInput)) return;
+    hide();
+  }, true);
 }
 
 // Scrolling the page moves the input away from the list, so the list closes —

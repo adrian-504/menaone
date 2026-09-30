@@ -2,6 +2,9 @@
 // they're in, and everything they're part of: opportunities, meetings they
 // attended, emails with them, tasks and notes that mention them, and activity.
 
+import { contactFigures, paintFigures } from '../lib/recordFigures';
+import { lastContactByPerson } from '../lib/companyBrief';
+import { briefInputFor } from './companyState';
 import { contactNextStep } from '../lib/recordSteps';
 import { endPropsEdit, mountPropsList, propsEditButton, propsListHtml, type PropField } from '../lib/propsList';
 import { jsString } from './companyState';
@@ -66,6 +69,8 @@ export function renderContactPage(): void {
   }
   const nameEl = document.getElementById('ctd-name'); if (nameEl) nameEl.textContent = name;
   renderHeaderMeta(c, null);
+  const last = c.clientName ? lastContactByPerson(briefInputFor({ id: c.companyId ?? null, name: c.clientName })).get(c.id)?.date ?? null : null;
+  paintFigures('ctd-figures', contactFigures(c, last));
 
   const actions = document.getElementById('ctd-actions');
   if (actions) {
@@ -84,7 +89,7 @@ function renderHeaderMeta(c: Contact, last: string | null): void {
   if (!meta) return;
   meta.innerHTML = [
     c.isDecisionMaker ? '<span class="rec-badge tone-accent">Decision maker</span>' : '',
-    c.role ? `<span class="rec-meta">${escHtml(c.role)}</span>` : '',
+    // Role and company are in the figures row (brand slice); the company stays a link here.
     c.clientName ? `<span class="rec-meta">${icon('building', 12)} ${companyLink(c.companyId, c.clientName)}</span>` : '',
     ...(c.lists || []).map((l) => `<span class="rec-badge">${escHtml(l)}</span>`),
     last ? `<span class="rec-meta">Last in touch ${fmtDateFromIso(last) || fmtDate(last)}</span>` : '',

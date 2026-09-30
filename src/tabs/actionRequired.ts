@@ -1,3 +1,4 @@
+import { renderMe } from '../lib/appearance';
 import { noteSync, OFFLINE_LABEL } from '../lib/offline';
 import { S } from '../lib/state';
 import { emptyState } from '../lib/ui';
@@ -42,6 +43,7 @@ registerBadgeUpdater(updateActionRequiredBadge);
 
 async function ensureLoaded(): Promise<void> {
   if (!S.ms365Status) S.ms365Status = await ms365Status();
+  renderMe();
   if (S.ms365Status.status !== 'connected') return;
   if (loadedOnce) return;
   loadedOnce = true;
