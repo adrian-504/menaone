@@ -10,7 +10,7 @@ import { daysBetween } from './pipeline';
 import { fmtDateShort } from './dates';
 import { escHtml } from './utils';
 
-export interface Figure { value: string; label: string; tone?: 'coral' | 'red' | 'green' | 'amber' }
+export interface Figure { value: string; label: string; /** `muted`: a fact that is not recorded. */ tone?: 'coral' | 'red' | 'green' | 'amber' | 'muted'; /** A thin bar under the figure: how much has run, a probability. */ bar?: { pct: number; tone?: 'green' | 'amber' | 'blue' } }
 
 const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
 const MAX = 3;
@@ -70,7 +70,7 @@ export function contactFigures(c: Pick<Contact, 'role' | 'clientName'>, lastCont
 }
 
 export function figuresHtml(figs: Figure[]): string {
-  return figs.map((f) => `<div class="rec-fig"><span class="rec-fig-n${f.tone ? ` t-${f.tone}` : ''}">${escHtml(f.value)}</span><span class="rec-fig-l">${escHtml(f.label)}</span></div>`).join('');
+  return figs.map((f) => `<div class="rec-fig"><span class="rec-fig-n${f.tone ? ` t-${f.tone}` : ''}">${escHtml(f.value)}</span><span class="rec-fig-l">${escHtml(f.label)}</span>${f.bar ? `<span class="rec-fig-bar t-${f.bar.tone || 'blue'}"><i style="width:${Math.max(0, Math.min(100, f.bar.pct))}%"></i></span>` : ''}</div>`).join('');
 }
 
 /** Fills a header's figures row (empty → hidden). */

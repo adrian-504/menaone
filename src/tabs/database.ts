@@ -1,3 +1,8 @@
+import { rangeIds } from '../lib/bulkProposals';
+import { requestGroupIds, requestSiblings } from '../lib/proposalGroups';
+import { proposalBulkActions } from '../core/proposalBulk';
+import { pricingShape } from '../lib/pricingShape';
+import { cardFor } from '../lib/linesEditor';
 import { S } from '../lib/state';
 import { companyLink } from '../lib/links';
 import { STATUSES } from '../lib/constants';
@@ -18,12 +23,9 @@ import { registerTabRenderer, getActiveTabId } from '../lib/registry';
 import { createListNav } from '../lib/listNav';
 import { saveCsv } from '../lib/files';
 import { renderBulkBar, hideBulkBar } from '../lib/bulkBar';
-import { persistProposals } from '../lib/persist';
-import { undoToast } from '../lib/ui';
-import { updateStatus, updateBadge, changeProposalStatus } from '../core/proposals';
+import { toast } from '../lib/ui';
+import { changeProposalStatus } from '../core/proposals';
 import { refreshAll } from '../lib/registry';
-import { LOSS_REASONS } from '../lib/constants';
-import { activeTeam } from '../lib/commercial';
 import { today } from '../lib/utils';
 import type { Proposal } from '../lib/types';
 
@@ -92,16 +94,16 @@ export function renderDB(): void {
     const fu = needsFollowUp(p);
     const stale = p.status === PS.SENT && proposalStaleMonths(p, S.touches, followUpCount(p, S.touches), t) != null;
     const agreementId = S.agreements.find((a) => a.proposalId === p.id)?.id ?? null;
-    const c = tableCells(p, { today: t, reviewer: reviewer(p), due: fu, stale, agreementId });
+    const c = tableCells(p, { today: t, reviewer: reviewer(p), due: fu, stale, agreementId, shape: pricingShape(p.lines, cardFor) });
     const services = p.lines?.length ? lineTotals(p.lines, p.contractMonths).serviceNames : (p.type && p.type !== '—' ? [p.type] : []);
     const act = c.action ? `<button class="rlink pk-act" onclick="event.stopPropagation();dbAct(event, ${p.id}, '${c.action.kind}')"${c.action.kind === 'followed_up' ? ' aria-haspopup="menu"' : ''}>${escHtml(c.action.label)}</button>` : '';
     return `<tr data-proposal-id="${p.id}" class="rec-tr${p.archived ? ' archived-row' : ''}${dbSelected.has(p.id) ? ' is-selected' : ''}" onclick="if(!event.target.closest('a,button,select,input'))openRecord('proposal', ${p.id})" oncontextmenu="proposalRowMenu(event, ${p.id})">
-      <td class="td-chk"><input type="checkbox" ${dbSelected.has(p.id) ? 'checked' : ''} onchange="dbSelect(${p.id}, this.checked)" aria-label="Select SL# ${p.id}"></td>
+      <td class="td-chk"><input type="checkbox" ${dbSelected.has(p.id) ? 'checked' : ''} onclick="dbCheckClick(event, ${p.id})" aria-label="Select SL# ${p.id}"></td>
       <td class="pk-td-co"><div class="pk-co">${tileHtml(p.client, 'pk-tile sm')}<div class="pk-co-t">${companyLink(p.companyId, p.client)}<span class="pk-svc">— ${escHtml(services.join(', ') || 'to be confirmed')}</span>${p.archived ? ' <span class="pk-chip t-grey">Archived</span>' : ''}</div></div></td>
       <td class="mono t-sub">${p.id}</td>
       <td><span class="pk-stage t-${c.chip.tone}"><i></i>${escHtml(c.chip.text)}</span>${c.flag ? ` <span class="pk-chip t-${c.flag.tone}">${escHtml(c.flag.text)}</span>` : ''}</td>
       <td class="num"><span class="pk-age-sm t-${c.tone}">${c.days == null ? '—' : escHtml(plural(c.days, 'day'))}</span></td>
-      <td class="num"><span class="pk-mrr${c.monthly === '—' ? ' is-none' : ''}">${escHtml(c.monthly)}</span></td>
+      <td class="num"><span class="pk-mrr${c.monthly === '—' ? ' is-none' : c.shaped ? ' is-shape' : ''}">${escHtml(c.monthly)}</span></td>
       <td class="mono t-sub">${escHtml(ownerName(p) || '—')}</td>
       <td class="num pk-td-act">${act}<button class="rec-icon-btn row-more" onclick="proposalRowMenu(event, ${p.id})" data-tip="Change status…" aria-label="Change status of SL# ${p.id}">${icon('more', 14)}</button></td>
     </tr>`;
@@ -126,6 +128,8 @@ export function proposalRowMenu(e: MouseEvent, id: number): void {
   if (!p) return;
   const items = [
     { label: 'Open', iconName: 'document', run: () => (window as any).openRecord('proposal', id) },
+    // Requested together with others: tick the whole set in one go.
+    ...(requestSiblings(p, S.proposals).length ? [{ label: `Select the ${requestSiblings(p, S.proposals).length} sent with this`, iconName: 'check', run: () => dbSelectGroup(id) }] : []),
     { label: '', run: () => {}, separator: true },
     ...STATUSES.filter((st) => st !== p.status).map((st) => ({ label: `Status: ${st}`, iconName: 'check', run: () => { void changeProposalStatus(id, st).then(() => renderDB()); } })),
   ];
@@ -239,61 +243,76 @@ export async function exportFiltered(): Promise<void> {
 expose('exportFiltered', exportFiltered);
 
 // ── Selection and bulk actions ──
+// A checkbox shows on a row on hover and stays on every row once one is ticked; the header's selects them all;
+// shift-click takes the rows in between. The bar (core/proposalBulk.ts) then changes them together.
 
 const dbSelected = new Set<number>();
+let dbLastTicked: number | null = null;
+const dbShownIds = (): number[] => [...document.querySelectorAll<HTMLElement>('#db-tbody tr[data-proposal-id]')].map((tr) => Number(tr.dataset.proposalId));
+
+function paintDbSelection(): void {
+  document.querySelectorAll<HTMLElement>('#db-tbody tr[data-proposal-id]').forEach((tr) => {
+    const on = dbSelected.has(Number(tr.dataset.proposalId));
+    tr.classList.toggle('is-selected', on);
+    const box = tr.querySelector<HTMLInputElement>('.td-chk input'); if (box) box.checked = on;
+  });
+  const all = document.getElementById('db-select-all') as HTMLInputElement | null;
+  const shown = dbShownIds();
+  if (all) all.checked = shown.length > 0 && shown.every((id) => dbSelected.has(id));
+  updateDbBulkBar();
+}
 
 export function dbSelect(id: number, on: boolean): void {
   if (on) dbSelected.add(id); else dbSelected.delete(id);
-  document.querySelector(`#db-tbody tr[data-proposal-id="${id}"]`)?.classList.toggle('is-selected', on);
-  updateDbBulkBar();
+  dbLastTicked = id;
+  paintDbSelection();
 }
 expose('dbSelect', dbSelect);
 
+/** A click on a row's checkbox: with Shift, every row from the last one ticked to this one takes this one's state. */
+export function dbCheckClick(e: MouseEvent, id: number): void {
+  const on = (e.currentTarget as HTMLInputElement).checked;
+  if (e.shiftKey && dbLastTicked != null && dbLastTicked !== id) {
+    for (const x of rangeIds(dbShownIds(), dbLastTicked, id)) { if (on) dbSelected.add(x); else dbSelected.delete(x); }
+    dbLastTicked = id;
+    paintDbSelection();
+    return;
+  }
+  dbSelect(id, on);
+}
+expose('dbCheckClick', dbCheckClick);
+
+/** "Select the N sent with this": the proposals requested together with it that this list is showing. */
+export function dbSelectGroup(id: number): void {
+  const p = S.proposals.find((x) => x.id === id);
+  if (!p) return;
+  const group = requestGroupIds(p, S.proposals);
+  const shown = new Set(dbShownIds());
+  const here = group.filter((x) => shown.has(x));
+  here.forEach((x) => dbSelected.add(x));
+  dbLastTicked = id;
+  paintDbSelection();
+  if (here.length < group.length) toast(`${group.length - here.length} sent with it ${group.length - here.length === 1 ? 'is' : 'are'} not in this list`, { detail: 'Clear the filters to select the whole set.' });
+}
+expose('dbSelectGroup', dbSelectGroup);
+
 export function dbSelectAll(on: boolean): void {
-  document.querySelectorAll<HTMLElement>('#db-tbody tr[data-proposal-id]').forEach((tr) => {
-    const id = Number(tr.dataset.proposalId);
-    if (on) dbSelected.add(id); else dbSelected.delete(id);
-  });
-  renderDB();
+  for (const id of dbShownIds()) { if (on) dbSelected.add(id); else dbSelected.delete(id); }
+  paintDbSelection();
 }
 expose('dbSelectAll', dbSelectAll);
 
 export function dbClearSelection(): void {
   dbSelected.clear();
-  renderDB();
+  dbLastTicked = null;
+  paintDbSelection();
 }
 expose('dbClearSelection', dbClearSelection);
-
-/** Applies a change to every selected proposal, with one undo for all of them. */
-function bulkChange(label: string, change: (p: Proposal) => void): void {
-  const picked = S.proposals.filter((p) => dbSelected.has(p.id));
-  if (!picked.length) return;
-  const before = picked.map((p) => [p, structuredClone(p)] as const);
-  picked.forEach(change);
-  persistProposals();
-  updateBadge();
-  dbSelected.clear();
-  refreshAll();
-  undoToast(`${label}: ${picked.length} proposal${picked.length === 1 ? '' : 's'}`, () => {
-    for (const [p, copy] of before) Object.assign(p, copy);
-    persistProposals();
-    updateBadge();
-    refreshAll();
-  });
-}
-
-const BULK_STATUSES = [PS.REQUEST, PS.DRAFTING, PS.REVIEW, PS.SENT, PS.CLIENT_SIGNED, PS.WITHDRAWN];
 
 function updateDbBulkBar(): void {
   if (getActiveTabId() !== 'database') { hideBulkBar('db-bulk'); return; }
   renderBulkBar('db-bulk', dbSelected.size, ['proposal', 'proposals'], [
-    { label: 'Status', choices: () => BULK_STATUSES.map((st) => ({ label: st, run: () => bulkChange(`Moved to ${st}`, (p) => { if (p.status !== st) { updateStatus(p.id, st); } }) })) },
-    { label: 'Mark lost', danger: true, choices: () => LOSS_REASONS.map((r) => ({ label: r, run: () => bulkChange('Marked lost', (p) => {
-      p.status = PS.LOST; p.winLossReason = r; p.snoozedUntil = null;
-      p.notes = [...(p.notes || []), { id: Date.now() + p.id, date: today(), text: `[LOST: ${r}]` }];
-    }) })) },
-    { label: 'Owner', choices: () => activeTeam().map((t) => ({ label: t.name, run: () => bulkChange(`Owner set to ${t.name}`, (p) => { p.ownerId = t.id; p.owner = t.name; }) })) },
-    { label: 'Archive', run: () => bulkChange('Archived', (p) => { p.archived = true; p.archivedAt = today(); }) },
+    ...proposalBulkActions(() => [...dbSelected], () => { dbSelected.clear(); dbLastTicked = null; }),
     { label: 'Export CSV', run: () => { void exportCSV(S.proposals.filter((p) => dbSelected.has(p.id)), 'MENA_BIG_Proposals_selected'); } },
   ], 'dbClearSelection()', () => S.currentTab === 'database' && S.currentProposalId == null);
 }

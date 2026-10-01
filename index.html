@@ -535,10 +535,10 @@
 <!-- MEETINGS TAB -->
 <div id="tab-meetings" class="tab">
   <div id="meeting-detail" class="proj-detail record-page">
-    <header class="rec-header">
-      <div class="rec-avatar rec-avatar-icon"><span data-icon="meeting" data-icon-size="24"></span></div>
+    <header class="rec-header rk-head">
+      <div class="rec-avatar rk-when" id="md-avatar"></div>
       <div class="rec-head-main">
-        <div class="rec-eyebrow">Meeting</div>
+        <div class="rec-eyebrow" id="md-eyebrow">Meeting</div>
         <h1 class="rec-title" id="md-title"></h1>
         <div class="rec-badges" id="md-badges"></div>
       </div>
@@ -550,26 +550,26 @@
         <button class="loc-nav rec-more" onclick="meetingMoreMenu(event)" data-tip="More" aria-label="More"><span data-icon="more" data-icon-size="16"></span></button>
       </div>
     </header>
-    <div class="rec-layout">
+    <div class="ctd-grid rk-grid md-grid">
+    <aside class="rk-side">
+      <!-- The client beside the notes (tabs/meetingContext.ts): where we stand, open promises, who is in the room, last time. -->
+      <div class="md-context" id="md-context" hidden></div>
+      <section class="rk-panel">
+        <div class="rec-section-hd"><h2 class="rk-panel-h">Details</h2><div class="rec-section-actions" id="md-props-act"></div></div>
+        <dl class="rec-props" id="md-props"></dl>
+        <div class="rec-side-extra" id="md-outlook-card" style="display:none"><div id="md-outlook-info"></div></div>
+      </section>
+      <section class="rk-panel md-invite" id="md-invite" hidden></section>
+    </aside>
     <div class="rec-main" id="md-main">
     <!-- The meeting's notes, in the order that suits the moment: prep and
          notes before and during the meeting, the outcome first afterwards
          (meetings.ts renderMeetingNotes). -->
-    <section class="sec rec-section md-notes" id="md-notes"></section>
+    <section class="rec-section md-notes" id="md-notes" aria-label="Meeting notes"></section>
     <section class="sec rec-section" id="md-commitments" hidden></section>
     <section class="sec rec-section md-client" id="md-client"></section>
     <section class="sec rec-section md-people" id="md-people" hidden></section>
     </div>
-    <aside class="rec-side">
-      <!-- The client beside the notes (tabs/meetingContext.ts): where we stand, who is in the room, last time, open promises. -->
-      <div class="md-context" id="md-context" hidden></div>
-      <section class="sec rec-side-card">
-        <div class="rec-section-hd"><h2>Details</h2><div class="rec-section-actions" id="md-props-act"></div></div>
-        <dl class="rec-props" id="md-props"></dl>
-        <div class="rec-side-extra" id="md-outlook-card" style="display:none"><div id="md-outlook-info"></div></div>
-      </section>
-      <section class="sec rec-side-card md-invite" id="md-invite" hidden></section>
-    </aside>
     </div>
   </div>
 
@@ -958,55 +958,52 @@
   </div>
 
   <div id="proj-detail" class="proj-detail record-page">
-    <header class="rec-header">
-      <div class="rec-avatar rec-avatar-icon"><span data-icon="target" data-icon-size="24"></span></div>
+    <header class="rec-header rk-head">
+      <div class="rec-avatar" id="pd-avatar"></div>
       <div class="rec-head-main">
-        <div class="rec-eyebrow">Project</div>
+        <div class="rec-eyebrow" id="pd-eyebrow">Project</div>
         <h1 class="rec-title" id="pd-name"></h1>
         <div class="rec-badges" id="pd-badges"></div>
         <div class="rec-figures" id="pd-figures" hidden></div>
       </div>
       <div class="rec-actions" id="pd-actions"></div>
     </header>
+    <!-- The story: the milestone track at full width, today in coral. -->
+    <div class="rk-ptrack-card" id="pd-track"></div>
     <div class="thread-host" id="pd-thread" hidden></div>
-    <div class="rec-layout">
+    <div class="ctd-grid rk-grid">
+    <aside class="rk-side">
+      <section class="rk-panel">
+        <div class="rec-section-hd"><h2 class="rk-panel-h">Details</h2><div class="rec-section-actions" id="pd-props-act"></div></div>
+        <dl class="rec-props" id="pd-props"></dl>
+        <p id="pd-desc" class="rec-desc"></p>
+      </section>
+      <section class="rk-panel" id="pd-files-sec">
+        <div class="rec-section-hd"><h2 class="rk-panel-h">Files</h2><span class="rec-count" id="pd-files-cnt"></span><div class="rec-section-actions" id="pd-files-act"></div></div>
+        <div id="pd-files"></div>
+      </section>
+      <section class="rk-panel" id="pd-origin" hidden></section>
+    </aside>
     <div class="rec-main rec-stack" id="pd-main">
+      <section class="rk-sec" id="pd-tasks-sec">
+        <div class="rk-sh"><h2 class="hd-major">Tasks by milestone</h2><span class="rk-cnt" id="pd-task-cnt"></span><a href="#" class="rlink rk-sh-r" onclick="event.preventDefault();createTodoForCurrentProject()">Add task</a></div>
+        <div id="pd-tasks"></div>
+      </section>
+      <section class="rk-sec" id="pd-meetings"></section>
       <div class="sec rec-section" id="pd-activity"></div>
       <section class="sec rec-section" id="pd-milestones-sec">
         <div class="rec-section-hd"><h2>Milestones</h2><span class="rec-count" id="pd-milestone-cnt"></span></div>
         <div id="pd-milestones"></div>
         <form class="milestone-add-row" onsubmit="addMilestone(event)">
-          <input class="td-input" name="msName" placeholder="New milestone…" required>
-          <input class="td-input" type="date" name="msDate">
+          <input class="td-input" name="msName" placeholder="New milestone…" aria-label="New milestone" required>
+          <input class="td-input" type="date" name="msDate" aria-label="Its date">
           <button type="submit" class="btn-secondary btn-sm">Add</button>
         </form>
       </section>
-      <section class="sec rec-section" id="pd-tasks-sec">
-        <div class="rec-section-hd"><h2>Tasks</h2><span class="rec-count" id="pd-task-cnt"></span><div class="rec-section-actions"><button class="rlink" onclick="createTodoForCurrentProject()">Add</button></div></div>
-        <div id="pd-tasks"></div>
-      </section>
-      <div class="sec rec-section" id="pd-meetings"></div>
       <section class="sec rec-section" id="pd-commitments" hidden></section>
-      <div class="sec rec-section" id="pd-origin" hidden></div>
       <div class="sec rec-section" id="pd-notes"></div>
       <div class="sec rec-section" id="pd-emails" style="display:none"></div>
-      <section class="sec rec-section" id="pd-files-sec">
-        <div class="rec-section-hd"><h2>Files</h2><span class="rec-count" id="pd-files-cnt"></span></div>
-        <div id="pd-files"></div>
-      </section>
     </div>
-    <aside class="rec-side">
-      <section class="sec rec-side-card">
-        <div class="rec-section-hd"><h2>Details</h2><div class="rec-section-actions" id="pd-props-act"></div></div>
-        <dl class="rec-props" id="pd-props"></dl>
-        <div class="rec-progress">
-          <span class="rec-progress-lbl">Progress</span>
-          <div class="project-progress-track"><div class="project-progress-fill" id="pd-progress-fill"></div></div>
-          <strong id="pd-progress-txt"></strong>
-        </div>
-        <p id="pd-desc" class="rec-desc"></p>
-      </section>
-    </aside>
     </div>
   </div>
 </div>
@@ -1113,35 +1110,46 @@
   </div>
 
   <div id="opp-detail" class="proj-detail record-page">
-    <header class="rec-header">
-      <div class="rec-avatar rec-avatar-icon"><span data-icon="briefcase" data-icon-size="24"></span></div>
+    <header class="rec-header rk-head">
+      <div class="rec-avatar" id="od-avatar"></div>
       <div class="rec-head-main">
         <div class="rec-eyebrow">Opportunity</div>
         <h1 class="rec-title" id="od-name"></h1>
         <div class="rec-badges" id="od-badges"></div>
+        <div class="rec-figures" id="od-figures" hidden></div>
       </div>
       <div class="rec-actions" id="od-actions"></div>
     </header>
+    <!-- The story: its own stages, the current one in coral with its days. -->
+    <div class="rk-story" id="od-stages" aria-label="Stages"></div>
     <div class="thread-host" id="od-thread" hidden></div>
-    <div class="rec-layout">
+    <div class="ctd-grid rk-grid">
+    <aside class="rk-side">
+      <section class="rk-panel">
+        <div class="rec-section-hd"><h2 class="rk-panel-h">Details</h2><div class="rec-section-actions" id="od-props-act"></div></div>
+        <dl class="rec-props" id="od-props"></dl>
+        <dl class="rec-props"><dt>Waiting on</dt><dd id="od-waiting"></dd></dl>
+      </section>
+      <section class="rk-panel" id="od-at" hidden></section>
+      <section class="rk-panel od-people" id="od-contacts"></section>
+    </aside>
     <div class="rec-main rec-stack" id="od-main">
-      <section class="sec rec-section" id="od-next"><div class="rec-section-hd"><h2>Next action</h2></div><div id="od-next-task"></div><textarea id="od-next-action" class="rec-notes" placeholder="What happens next?" oninput="autoSaveOpportunityField('nextAction',this.value)"></textarea></section>
-      <section class="sec rec-section od-desc" id="od-desc-sec"><div class="rec-section-hd"><h2>Description</h2></div><div id="od-desc-view"></div><textarea id="od-description" class="rec-notes" placeholder="What is this opportunity about?" hidden oninput="autoSaveOpportunityField('description',this.value)" onblur="endOpportunityDescription()" onkeydown="if(event.key==='Escape')this.blur()"></textarea></section>
+      <section class="rk-sec" id="od-next">
+        <div class="rk-nextstep" id="od-next-prompt" hidden></div>
+        <div id="od-next-set">
+          <div class="rk-sh"><h2 class="hd-major">Next step</h2></div>
+          <div id="od-next-task"></div>
+          <textarea id="od-next-action" class="rec-notes" placeholder="What happens next?" oninput="autoSaveOpportunityField('nextAction',this.value)"></textarea>
+        </div>
+      </section>
+      <section class="rk-sec" id="od-files"></section>
       <div class="sec rec-section" id="od-activity"></div>
       <div class="sec rec-section" id="od-tasks"></div>
       <div class="sec rec-section" id="od-meetings"></div>
       <section class="sec rec-section" id="od-commitments" hidden></section>
-      <div class="sec rec-section" id="od-contacts"></div>
       <div class="sec rec-section" id="od-notes"></div>
-      <section class="sec rec-section" id="od-files"></section>
+      <section class="sec rec-section od-desc" id="od-desc-sec"><div class="rec-section-hd"><h2>Description</h2></div><div id="od-desc-view"></div><textarea id="od-description" class="rec-notes" placeholder="What is this opportunity about?" hidden oninput="autoSaveOpportunityField('description',this.value)" onblur="endOpportunityDescription()" onkeydown="if(event.key==='Escape')this.blur()"></textarea></section>
     </div>
-    <aside class="rec-side">
-      <section class="sec rec-side-card">
-        <div class="rec-section-hd"><h2>Details</h2><div class="rec-section-actions" id="od-props-act"></div></div>
-        <dl class="rec-props" id="od-props"></dl>
-        <dl class="rec-props"><dt>Waiting on</dt><dd id="od-waiting"></dd></dl>
-      </section>
-    </aside>
     </div>
   </div>
 </div>
@@ -1455,7 +1463,7 @@
   </div>
 </div>
 <div class="record-page ct-detail" id="ct-detail">
-  <header class="rec-header">
+  <header class="rec-header rk-head">
     <div class="rec-avatar round" id="ctd-avatar"></div>
     <div class="rec-head-main">
       <div class="rec-eyebrow">Contact</div>
@@ -1465,19 +1473,28 @@
     </div>
     <div class="rec-actions" id="ctd-actions"></div>
   </header>
-  <div class="ctd-grid">
-    <aside class="sec ctd-props-card">
-      <div class="rec-section-hd"><h2>Details</h2><span class="rec-save-state" id="ctd-save-state"></span><div class="rec-section-actions" id="ctd-props-act"></div></div>
-      <dl class="rec-props ctd-props" id="ctd-props"></dl>
-      <div class="rec-section-hd rec-section-hd-spaced"><h2>Lists</h2></div>
-      <div class="ctd-lists" id="ctd-lists"></div>
+  <!-- The story: every meeting, email, call and note with this person over the last months. -->
+  <section class="rk-sec" id="ctd-trail-sec" hidden>
+    <div class="rk-sh"><h2 class="hd-major">Contact trail</h2><span class="rk-cnt" id="ctd-trail-since"></span><span class="rk-sh-r rk-legend" id="ctd-trail-legend"></span></div>
+    <div class="rk-ctrail" id="ctd-trail"></div>
+  </section>
+  <div class="ctd-grid rk-grid">
+    <aside class="rk-side">
+      <section class="rk-panel ctd-props-card">
+        <div class="rec-section-hd"><h2 class="rk-panel-h">Details</h2><span class="rec-save-state" id="ctd-save-state"></span><div class="rec-section-actions" id="ctd-props-act"></div></div>
+        <dl class="rec-props ctd-props" id="ctd-props"></dl>
+        <div class="rec-section-hd rec-section-hd-spaced"><h2 class="rk-panel-h">Lists</h2></div>
+        <div class="ctd-lists" id="ctd-lists"></div>
+      </section>
+      <section class="rk-panel" id="ctd-also" hidden></section>
     </aside>
     <div class="ctd-main">
-      <section class="rec-section sec"><div class="rec-section-hd"><h2>Opportunities</h2><span class="rec-count" id="ctd-opps-count"></span></div><div class="rec-list" id="ctd-opps"></div></section>
-      <section class="rec-section sec"><div class="rec-section-hd"><h2>Meetings</h2><span class="rec-count" id="ctd-meetings-count"></span></div><div class="rec-list" id="ctd-meetings"></div></section>
-      <section class="rec-section sec"><div class="rec-section-hd"><h2>Emails</h2><span class="rec-count" id="ctd-emails-count"></span></div><div class="rec-list" id="ctd-emails"></div></section>
-      <section class="rec-section sec"><div class="rec-section-hd"><h2>Mentioned in</h2><span class="rec-count" id="ctd-mentions-count"></span></div><div class="rec-list" id="ctd-mentions"></div></section>
-      <section class="rec-section sec"><div class="rec-section-hd"><h2>Activity</h2></div><div class="feed" id="ctd-activity"></div></section>
+      <section class="rk-sec" id="ctd-open-sec" hidden><div class="rk-sh"><h2 class="hd-major" id="ctd-open-h">Open</h2><span class="rk-cnt" id="ctd-open-count"></span></div><div id="ctd-open"></div></section>
+      <section class="rk-sec"><div class="rk-sh"><h2 class="hd-major">Meetings</h2><span class="rk-cnt" id="ctd-meetings-count"></span><a href="#" class="rlink rk-sh-r" onclick="event.preventDefault();contactNewMeeting()">New meeting</a></div><div id="ctd-meetings"></div></section>
+      <section class="rk-sec"><div class="rk-sh"><h2 class="hd-major">Emails</h2><span class="rk-cnt" id="ctd-emails-count"></span></div><div id="ctd-emails"></div></section>
+      <section class="rk-sec"><div class="rk-sh"><h2>Opportunities</h2><span class="rk-cnt" id="ctd-opps-count"></span></div><div class="rec-list" id="ctd-opps"></div></section>
+      <section class="rk-sec"><div class="rk-sh"><h2>Mentioned in</h2><span class="rk-cnt" id="ctd-mentions-count"></span></div><div class="rec-list" id="ctd-mentions"></div></section>
+      <section class="rk-sec"><div class="rk-sh"><h2>Activity</h2></div><div class="feed" id="ctd-activity"></div></section>
     </div>
   </div>
 </div>
@@ -1547,7 +1564,7 @@
   </div>
 
   <div class="co-detail record-page" id="co-detail">
-    <header class="rec-header">
+    <header class="rec-header rk-head">
       <div class="rec-avatar" id="co-avatar"></div>
       <div class="rec-head-main">
         <div class="rec-eyebrow">Company</div>
@@ -1559,7 +1576,6 @@
         <button class="btn-primary" onclick="companyNewMenu(event)" aria-haspopup="menu"><span data-icon="plus" data-icon-size="13"></span> New</button>
         <button class="btn-secondary" onclick="openCompanyBrief()" data-tip="A one-page brief to read or print">Brief</button>
         <button class="btn-secondary" onclick="openCompanyTemplates()" data-tip="A template email to this company, ready to copy or open in Outlook">Email</button>
-        <button class="btn-secondary" onclick="openEditCompanyModal()">Edit</button>
         <button class="loc-nav rec-more" onclick="companyMoreMenu(event)" data-tip="More" aria-label="More"><span data-icon="more" data-icon-size="16"></span></button>
       </div>
     </header>
@@ -1621,29 +1637,36 @@
 
     <!-- The dossier (owner, 29-Sep, Concept B): a left column that stays while
          you scroll (details, people, what to remember), the story on the right. -->
+    <!-- Where we stand: four cards (relationship, in flight, last contact, owed), from the same clauses as the Brief. -->
+    <section class="rec-section co-standing" id="co-sec-overview" data-section="overview" aria-label="Where we stand"><div id="co-state"></div></section>
     <div class="co-dossier">
     <aside class="co-dossier-side" aria-label="Company at a glance">
       <section class="co-panel" id="co-panel-details">
-        <div class="co-panel-hd"><h2 class="brand-h hd-major">Details</h2></div>
+        <div class="co-panel-hd"><h2 class="rk-panel-h">Details</h2><a href="#" class="rlink co-panel-act" onclick="event.preventDefault();openEditCompanyModal()">Edit</a></div>
         <dl class="co-details" id="co-details"></dl>
       </section>
       <section class="co-panel" id="co-sec-contacts" data-section="contacts">
-        <div class="co-panel-hd"><span class="rec-eyebrow">People</span><span class="rec-count" id="co-contacts-count"></span><a href="#" class="rlink co-panel-act" onclick="event.preventDefault();openContactForCompany()">+ Add</a></div>
+        <div class="co-panel-hd"><h2 class="rk-panel-h">People</h2><span class="rec-count" id="co-contacts-count"></span><a href="#" class="rlink co-panel-act" onclick="event.preventDefault();openContactForCompany()">+ Add</a></div>
         <div class="rec-list co-people" id="co-contacts-list"></div>
       </section>
       <section class="co-panel" id="co-panel-remember" hidden>
-        <div class="co-panel-hd"><span class="rec-eyebrow">Remember</span></div>
+        <div class="co-panel-hd"><h2 class="rk-panel-h">Remember</h2></div>
         <div class="co-remember" id="co-remember"></div>
       </section>
     </aside>
     <div class="co-dossier-main">
-    <!-- Where we stand, as labelled lines (tabs/companyState.ts, lib/companyDossier.ts). -->
-    <section class="rec-section co-standing" id="co-sec-overview" data-section="overview"><div class="rec-section-hd"><h2 class="hd-major">Where we stand</h2></div><div id="co-state"></div></section>
-    <section class="rec-section co-nextrecent" id="co-sec-next" data-section="next">
-      <div class="co-nr-grid">
-        <div class="co-nr-col"><div class="co-nr-hd"><span class="rec-eyebrow">Next</span></div><div id="co-next"></div></div>
-        <div class="co-nr-col"><div class="co-nr-hd"><span class="rec-eyebrow">Recent</span><a href="#" class="rlink co-nr-all" id="co-activity-toggle" onclick="event.preventDefault();toggleCompanyActivity()">All activity</a></div><div id="co-recent"></div></div>
-      </div>
+    <section class="rec-section rk-sec" id="co-sec-services" data-section="services" hidden>
+      <div class="rk-sh"><h2 class="hd-major">Services</h2><span class="rk-cnt" id="co-services-count"></span><a href="#" class="rlink rk-sh-r" onclick="event.preventDefault();scrollToCompanySection('agreements')">All agreements</a></div>
+      <div id="co-services"></div>
+    </section>
+    <section class="rec-section rk-sec" id="co-sec-flight" data-section="flight">
+      <div class="rk-sh"><h2 class="hd-major">In flight</h2><span class="rk-cnt" id="co-flight-count"></span><a href="#" class="rlink rk-sh-r" onclick="event.preventDefault();scrollToCompanySection('proposals')">All proposals</a></div>
+      <div id="co-flight"></div>
+    </section>
+    <section class="rec-section rk-sec co-nextrecent" id="co-sec-next" data-section="next">
+      <div class="rk-sh"><h2 class="hd-major">Next</h2><a href="#" class="rlink rk-sh-r" id="co-activity-toggle" onclick="event.preventDefault();toggleCompanyActivity()">All activity</a></div>
+      <div id="co-next"></div>
+      <div id="co-recent" hidden></div>
       <section class="rec-section sec co-activity-fold" id="co-sec-activity" data-section="activity" hidden></section>
     </section>
     <section class="rec-section sec" id="co-sec-notes-log" data-section="notes-log">
@@ -1710,7 +1733,7 @@
   <div class="pk-tools">
   <div class="fbar">
     <input type="text" class="f-search pk-search" id="agr-search" placeholder="Search client, reference, service…" oninput="filterSoon('renderAgreements')">
-    <select class="fsel" id="agr-status" onchange="renderAgreements()" aria-label="Status"><option value="">All statuses</option></select>
+    <select class="fsel" id="agr-status" onchange="renderAgreements()" aria-label="Status"><option value="">All but cancelled</option></select>
     <select class="fsel" id="agr-service" onchange="renderAgreements()" aria-label="Service status"><option value="">Any service status</option></select>
     <select class="fsel" id="agr-type" onchange="renderAgreements()" aria-label="Type"><option value="">All types</option></select>
     <select class="fsel" id="agr-prep" onchange="renderAgreements()" aria-label="Prepared by"><option value="">Prepared by anyone</option></select>
@@ -1722,34 +1745,45 @@
 </div>
 
 <div class="record-page agr-page" id="agr-detail">
-  <header class="rec-header">
-    <div class="rec-avatar rec-avatar-icon" data-icon="document" data-icon-size="24"></div>
+  <header class="rec-header rk-head">
+    <div class="rec-avatar" id="agd-avatar"></div>
     <div class="rec-head-main">
-      <div class="rec-eyebrow">Agreement</div>
+      <div class="rec-eyebrow" id="agd-eyebrow">Agreement</div>
       <h1 class="rec-title" id="agd-title"></h1>
       <div class="rec-badges" id="agd-badges"></div>
-        <div class="rec-figures" id="agd-figures" hidden></div>
+      <div class="rec-figures" id="agd-figures" hidden></div>
     </div>
     <div class="rec-actions" id="agd-actions"></div>
   </header>
+  <!-- The story: the term as one lane — what has run, today, the notice window. -->
+  <div class="rk-lane-card" id="agd-lane"></div>
   <div class="thread-host" id="agd-thread" hidden></div>
-  <div class="ctd-grid">
-    <aside class="sec ctd-props-card">
-      <div class="rec-section-hd"><h2>Details</h2><span class="rec-save-state" id="agd-save-state"></span><div class="rec-section-actions" id="agd-props-act"></div></div>
-      <dl class="rec-props pr-props" id="agd-props"></dl>
-    </aside>
-    <div class="ctd-main">
-      <section class="rec-section sec">
-        <div class="rec-section-hd"><h2>Term and service</h2><div class="rec-section-actions" id="agd-term-act"></div></div>
+  <div class="ctd-grid rk-grid">
+    <aside class="rk-side">
+      <section class="rk-panel ctd-props-card">
+        <div class="rec-section-hd"><h2 class="rk-panel-h">Details</h2><span class="rec-save-state" id="agd-save-state"></span><div class="rec-section-actions" id="agd-props-act"></div></div>
+        <dl class="rec-props pr-props" id="agd-props"></dl>
+      </section>
+      <section class="rk-panel">
+        <div class="rec-section-hd"><h2 class="rk-panel-h">Term and service</h2><div class="rec-section-actions" id="agd-term-act"></div></div>
         <dl class="rec-props pr-props" id="agd-term"></dl>
       </section>
-      <section class="rec-section sec">
-        <div class="rec-section-hd"><h2>Services on this agreement</h2><span class="rec-count" id="agd-lines-count"></span><div class="rec-section-actions" id="agd-lines-act"></div></div>
+      <section class="rk-panel" id="agd-at" hidden></section>
+    </aside>
+    <div class="ctd-main">
+      <section class="rk-sec" id="agd-renewal" hidden></section>
+      <section class="rk-sec">
+        <div class="rk-sh"><h2 class="hd-major">Services on this agreement</h2><span class="rk-cnt" id="agd-lines-count"></span><span class="rk-sh-r" id="agd-lines-act"></span></div>
         <div id="agd-lines"></div>
       </section>
-      <section class="rec-section sec">
-        <div class="rec-section-hd"><h2>Signature trail</h2><div class="rec-section-actions" id="agd-dates-act"></div></div>
-        <dl class="rec-props pr-props" id="agd-dates"></dl>
+      <section class="rk-sec">
+        <div class="rk-sh"><h2 class="hd-major">Documents and history</h2></div>
+        <div id="agd-docs"></div>
+      </section>
+      <section class="rk-sec">
+        <div class="rk-sh"><h2 class="hd-major">Signature trail</h2><span class="rk-sh-r" id="agd-dates-act"></span></div>
+        <div class="rk-sign" id="agd-sign"></div>
+        <dl class="rec-props pr-props" id="agd-dates" hidden></dl>
       </section>
       <section class="rec-section sec" id="agd-activity"></section>
     </div>
@@ -1832,7 +1866,7 @@
 </div>
 
 <div class="record-page pr-page" id="pr-detail">
-  <header class="rec-header">
+  <header class="rec-header rk-head">
     <div class="rec-avatar" id="prd-avatar"></div>
     <div class="rec-head-main">
       <div class="rec-eyebrow" id="prd-eyebrow">Proposal</div>
@@ -1842,15 +1876,19 @@
     </div>
     <div class="rec-actions" id="prd-actions"></div>
   </header>
+  <!-- The story: where it stands (the stepper) and, once sent, the contact trail. -->
+  <div class="rk-story" id="prd-stages" aria-label="Progress"></div>
+  <div class="rk-trail-card" id="prd-trail" hidden></div>
   <div class="thread-host" id="prd-thread" hidden></div>
-  <ol class="pr-stages" id="prd-stages" aria-label="Progress"></ol>
-  <div class="ctd-grid pr-grid">
-    <aside class="sec ctd-props-card">
-      <div class="rec-section-hd"><h2>Details</h2><span class="rec-save-state" id="prd-save-state"></span><div class="rec-section-actions" id="prd-props-act"></div></div>
-      <dl class="rec-props pr-props" id="prd-props"></dl>
+  <div class="ctd-grid pr-grid rk-grid">
+    <aside class="rk-side">
+      <section class="rk-panel pr-review" id="prd-review"></section>
+      <section class="rk-panel ctd-props-card">
+        <div class="rec-section-hd"><h2 class="rk-panel-h">Details</h2><span class="rec-save-state" id="prd-save-state"></span><div class="rec-section-actions" id="prd-props-act"></div></div>
+        <dl class="rec-props pr-props" id="prd-props"></dl>
+      </section>
     </aside>
     <div class="ctd-main">
-      <section class="rec-section sec pr-review" id="prd-review"></section>
       <section class="rec-section sec pr-contact" id="prd-contact" hidden></section>
       <section class="rec-section sec" id="prd-commercials-sec">
         <div class="rec-section-hd"><h2 class="hd-major">Commercials</h2><span class="rec-count" id="prd-lines-count"></span><div class="rec-section-actions" id="prd-lines-act"></div></div>
@@ -2531,7 +2569,7 @@
     </div>
     <div class="fact">
       <button class="btn-secondary" onclick="resolveTextPrompt(null)">Cancel</button>
-      <button class="btn-primary" onclick="resolveTextPrompt(document.getElementById('text-prompt-input').value)">OK</button>
+      <button class="btn-primary" id="text-prompt-ok" onclick="resolveTextPrompt(document.getElementById('text-prompt-input').value)">OK</button>
     </div>
   </div>
 </div>

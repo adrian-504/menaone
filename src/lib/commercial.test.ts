@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { S } from './state';
 import { nextDeckFileName, proposalDecks,
   lineTotals, syncProposalTotals, isAgreementActive, activeMrr, toReporting, fmtMoneyByCurrency, missingRates,
-  suggestedFileName, latestVersion, contractEndDate, isClosed, isInPreparation, PS, applyGeneratedDocument,
+  suggestedFileName, latestVersion, contractEndDate, isClosed, isInPreparation, PS, applyGeneratedDocument, agreementMonthly, syncAgreementTotals,
 } from './commercial';
 import type { Agreement, CommercialLine, Proposal } from './types';
 
@@ -82,6 +82,35 @@ describe('commercial rules', () => {
     expect(isClosed({ status: PS.WON })).toBe(true);
     expect(isClosed({ status: PS.SENT })).toBe(false);
     expect(isInPreparation({ status: PS.REVIEW })).toBe(true);
+  });
+});
+
+describe('an agreement\'s monthly fee', () => {
+  it('is the stored (billed) figure when there is one, else what its lines add up to', () => {
+    const lines = [line('Payroll', 'monthly', 3000), line('PRO', 'monthly', 1000)];
+    expect(agreementMonthly(agreement({ monthlyFee: 4500, lines }))).toBe(4500);
+    expect(agreementMonthly(agreement({ monthlyFee: null, lines }))).toBe(4000);
+    expect(agreementMonthly(agreement({ monthlyFee: 2500, lines: [] }))).toBe(2500);
+    expect(agreementMonthly(agreement({ monthlyFee: null, lines: [] }))).toBeNull();
+  });
+  it('follows the lines only when an edit changes what they add up to', () => {
+    const a = agreement({ monthlyFee: 4500, lines: [line('Payroll', 'monthly', 4000)] });
+    // Renaming a service: the total is what it was, the billed figure stays.
+    a.lines![0].serviceName = 'Payroll services';
+    syncAgreementTotals(a, 4000);
+    expect(a.monthlyFee).toBe(4500);
+    // Repricing: the fee follows.
+    a.lines![0].unitPrice = 5000;
+    syncAgreementTotals(a, 4000);
+    expect(a.monthlyFee).toBe(5000);
+    // An empty stored fee is not filled in by an edit that leaves the total alone…
+    const empty = agreement({ monthlyFee: null, lines: [line('Company maintenance', 'monthly', 8300)] });
+    syncAgreementTotals(empty, 8300);
+    expect(empty.monthlyFee).toBeNull();
+    // …and the first line on a new agreement sets it.
+    const fresh = agreement({ monthlyFee: null, lines: [line('Payroll', 'monthly', 3000)] });
+    syncAgreementTotals(fresh, null);
+    expect(fresh.monthlyFee).toBe(3000);
   });
 });
 

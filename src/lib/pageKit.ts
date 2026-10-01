@@ -68,7 +68,8 @@ export function stripHtml(page: string, panels: StripPanel[], opts: { flex?: (p:
   if (!shown.length) return '';
   const active = bucketOf(page);
   const cells = shown.map((p) => {
-    const style = `--c:var(--${toneVar(p.tone)})${opts.flex ? `;flex:${opts.flex(p)}` : ''}`;
+    // The edge keeps the tone's colour; an amber detail line is text on a tinted panel, so it takes the deeper amber.
+    const style = `--c:var(--${toneVar(p.tone)})${p.tone === 'amber' ? ';--ct:var(--amber-deep)' : ''}${opts.flex ? `;flex:${opts.flex(p)}` : ''}`;
     const detail = p.detail ? `<div class="pk-st-d">${p.lead ? `<span>${escHtml(p.lead)}</span>` : ''}${escHtml(p.detail)}</div>` : '';
     if (p.total) {
       return `<div class="pk-st is-total" style="${style}"><div class="pk-st-n" data-roll="strip-${page}-${p.key}">${escHtml(p.n)}</div><div class="pk-st-l">${escHtml(p.label)}</div>${detail}</div>`;
@@ -112,7 +113,9 @@ export function ageHtml(days: number | null, caption: string, tone: 'red' | 'amb
 }
 
 /** Money in display type, green; a muted "—" when there's no figure. */
-export function valueHtml(amount: string | null, caption: string): string {
+export function valueHtml(amount: string | null, caption: string, shape = false): string {
+  // No amount, but how it is priced is known ("per person per month"): say that, not a dash.
+  if (!amount && shape) return `<div class="pk-val is-shape"><span>${escHtml(caption)}</span></div>`;
   return `<div class="pk-val${amount ? '' : ' is-none'}"><b>${amount ? escHtml(amount) : '—'}</b><span>${escHtml(caption)}</span></div>`;
 }
 

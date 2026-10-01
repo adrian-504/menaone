@@ -61,6 +61,8 @@ export interface Proposal {
   revision?: number;
   /** When the latest revision was sent; `dateSentToClient` stays the first send. */
   lastSentAt?: string | null;
+  /** The day the service started, once signed by both (migration 44). Null = not started yet. */
+  serviceStartedAt?: string | null;
   revisions?: ProposalRevision[];
 }
 
@@ -269,7 +271,21 @@ export interface Agreement {
   noticeDays?: number | null;
   preparedById?: number | null;
   lines?: CommercialLine[];
+  /** What was decided about the renewal (migration 44): renew as it is, renew with changes, or let it end. Null = undecided. */
+  renewalDecision?: RenewalDecision | null;
+  /** The day that was decided (YYYY-MM-DD). */
+  renewalDecidedAt?: string | null;
+  /** On a drafted renewal: the agreement it renews. */
+  renewedFrom?: number | null;
+  /** How the term renews. Null = not recorded, which is not the same as "does not renew". */
+  renewalType?: RenewalType | null;
+  /** How far the signatures got. Null = not recorded. */
+  signatureStatus?: SignatureStatus | null;
 }
+
+export type RenewalDecision = 'renew' | 'changes' | 'end';
+export type RenewalType = 'auto' | 'extension_by_notice' | 'client_must_request' | 'fixed' | 'mutual' | 'open_ended' | 'project';
+export type SignatureStatus = 'signed_both' | 'mena_signed' | 'client_signed' | 'client_po' | 'unsigned';
 
 export type ServiceStatus = 'Not started' | 'Kickoff scheduled' | 'Active' | 'Ended';
 

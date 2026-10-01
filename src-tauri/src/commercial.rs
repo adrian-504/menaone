@@ -793,11 +793,47 @@ pub fn apply_derived_proposal_totals(conn: &Connection, proposal_id: i64, lines:
     Ok(())
 }
 
-pub fn apply_derived_agreement_totals(conn: &Connection, agreement_id: i64, lines: &[CommercialLine]) -> rusqlite::Result<()> {
+/// What an agreement's saved lines add up to a month — the figure `derive_totals` gives, read from the table.
+/// Outer `None`: the agreement has no lines saved. Inner `None`: it has lines, none of them a priced monthly one.
+pub fn lines_monthly_of(conn: &Connection, agreement_id: i64) -> rusqlite::Result<Option<Option<f64>>> {
+    let (n, monthly): (i64, Option<f64>) = conn.query_row(
+        "SELECT count(*), SUM(CASE WHEN billing = 'monthly' AND unit_price IS NOT NULL THEN unit_price * quantity END)
+         FROM agreement_lines WHERE agreement_id = ?1",
+        [agreement_id],
+        |r| Ok((r.get(0)?, r.get(1)?)),
+    )?;
+    Ok(if n == 0 { None } else { Some(monthly) })
+}
+
+/// The same, for every agreement that has lines.
+pub fn lines_monthly_by_agreement(conn: &Connection) -> rusqlite::Result<HashMap<i64, Option<f64>>> {
+    let mut stmt = conn.prepare(
+        "SELECT agreement_id, SUM(CASE WHEN billing = 'monthly' AND unit_price IS NOT NULL THEN unit_price * quantity END)
+         FROM agreement_lines GROUP BY agreement_id",
+    )?;
+    let rows = stmt.query_map([], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, Option<f64>>(1)?)))?;
+    rows.collect()
+}
+
+/// The stored monthly fee follows the lines only when this save changed what the lines add up to (1.61).
+/// `before` is that total before the save (`None` when the agreement had no lines). A save that leaves the lines'
+/// total alone — a renewal decision, a status, a date — leaves the fee as stored: for many agreements the stored
+/// fee is the billed figure and wins over the sum of the lines.
+pub fn apply_derived_agreement_totals(conn: &Connection, agreement_id: i64, lines: &[CommercialLine], before: Option<Option<f64>>) -> rusqlite::Result<()> {
     if lines.is_empty() {
         return Ok(());
     }
     let (_, monthly, _) = derive_totals(lines);
+    let same = |a: Option<f64>, b: Option<f64>| match (a, b) {
+        (None, None) => true,
+        (Some(x), Some(y)) => (x - y).abs() < 0.005,
+        _ => false,
+    };
+    if let Some(prior) = before {
+        if same(prior, monthly) {
+            return Ok(());
+        }
+    }
     conn.execute(
         "UPDATE agreements SET monthly_fee = ?2 WHERE id = ?1 AND monthly_fee IS NOT ?2",
         params![agreement_id, monthly],
@@ -807,7 +843,7 @@ pub fn apply_derived_agreement_totals(conn: &Connection, agreement_id: i64, line
 
 // ═══════════════════════════ Agreements from won proposals ═══════════════════════════
 
-const AGREEMENT_QUALIFYING_STATUSES: &[&str] = &[
+pub const AGREEMENT_QUALIFYING_STATUSES: &[&str] = &[
     STATUS_WON, "Double Signed Proposal sent to Client", "Proposal Signed by MENA", "Kickoff Meeting Set", "Service Started",
 ];
 

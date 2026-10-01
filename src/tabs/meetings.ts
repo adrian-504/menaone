@@ -26,6 +26,8 @@ import { durationLabel, isRunning, meetingDays, meetingOutcomes, nextMeeting, no
 import { nowLineHtml } from '../lib/timeline';
 import { tileHtml } from '../lib/pageKit';
 import { attendeeName } from '../lib/pagePeople';
+import { meetingHead } from '../lib/recordMeeting';
+import { personAvatar } from '../core/contacts';
 import { standLine } from './companyState';
 import { flushMeetingNotes, isOver, renderEarlierMeetings, renderMeetingInvite, renderMeetingNotes } from './meetingNotes';
 import { renderMeetingClientSection, meetingSuggestionsBanner, meetingSuggestionChip } from './meetingClient';
@@ -212,12 +214,20 @@ export function openMeetingDetail(id: number): void {
   if (!m) { if (S.meetingEditId != null && document.getElementById('meeting-detail')?.classList.contains('open')) closeMeetingDetail(); return; }
   if (S.meetingEditId !== id) flushMeetingNotes();
   S.meetingEditId = id;
+  const now = new Date();
+  const tasks = S.todos.filter((x) => x.meetingId === m.id && x.parentId == null);
+  const head = meetingHead(m, now, today(), writeUpState(m, tasks, isOver(m)));
+  const avatar = document.getElementById('md-avatar');
+  if (avatar) avatar.innerHTML = `<span>${escHtml(head.med.top)}</span><b>${escHtml(head.med.big)}</b>`;
+  (document.getElementById('md-eyebrow') as HTMLElement).textContent = head.eyebrow;
   (document.getElementById('md-title') as HTMLElement).textContent = m.title;
+  const people = (m.attendees || []).map(attendeeName).filter(Boolean);
   (document.getElementById('md-badges') as HTMLElement).innerHTML = [
-    m.isCancelled ? statusBadge('meeting', 'Cancelled') : '',
-    m.source === 'outlook' ? '<span class="rec-badge">Outlook</span>' : '',
-    m.meetingDate ? `<span class="rec-meta">${fmtDate(m.meetingDate)}${m.startAt ? ` · ${escHtml(fmtTimeRange(m.startAt, m.endAt))}` : ''}</span>` : '',
-    (m.attendees || []).length ? `<span class="rec-meta" title="${escHtml(m.attendees.join(', '))}">${icon('people', 12)} ${m.attendees.length} attendee${m.attendees.length === 1 ? '' : 's'}</span>` : '',
+    m.companyName ? `<span class="pk-mini-co">${tileHtml(m.companyName, 'pk-tile mini')}${companyLink(m.companyId, m.companyName)}</span>` : '',
+    `<span class="pk-stage t-${head.state.tone}"><i></i>${escHtml(head.state.text)}</span>`,
+    m.startAt && head.phase !== 'running' ? `<span class="rec-meta">${escHtml(fmtTimeRange(m.startAt, m.endAt))}</span>` : '',
+    people.length ? `<span class="rk-avs" data-tip="${escHtml(people.join(', '))}">${people.slice(0, 4).map((n) => personAvatar(n, 'pk-pav sm')).join('')}</span><span class="rec-meta">${escHtml(people.length > 3 ? `${people.slice(0, 3).join(', ')} +${people.length - 3}` : people.join(', '))}</span>` : '',
+    m.source === 'outlook' ? '<span class="rec-meta mono t-sub">Outlook</span>' : '',
   ].filter(Boolean).join('');
 
   renderMeetingRelationLinks(m);
@@ -254,6 +264,10 @@ export function openMeetingDetail(id: number): void {
   editScheduleBtn.style.display = isOutlook ? '' : 'none';
   joinBtn.style.display = isOutlook && m.isOnlineMeeting && m.onlineMeetingUrl && !m.isCancelled ? '' : 'none';
   if (joinBtn.style.display !== 'none') joinBtn.href = m.onlineMeetingUrl!;
+  // Join is the blue button only while the meeting is still to come or running.
+  const live = head.phase === 'upcoming' || head.phase === 'running';
+  joinBtn.classList.toggle('btn-primary', live);
+  joinBtn.classList.toggle('btn-secondary', !live);
   deleteBtn.textContent = isOutlook ? 'Cancel Meeting' : 'Delete';
 
   if (isOutlook) {

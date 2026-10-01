@@ -106,6 +106,9 @@ pub struct Proposal {
     /// When the latest revision was sent; `date_sent_to_client` stays the first send.
     #[serde(default)]
     pub last_sent_at: Option<String>,
+    /// The day the service started (migration 44). None = not started yet.
+    #[serde(default)]
+    pub service_started_at: Option<String>,
     #[serde(default)]
     pub revisions: Vec<ProposalRevision>,
 }
@@ -300,6 +303,22 @@ pub struct Agreement {
     pub notice_days: Option<i64>,
     #[serde(default)]
     pub prepared_by_id: Option<i64>,
+    /// What was decided about the renewal (migration 44): renew | changes | end. None = undecided.
+    #[serde(default)]
+    pub renewal_decision: Option<String>,
+    /// The day that was decided (YYYY-MM-DD).
+    #[serde(default)]
+    pub renewal_decided_at: Option<String>,
+    /// On a drafted renewal: the agreement it renews.
+    #[serde(default)]
+    pub renewed_from: Option<i64>,
+    /// How the term renews: auto | extension_by_notice | client_must_request | fixed | mutual | open_ended | project.
+    /// None = not recorded (which is not the same as "does not renew").
+    #[serde(default)]
+    pub renewal_type: Option<String>,
+    /// signed_both | mena_signed | client_signed | client_po | unsigned. None = not recorded.
+    #[serde(default)]
+    pub signature_status: Option<String>,
     #[serde(default)]
     pub lines: Vec<CommercialLine>,
 }

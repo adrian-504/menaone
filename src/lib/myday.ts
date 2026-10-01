@@ -266,6 +266,14 @@ function agreementItems(i: MyDayInput): AttentionItem[] {
       const { daysToEnd, daysToNotice: notice } = agreementRenewal(a, i.today);
       const d = daysToEnd!;
       if (d > 90 || d < -7) continue;
+      // The renewal is decided (1.61): nothing to plan. It comes back on the end date, to mark the service ended.
+      if (a.renewalDecision) {
+        if (d > 0) continue;
+        const how = a.renewalDecision === 'end' ? '' : a.renewalDecision === 'renew' ? ' (the renewal is drafted)' : ' (renewing with changes)';
+        out.push({ ...base, key: `agreement:${a.id}:renewal`, kind: 'agreement', score: 60, tone: 'amber',
+          reason: `${d === 0 ? 'Ends today' : `Ended ${days(-d)} ago`} — mark the service ended${how}`, when: shortDate(a.endDate), action: { kind: 'open', label: 'Open' } });
+        continue;
+      }
       out.push({ ...base, key: `agreement:${a.id}:renewal`, kind: 'agreement', score: d < 0 ? 84 : 80 - d / 3 + (notice != null && notice <= 7 ? 8 : 0), tone: d <= 30 ? 'red' : 'amber',
         reason: d < 0 ? `Ended ${days(-d)} ago — renew or close it${a.autoRenew ? ' (set to auto-renew)' : ''}`
           : `Ends in ${days(d)} — plan the renewal${notice != null && notice <= 14 ? `; notice due ${notice <= 0 ? 'now' : `in ${days(notice)}`}` : ''}`,

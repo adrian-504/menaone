@@ -15,7 +15,7 @@ describe('the meeting page context column', () => {
     renderMeetingContext(m);
     const el = document.getElementById('md-context')!;
     expect(el.hidden).toBe(false);
-    expect([...el.querySelectorAll('.md-ctx-hd .rec-eyebrow')].map((h) => h.textContent)).toEqual(['In the room']);
+    expect([...el.querySelectorAll('.md-ctx-panel .rk-panel-h')].map((h) => h.textContent)).toEqual(['In the room']);
     expect(el.textContent).toContain('Hassan Balaghi');
   });
 });

@@ -18,7 +18,7 @@ export function projectNextStep(p: Pick<Project, 'status' | 'archived' | 'comput
   const next = [...milestones].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)).find((m) => m.status !== 'Done');
   if (next) return { label: `Complete milestone: ${short(next.name)}`, run: `completeMilestone(${next.id})` };
   // Nothing planned and nothing done yet: plan it first, rather than "Mark completed" at 0 %.
-  if (!milestones.length && !(p.computedProgress > 0)) return { label: 'Add milestone', run: "document.querySelector('#pd-milestones-sec input[name=msName]')?.focus()" };
+  if (!milestones.length && !(p.computedProgress > 0)) return { label: 'Add milestone', run: "document.querySelector('#pd-track input[name=msName], #pd-milestones-sec input[name=msName]')?.focus()" };
   return p.status === 'In Progress' || p.status === 'At Risk'
     ? { label: 'Mark completed', run: "changeCurrentProjectStatus('Completed')" }
     : { label: 'Mark in progress', run: "changeCurrentProjectStatus('In Progress')" };
@@ -50,13 +50,14 @@ export function noticeDate(a: Pick<Agreement, 'endDate' | 'noticeDays'>): string
 }
 
 /** Agreement: sign it, start the service, renew near the notice date, else the proposal it came from. */
-export function agreementNextStep(a: Pick<Agreement, 'status' | 'serviceStatus' | 'endDate' | 'noticeDays' | 'proposalId'>, today: string): Step | null {
+export function agreementNextStep(a: Pick<Agreement, 'status' | 'serviceStatus' | 'endDate' | 'noticeDays' | 'proposalId' | 'renewalDecision'>, today: string): Step | null {
   if (a.status === 'Canceled') return null;
   if (a.status !== 'Signed') return { label: 'Mark signed', run: 'agreementMarkSigned()' };
   if (a.serviceStatus !== 'Active' && a.serviceStatus !== 'Ended') return { label: 'Mark active', run: "agreementFieldChanged('serviceStatus','Active')" };
   const notice = noticeDate(a);
   if (a.serviceStatus === 'Active' && notice && a.endDate && daysTo(today, notice) <= 30 && daysTo(today, a.endDate) >= -7) {
-    return { label: 'Renew…', run: 'agreementRenew()' };
+    // Decided already: nothing to start (the choice is marked on the page).
+    if (!a.renewalDecision) return { label: 'Start renewal', run: 'agreementStartRenewal()' };
   }
   return a.proposalId != null ? { label: 'Open proposal', run: `openRecord('proposal', ${a.proposalId})` } : null;
 }

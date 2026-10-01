@@ -38,4 +38,12 @@ describe('the proposal header step', () => {
   it('sent: Record signature only (the request for changes is in the Follow-up section)', () => {
     expect(labels(proposalNextStep(p('Sent to Client'), []))).toEqual([null, 'Record signature']);
   });
+
+  it('signed by both: Mark service started until it has a start date, with the agreement beside it; then the agreement', () => {
+    const agreements = [{ id: 4, proposalId: 7 }];
+    expect(labels(proposalNextStep(p('Signed by Both Parties'), agreements))).toEqual(['Open agreement', 'Mark service started']);
+    expect(proposalNextStep(p('Signed by Both Parties'), []).primary).toEqual({ label: 'Mark service started', run: 'proposalMarkServiceStarted()' });
+    expect(labels(proposalNextStep(p('Signed by Both Parties', { serviceStartedAt: '2026-10-12' }), agreements))).toEqual([null, 'Open agreement']);
+    expect(labels(proposalNextStep(p('Signed by Both Parties', { serviceStartedAt: '2026-10-12' }), []))).toEqual([null, null]);
+  });
 });

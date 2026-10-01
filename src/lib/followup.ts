@@ -88,7 +88,7 @@ const ago = (n: number) => (n === 0 ? 'today' : n === 1 ? 'yesterday' : `${n} da
 export function touchWhat(t: Omit<LastTouch, 'date'>): string {
   const whom = t.who ? ` ${t.who}` : '';
   switch (t.kind) {
-    case 'email': return `client emailed ${ago(t.days)}`;
+    case 'email': return `client replied ${ago(t.days)}`;
     case 'email_out': return `you emailed${whom || ' the client'} ${ago(t.days)}`;
     case 'call': return t.by === 'client' ? `client called ${ago(t.days)}` : `you called${whom} ${ago(t.days)}`;
     case 'whatsapp': return t.by === 'client' ? `client sent a WhatsApp ${ago(t.days)}` : `WhatsApp ${ago(t.days)}`;
@@ -101,7 +101,7 @@ export function touchWhat(t: Omit<LastTouch, 'date'>): string {
 /** One line of the proposal page's contact list, without "ago": "you emailed Sara", "client called". */
 export function touchDoing(t: Pick<Touch, 'kind' | 'direction'>, who: string | null): string {
   const whom = who ? ` ${who}` : '';
-  if (t.kind === 'email_in') return `${who || 'client'} emailed`;
+  if (t.kind === 'email_in') return `${who || 'client'} replied`;
   if (t.kind === 'email_out') return `you emailed${whom || ' the client'}`;
   if (t.kind === 'call') return t.direction === 'in' ? `${who || 'client'} called` : `you called${whom}`;
   if (t.kind === 'whatsapp') return t.direction === 'in' ? `WhatsApp from ${who || 'the client'}` : `WhatsApp${who ? ` to ${who}` : ''}`;

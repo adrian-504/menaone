@@ -8,7 +8,6 @@
 // convention Project already uses for those two.
 import { arrive } from '../lib/motion';
 import { foldMoreDetails } from '../lib/moreDetails';
-import { statusBadge } from '../lib/statusTone';
 import { addMoney, fmtMoneyByCurrency, currentUser, matchesOwnerFilter, ownerFilterOptions, type MoneyByCurrency } from '../lib/commercial';
 import { opportunityHealth, type OpportunityHealth } from '../lib/pipeline';
 import { bucketOf, clearBucket, moneyTotal, registerStrip, stripHtml, tileHtml, toneVar } from '../lib/pageKit';
@@ -23,7 +22,7 @@ import { openOutcomeDialog } from '../core/proposals';
 import { S } from '../lib/state';
 import { loadInto, toast } from '../lib/ui';
 import { companyLink, recordLink } from '../lib/links';
-import { fmtDate, escHtml, expose, nextNoteId, today, debounce, showConfirm, daysSince, daysUntil, companyRef, inCompany, sameCompany } from '../lib/utils';
+import { fmtDate, escHtml, expose, nextNoteId, today, debounce, showConfirm, companyRef, inCompany, sameCompany, strColor } from '../lib/utils';
 import { registerTabRenderer, refreshAll, notifyNavigated } from '../lib/registry';
 import { onChange, touches } from '../lib/changes';
 import { registerDragSource, registerDropTarget } from '../lib/dnd';
@@ -31,8 +30,8 @@ import { renderRecordTimeline, renderThreadStrip } from './recordThread';
 import { sinkEmptySections } from '../lib/sectionLayout';
 import { mountPropsList, propsEditButton, propsListHtml, resetPropsLists, type PropField } from '../lib/propsList';
 import { createListNav } from '../lib/listNav';
-import { getPipelineFacts, getOpportunities, getOpportunityActivity, getLinksFor, setLinksFrom, proposalFolderLookup, filesOpen } from '../lib/db';
-import { getAllCompanies } from './companies';
+import { getPipelineFacts, getOpportunities, getLinksFor, setLinksFrom, proposalFolderLookup, filesOpen } from '../lib/db';
+import { getAllCompanies, companyRelationship } from './companies';
 import { openProjectModal } from './projects';
 import { persistNotes, persistOpportunity, saveNotesNow } from '../lib/persist';
 import { companyFromForm, contextFromOpportunity, opportunityTasks, type WorkContext } from '../lib/workGraph';
@@ -41,6 +40,11 @@ import { icon } from '../lib/icons';
 import { recordHeaderHtml } from '../lib/recordHeader';
 import { showContextMenu, showMenuAt, type ContextMenuItem } from '../lib/contextMenu';
 import { opportunityNextStep } from '../lib/recordSteps';
+import { paintFigures } from '../lib/recordFigures';
+import { opportunityStepper, stepperHtml } from '../lib/recordStory';
+import { atCompany, fileCards, nextStepPrompt, nextStepSuggestions, opportunityHeaderFigures, serviceInName, type Suggestion } from '../lib/recordOpportunity';
+import { initialsOf } from '../lib/appearance';
+import { personAvatar } from '../core/contacts';
 import { newForRecordItems } from '../core/contextActions';
 import { attachCompanySelector } from '../lib/companySelector';
 import { OPPORTUNITY_STAGES } from '../lib/types';
@@ -123,21 +127,6 @@ registerStrip('opportunities', () => renderOpportunitiesList());
 function oppInfo(o: Opportunity): { health: OpportunityHealth; stageEnteredAt: string | null } {
   const fact = S.pipelineFacts.find((f) => f.opportunityId === o.id);
   return { health: opportunityHealth(o, fact, today(), { openWork: hasOpenWork(o, S) }), stageEnteredAt: fact?.stageEnteredAt ?? null };
-}
-
-/** The record page's health badges (the board and list use the plain-word flags below). */
-function indicatorChips(o: Opportunity): string {
-  if (o.status !== 'Open') return '';
-  const h = oppInfo(o).health;
-  const d = h.waiting?.days;
-  return [
-    h.waiting?.on === 'them' ? `<span class="rec-badge tone-${d != null && d > 14 ? 'red' : 'amber'}" title="${escHtml(o.waitingNote || 'Waiting on the client')}">Waiting on client${d != null ? ` · ${d}d` : ''}</span>` : '',
-    h.waiting?.on === 'us' ? `<span class="rec-badge tone-accent" title="${escHtml(o.waitingNote || 'The next move is ours')}">With us${d != null ? ` · ${d}d` : ''}</span>` : '',
-    h.stalled ? `<span class="rec-badge tone-red" title="Last activity ${h.daysSinceActivity} days ago">Stalled</span>` : '',
-    h.closeOverdue ? `<span class="rec-badge tone-red">Close date passed</span>` : '',
-    h.noNextAction ? `<span class="rec-badge tone-amber">No next action</span>` : '',
-    h.closingSoon ? `<span class="rec-badge tone-amber">Closing soon</span>` : '',
-  ].filter(Boolean).join('');
 }
 
 function flagsHtml(o: Opportunity): string {
@@ -436,7 +425,7 @@ export async function openOpportunityDetail(id: number): Promise<void> {
   // A deleted opportunity (an old link or history entry) must not leave the
   // page showing the previous one under a missing id: go to the list instead.
   if (!o) { if (S.currentOpportunityId != null) closeOpportunityDetail(); return; }
-  if (S.currentOpportunityId !== id) { resetPropsLists('od-'); waitNoteEditing = false; descEditing = false; }
+  if (S.currentOpportunityId !== id) { resetPropsLists('od-'); waitNoteEditing = false; descEditing = false; oppContactName = null; }
   S.currentOpportunityId = id;
   document.getElementById('opp-list-view')?.classList.add('hidden');
   document.getElementById('opp-detail')?.classList.add('open');
@@ -461,27 +450,39 @@ function currentOpportunity(): Opportunity | undefined {
 async function renderOpportunityDetail(): Promise<void> {
   const o = currentOpportunity();
   if (!o) { closeOpportunityDetail(); return; }
+  const t = today();
+  const { health, stageEnteredAt } = oppInfo(o);
+  const fact = S.pipelineFacts.find((f) => f.opportunityId === o.id);
 
+  const avatar = document.getElementById('od-avatar');
+  if (avatar) { const who = o.companyName || o.name; avatar.textContent = initialsOf(who) || '?'; avatar.style.background = strColor(who); }
   (document.getElementById('od-name') as HTMLElement).textContent = o.name;
   (document.getElementById('od-badges') as HTMLElement).innerHTML = [
-    // One lifecycle badge: the stage, coloured by the outcome it means (the status is derived from the stage).
-    statusBadge('opportunity', o.status, o.stage),
-    indicatorChips(o),
+    o.companyName ? `<span class="pk-mini-co">${tileHtml(o.companyName, 'pk-tile mini')}${companyLink(o.companyId, o.companyName)}</span>` : '',
+    // One lifecycle chip: the stage, coloured by what it means (the status is derived from the stage).
+    `<span class="pk-stage t-${oppStageTone(o.stage)}"><i></i>${escHtml(o.stage)}</span>`,
+    ...oppFlags(o, health).map((f) => `<span class="pk-chip is-text t-${f.tone}">${escHtml(f.text)}</span>`),
     o.winLossReason && (o.stage === 'Won' || o.stage === 'Lost') ? `<span class="rec-meta">${escHtml(o.winLossReason)}</span>` : '',
   ].filter(Boolean).join('');
+  paintFigures('od-figures', opportunityHeaderFigures(o, health, t, stageEnteredAt));
+  const stages = document.getElementById('od-stages');
+  if (stages) stages.innerHTML = stepperHtml(opportunityStepper(o, o.status === 'Open' || o.stage === 'On Hold' ? health.daysInStage : null, fact?.stages || []));
 
   renderOpportunityProps(o);
   renderOpportunityDescription(o);
+  renderOpportunityAt(o);
   (document.getElementById('od-next-action') as HTMLTextAreaElement).value = o.nextAction || '';
 
   const actions = document.getElementById('od-actions');
   if (actions) {
     const step = opportunityNextStep(o);
-    actions.innerHTML = recordHeaderHtml([{ label: 'Edit', run: 'editCurrentOpportunity()' }], step, 'opportunityMoreMenu(event)');
+    // One blue button: while the page is asking for a next step, saving it is the blue one.
+    const asking = !!nextStepPrompt(o, health);
+    actions.innerHTML = recordHeaderHtml([{ label: 'Edit', run: 'editCurrentOpportunity()' }, asking ? step : null], asking ? null : step, 'opportunityMoreMenu(event)');
   }
   renderThreadStrip('od-thread', { kind: 'opportunity', id: o.id });
-  renderOpportunityNextAction(o);
   await renderOpportunityContacts(o);
+  renderOpportunityNextAction(o);
   await renderOpportunityNotes(o.id);
   renderOpportunityMeetings(o.id);
   renderOpportunityTasks(o.id);
@@ -492,13 +493,33 @@ async function renderOpportunityDetail(): Promise<void> {
   if (S.currentOpportunityId === o.id) layoutOpportunitySections();
 }
 
+/** "At <company>": the relationship and its monthly, the agreement that ends first, what else is open there. */
+function renderOpportunityAt(o: Opportunity): void {
+  const el = document.getElementById('od-at');
+  if (!el) return;
+  el.hidden = !o.companyName;
+  if (!o.companyName) { el.innerHTML = ''; return; }
+  const here = <T extends { companyId?: number | null }>(list: T[], name: (x: T) => string | null | undefined) => list.filter((x) => sameCompany(x.companyId ?? null, name(x) ?? null, o.companyId, o.companyName));
+  const at = atCompany(o, {
+    today: today(), relationship: companyRelationship(o.companyName).label,
+    agreements: here(S.agreements, (a) => a.client), proposals: here(S.proposals, (p) => p.client), opportunities: here(S.opportunities, (x) => x.companyName),
+    reviewer: (p) => teamMember(p.reviewerId)?.name || defaultReviewer()?.name || 'the reviewer',
+  });
+  el.innerHTML = `<div class="rec-section-hd"><h2 class="rk-panel-h">At ${escHtml(o.companyName)}</h2></div>
+    <dl class="rec-props od-at">
+      <dt>Relationship</dt><dd>${escHtml(at.relationship)}</dd>
+      ${at.agreement ? `<dt>Agreement</dt><dd>${recordLink('agreement', at.agreement.id, at.agreement.text)}</dd>` : ''}
+      ${at.open.length ? `<dt>Also open</dt><dd>${at.open.map((x) => `<div>${recordLink(x.kind, x.id, x.text)}</div>`).join('')}</dd>` : ''}
+    </dl>`;
+}
+
 /** Description, Next action and the timeline stay first; below them the
  * sections with content, Files last, then the empty ones, collapsed. */
 function layoutOpportunitySections(): void {
   const host = document.getElementById('od-main');
   if (!host) return;
   const el = (id: string) => document.getElementById(id);
-  sinkEmptySections(host, ['od-tasks', 'od-meetings', 'od-commitments', 'od-contacts', 'od-notes', 'od-files'].map(el));
+  sinkEmptySections(host, ['od-tasks', 'od-meetings', 'od-commitments', 'od-notes'].map(el));
 }
 
 // Description reads as text (or one quiet line when there's none); a click opens the box.
@@ -533,14 +554,36 @@ export function endOpportunityDescription(): void {
 }
 expose('endOpportunityDescription', endOpportunityDescription);
 
-/** The next open task, as a link; the free-text box only when there is none. */
+// The first linked contact's name, for the suggestions ("Call Omar to qualify").
+let oppContactName: string | null = null;
+let oppSuggestions: Suggestion[] = [];
+
+/** With no next step on an open opportunity: the amber prompt, an input and what usually comes next at this stage.
+ * Otherwise the next open task as a link, or the free-text line when there is no task. */
 function renderOpportunityNextAction(o: Opportunity): void {
   const box = document.getElementById('od-next-task');
   const text = document.getElementById('od-next-action') as HTMLTextAreaElement | null;
-  if (!box || !text) return;
+  const prompt = document.getElementById('od-next-prompt');
+  const set = document.getElementById('od-next-set');
+  const sec = document.getElementById('od-next');
+  if (!box || !text || !prompt || !set || !sec) return;
+  const ask = nextStepPrompt(o, oppInfo(o).health);
   const open = opportunityTasks(S, o.id).filter((t) => t.status !== 'Done' && t.parentId == null)
     .sort((a, b) => (a.dueDate || '9999').localeCompare(b.dueDate || '9999'));
   const t = open[0];
+  prompt.hidden = !ask;
+  set.hidden = !!ask;
+  // A decided opportunity with nothing set has no next step to show.
+  sec.hidden = !ask && !t && !(o.nextAction || '').trim() && o.status !== 'Open';
+  if (ask) {
+    oppSuggestions = nextStepSuggestions(o, { service: serviceInName(o.name, S.services), contact: oppContactName });
+    const typed = (document.getElementById('od-next-input') as HTMLInputElement | null)?.value || '';
+    prompt.innerHTML = `<b>${escHtml(ask.headline)}</b><p>${escHtml(ask.body)}</p>
+      <div class="rk-nextstep-inp"><input id="od-next-input" class="td-input" type="text" aria-label="What happens next?" placeholder="What happens next? e.g. “Call ${escHtml(oppContactName ? oppContactName.trim().split(/\s+/)[0] : 'the client')} about the scope next Tue”" value="${escHtml(typed)}" onkeydown="if(event.key==='Enter'){event.preventDefault();saveOppNextStep()}"><button class="btn-primary" onclick="saveOppNextStep()">Save</button></div>
+      <div class="rk-suggest">${oppSuggestions.map((s, n) => `<button type="button" class="rk-sug${s.kind === 'lost' ? ' is-lost' : ''}" onclick="oppSuggest(${n})">${escHtml(s.label)}</button>`).join('')}</div>`;
+  } else {
+    prompt.innerHTML = '';
+  }
   text.hidden = !!t;
   box.innerHTML = t
     ? `<div class="rec-row od-next-row" onclick="openRecord('task', ${t.id})">
@@ -551,6 +594,37 @@ function renderOpportunityNextAction(o: Opportunity): void {
       </div>`
     : '';
 }
+
+async function setOppNextStep(value: string): Promise<void> {
+  const o = currentOpportunity();
+  if (!o) return;
+  const prev = o.nextAction;
+  o.nextAction = value;
+  const saved = await saveAndSyncOpportunity(o);
+  if (!saved) { o.nextAction = prev; return; }
+  await renderOpportunityDetail();
+  renderOpportunitiesList();
+}
+
+export function saveOppNextStep(): void {
+  const inp = document.getElementById('od-next-input') as HTMLInputElement | null;
+  const value = inp?.value.trim() || '';
+  if (!value) { inp?.focus(); return; }
+  void setOppNextStep(value);
+}
+expose('saveOppNextStep', saveOppNextStep);
+
+/** A suggestion chip: text becomes the next step; the others open the proposal builder or the won / lost dialog. */
+export function oppSuggest(n: number): void {
+  const s = oppSuggestions[n];
+  const o = currentOpportunity();
+  if (!s || !o) return;
+  if (s.kind === 'proposal') createProposalForOpportunity(o.id);
+  else if (s.kind === 'lost') void updateOpportunityStage(o.id, 'Lost');
+  else if (s.kind === 'won') void updateOpportunityStage(o.id, 'Won');
+  else void setOppNextStep(s.label).then(() => toast('Next step set', { detail: s.label }));
+}
+expose('oppSuggest', oppSuggest);
 
 // ── Details: read first, edit on demand (lib/propsList.ts) ─────────────────
 
@@ -674,16 +748,16 @@ async function renderOpportunityContacts(o: Opportunity): Promise<void> {
   if (S.currentOpportunityId !== o.id) return;
   const contactIds = links.filter((l) => l.fromType === 'contact' && l.toType === 'opportunity').map((l) => l.fromId);
   const linked = S.contacts.filter((c) => contactIds.includes(c.id));
+  oppContactName = linked[0]?.name || null;
   const candidates = o.companyName ? S.contacts.filter((c) => sameCompany(c.companyId, c.clientName, o.companyId, o.companyName) && !contactIds.includes(c.id)) : [];
-  el.innerHTML = `<div class="rec-section-hd"><h2>Contacts</h2><span class="rec-count">${linked.length || ''}</span></div>` +
+  el.innerHTML = `<div class="rec-section-hd"><h2 class="rk-panel-h">People</h2><span class="rec-count">${linked.length || ''}</span></div>` +
     (linked.length === 0
       ? `<div class="feed-empty">No contacts linked yet.</div>`
-      : `<div class="rec-list">${linked.map((c) => `<div class="rec-row" onclick="openRecord('contact', ${c.id})">
-          <span class="rec-row-icon">${icon('people', 15)}</span>
-          <div class="rec-row-main"><div class="rec-row-title">${recordLink('contact', c.id, c.name || 'Unnamed contact')}</div><div class="rec-row-sub">${escHtml(c.role || c.email || '')}</div></div>
-          <button class="rec-icon-btn" data-tip="Remove from this opportunity" aria-label="Remove" onclick="event.stopPropagation();removeOpportunityContact(${c.id})">${icon('close', 13)}</button>
-        </div>`).join('')}</div>`) +
-    (candidates.length > 0 ? `<select class="td-select rec-add-select" onchange="if(this.value)addOpportunityContact(+this.value);this.value=''"><option value="">+ Link a contact from ${escHtml(o.companyName || 'this company')}…</option>${candidates.map((c) => `<option value="${c.id}">${escHtml(c.name || '—')}</option>`).join('')}</select>` : '');
+      : linked.map((c) => `<div class="rk-person" onclick="openRecord('contact', ${c.id})" role="button" tabindex="0" onkeydown="if(event.key==='Enter'&&event.target===this)this.click()">${personAvatar(c.name || '', 'pk-pav sm')}
+          <div class="rk-row-main"><div class="rk-row-t">${escHtml(c.name || 'Unnamed contact')}${c.isDecisionMaker ? ' <span class="pk-stage t-navy">Decision maker</span>' : ''}</div><div class="rk-row-s">${escHtml(c.role || c.email || '')}</div></div>
+          <button class="rec-icon-btn" data-tip="Remove from this opportunity" aria-label="Remove ${escHtml(c.name || 'contact')} from this opportunity" onclick="event.stopPropagation();removeOpportunityContact(${c.id})">${icon('close', 13)}</button>
+        </div>`).join('')) +
+    (candidates.length > 0 ? `<select class="td-select rec-add-select" aria-label="Link a contact" onchange="if(this.value)addOpportunityContact(+this.value);this.value=''"><option value="">+ Link a contact from ${escHtml(o.companyName || 'this company')}…</option>${candidates.map((c) => `<option value="${c.id}">${escHtml(c.name || '—')}</option>`).join('')}</select>` : '');
 }
 
 export async function addOpportunityContact(contactId: number): Promise<void> {
@@ -800,34 +874,11 @@ expose('createProjectForOpportunity', createProjectForOpportunity);
 
 // ── Timeline (replaces Activity) ────────────────────────────
 
-const ACTIVITY_LABEL: Record<string, string> = {
-  created: 'Opportunity created', stage_changed: 'Stage changed',
-  proposal_linked: 'Proposal linked', project_created: 'Project linked',
-};
-
 async function renderOpportunityActivity(oppId: number): Promise<void> {
   const el = document.getElementById('od-activity');
   if (!el) return;
-  const activity = await getOpportunityActivity(oppId);
-  if (S.currentOpportunityId !== oppId) return;
   await renderRecordTimeline({ elId: 'od-activity', record: { kind: 'opportunity', id: oppId }, scopeToggle: true,
     header: '<button class="rlink" onclick="createNoteForOpportunity()">Add note</button>' });
-
-  // "Days in stage" needs the activity log (to find when the current stage
-  // was entered) — appended to the badges row here, once this fetch
-  // resolves, rather than duplicating the fetch in the synchronous badges
-  // render above.
-  const stageStart = activity.find((a) => a.kind === 'stage_changed')?.createdAt
-    ?? activity.find((a) => a.kind === 'created')?.createdAt
-    ?? null;
-  const daysInStage = daysSince(stageStart ? stageStart.slice(0, 10) : null);
-  const badgesEl = document.getElementById('od-badges');
-  if (badgesEl && daysInStage != null) {
-    const span = document.createElement('span');
-    span.className = 'rec-meta';
-    span.textContent = daysInStage <= 0 ? 'Entered this stage today' : `${daysInStage} day${daysInStage === 1 ? '' : 's'} in this stage`;
-    badgesEl.appendChild(span);
-  }
 }
 
 // ── Archive ─────────────────────────────────────────────────
@@ -880,30 +931,26 @@ expose('opportunityMoreMenu', opportunityMoreMenu);
 
 // ── Files ─────────────────────────────────────────────────────
 
-/** The client's proposal folder and the linked proposal's documents. */
+/** The linked proposal's documents and the client's proposal folder, as cover cards: navy for a deck, green for a
+ * sheet, grey for anything else. */
 async function renderOpportunityFiles(o: Opportunity): Promise<void> {
   const el = document.getElementById('od-files');
   if (!el) return;
   const proposal = o.proposalId != null ? S.proposals.find((p) => p.id === o.proposalId) : undefined;
   const client = o.companyName || proposal?.client || '';
-  const docs = proposal?.documents || [];
   const folder = client ? await proposalFolderLookup(client, proposal?.folderPath ?? null).catch(() => null) : null;
   if (S.currentOpportunityId !== o.id) return;
   arrive(el);
-  const files = (folder?.files || []).filter((f) => !f.isFolder).sort((a, b) => (b.modifiedAt || '').localeCompare(a.modifiedAt || '')).slice(0, 8);
+  const cards = fileCards(proposal?.documents || [], (folder?.files || []).filter((f) => !f.isFolder));
   const attr = (v: string) => escHtml(v).replace(/'/g, "\\'");
-  const row = (name: string, path: string | null, sub: string) => `<div class="rec-row" ${path ? `onclick="oppOpenFile('${attr(path)}')"` : ''}>
-    <span class="rec-row-icon">${icon('document', 15)}</span>
-    <div class="rec-row-main"><div class="rec-row-title">${escHtml(name)}</div><div class="rec-row-sub">${escHtml(sub)}</div></div>
-    ${path ? `<div class="rec-row-actions"><button class="rec-icon-btn" onclick="event.stopPropagation();filesRevealInFinderClick('${attr(path)}')" data-tip="Show in Finder" aria-label="Show in Finder">${icon('folder', 13)}</button></div>` : ''}
-  </div>`;
-  const docRows = docs.map((d) => row(d.fileName, d.path, `${d.kind === 'proposal' ? 'Proposal' : d.kind === 'commercials' ? 'Commercials' : 'Supporting document'}${d.version ? ` · V${d.version}` : ''}`));
-  const docPaths = new Set(docs.map((d) => d.path));
-  const folderRows = files.filter((f) => !docPaths.has(f.path)).map((f) => row(f.name, f.path, f.modifiedAt ? `Modified ${fmtDate(f.modifiedAt.slice(0, 10))}` : 'In the client folder'));
-  el.innerHTML = `<div class="rec-section-hd"><h2>Files</h2><span class="rec-count">${docRows.length + folderRows.length || ''}</span>
-      <div class="rec-section-actions">${folder?.exists && folder.path ? `<button class="btn-secondary btn-sm" onclick="msFilesNavigateToPath('${attr(folder.path)}');navToModule('files')">Open client folder</button>` : ''}</div></div>
-    ${docRows.length + folderRows.length
-      ? `<div class="rec-list">${[...docRows, ...folderRows].join('')}</div>`
+  el.innerHTML = `<div class="rk-sh"><h2 class="hd-major">Files</h2><span class="rk-cnt">${cards.length || ''}</span>
+      ${folder?.exists && folder.path ? `<button class="btn-secondary btn-sm rk-sh-btn" onclick="msFilesNavigateToPath('${attr(folder.path)}');navToModule('files')">Open client folder</button>` : ''}</div>
+    ${cards.length
+      ? `<div class="rk-files">${cards.map((c) => `<div class="rk-file" role="button" tabindex="0" data-ql-path="${attr(c.path)}" onclick="oppOpenFile('${attr(c.path)}')" onkeydown="if(event.key==='Enter'&&event.target===this)this.click()">
+          <div class="rk-cover is-${c.cover}">${c.cover === 'deck' ? '<span class="bars" aria-hidden="true"><i></i><i></i><i></i></span>' : ''}<b>${escHtml(c.label)}</b></div>
+          <div class="rk-file-ft"><div>${escHtml(c.name)}</div><span>${c.date ? escHtml(fmtDateShort(c.date, true)) : 'in the client folder'}</span></div>
+          <button class="rec-icon-btn rk-file-reveal" onclick="event.stopPropagation();filesRevealInFinderClick('${attr(c.path)}')" data-tip="Show in Finder" aria-label="Show ${escHtml(c.name)} in Finder">${icon('folder', 13)}</button>
+        </div>`).join('')}</div>`
       : `<div class="feed-empty">${client ? (folder?.exists ? 'The client folder is empty.' : `No folder for ${escHtml(client)} under Proposals yet.`) : 'Set the company to see its proposal folder.'}</div>`}`;
 }
 

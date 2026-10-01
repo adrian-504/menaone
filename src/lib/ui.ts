@@ -135,13 +135,15 @@ function undoStack(): HTMLElement {
 }
 
 /** "Task deleted · Undo" — the pattern for every reversible action. */
-export function undoToast(message: string, undo: () => void, ms = 7000): void {
+export function undoToast(message: string, undo: () => void, ms = 7000, also?: { label: string; run: () => void }): void {
   clearUndo();
   const el = document.createElement('div');
   el.className = 'toast toast-neutral toast-undo';
-  el.innerHTML = `<div class="toast-body"><div class="toast-msg">${esc(message)}</div></div><button class="toast-action">Undo <kbd>⌘Z</kbd></button><button class="toast-close" aria-label="Dismiss">×</button>`;
+  // `also`: the step that usually follows (after signing several: "Mark service started"), beside Undo.
+  el.innerHTML = `<div class="toast-body"><div class="toast-msg">${esc(message)}</div></div>${also ? `<button class="toast-action toast-also">${esc(also.label)}</button>` : ''}<button class="toast-action toast-undo-btn">Undo <kbd>⌘Z</kbd></button><button class="toast-close" aria-label="Dismiss">×</button>`;
   const run = () => { clearUndo(); undo(); };
-  el.querySelector('.toast-action')?.addEventListener('click', run);
+  el.querySelector('.toast-undo-btn')?.addEventListener('click', run);
+  if (also) el.querySelector('.toast-also')?.addEventListener('click', () => { clearUndo(); also.run(); });
   el.querySelector('.toast-close')?.addEventListener('click', clearUndo);
   el.addEventListener('mouseenter', () => window.clearTimeout(undoTimer));
   el.addEventListener('mouseleave', () => { undoTimer = window.setTimeout(clearUndo, 2500); });

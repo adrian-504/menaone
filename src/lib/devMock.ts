@@ -5,7 +5,7 @@
 // is a Vite compile-time constant, so `vite build` dead-code-eliminates this
 // entire branch and the real Tauri IPC bridge is untouched in the shipped app.
 import catalogSeed from '../../src-tauri/src/catalog_seed.json';
-import type { CommercialSetup, AppData, Project, Area, Meeting, InboxItem, NoteTemplate, Milestone, NoteRef, EmailRecord, EmailCompletedRecord, IntelligenceItem, Company, Opportunity, OpportunityActivity, ProjectActivity, EntityLink, ReviewQueueEntry, SavedList , Touch, EmailTemplate } from './types';
+import type { Agreement, CommercialSetup, AppData, Project, Area, Meeting, InboxItem, NoteTemplate, Milestone, NoteRef, EmailRecord, EmailCompletedRecord, IntelligenceItem, Company, Opportunity, OpportunityActivity, ProjectActivity, EntityLink, ReviewQueueEntry, SavedList , Touch, EmailTemplate } from './types';
 
 const SAMPLE: AppData = {
   proposals: [
@@ -14,7 +14,7 @@ const SAMPLE: AppData = {
       dblSignedDate: '2026-01-20', kickoffDate: '2026-02-01', finance: null, hubspot: null, owner: 'Ahmad',
       remarks: null, dateAdded: '2026-01-10', monthlyFee: 15000, contractMonths: 12, winLossReason: 'Referral / existing relationship',
       docLink: null, archived: false, archivedAt: null, snoozedUntil: null, dateSentToHassan: '2026-01-08',
-      dateSentToClient: '2026-01-10', dateSigned: '2026-01-20', notes: [],
+      dateSentToClient: '2026-01-10', dateSigned: '2026-01-20', notes: [], serviceStartedAt: '2026-02-01',
       businessEntityId: 1, currency: 'SAR', reviewerId: 1, reviewStatus: 'approved', reviewedAt: '2026-01-09',
       lines: [
         { id: 1, serviceId: 15, serviceName: 'Payroll', description: null, billing: 'monthly', quantity: 1, unitPrice: 9000, commission: false, sortOrder: 0 },
@@ -23,7 +23,7 @@ const SAMPLE: AppData = {
       documents: [],
     },
     {
-      id: 2, client: 'Acme Holdings', type: 'Recruitment', status: 'In Internal Review', sentDate: null,
+      id: 2, primaryContactId: 1, client: 'Acme Holdings', type: 'Recruitment', status: 'In Internal Review', sentDate: null,
       dblSignedDate: null, kickoffDate: null, finance: null, hubspot: null, owner: null,
       remarks: 'Five engineers for the Riyadh site', dateAdded: '2026-09-08', monthlyFee: 7000, contractMonths: 6, winLossReason: null,
       docLink: null, archived: false, archivedAt: null, snoozedUntil: null, dateSentToHassan: '2026-09-10',
@@ -57,6 +57,15 @@ const SAMPLE: AppData = {
     { id: 7, primaryContactId: 4, client: 'Globex', companyId: 3, type: 'Business setup', status: 'Drafting', sentDate: '2026-09-22', dateAdded: '2026-09-10', monthlyFee: 4000, contractMonths: 12, dateSentToHassan: '2026-09-18', dateSentToClient: '2026-09-22', revision: 2, dblSignedDate: null, kickoffDate: null, finance: null, hubspot: null, owner: 'Ahmad', remarks: null, winLossReason: null, docLink: null, archived: false, archivedAt: null, snoozedUntil: null, dateSigned: null, notes: [], businessEntityId: 1, currency: 'SAR', documents: [],
       revisions: [{ id: 70, number: 2, requestedAt: '2026-09-26', requestedByContactId: null, reason: 'Two people instead of three', linesBeforeJson: '[]', sentAt: null }], lines: [] },
     { id: 8, primaryContactId: 5, client: 'Red Sea Global', companyId: 4, type: 'EOR', status: 'Sent to Client', sentDate: '2026-09-26', dateAdded: '2026-09-20', monthlyFee: 12000, contractMonths: 12, dateSentToHassan: '2026-09-24', dateSentToClient: '2026-09-26', validUntil: '2026-10-05', dblSignedDate: null, kickoffDate: null, finance: null, hubspot: null, owner: 'Ahmad', remarks: null, winLossReason: null, docLink: null, archived: false, archivedAt: null, snoozedUntil: null, dateSigned: null, notes: [], businessEntityId: 1, currency: 'SAR', documents: [], lines: [] },
+    // 1.61: three proposals sent together to Red Sea Global — one signed by both with the service not started yet, two
+    // still with the client, one of them priced per person (no monthly figure to show).
+    ...([[9, 'Accountancy', 'Signed by Both Parties', 2400, '2026-09-22'], [10, 'Workforce', 'Sent to Client', null, null], [11, 'Company Maintenance', 'Sent to Client', 1500, null]] as [number, string, string, number | null, string | null][]).map(([id, type, status, monthlyFee, signed]) => ({
+      id, primaryContactId: 5, client: 'Red Sea Global', companyId: 4, type, status, requestGroup: 'rsg-2026-09', sentDate: '2026-09-15', dateAdded: '2026-09-08', monthlyFee, contractMonths: 12,
+      dateSentToHassan: '2026-09-12', dateSentToClient: '2026-09-15', dblSignedDate: signed, dateSigned: signed, kickoffDate: null, finance: null, hubspot: null, owner: 'Ahmad', remarks: null, winLossReason: null, docLink: null,
+      archived: false, archivedAt: null, snoozedUntil: null, notes: [], businessEntityId: 1, currency: 'SAR', documents: [], reviewStatus: 'approved' as const, reviewedAt: '2026-09-14',
+      lines: [{ id: 900 + id, serviceId: null, serviceName: type, description: null, billing: 'monthly' as const, quantity: 1, unitPrice: monthlyFee, commission: false, sortOrder: 0,
+        ...(monthlyFee == null ? { rates: [{ label: '', from: 1, to: 10, price: 450 }, { label: '', from: 11, to: 50, price: 400 }] } : {}) }],
+    })),
   ],
   contacts: [
     { id: 1, clientName: 'Acme Holdings', companyId: 1, name: 'Jane Doe', role: 'CEO', email: 'jane@acme.test', phone: null, whatsapp: null, service: null, lists: [], isDecisionMaker: true },
@@ -81,7 +90,8 @@ const SAMPLE: AppData = {
     // A client whose notice window opens this week, and one gone quiet (no meeting or email on record).
     {
       id: 2, agrRef: 'GLX_BS_001_0126', client: 'Globex', companyId: 3, type: 'Company maintenance', status: 'Signed', preparedBy: 'Hassan Balaghi', datePrepared: '2026-01-02', dateSentToClient: '2026-01-03', dateClientSigned: '2026-01-05', dateMenaSigned: '2026-01-05', dateFiled: '2026-01-06',
-      monthlyFee: 4000, contractMonths: 12, proposalId: null, hubspot: null, docLink: null, actionDate: null, remarks: null, createdAt: '2026-01-02', businessEntityId: 1, currency: 'SAR', startDate: '2026-01-06', endDate: '2026-12-31', serviceStatus: 'Active', autoRenew: false, noticeDays: 90, preparedById: 1, lines: [],
+      monthlyFee: 4000, contractMonths: 12, proposalId: null, hubspot: null, docLink: null, actionDate: null, remarks: null, createdAt: '2026-01-02', businessEntityId: 1, currency: 'SAR', startDate: '2026-01-06', endDate: '2026-12-31', serviceStatus: 'Active', autoRenew: false, noticeDays: 90, preparedById: 1,
+      lines: [{ id: 21, serviceId: null, serviceName: 'Company maintenance', description: null, billing: 'monthly', quantity: 1, unitPrice: 4000, commission: false, sortOrder: 0 }],
     },
     {
       id: 3, agrRef: 'EHR_PAY_001_0326', client: 'Elite HR', companyId: 5, type: 'Payroll', status: 'Signed', preparedBy: 'Hassan Balaghi', datePrepared: '2026-03-01', dateSentToClient: '2026-03-02', dateClientSigned: '2026-03-04', dateMenaSigned: '2026-03-04', dateFiled: '2026-03-05',
@@ -94,6 +104,36 @@ const SAMPLE: AppData = {
       monthlyFee: 6500, contractMonths: 12, proposalId: null, hubspot: null, docLink: null, actionDate: null, remarks: null, createdAt: '2026-09-28', businessEntityId: 1, currency: 'SAR', startDate: '2026-11-01', endDate: '2027-10-31', serviceStatus: 'Not started', autoRenew: false, noticeDays: 60, preparedById: 1,
       lines: [{ id: 41, serviceId: 15, serviceName: 'GM Representative', description: null, billing: 'monthly', quantity: 1, unitPrice: 6500, commission: false, sortOrder: 0 }],
     },
+    // The real mix (1.61): a few more with a term, each ending differently, and many with no term recorded.
+    ...([
+      // Open-ended, ending with its project, past its term and still active, the day to decide already passed, notice never recorded.
+      [5, 'ACME_CON_002_0325', 'Acme Holdings', 1, 'Consultancy', 'Signed', 'Active', 5000, '2025-03-10', null, null, { renewalType: 'open_ended' }],
+      [6, 'RSG_CC_001_0626', 'Red Sea Global', 4, 'Company Constitution', 'Signed', 'Active', null, '2026-06-01', null, null, { renewalType: 'project' }],
+      [7, 'EHR_ADM_002_0925', 'Elite HR', 5, 'Administration', 'Signed', 'Active', 2500, '2025-09-01', '2026-08-31', 30, {}],
+      [8, 'RSG_WF_002_1125', 'Red Sea Global', 4, 'Workforce', 'Signed', 'Active', 9000, '2025-11-16', '2026-11-15', 60, {}],
+      [9, 'NWT_ACC_002_0426', 'Northwind Trading', 2, 'Accountancy', 'Signed', 'Active', 1800, '2026-04-01', '2027-03-31', null, {}],
+      // No term recorded, in the statuses the real ones are in.
+      [10, 'ACME_WF_003_0224', 'Acme Holdings', 1, 'Workforce', 'Signed', null, 12000, null, null, null, {}],
+      [11, 'GLX_ACC_002_0524', 'Globex', 3, 'Accountancy', 'Signed', null, 2200, null, null, null, {}],
+      [12, 'RSG_ADM_003_0724', 'Red Sea Global', 4, 'Administration', 'Signed', null, 4000, null, null, null, {}],
+      [13, 'EHR_CM_003_0125', 'Elite HR', 5, 'Company Maintenance', 'Signed', null, 1500, null, null, null, {}],
+      [14, 'NWT_WF_003_0325', 'Northwind Trading', 2, 'Workforce', 'Client Review', null, 7000, null, null, null, {}],
+      [15, 'GLX_CON_003_0625', 'Globex', 3, 'Consultancy', 'Client Review', 'Active', 3000, null, null, null, {}],
+      [16, 'ACME_ACC_004_0825', 'Acme Holdings', 1, 'Accountancy', 'In Preparation', null, 2600, null, null, null, {}],
+      [17, 'RSG_CM_004_0925', 'Red Sea Global', 4, 'Company Maintenance', 'In Preparation', null, 1500, null, null, null, {}],
+      [18, 'EHR_WF_004_1025', 'Elite HR', 5, 'Workforce', 'In Preparation', 'Active', 6000, null, null, null, {}],
+      [19, 'NWT_ADM_004_1125', 'Northwind Trading', 2, 'Administration', 'In Preparation', null, null, null, null, null, {}],
+      [20, 'GLX_WF_004_0126', 'Globex', 3, 'Workforce', 'In Preparation', null, 8500, null, null, null, {}],
+      [21, 'ACME_CM_005_0226', 'Acme Holdings', 1, 'Company Maintenance', 'In Preparation', null, 1500, null, null, null, {}],
+      [22, 'RSG_ACC_005_0326', 'Red Sea Global', 4, 'Accountancy', 'In Preparation', null, 2400, null, null, null, {}],
+      [23, 'EHR_CON_005_0426', 'Elite HR', 5, 'Consultancy', 'On Hold', null, 3500, null, null, null, {}],
+      [24, 'NWT_CM_005_0526', 'Northwind Trading', 2, 'Company Maintenance', 'Canceled', null, 1500, null, null, null, {}],
+    ] as [number, string, string, number, string, string, string | null, number | null, string | null, string | null, number | null, Partial<Agreement>][]).map(([id, agrRef, client, companyId, type, status, serviceStatus, monthlyFee, startDate, endDate, noticeDays, over]): Agreement => ({
+      id, agrRef, client, companyId, type, status, preparedBy: 'Hassan Balaghi', datePrepared: null, dateSentToClient: null, dateClientSigned: null, dateMenaSigned: null, dateFiled: null,
+      monthlyFee, contractMonths: startDate && endDate ? 12 : null, proposalId: null, hubspot: null, docLink: null, actionDate: null, remarks: null, createdAt: '2026-05-21', businessEntityId: 1, currency: 'SAR',
+      startDate, endDate, serviceStatus: serviceStatus as Agreement['serviceStatus'], autoRenew: false, noticeDays, preparedById: 1,
+      lines: monthlyFee ? [{ id: 500 + id, serviceId: null, serviceName: type, description: null, billing: 'monthly', quantity: 1, unitPrice: monthlyFee, commission: false, sortOrder: 0 }] : [], ...over,
+    })),
   ],
   todos: [
     { id: 1, title: 'Follow up on Acme proposal', type: 'client', client: 'Acme Holdings', priority: 'High', dueDate: '2026-09-10', status: 'Pending', description: null, createdAt: '2026-09-01', completedAt: null, projectId: null, parentId: null, areaId: null, section: null, sortOrder: 1, recurrenceRule: null, meetingId: null, tags: ['urgent'] },
@@ -102,6 +142,11 @@ const SAMPLE: AppData = {
     { id: 4, title: 'Draft summary slide', type: 'general', client: null, priority: 'Low', dueDate: '2026-09-14', status: 'Pending', description: null, createdAt: '2026-09-02', completedAt: null, projectId: null, parentId: 2, areaId: null, section: null, sortOrder: 2, recurrenceRule: null, meetingId: null, tags: [] },
     { id: 6, title: 'Send the revised quote for three people', type: 'client', client: 'Acme Holdings', priority: 'Medium', dueDate: '2026-09-19', status: 'Pending', description: 'From meeting: Monthly check-in', createdAt: '2026-09-15', completedAt: null, projectId: null, parentId: null, areaId: null, section: null, sortOrder: 4, recurrenceRule: null, meetingId: 2, companyId: 1, opportunityId: 1, tags: [], owner: 'Ahmad Abdallah' },
     { id: 7, title: 'Share the October headcount', type: 'client', client: 'Acme Holdings', priority: 'Medium', dueDate: null, status: 'Pending', description: 'From meeting: Monthly check-in', createdAt: '2026-09-15', completedAt: null, projectId: null, parentId: null, areaId: null, section: null, sortOrder: 5, recurrenceRule: null, meetingId: 2, tags: [], owner: 'Omar Haddad' },
+    // The retainer project's tasks: each falls under the milestone due on or after it.
+    { id: 20, title: 'Collect October headcount from Omar', type: 'client', client: 'Acme Holdings', priority: 'Medium', dueDate: '2026-09-30', status: 'Done', description: null, createdAt: '2026-09-22', completedAt: '2026-09-30', projectId: 1, parentId: null, areaId: null, section: null, sortOrder: 20, recurrenceRule: null, meetingId: null, tags: [], companyId: 1 },
+    { id: 21, title: 'Confirm GOSI contribution changes for 2027', type: 'client', client: 'Acme Holdings', priority: 'Medium', dueDate: '2026-10-20', status: 'Pending', description: null, createdAt: '2026-09-22', completedAt: null, projectId: 1, parentId: null, areaId: null, section: null, sortOrder: 21, recurrenceRule: null, meetingId: null, tags: [], companyId: 1 },
+    { id: 22, title: 'Run payroll and send WPS file', type: 'client', client: 'Acme Holdings', priority: 'Medium', dueDate: '2026-10-25', status: 'Pending', description: null, createdAt: '2026-09-22', completedAt: null, projectId: 1, parentId: null, areaId: null, section: null, sortOrder: 22, recurrenceRule: null, meetingId: null, tags: [], companyId: 1 },
+    { id: 23, title: 'List iqamas expiring before March', type: 'client', client: 'Acme Holdings', priority: 'Medium', dueDate: '2026-11-15', status: 'Pending', description: null, createdAt: '2026-09-22', completedAt: null, projectId: 1, parentId: null, areaId: null, section: null, sortOrder: 23, recurrenceRule: null, meetingId: null, tags: [], companyId: 1 },
     { id: 5, title: 'Weekly payroll review', type: 'general', client: null, priority: 'Medium', dueDate: '2026-09-11', status: 'Pending', description: null, createdAt: '2026-09-01', completedAt: null, projectId: null, parentId: null, areaId: null, section: null, sortOrder: 3, recurrenceRule: 'weekly', meetingId: null, tags: ['payroll'] },
   ],
   notes: [
@@ -126,7 +171,7 @@ const SAMPLE: AppData = {
   companyNotes: {},
   // Fictional commitments from the Monthly check-in (meeting 2): one each way.
   commitments: [
-    { id: 1, direction: 'ours', text: 'Send the revised quote for three people', contactId: null, dueDate: '2026-09-19', status: 'open', closedAt: null, dropReason: null,
+    { id: 1, direction: 'ours', text: 'Send the revised quote for three people', contactId: 1, dueDate: '2026-09-19', status: 'open', closedAt: null, dropReason: null,
       companyId: 1, opportunityId: 1, projectId: null, sourceType: 'meeting', sourceId: 2, sourceKey: 'send the revised quote for three people', todoId: 6, createdAt: '2026-09-15T10:00:00Z', updatedAt: null },
     { id: 2, direction: 'theirs', text: 'Omar to share the October headcount', contactId: 2, dueDate: '2026-09-18', status: 'open', closedAt: null, dropReason: null,
       companyId: 1, opportunityId: 1, projectId: null, sourceType: 'meeting', sourceId: 2, sourceKey: 'omar to share the october headcount', todoId: null, createdAt: '2026-09-15T10:00:00Z', updatedAt: null },
@@ -145,6 +190,13 @@ const SAMPLE_PROJECTS: Project[] = [
     owner: 'Ahmad', description: null, companyName: null, areaId: null, startDate: '2026-08-01',
     targetDate: '2026-12-01', completionDate: null, progressOverride: null, tags: [], archived: false,
     createdAt: '2026-08-01', updatedAt: '2026-09-05', taskCount: 6, taskDoneCount: 2, computedProgress: 33,
+  },
+  // Nothing planned yet: its page asks for the first milestone.
+  {
+    id: 3, name: 'Northwind Trading — Onboarding', type: 'client', status: 'Planning', priority: 'Medium',
+    owner: 'Ahmad', description: null, companyName: 'Northwind Trading', areaId: null, startDate: '2026-10-05',
+    targetDate: '2026-11-30', completionDate: null, progressOverride: null, tags: [], archived: false,
+    createdAt: '2026-09-28', updatedAt: '2026-09-28', taskCount: 0, taskDoneCount: 0, computedProgress: 0,
   },
 ];
 
@@ -216,7 +268,9 @@ function todaysMockMeetings(): Meeting[] {
   });
   return [
     make(11, 'Proposals review', -2, 30, { attendeeEmails: ['hassan@menabig.test'], attendees: ['Hassan Balaghi'], organizerEmail: 'ahmad@menabig.test' }),
-    make(12, 'Acme — renewal terms', -0.2, 45, { companyName: 'Acme Holdings', companyId: 1, attendeeEmails: ['jane@acme.test'], attendees: ['Jane Doe'], onlineMeetingUrl: 'https://teams.microsoft.com/l/meetup-join/demo' }),
+    make(12, 'Acme — renewal terms', -0.2, 45, { companyName: 'Acme Holdings', companyId: 1, attendeeEmails: ['jane@acme.test'], attendees: ['Jane Doe'], onlineMeetingUrl: 'https://teams.microsoft.com/l/meetup-join/demo', location: 'Microsoft Teams Meeting',
+      agenda: '- Renewal from 1 Feb: term and monthly fee\n- Recruitment for the Riyadh site — status of SL# 2\n- Our late item: the revised quote for three people',
+      decisions: '>> Send the revised quote for three people by Friday\n<< Omar to share the October headcount' }),
     make(13, 'GM Representative', 2, 30, { companyName: 'Northwind', attendeeEmails: ['lina@northwind.test'], attendees: ['Lina Saleh'], isOnlineMeeting: false, location: 'Riyadh office' }),
     // Ended earlier today with nothing written (My Day's write-up prompt), and one tomorrow (Coming up).
     make(14, 'Payroll questions — Acme', -3.5, 30, { companyName: 'Acme Holdings', companyId: 1, attendeeEmails: ['omar@acme.test'], attendees: ['omar@acme.test'] }),
@@ -254,7 +308,7 @@ const mockOpp = (id: number, name: string, stage: string, value: number | null, 
 });
 let opportunitiesStore: Opportunity[] = [
   mockOpp(1, 'Acme — recruitment for Riyadh site', 'Proposal', 42000, '2026-07-01', { nextAction: 'Chase the signed proposal', expectedCloseDate: '2026-09-30', probability: 60, proposalId: 2 }),
-  mockOpp(2, 'Acme — GOSI audit', 'Discovery', 15000, '2026-06-10'),
+  mockOpp(2, 'Acme — GOSI audit', 'Discovery', 15000, '2026-06-10', { probability: 20 }),
   // The full chain: opportunity → proposal 1 → agreement 1 → project 1.
   mockOpp(3, 'Acme — payroll outsourcing', 'Won', 108000, '2026-01-02', { winLossReason: 'Referral / existing relationship', proposalId: 1, projectId: 1 }),
   mockOpp(4, 'Acme — mobilization', 'Lost', 60000, '2026-04-01', { winLossReason: 'Price too high' }),

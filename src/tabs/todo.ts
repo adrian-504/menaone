@@ -1106,7 +1106,12 @@ function renderTaskDetail(): void {
   const subs = S.todos.filter((x) => x.parentId === t.id).sort((a, b) => (a.sortOrder ?? a.id) - (b.sortOrder ?? b.id));
   const parent = t.parentId != null ? S.todos.find((x) => x.id === t.parentId) : null;
   const projects = S.projects.filter((p) => !p.archived || p.id === t.projectId);
-  const sections = [...new Set(S.todos.filter((x) => x.projectId != null && x.projectId === t.projectId && x.section).map((x) => x.section as string))];
+  // Headings already used in the project, and — on the open project — its milestones: a task under a heading
+  // that names a milestone is listed under it on the project page.
+  const sections = [...new Set([
+    ...S.todos.filter((x) => x.projectId != null && x.projectId === t.projectId && x.section).map((x) => x.section as string),
+    ...(t.projectId != null && t.projectId === S.currentProjectId ? S.currentProjectMilestones.map((m) => m.name) : []),
+  ])];
   const meeting = t.meetingId != null ? S.meetings.find((m) => m.id === t.meetingId) : null;
   const opportunities = S.opportunities.filter((o) => !o.archived || o.id === t.opportunityId);
   if (taskNotesFor?.taskId !== t.id) { taskNotesFor = { taskId: t.id, noteIds: [] }; void loadTaskNotes(t.id); }

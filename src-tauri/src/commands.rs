@@ -82,7 +82,8 @@ pub(crate) fn read_proposals(conn: &Connection) -> rusqlite::Result<Vec<Proposal
                 doc_link, archived, archived_at, snoozed_until, date_sent_to_hassan,
                 date_sent_to_client, date_signed, company_id, business_entity_id, currency, one_time_fee,
                 primary_contact_id, owner_id, reviewer_id, review_status, review_requested_at, reviewed_at,
-                review_note, valid_until, folder_path, lead_source, promised_by, request_group, revision, last_sent_at
+                review_note, valid_until, folder_path, lead_source, promised_by, request_group, revision, last_sent_at,
+                service_started_at
          FROM proposals ORDER BY id",
     )?;
     let rows = stmt.query_map([], |r| {
@@ -130,6 +131,7 @@ pub(crate) fn read_proposals(conn: &Connection) -> rusqlite::Result<Vec<Proposal
             documents: Vec::new(),
             revision: r.get(38)?,
             last_sent_at: r.get(39)?,
+            service_started_at: r.get(40)?,
             revisions: Vec::new(),
         })
     })?;
@@ -209,7 +211,8 @@ fn read_agreements(conn: &Connection) -> rusqlite::Result<Vec<Agreement>> {
         "SELECT id, agr_ref, client, type, status, prepared_by, date_prepared, date_sent_to_client,
                 date_client_signed, date_mena_signed, date_filed, monthly_fee, contract_months,
                 proposal_id, hubspot, doc_link, action_date, remarks, created_at, company_id,
-                business_entity_id, currency, start_date, end_date, service_status, auto_renew, notice_days, prepared_by_id
+                business_entity_id, currency, start_date, end_date, service_status, auto_renew, notice_days, prepared_by_id,
+                renewal_decision, renewal_decided_at, renewed_from, renewal_type, signature_status
          FROM agreements ORDER BY id",
     )?;
     let rows = stmt.query_map([], |r| {
@@ -242,6 +245,11 @@ fn read_agreements(conn: &Connection) -> rusqlite::Result<Vec<Agreement>> {
             auto_renew: r.get::<_, i64>(25)? != 0,
             notice_days: r.get(26)?,
             prepared_by_id: r.get(27)?,
+            renewal_decision: r.get(28)?,
+            renewal_decided_at: r.get(29)?,
+            renewed_from: r.get(30)?,
+            renewal_type: r.get(31)?,
+            signature_status: r.get(32)?,
             lines: Vec::new(),
         })
     })?;
@@ -381,8 +389,9 @@ pub fn write_proposals(conn: &mut Connection, items: &[Proposal]) -> rusqlite::R
                 finance, hubspot, owner, remarks, date_added, monthly_fee, contract_months, win_loss_reason,
                 doc_link, archived, archived_at, snoozed_until, date_sent_to_hassan, date_sent_to_client, date_signed, company_id,
                 business_entity_id, currency, one_time_fee, primary_contact_id, owner_id, reviewer_id, review_status,
-                review_requested_at, reviewed_at, review_note, valid_until, folder_path, lead_source, promised_by, request_group)
-             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,?22,?23,?24,?25,?26,?27,?28,?29,?30,?31,?32,?33,?34,?35,?36,?37,?38)",
+                review_requested_at, reviewed_at, review_note, valid_until, folder_path, lead_source, promised_by, request_group,
+                service_started_at)
+             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,?22,?23,?24,?25,?26,?27,?28,?29,?30,?31,?32,?33,?34,?35,?36,?37,?38,?39)",
         )?;
         let mut nstmt = tx.prepare(
             "INSERT INTO proposal_activity_notes (id, proposal_id, note_date, text) VALUES (?1,?2,?3,?4)",
@@ -400,7 +409,7 @@ pub fn write_proposals(conn: &mut Connection, items: &[Proposal]) -> rusqlite::R
                 p.date_sent_to_hassan, p.date_sent_to_client, p.date_signed, company_id,
                 p.business_entity_id, p.currency, p.one_time_fee, p.primary_contact_id, p.owner_id, p.reviewer_id,
                 p.review_status, p.review_requested_at, p.reviewed_at, p.review_note, p.valid_until, p.folder_path, p.lead_source,
-                p.promised_by, p.request_group,
+                p.promised_by, p.request_group, p.service_started_at,
             ])?;
             for n in &p.notes {
                 nstmt.execute(params![n.id, p.id, n.date, n.text])?;
@@ -452,14 +461,17 @@ pub fn write_contacts(conn: &mut Connection, items: &[Contact]) -> rusqlite::Res
 
 pub fn write_agreements(conn: &mut Connection, items: &[Agreement]) -> rusqlite::Result<()> {
     let tx = conn.transaction()?;
+    // What each agreement's lines added up to before this save (the delete below takes the lines with it).
+    let lines_before = crate::commercial::lines_monthly_by_agreement(&tx)?;
     tx.execute("DELETE FROM agreements", [])?;
     {
         let mut stmt = tx.prepare(
             "INSERT INTO agreements (id, agr_ref, client, type, status, prepared_by, date_prepared,
                 date_sent_to_client, date_client_signed, date_mena_signed, date_filed, monthly_fee,
                 contract_months, proposal_id, hubspot, doc_link, action_date, remarks, created_at, company_id,
-                business_entity_id, currency, start_date, end_date, service_status, auto_renew, notice_days, prepared_by_id)
-             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,?22,?23,?24,?25,?26,?27,?28)",
+                business_entity_id, currency, start_date, end_date, service_status, auto_renew, notice_days, prepared_by_id,
+                renewal_decision, renewal_decided_at, renewed_from, renewal_type, signature_status)
+             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,?22,?23,?24,?25,?26,?27,?28,?29,?30,?31,?32,?33)",
         )?;
         for a in items {
             let company_id = crate::opportunities::resolve_company(&tx, a.client.as_deref())?;
@@ -469,13 +481,14 @@ pub fn write_agreements(conn: &mut Connection, items: &[Agreement]) -> rusqlite:
                 a.monthly_fee, a.contract_months, a.proposal_id, a.hubspot, a.doc_link, a.action_date,
                 a.remarks, a.created_at, company_id,
                 a.business_entity_id, a.currency, a.start_date, a.end_date, a.service_status, a.auto_renew as i64,
-                a.notice_days, a.prepared_by_id,
+                a.notice_days, a.prepared_by_id, a.renewal_decision, a.renewal_decided_at, a.renewed_from,
+                a.renewal_type, a.signature_status,
             ])?;
         }
     }
     for a in items {
         crate::commercial::save_lines(&tx, "agreement_lines", "agreement_id", a.id, &a.lines)?;
-        crate::commercial::apply_derived_agreement_totals(&tx, a.id, &a.lines)?;
+        crate::commercial::apply_derived_agreement_totals(&tx, a.id, &a.lines, lines_before.get(&a.id).copied())?;
         crate::v2_search::reindex_agreement(&tx, a.id)?;
     }
     tx.commit()
@@ -644,7 +657,7 @@ const PROPOSAL_COLS: &[&str] = &[
     "archived", "archived_at", "snoozed_until", "date_sent_to_hassan", "date_sent_to_client", "date_signed", "company_id",
     "business_entity_id", "currency", "one_time_fee", "primary_contact_id", "owner_id", "reviewer_id", "review_status",
     "review_requested_at", "reviewed_at", "review_note", "valid_until", "folder_path", "lead_source",
-    "promised_by", "request_group", "revision", "last_sent_at",
+    "promised_by", "request_group", "revision", "last_sent_at", "service_started_at",
 ];
 const ACTIVITY_NOTE_COLS: &[&str] = &["id", "proposal_id", "note_date", "text"];
 const CONTACT_COLS: &[&str] = &["id", "client_name", "name", "role", "email", "phone", "whatsapp", "service", "company_id", "is_decision_maker"];
@@ -653,6 +666,7 @@ const AGREEMENT_COLS: &[&str] = &[
     "date_client_signed", "date_mena_signed", "date_filed", "monthly_fee", "contract_months", "proposal_id",
     "hubspot", "doc_link", "action_date", "remarks", "created_at", "company_id",
     "business_entity_id", "currency", "start_date", "end_date", "service_status", "auto_renew", "notice_days", "prepared_by_id",
+    "renewal_decision", "renewal_decided_at", "renewed_from", "renewal_type", "signature_status",
 ];
 const NOTE_COLS: &[&str] = &["id", "title", "content", "folder", "client_name", "tags_json", "pinned", "created_at", "updated_at"];
 
@@ -673,7 +687,7 @@ pub fn upsert_proposal_rows_in(tx: &Connection, items: &[Proposal]) -> rusqlite:
             p.date_sent_to_hassan, p.date_sent_to_client, p.date_signed, company_id,
             p.business_entity_id, p.currency, p.one_time_fee, p.primary_contact_id, p.owner_id, p.reviewer_id,
             p.review_status, p.review_requested_at, p.reviewed_at, p.review_note, p.valid_until, p.folder_path, p.lead_source,
-            p.promised_by, p.request_group, p.revision.max(1), p.last_sent_at,
+            p.promised_by, p.request_group, p.revision.max(1), p.last_sent_at, p.service_started_at,
         ])?;
         let note_ids: Vec<i64> = p.notes.iter().map(|n| n.id).collect();
         tx.execute(
@@ -772,10 +786,12 @@ pub fn upsert_agreement_rows_in(tx: &Connection, items: &[Agreement]) -> rusqlit
             a.monthly_fee, a.contract_months, a.proposal_id, a.hubspot, a.doc_link, a.action_date,
             a.remarks, a.created_at, company_id,
             a.business_entity_id, a.currency, a.start_date, a.end_date, a.service_status, a.auto_renew as i64,
-            a.notice_days, a.prepared_by_id,
+            a.notice_days, a.prepared_by_id, a.renewal_decision, a.renewal_decided_at, a.renewed_from,
+            a.renewal_type, a.signature_status,
         ])?;
+        let before = crate::commercial::lines_monthly_of(tx, a.id)?;
         crate::commercial::save_lines(tx, "agreement_lines", "agreement_id", a.id, &a.lines)?;
-        crate::commercial::apply_derived_agreement_totals(tx, a.id, &a.lines)?;
+        crate::commercial::apply_derived_agreement_totals(tx, a.id, &a.lines, before)?;
         crate::v2_search::reindex_agreement(tx, a.id)?;
     }
     Ok(())
