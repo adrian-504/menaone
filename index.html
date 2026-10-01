@@ -1493,16 +1493,19 @@
 
 <!-- COMPANIES -->
 <div id="tab-companies" class="tab">
-  <div class="page-header">
-    <div>
-      <div class="page-title">Companies</div>
-      <div class="page-subtitle">Clients and prospects — proposals, contacts, files, and activity in one place.</div>
+  <div class="page-header pk-head">
+    <div class="pk-head-t"><div class="page-title">Companies</div><span class="bars lg" aria-hidden="true"><i></i><i></i><i></i></span><div class="page-subtitle">Clients and prospects, with what they're worth and when they renew.</div></div>
+    <div class="page-header-actions">
+      <div class="seg-btns pk-seg" id="co-view-btns">
+        <button class="seg-btn co-vbtn" data-view="grid" onclick="setCoListView('grid')">Grid</button>
+        <button class="seg-btn co-vbtn active" data-view="list" onclick="setCoListView('list')">List</button>
+      </div>
+      <button class="btn-primary" onclick="openNewCompanyModal()"><span data-icon="plus" data-icon-size="14"></span> New company</button>
     </div>
-    <div class="page-header-actions"><button class="btn-primary" onclick="openNewCompanyModal()"><span data-icon="plus" data-icon-size="14"></span> New company</button></div>
   </div>
-  <div class="co-list-view" id="co-list-view">
+  <div class="co-list-view pk-page" id="co-list-view">
     <div class="co-review-queue" id="co-review-queue" style="display:none"></div>
-    <div class="co-quality-bar" id="co-quality-bar"></div>
+    <div id="co-strip"></div>
     <div class="co-search-bar">
       <input type="text" class="f-search" id="co-search" placeholder="Search companies…" oninput="filterSoon('renderCompanyList')">
       <select class="fsel" id="co-filter-status" onchange="renderCompanyList()" aria-label="Relationship">
@@ -1543,16 +1546,12 @@
         <option value="contacts">Sort: Most contacts</option>
         <option value="proposals">Sort: Most proposals</option>
       </select>
-      <span class="rcnt" id="co-cnt">0 companies</span>
+      <span class="rcnt" id="co-cnt">0 companies</span><span class="rcnt pk-gaps" id="co-gaps"></span>
       <button class="rlink" id="co-columns-btn" onclick="openCompanyColumns(event)" data-tip="Choose columns">Columns</button>
-      <div class="seg-btns" id="co-view-btns">
-        <button class="seg-btn co-vbtn" data-view="grid" onclick="setCoListView('grid')">Grid</button>
-        <button class="seg-btn co-vbtn active" data-view="list" onclick="setCoListView('list')">List</button>
-      </div>
     </div>
     <div class="list-bar" id="co-lists-bar" aria-label="Company lists"></div>
     <div class="co-grid" id="co-grid" style="display:none"></div>
-    <div class="tbl-wrap" id="co-list-table"><table class="tbl-lists"><thead id="co-thead"></thead><tbody id="co-tbody"></tbody></table></div>
+    <div class="tbl-wrap pk-table" id="co-list-table"><table class="tbl-lists"><thead id="co-thead"></thead><tbody id="co-tbody"></tbody></table></div>
   </div>
 
   <div class="co-detail record-page" id="co-detail">

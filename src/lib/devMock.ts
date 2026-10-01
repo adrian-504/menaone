@@ -179,6 +179,8 @@ let meetingsStore: Meeting[] = [
     discussion: '- Headcount goes from 4 to **3** people\n- Omar wants the GOSI report monthly\n- [ ] Check the October payroll calendar', decisions: '- Price on three people from November\n- Monthly GOSI report from us',
     nextMeeting: '2026-10-13', inviteText: '________________________________\nMicrosoft Teams meeting\nJoin: https://teams.microsoft.com/l/meetup-join/demo\nMeeting ID: 000 000 000\n________________________________' },
   mockMeeting(3, 'Intro call — Northwind', '2026-09-16', [{ email: 'lina@northwind.test', name: 'Lina Saleh' }]),
+  // A client last seen a month ago: Companies shows it gone quiet.
+  { ...mockMeeting(40, 'Payroll review — Elite HR', '2026-08-31', []), companyName: 'Elite HR', companyId: 5 },
   ...todaysMockMeetings(),
 ];
 

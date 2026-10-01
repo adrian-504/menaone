@@ -3664,3 +3664,32 @@ button.pk-st:focus-visible{outline:none;box-shadow:var(--shadow-focus)}
 .pk-co-sub{font-size:11.5px;color:var(--sub);overflow:hidden;text-overflow:ellipsis}
 .pk-table .pk-flags{margin:6px 0 0 44px}
 .pk-next{display:flex;gap:5px;align-items:baseline}.pk-next .rlink{min-width:0}
+
+/* Companies: services as pills (green under an active agreement), the agreement's runway, gone quiet. */
+.pk-svcs{display:flex;flex-wrap:wrap;gap:4px}
+.pk-svc-pill{display:inline-block;font-size:11px;padding:2px 7px;border-radius:6px;background:var(--surface-2);color:var(--sub);white-space:nowrap}
+.pk-svc-pill.is-on{background:var(--green-bg);color:var(--green)}
+.pk-runway{min-width:120px;max-width:180px}
+.pk-runway b{font-size:12px;font-weight:500;color:var(--text);white-space:nowrap}
+.pk-runway span{font:500 var(--type-meta) var(--font-mono);color:var(--muted)}
+.pk-runway.is-soon span{color:var(--amber)}
+.pk-runway-bar{height:5px;border-radius:6px;background:var(--surface-2);overflow:hidden;margin-top:5px}
+.pk-runway-bar i{display:block;height:100%;border-radius:6px;background:var(--green)}
+.pk-runway.is-soon .pk-runway-bar i{background:var(--amber)}
+.pk-flight{font-size:12px;color:var(--text)}
+.pk-flight .t-red{color:var(--red)}.pk-flight .t-amber{color:var(--amber)}
+.pk-quiet{display:inline-flex;gap:6px;align-items:center;font-size:12px;color:var(--amber);white-space:nowrap}
+.pk-quiet i{width:7px;height:7px;border-radius:50%;border:1.5px dashed var(--amber)}
+.pk-gaps .rlink{color:var(--blue);font-weight:500}
+.pk-cofigs{display:flex;flex-direction:column;gap:6px;margin-top:10px;padding-top:10px;border-top:1px solid var(--hairline)}
+.pk-cofig{display:flex;align-items:baseline;gap:6px}
+.pk-cofig-l{font-size:var(--type-meta);color:var(--muted)}
+#co-list-table .co-row td{vertical-align:middle}
+.pk-table thead th.th-sortable{padding:0 10px 10px}
+.pk-table .th-sort{padding:0;text-transform:inherit;letter-spacing:inherit;font-weight:inherit}
+.pk-table thead th.td-num,.pk-table thead th.num{text-align:right}
+.pk-table th.num .th-sort{justify-content:flex-end}
+.co-search-bar .rcnt.pk-gaps{margin-left:4px}
+#co-list-table .pk-td-co{width:24%;min-width:210px}
+@media (max-width:1280px){#co-list-table .pk-narrow-hide{display:none}}
+@media (max-width:1280px){.pk-quiet{white-space:normal}}

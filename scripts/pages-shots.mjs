@@ -22,7 +22,8 @@ const SHOTS = [
   ['followup', CLOCK, "navToModule('followup')"],
   ['proposals', CLOCK, "navToModule('database')"],
   ['opportunities', CLOCK, "navToModule('opportunities')"],
-  ['companies', CLOCK, "navToModule('companies')"],
+  ['companies', CLOCK, "navToModule('companies'), setCoListView('list')"],
+  ['companies-grid', CLOCK, "navToModule('companies'), setCoListView('grid')"],
   ['meetings', CLOCK, "navToModule('meetings')"],
   ['projects', CLOCK, "navToModule('projects')"],
 ].filter(([n]) => !process.env.ONLY || process.env.ONLY.split(',').includes(n));
