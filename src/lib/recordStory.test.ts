@@ -2,7 +2,7 @@
 // Record story visuals (1.61): the stage stepper per record type and the proposal's header figures.
 import { describe, expect, it } from 'vitest';
 
-import { opportunityStepper, proposalHeaderFigures, proposalStepper, signatureStepper, stepperHtml } from './recordStory';
+import { opportunityStepper, proposalHeaderFigures, proposalStepper, serviceStartText, signatureStepper, stepperHtml } from './recordStory';
 import type { Proposal } from './types';
 
 const T = '2026-10-01';
@@ -16,9 +16,10 @@ describe('the proposal stepper', () => {
   it('done steps before the current one, which carries its days; approval and the agreement to come are named', () => {
     const s = proposalStepper(P({}), T);
     expect(s.steps.map((x) => [x.label, x.sub, x.state])).toEqual([
-      ['Request', '28 Aug', 'done'], ['Drafting', '', 'done'], ['Internal review', 'approved 1 Sept', 'done'], ['Sent to client', '2 Sept', 'current'], ['Client signed', '', 'todo'], ['Signed by both', '→ agreement', 'todo'],
+      ['Request', '28 Aug', 'done'], ['Drafting', '', 'done'], ['Internal review', 'approved 1 Sept', 'done'], ['Sent to client', '2 Sept', 'current'], ['Client signed', '', 'todo'], ['Signed by both', '→ agreement', 'todo'], ['Service started', '', 'todo'],
     ]);
     expect(s.currentNote).toBe('29 days');
+    expect(s.endNote).toBeNull();
   });
   it('a revision shows on Drafting; a lost proposal ends with its reason; a signed one has no current step', () => {
     const rev = proposalStepper(P({ status: 'Drafting', revision: 2, revisions: [{ number: 2, requestedAt: '2026-09-24', sentAt: null } as any] }), T);
@@ -27,9 +28,39 @@ describe('the proposal stepper', () => {
     const lost = proposalStepper(P({ status: 'Lost', winLossReason: 'Price too high' }), T);
     expect(lost.steps[lost.steps.length - 1]).toEqual({ label: 'Lost', sub: 'Price too high', state: 'ended' });
     expect(lost.currentNote).toBeNull();
+  });
+  it('signed with no start date: the last step is "Service not started yet", with the days since the signature', () => {
     const won = proposalStepper(P({ status: 'Signed by Both Parties', dateSigned: '2026-09-20', dblSignedDate: '2026-09-22' }), T);
-    expect(won.steps.every((x) => x.state === 'done')).toBe(true);
+    expect(won.steps.slice(0, 6).every((x) => x.state === 'done')).toBe(true);
+    expect(won.steps[6]).toEqual({ label: 'Service not started yet', sub: '9 days since signature', state: 'current' });
     expect(won.currentNote).toBeNull();
+  });
+  it('once started it says when, against the signature', () => {
+    const p = P({ status: 'Signed by Both Parties', dblSignedDate: '2026-10-03', serviceStartedAt: '2026-10-12' });
+    expect(serviceStartText(p)).toBe('started 12 Oct · 9 days after signature');
+    expect(proposalStepper(p, '2026-10-20').steps[6]).toEqual({ label: 'Service started', sub: '12 Oct · 9 days after signature', state: 'done' });
+    expect(serviceStartText(P({ dblSignedDate: '2026-09-22', serviceStartedAt: '2026-09-22' }))).toBe('started on signature');
+    expect(serviceStartText(P({ dblSignedDate: '2026-09-22', serviceStartedAt: '2026-09-20' }))).toBe('started 20 Sept · 2 days before signature');
+    expect(serviceStartText(P({ dblSignedDate: null, dateSigned: null, serviceStartedAt: '2026-09-20' }))).toBe('started 20 Sept');
+    expect(serviceStartText(P({ serviceStartedAt: null }))).toBeNull();
+  });
+  it('the agreement it became — or that there is none yet — closes a signed proposal\'s stepper', () => {
+    const won = P({ status: 'Signed by Both Parties', dblSignedDate: '2026-09-22', serviceStartedAt: '2026-09-22' });
+    expect(proposalStepper(won, T, { id: 4, agrRef: 'NWT_PAY_001_0926' }).endNote).toEqual({ text: 'Agreement NWT_PAY_001_0926', link: { kind: 'agreement', id: 4 } });
+    expect(proposalStepper(won, T, null).endNote).toEqual({ text: 'no agreement yet', tone: 'amber' });
+    expect(proposalStepper(P({}), T, null).endNote).toBeNull();
+    const el = document.createElement('div'); el.innerHTML = stepperHtml(proposalStepper(won, T, null));
+    expect(el.querySelector('.rk-snote.t-amber')?.textContent).toBe('no agreement yet');
+  });
+  it('the header says how it is priced where the monthly would be blank, and where the service stands once signed', () => {
+    const perHead = proposalHeaderFigures(P({ monthlyFee: null, lines: [] }), { today: T, touch: null, due: false, shape: 'per person per month' });
+    expect(perHead[0]).toEqual({ value: 'Per person per month', label: 'pricing' });
+    const waiting = proposalHeaderFigures(P({ status: 'Signed by Both Parties', dblSignedDate: '2026-09-22' }), { today: T, touch: null, due: false });
+    expect(waiting.map((f) => [f.value, f.label, f.tone]).slice(-2)).toEqual([['22 Sept', 'signed by both', undefined], ['9 days', 'since signature · service not started', 'amber']]);
+    const started = proposalHeaderFigures(P({ status: 'Signed by Both Parties', dblSignedDate: '2026-09-22', serviceStartedAt: '2026-10-01' }), { today: T, touch: null, due: false });
+    expect(started[started.length - 1]).toEqual({ value: '1 Oct', label: 'service started · 9 days after signature' });
+    const same = proposalHeaderFigures(P({ status: 'Signed by Both Parties', dblSignedDate: '2026-09-22', serviceStartedAt: '2026-09-22' }), { today: T, touch: null, due: false });
+    expect(same[same.length - 1].label).toBe('service started · on signature');
   });
 });
 
@@ -50,7 +81,7 @@ describe('other steppers', () => {
   it('draws numbered circles, a tick when done and the days on the dashed connector', () => {
     const html = stepperHtml(proposalStepper(P({}), T));
     const el = document.createElement('div'); el.innerHTML = html;
-    expect([...el.querySelectorAll('.rk-sp i')].map((i) => i.textContent)).toEqual(['✓', '✓', '✓', '04', '05', '06']);
+    expect([...el.querySelectorAll('.rk-sp i')].map((i) => i.textContent)).toEqual(['✓', '✓', '✓', '04', '05', '06', '07']);
     expect(el.querySelector('.rk-sline.is-cur span')?.textContent).toBe('29 days');
     expect(el.querySelector('[aria-current="step"] b')?.textContent).toBe('Sent to client');
   });

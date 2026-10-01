@@ -112,7 +112,9 @@ export function ageHtml(days: number | null, caption: string, tone: 'red' | 'amb
 }
 
 /** Money in display type, green; a muted "—" when there's no figure. */
-export function valueHtml(amount: string | null, caption: string): string {
+export function valueHtml(amount: string | null, caption: string, shape = false): string {
+  // No amount, but how it is priced is known ("per person per month"): say that, not a dash.
+  if (!amount && shape) return `<div class="pk-val is-shape"><span>${escHtml(caption)}</span></div>`;
   return `<div class="pk-val${amount ? '' : ' is-none'}"><b>${amount ? escHtml(amount) : '—'}</b><span>${escHtml(caption)}</span></div>`;
 }
 

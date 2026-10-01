@@ -14,7 +14,7 @@ const SAMPLE: AppData = {
       dblSignedDate: '2026-01-20', kickoffDate: '2026-02-01', finance: null, hubspot: null, owner: 'Ahmad',
       remarks: null, dateAdded: '2026-01-10', monthlyFee: 15000, contractMonths: 12, winLossReason: 'Referral / existing relationship',
       docLink: null, archived: false, archivedAt: null, snoozedUntil: null, dateSentToHassan: '2026-01-08',
-      dateSentToClient: '2026-01-10', dateSigned: '2026-01-20', notes: [],
+      dateSentToClient: '2026-01-10', dateSigned: '2026-01-20', notes: [], serviceStartedAt: '2026-02-01',
       businessEntityId: 1, currency: 'SAR', reviewerId: 1, reviewStatus: 'approved', reviewedAt: '2026-01-09',
       lines: [
         { id: 1, serviceId: 15, serviceName: 'Payroll', description: null, billing: 'monthly', quantity: 1, unitPrice: 9000, commission: false, sortOrder: 0 },
@@ -57,6 +57,15 @@ const SAMPLE: AppData = {
     { id: 7, primaryContactId: 4, client: 'Globex', companyId: 3, type: 'Business setup', status: 'Drafting', sentDate: '2026-09-22', dateAdded: '2026-09-10', monthlyFee: 4000, contractMonths: 12, dateSentToHassan: '2026-09-18', dateSentToClient: '2026-09-22', revision: 2, dblSignedDate: null, kickoffDate: null, finance: null, hubspot: null, owner: 'Ahmad', remarks: null, winLossReason: null, docLink: null, archived: false, archivedAt: null, snoozedUntil: null, dateSigned: null, notes: [], businessEntityId: 1, currency: 'SAR', documents: [],
       revisions: [{ id: 70, number: 2, requestedAt: '2026-09-26', requestedByContactId: null, reason: 'Two people instead of three', linesBeforeJson: '[]', sentAt: null }], lines: [] },
     { id: 8, primaryContactId: 5, client: 'Red Sea Global', companyId: 4, type: 'EOR', status: 'Sent to Client', sentDate: '2026-09-26', dateAdded: '2026-09-20', monthlyFee: 12000, contractMonths: 12, dateSentToHassan: '2026-09-24', dateSentToClient: '2026-09-26', validUntil: '2026-10-05', dblSignedDate: null, kickoffDate: null, finance: null, hubspot: null, owner: 'Ahmad', remarks: null, winLossReason: null, docLink: null, archived: false, archivedAt: null, snoozedUntil: null, dateSigned: null, notes: [], businessEntityId: 1, currency: 'SAR', documents: [], lines: [] },
+    // 1.61: three proposals sent together to Red Sea Global — one signed by both with the service not started yet, two
+    // still with the client, one of them priced per person (no monthly figure to show).
+    ...([[9, 'Accountancy', 'Signed by Both Parties', 2400, '2026-09-22'], [10, 'Workforce', 'Sent to Client', null, null], [11, 'Company Maintenance', 'Sent to Client', 1500, null]] as [number, string, string, number | null, string | null][]).map(([id, type, status, monthlyFee, signed]) => ({
+      id, primaryContactId: 5, client: 'Red Sea Global', companyId: 4, type, status, requestGroup: 'rsg-2026-09', sentDate: '2026-09-15', dateAdded: '2026-09-08', monthlyFee, contractMonths: 12,
+      dateSentToHassan: '2026-09-12', dateSentToClient: '2026-09-15', dblSignedDate: signed, dateSigned: signed, kickoffDate: null, finance: null, hubspot: null, owner: 'Ahmad', remarks: null, winLossReason: null, docLink: null,
+      archived: false, archivedAt: null, snoozedUntil: null, notes: [], businessEntityId: 1, currency: 'SAR', documents: [], reviewStatus: 'approved' as const, reviewedAt: '2026-09-14',
+      lines: [{ id: 900 + id, serviceId: null, serviceName: type, description: null, billing: 'monthly' as const, quantity: 1, unitPrice: monthlyFee, commission: false, sortOrder: 0,
+        ...(monthlyFee == null ? { rates: [{ label: '', from: 1, to: 10, price: 450 }, { label: '', from: 11, to: 50, price: 400 }] } : {}) }],
+    })),
   ],
   contacts: [
     { id: 1, clientName: 'Acme Holdings', companyId: 1, name: 'Jane Doe', role: 'CEO', email: 'jane@acme.test', phone: null, whatsapp: null, service: null, lists: [], isDecisionMaker: true },

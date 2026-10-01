@@ -41,6 +41,16 @@ describe('table cells', () => {
     expect(tableCells(sent, { ...ctx, due: true })).toMatchObject({ chip: { text: 'With client', tone: 'coral' }, flag: { text: 'follow up' }, days: 29, tone: 'amber', action: { kind: 'followed_up' } });
     expect(tableCells(P({ status: 'Sent to Client', dateSentToClient: '2025-04-10' }), { ...ctx, stale: true })).toMatchObject({ tone: 'red', action: { kind: 'mark_lost' } });
   });
+  it('signed with no start date carries a "service not started" chip; started, it does not', () => {
+    expect(tableCells(P({ status: 'Signed by Both Parties', dblSignedDate: '2026-09-22' }), ctx).flag).toEqual({ text: 'service not started', tone: 'amber' });
+    expect(tableCells(P({ status: 'Signed by Both Parties', dblSignedDate: '2026-09-22', serviceStartedAt: '2026-09-22' }), ctx).flag).toBeNull();
+  });
+  it('where the monthly would be blank it says how the proposal is priced', () => {
+    expect(tableCells(P({}), { ...ctx, shape: 'per person per month' })).toMatchObject({ monthly: 'per person per month', shaped: true });
+    expect(tableCells(P({}), ctx)).toMatchObject({ monthly: '—', shaped: false });
+    // An amount wins over the shape.
+    expect(tableCells(P({ monthlyFee: 6500 }), { ...ctx, shape: 'monthly' })).toMatchObject({ monthly: '6,500', shaped: false });
+  });
   it('signed shows its date and links the agreement; lost has no age and no action', () => {
     expect(tableCells(P({ status: 'Signed by Both Parties', dblSignedDate: '2026-01-20', monthlyFee: 15000 }), { ...ctx, agreementId: 1 })).toMatchObject({ chip: { text: 'Signed 20 Jan', tone: 'green' }, days: null, action: { kind: 'agreement' } });
     expect(tableCells(P({ status: 'Lost' }), ctx)).toMatchObject({ chip: { text: 'Lost' }, days: null, action: null, monthly: '—' });

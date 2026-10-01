@@ -13,7 +13,7 @@ export interface NextStep { primary: Step | null; secondary?: Step }
 
 const send = (label: string): Step => ({ label, run: `proposalStep('${PS.SENT}')` });
 
-export function proposalNextStep(p: Pick<Proposal, 'id' | 'status' | 'reviewStatus' | 'revisions'>, agreements: Pick<Agreement, 'id' | 'proposalId'>[]): NextStep {
+export function proposalNextStep(p: Pick<Proposal, 'id' | 'status' | 'reviewStatus' | 'revisions' | 'serviceStartedAt'>, agreements: Pick<Agreement, 'id' | 'proposalId'>[]): NextStep {
   const revising = !!openRevision(p);
   switch (p.status) {
     case PS.REQUEST: return { primary: { label: 'Start drafting', run: `proposalStep('${PS.DRAFTING}')` } };
@@ -32,7 +32,10 @@ export function proposalNextStep(p: Pick<Proposal, 'id' | 'status' | 'reviewStat
     };
     case PS.WON: {
       const agr = agreements.find((a) => a.proposalId === p.id);
-      return { primary: agr ? { label: 'Open agreement', run: `openRecord('agreement', ${agr.id})` } : null };
+      const open = agr ? { label: 'Open agreement', run: `openRecord('agreement', ${agr.id})` } : undefined;
+      // Signed with no start date: the last step is still to take.
+      if (!p.serviceStartedAt) return { primary: { label: 'Mark service started', run: 'proposalMarkServiceStarted()' }, secondary: open };
+      return { primary: open ?? null };
     }
     default: return { primary: { label: 'Reopen', run: 'proposalReopenMenu(event)' } };
   }

@@ -14,6 +14,8 @@ import { PS, teamMember, defaultReviewer, ownerName } from '../lib/commercial';
 import type { Proposal } from '../lib/types';
 import { pendingRuns } from '../lib/queues';
 import { ageHtml, groupHeadHtml, registerStrip, stripHtml, stripPick, tileHtml, valueHtml, bucketOf, clearBucket } from '../lib/pageKit';
+import { pricingShape } from '../lib/pricingShape';
+import { cardFor } from '../lib/linesEditor';
 import { pendingRow, pendingStrip, PENDING_GROUP, PENDING_ORDER, inBucket, type QueueRow, type RowActionKind } from '../lib/pagesQueues';
 import { proposalContact, companyIndustry, personHtml } from '../lib/pagePeople';
 
@@ -67,7 +69,7 @@ export function renderPending(): void {
   const all = getPendingProposals().filter((p) => !search || [p.client, p.type, p.owner, ownerName(p), `sl# ${p.id}`, String(p.id)].some((v) => (v || '').toLowerCase().includes(search)));
   const rowOf = new Map<number, QueueRow>();
   for (const p of all) {
-    const r = pendingRow(p, { today: t, reviewer: reviewerName(p), latestDeck: latestDeck(p) });
+    const r = pendingRow(p, { today: t, reviewer: reviewerName(p), latestDeck: latestDeck(p), shape: pricingShape(p.lines, cardFor) });
     if (r) rowOf.set(p.id, r);
   }
   const rows = [...rowOf.values()];
@@ -146,7 +148,7 @@ export function queueRowHtml(r: QueueRow, o: { primary: boolean; who: string; be
       <div class="pk-meta">${meta}</div>${o.below || ''}
     </div>
     <div class="pk-who">${o.who}</div>
-    ${valueHtml(r.amount, r.amountCaption)}
+    ${valueHtml(r.amount, r.amountCaption, r.amountShape)}
     ${ageHtml(r.age, r.ageCaption, r.tone)}
     <div class="pk-acts">${acts}</div>
     <button class="rec-icon-btn pk-more" onclick="event.stopPropagation();pqMenu(event, ${r.id})" data-tip="More" aria-label="More">${icon('more', 14)}</button>

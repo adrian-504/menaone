@@ -56,11 +56,13 @@ export interface TableCells {
   days: number | null;
   tone: 'red' | 'amber' | 'ok';
   monthly: string;
+  /** `monthly` says how it is priced rather than an amount. */
+  shaped: boolean;
   action: { kind: string; label: string } | null;
 }
 
 /** One table row's cells. `due` is the follow-up rule's answer for a sent proposal; `stale` its "mark lost?". Pure. */
-export function tableCells(p: Proposal, ctx: { today: string; reviewer: string; due?: boolean; stale?: boolean; agreementId?: number | null }): TableCells {
+export function tableCells(p: Proposal, ctx: { today: string; reviewer: string; due?: boolean; stale?: boolean; agreementId?: number | null; /** How it is priced when not monthly. */ shape?: string | null }): TableCells {
   const stage = stageOfProposal(p);
   const since = stageSince(p);
   const days = since ? Math.max(0, daysBetween(since, ctx.today) ?? 0) : null;
@@ -69,7 +71,8 @@ export function tableCells(p: Proposal, ctx: { today: string; reviewer: string; 
   const cur = currencyOf(p);
   const amount = p.monthlyFee ?? p.oneTimeFee ?? null;
   const num = amount == null ? '—' : fmtMoney(amount, cur).replace(cur === REPORTING_CURRENCY ? `${REPORTING_CURRENCY} ` : '', '');
-  const monthly = amount != null && !p.monthlyFee ? `${num} once` : num;
+  // Where a monthly figure would be blank: how it is priced ("per person per month"), when that is known.
+  const monthly = amount != null && !p.monthlyFee ? `${num} once` : amount == null && ctx.shape ? ctx.shape : num;
   let chip: TableCells['chip'];
   let flag: TableCells['flag'] = null;
   let action: TableCells['action'] = null;
@@ -100,12 +103,14 @@ export function tableCells(p: Proposal, ctx: { today: string; reviewer: string; 
       break;
     case 'signed':
       chip = { text: p.dblSignedDate ? `Signed ${fmtDateShort(p.dblSignedDate, true)}` : 'Signed', tone: 'green' };
+      // Signed by both with no start date: the last step is still open.
+      if (p.status === PS.WON && !p.serviceStartedAt) flag = { text: 'service not started', tone: 'amber' };
       action = ctx.agreementId ? { kind: 'agreement', label: 'Agreement' } : null;
       break;
     default:
       chip = { text: p.status === PS.WITHDRAWN ? 'Withdrawn' : 'Lost', tone: 'grey' };
   }
-  return { stage, chip, flag, days: t ? days : null, tone, monthly, action };
+  return { stage, chip, flag, days: t ? days : null, tone, monthly, shaped: amount == null && !!ctx.shape, action };
 }
 
 /** A pipeline panel's width: its count, never under `min` so a single proposal still reads. Pure. */

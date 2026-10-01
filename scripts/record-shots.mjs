@@ -21,6 +21,7 @@ const SHOTS = [
   ['company', CLOCK, "openRecord('company', 1)"],
   ['proposal-review', CLOCK, "openRecord('proposal', 2)"],
   ['proposal-sent', CLOCK, "openRecord('proposal', 3)"],
+  ['proposal-signed', CLOCK, "openRecord('proposal', 9)"],
   ['contact', CLOCK, "openRecord('contact', 1)"],
   ['opportunity', CLOCK, "openRecord('opportunity', 2)"],
   ['opportunity-next', CLOCK, "openRecord('opportunity', 1)"],

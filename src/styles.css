@@ -4426,3 +4426,14 @@ a.btn-primary,a.btn-secondary{text-decoration:none}
   .rk-svc-h,.rk-svc{grid-template-columns:minmax(0,1.3fr) 96px minmax(0,1fr) 150px}
   .rk-svc-h > :nth-child(4),.rk-svc > :nth-child(4){display:none}
 }
+
+/* Proposals: the last step and what a blank monthly says instead (1.61). */
+.rk-story{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.rk-story .rk-stepper{flex:1 1 auto;min-width:0}
+.rk-snote{flex:none;font:500 12px var(--font-mono);color:var(--blue);white-space:nowrap;text-decoration-color:transparent}
+a.rk-snote:hover{text-decoration-color:currentColor}
+.rk-snote.t-amber{color:var(--amber)}
+.rk-with .rlink{color:var(--blue);text-decoration-color:transparent}
+.rk-with .rlink:hover{text-decoration-color:currentColor}
+.pk-val.is-shape span{font-size:var(--type-secondary);color:var(--sub);white-space:normal;text-align:right}
+.pk-mrr.is-shape{font:400 12px var(--font-text);color:var(--sub);white-space:normal}

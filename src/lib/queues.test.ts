@@ -40,7 +40,7 @@ describe('lastTouch', () => {
   });
 
   it('says what it was on the row', () => {
-    expect(touchLabel({ date: '2026-09-24', kind: 'email', days: 3 }, '2 Sept')).toBe('Sent 2 Sept · client emailed 3 days ago');
+    expect(touchLabel({ date: '2026-09-24', kind: 'email', days: 3 }, '2 Sept')).toBe('Sent 2 Sept · client replied 3 days ago');
     expect(touchLabel({ date: '2026-09-22', kind: 'note', days: 5 }, '2 Sept')).toBe('Sent 2 Sept · you logged a note 5 days ago');
     expect(touchLabel({ date: '2026-09-23', kind: 'meeting', days: 4 }, '2 Sept')).toBe('Sent 2 Sept · meeting 4 days ago');
     expect(touchLabel({ date: '2026-09-02', kind: 'sent', days: 25 }, '2 Sept')).toBe('Sent 2 Sept');

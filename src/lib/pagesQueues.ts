@@ -29,6 +29,8 @@ export interface QueueRow {
   tone: 'red' | 'amber' | 'ok';
   amount: string | null;
   amountCaption: string;
+  /** No amount, and the caption says how it is priced ("per person per month") rather than "not priced". */
+  amountShape?: boolean;
   actions: RowAction[];
   /** May this row's first action be the page's one blue button? */
   urgent: boolean;
@@ -37,10 +39,12 @@ export interface QueueRow {
 const serviceOf = (p: Proposal) => p.type || (p.lines || []).map((l) => l.serviceName).filter(Boolean).join(', ') || 'Proposal';
 
 /** "SAR 6,500 / a month · 12 mo"; "SAR 9,000 / one-time"; null when it isn't priced. */
-export function proposalValue(p: Pick<Proposal, 'monthlyFee' | 'oneTimeFee' | 'contractMonths' | 'currency'>): { amount: string | null; caption: string } {
+export function proposalValue(p: Pick<Proposal, 'monthlyFee' | 'oneTimeFee' | 'contractMonths' | 'currency'>, shape?: string | null): { amount: string | null; caption: string; shape?: boolean } {
   const cur = currencyOf(p);
   if (p.monthlyFee) return { amount: fmtMoney(p.monthlyFee, cur), caption: `a month${p.contractMonths ? ` · ${p.contractMonths} mo` : ''}` };
-  if (p.oneTimeFee) return { amount: fmtMoney(p.oneTimeFee, cur), caption: 'one-time' };
+  if (p.oneTimeFee) return { amount: fmtMoney(p.oneTimeFee, cur), caption: shape || 'one-time' };
+  // Not a monthly fee and no single amount: how it is priced ("per person per month"), rather than a blank.
+  if (shape) return { amount: null, caption: shape, shape: true };
   return { amount: null, caption: 'not priced' };
 }
 
@@ -71,11 +75,11 @@ export function promiseLeft(left: number): string {
   return left < 0 ? `${plural(-left, 'day')} late` : left === 0 ? 'due today' : `${plural(left, 'day')} left`;
 }
 
-export function pendingRow(p: Proposal, ctx: { today: string; reviewer: string; latestDeck?: number | null }): QueueRow | null {
+export function pendingRow(p: Proposal, ctx: { today: string; reviewer: string; latestDeck?: number | null; /** How it is priced when not monthly. */ shape?: string | null }): QueueRow | null {
   const bucket = pendingBucket(p);
   if (!bucket) return null;
-  const { amount, caption } = proposalValue(p);
-  const base = { id: p.id, bucket, client: p.client, companyId: p.companyId ?? null, service: serviceOf(p), amount, amountCaption: caption };
+  const { amount, caption, shape } = proposalValue(p, ctx.shape);
+  const base = { id: p.id, bucket, client: p.client, companyId: p.companyId ?? null, service: serviceOf(p), amount, amountCaption: caption, amountShape: shape };
   if (bucket === 'draft') {
     const age = Math.max(0, daysBetween(p.dateAdded, ctx.today) ?? 0);
     const left = p.promisedBy ? daysBetween(ctx.today, p.promisedBy) : null;
@@ -173,7 +177,7 @@ export function trailTouches<T extends { at: string; kind: string }>(logged: T[]
 
 export interface FollowRow extends QueueRow { expiring: boolean; dueOn: string | null; trail: Trail }
 
-export function followRow(p: Proposal, ctx: { today: string; touch: LastTouch | null; followUps: number; touches: Pick<Touch, 'proposalId' | 'companyId' | 'kind' | 'direction' | 'at' | 'contactId'>[] }): FollowRow | null {
+export function followRow(p: Proposal, ctx: { today: string; touch: LastTouch | null; followUps: number; touches: Pick<Touch, 'proposalId' | 'companyId' | 'kind' | 'direction' | 'at' | 'contactId'>[]; /** How it is priced when not monthly. */ shape?: string | null }): FollowRow | null {
   if (p.archived || p.status !== PS.SENT) return null;
   const sent = proposalSentDate(p)?.slice(0, 10) || null;
   const t = ctx.touch;
@@ -189,7 +193,7 @@ export function followRow(p: Proposal, ctx: { today: string; touch: LastTouch | 
   if (expiring) meta.push({ text: `◷ offer expires ${left === 0 ? 'today' : fmtDateWeekday(p.validUntil)}`, tone: 'red', chip: true });
   else if (p.validUntil && left != null) meta.push({ text: `offer valid until ${fmtDateShort(p.validUntil)}` });
   if (stale != null) meta.push({ text: `no answer in ${plural(stale, 'month')} — mark lost?`, tone: 'amber' });
-  const { amount, caption } = proposalValue(p);
+  const { amount, caption, shape } = proposalValue(p, ctx.shape);
   const caption2 = due ? 'without contact' : !t || t.kind === 'sent' ? 'since sent' : 'since last touch';
   const actions: RowAction[] = [];
   if (due) actions.push({ kind: 'changes', label: 'Client asked for changes' });
@@ -197,7 +201,7 @@ export function followRow(p: Proposal, ctx: { today: string; touch: LastTouch | 
   actions.push({ kind: 'followed_up', label: 'Followed up' });
   return {
     id: p.id, bucket: due ? 'due' : 'waiting', client: p.client, companyId: p.companyId ?? null, service: serviceOf(p),
-    meta, age: days, ageCaption: caption2, tone: due ? (days! > 30 ? 'red' : 'amber') : 'ok', amount, amountCaption: caption,
+    meta, age: days, ageCaption: caption2, tone: due ? (days! > 30 ? 'red' : 'amber') : 'ok', amount, amountCaption: caption, amountShape: shape,
     actions, urgent: due, expiring, dueOn: !due && t ? followUpDueOn(t.date) : null,
     trail: sent ? contactTrail({ sent, touches: trailTouches(mine, t), today: ctx.today, validUntil: p.validUntil ?? null, late: due ? t?.date ?? sent : null }) : { points: [], late: null },
   };

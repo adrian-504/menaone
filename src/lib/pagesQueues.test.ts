@@ -62,6 +62,12 @@ describe('Pending rows', () => {
     expect([r.amount, r.amountCaption]).toEqual(['SAR 6,500', 'a month · 12 mo']);
     expect(r.actions.map((a) => a.label)).toEqual(['Start drafting']);
   });
+  it('where the monthly would be blank the row says how the proposal is priced', () => {
+    expect(pendingRow(P({ dateAdded: '2026-09-27' }), { ...ctx, shape: 'per person per month' })).toMatchObject({ amount: null, amountCaption: 'per person per month', amountShape: true });
+    expect(pendingRow(P({ dateAdded: '2026-09-27', oneTimeFee: 55000 }), { ...ctx, shape: 'one-time' })).toMatchObject({ amount: 'SAR 55,000', amountCaption: 'one-time' });
+    expect(pendingRow(P({ dateAdded: '2026-09-27', monthlyFee: 6500 }), { ...ctx, shape: 'monthly' })).toMatchObject({ amount: 'SAR 6,500', amountCaption: 'a month' });
+    expect(pendingRow(P({ dateAdded: '2026-09-27' }), ctx)).toMatchObject({ amount: null, amountCaption: 'not priced' });
+  });
   it('a request without a promise ages by the week: 4 days is quiet, unpriced shows not priced', () => {
     const r = pendingRow(P({ dateAdded: '2026-09-27' }), ctx)!;
     expect([r.age, r.tone, r.urgent, r.amount, r.amountCaption]).toEqual([4, 'ok', false, null, 'not priced']);

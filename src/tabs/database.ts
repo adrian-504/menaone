@@ -1,3 +1,5 @@
+import { pricingShape } from '../lib/pricingShape';
+import { cardFor } from '../lib/linesEditor';
 import { S } from '../lib/state';
 import { companyLink } from '../lib/links';
 import { STATUSES } from '../lib/constants';
@@ -92,7 +94,7 @@ export function renderDB(): void {
     const fu = needsFollowUp(p);
     const stale = p.status === PS.SENT && proposalStaleMonths(p, S.touches, followUpCount(p, S.touches), t) != null;
     const agreementId = S.agreements.find((a) => a.proposalId === p.id)?.id ?? null;
-    const c = tableCells(p, { today: t, reviewer: reviewer(p), due: fu, stale, agreementId });
+    const c = tableCells(p, { today: t, reviewer: reviewer(p), due: fu, stale, agreementId, shape: pricingShape(p.lines, cardFor) });
     const services = p.lines?.length ? lineTotals(p.lines, p.contractMonths).serviceNames : (p.type && p.type !== '—' ? [p.type] : []);
     const act = c.action ? `<button class="rlink pk-act" onclick="event.stopPropagation();dbAct(event, ${p.id}, '${c.action.kind}')"${c.action.kind === 'followed_up' ? ' aria-haspopup="menu"' : ''}>${escHtml(c.action.label)}</button>` : '';
     return `<tr data-proposal-id="${p.id}" class="rec-tr${p.archived ? ' archived-row' : ''}${dbSelected.has(p.id) ? ' is-selected' : ''}" onclick="if(!event.target.closest('a,button,select,input'))openRecord('proposal', ${p.id})" oncontextmenu="proposalRowMenu(event, ${p.id})">
@@ -101,7 +103,7 @@ export function renderDB(): void {
       <td class="mono t-sub">${p.id}</td>
       <td><span class="pk-stage t-${c.chip.tone}"><i></i>${escHtml(c.chip.text)}</span>${c.flag ? ` <span class="pk-chip t-${c.flag.tone}">${escHtml(c.flag.text)}</span>` : ''}</td>
       <td class="num"><span class="pk-age-sm t-${c.tone}">${c.days == null ? '—' : escHtml(plural(c.days, 'day'))}</span></td>
-      <td class="num"><span class="pk-mrr${c.monthly === '—' ? ' is-none' : ''}">${escHtml(c.monthly)}</span></td>
+      <td class="num"><span class="pk-mrr${c.monthly === '—' ? ' is-none' : c.shaped ? ' is-shape' : ''}">${escHtml(c.monthly)}</span></td>
       <td class="mono t-sub">${escHtml(ownerName(p) || '—')}</td>
       <td class="num pk-td-act">${act}<button class="rec-icon-btn row-more" onclick="proposalRowMenu(event, ${p.id})" data-tip="Change status…" aria-label="Change status of SL# ${p.id}">${icon('more', 14)}</button></td>
     </tr>`;

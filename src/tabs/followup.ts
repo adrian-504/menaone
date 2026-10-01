@@ -6,6 +6,8 @@ import { companyLink } from '../lib/links';
 import { today, fmtDate, daysSince, daysUntil, escHtml, expose, showConfirm } from '../lib/utils';
 import { matchesProposalPeriod } from '../lib/period';
 import { bucketOf, clearBucket, groupHeadHtml, registerStrip, stripHtml } from '../lib/pageKit';
+import { pricingShape } from '../lib/pricingShape';
+import { cardFor } from '../lib/linesEditor';
 import { closedThisMonth, followRow, followStrip, inBucket, type FollowRow, type Trail } from '../lib/pagesQueues';
 import { queueRowHtml, whoOf } from './pending';
 import { registerTabRenderer, refreshAll } from '../lib/registry';
@@ -43,7 +45,7 @@ export function withClients(): Proposal[] {
 }
 
 function rowFor(p: Proposal): FollowRow | null {
-  return followRow(p, { today: today(), touch: proposalLastTouch(p), followUps: followUpCount(p, S.touches), touches: S.touches });
+  return followRow(p, { today: today(), touch: proposalLastTouch(p), followUps: followUpCount(p, S.touches), touches: S.touches, shape: pricingShape(p.lines, cardFor) });
 }
 
 export function renderFollowup(): void {

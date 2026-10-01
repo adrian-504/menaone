@@ -46,7 +46,7 @@ describe('labels', () => {
     expect(touchWhat(t({ kind: 'call', by: 'us' }))).toBe('you called 3 days ago');
     expect(touchWhat(t({ kind: 'call', by: 'client' }))).toBe('client called 3 days ago');
     expect(touchWhat(t({ kind: 'whatsapp', by: 'us' }))).toBe('WhatsApp 3 days ago');
-    expect(touchWhat(t({ kind: 'email' }))).toBe('client emailed 3 days ago');
+    expect(touchWhat(t({ kind: 'email' }))).toBe('client replied 3 days ago');
     expect(touchLabel({ date: '2026-09-22', kind: 'email_out', who: 'Sara', days: 3 }, '2 Sept', 2)).toBe('Sent 2 Sept · 2 follow-ups · you emailed Sara 3 days ago');
     expect(touchLabel({ date: '2026-09-02', kind: 'sent', days: 3 }, '2 Sept')).toBe('Sent 2 Sept');
     expect(touchDoing({ kind: 'email_out', direction: 'out' }, 'Sara')).toBe('you emailed Sara');

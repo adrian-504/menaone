@@ -5,6 +5,9 @@
 // commercials, the client's OneDrive folder and documents, what it's linked
 // to, notes and activity.
 
+import { pricingShape } from '../lib/pricingShape';
+import { cardFor } from '../lib/linesEditor';
+import { requestSiblings } from '../lib/proposalGroups';
 import { paintFigures } from '../lib/recordFigures';
 import { proposalHeaderFigures, proposalStepper, stepperHtml } from '../lib/recordStory';
 import { contactTrail, trailTouches, TOUCH_ICON, type TrailPoint } from '../lib/pagesQueues';
@@ -21,7 +24,7 @@ import { latestRevision, lineWasNote, parseSnapshot, removedServices, revisionFa
 import { companyFromForm, contextFromOpportunity } from '../lib/workGraph';
 import { S } from '../lib/state';
 import { touchDoing, touchesOf } from '../lib/followup';
-import { escHtml, expose, fmtDate, today, nextId, nextCtId, showConfirm, showTextPrompt, debounce, strColor, fmtDateShort } from '../lib/utils';
+import { escHtml, expose, fmtDate, today, nextId, nextCtId, showConfirm, showTextPrompt, showDatePrompt, debounce, strColor, fmtDateShort } from '../lib/utils';
 import { icon } from '../lib/icons';
 import { companyLink, recordLink } from '../lib/links';
 import { emptyState, toast, undoToast } from '../lib/ui';
@@ -122,7 +125,9 @@ export function renderProposalPage(): void {
   const t = today();
   const touch = proposalLastTouch(p);
   const due = needsFollowUp(p);
-  paintFigures('prd-figures', proposalHeaderFigures(p, { today: t, touch, due }));
+  paintFigures('prd-figures', proposalHeaderFigures(p, { today: t, touch, due, shape: pricingShape(p.lines, cardFor) }));
+  // Sent with: the proposals requested together with this one, as one line of links.
+  const siblings = requestSiblings(p, S.proposals);
   const cells = tableCells(p, { today: t, reviewer: teamMember(p.reviewerId)?.name || defaultReviewer()?.name || 'the reviewer', due });
   const contact = p.primaryContactId != null ? S.contacts.find((c) => c.id === p.primaryContactId)?.name : null;
   if (badges) badges.innerHTML = [
@@ -133,6 +138,7 @@ export function renderProposalPage(): void {
     `<span class="rec-meta">${escHtml([entity?.name, currencyOf(p), owner ? `owner ${owner}` : '', contact ? `contact ${contact}` : ''].filter(Boolean).join(' · '))}</span>`,
     promisedByFact(p),
     revisionFact(p) ? `<span class="rec-meta">${escHtml(revisionFact(p)!)}</span>` : '',
+    siblings.length ? `<span class="rec-meta rk-with">sent with ${siblings.map((x) => recordLink('proposal', x.id, `${x.type || 'Proposal'} · SL# ${x.id}`)).join(', ')}</span>` : '',
     p.winLossReason && isClosed(p) ? `<span class="rec-meta">${escHtml(p.winLossReason)}</span>` : '',
   ].filter(Boolean).join('');
 
@@ -182,6 +188,19 @@ export function renderActions(p: Proposal): void {
     `<button class="loc-nav rec-more" onclick="proposalMoreMenu(event)" data-tip="More" aria-label="More">${icon('more', 16)}</button>`,
   ].join('');
 }
+
+/** "Mark service started": one date, pre-filled with the signature date and back-datable; the toast undoes it. */
+export async function proposalMarkServiceStarted(): Promise<void> {
+  const p = currentProposal();
+  if (!p) return;
+  const date = await showDatePrompt({ title: 'Service started', label: `${p.client} — the day the service started`, defaultValue: (p.dblSignedDate || p.dateSigned || today()).slice(0, 10), confirmLabel: 'Mark started' });
+  if (!date) return;
+  const restore = snapshotProposal(p);
+  p.serviceStartedAt = date;
+  commit(p);
+  undoToast(`${p.client}: service started ${fmtDateShort(date)}`, restore);
+}
+expose('proposalMarkServiceStarted', proposalMarkServiceStarted);
 
 export async function proposalStep(status: string): Promise<void> {
   const p = currentProposal();
@@ -292,7 +311,9 @@ async function deleteProposalFromPage(id: number): Promise<void> {
 
 function renderStages(p: Proposal): void {
   const el = document.getElementById('prd-stages');
-  if (el) el.innerHTML = stepperHtml(proposalStepper(p, today()));
+  // The agreement it became (or that there is none yet) closes the stepper once it is signed by both.
+  const agreement = S.agreements.find((a) => a.proposalId === p.id) ?? null;
+  if (el) el.innerHTML = stepperHtml(proposalStepper(p, today(), agreement ? { id: agreement.id, agrRef: agreement.agrRef } : null));
   // Once it is with the client: sent, each touch since, today and the offer's expiry on one line.
   const trail = document.getElementById('prd-trail');
   if (!trail) return;
@@ -304,7 +325,7 @@ function renderStages(p: Proposal): void {
   const due = needsFollowUp(p);
   const mine = touchesOf(p, S.touches).filter((x) => x.at.slice(0, 10) >= sent! && x.at.slice(0, 10) <= t);
   const tr = contactTrail({ sent: sent!, touches: trailTouches(mine, touch), today: t, validUntil: p.validUntil ?? null, late: due ? touch?.date ?? sent! : null });
-  const WHAT: Record<string, string> = { email_out: 'Followed up', email_in: 'Client emailed', call: 'Call', whatsapp: 'WhatsApp', meeting: 'Met', note: 'Note' };
+  const WHAT: Record<string, string> = { email_out: 'Followed up', email_in: 'Client replied', call: 'Call', whatsapp: 'WhatsApp', meeting: 'Met', note: 'Note' };
   const top = (x: TrailPoint) => x.kind === 'sent' ? 'Sent' : x.kind === 'expiry' ? 'Offer expires'
     : x.kind === 'today' ? (due ? `No contact · ${touch?.days ?? 0} ${touch?.days === 1 ? 'day' : 'days'}` : 'Today')
     : `${TOUCH_ICON[x.touch || ''] || ''} ${WHAT[x.touch || ''] || 'Contact'}`.trim();
