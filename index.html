@@ -680,7 +680,7 @@
       </div>
       <div class="fact">
         <button type="button" class="btn-secondary" onclick="closeCommitmentModal()">Cancel</button>
-        <button type="submit" class="btn-primary" id="commitment-submit-btn">Create commitment</button>
+        <button type="submit" class="btn-primary" id="commitment-submit-btn">Create promise</button>
       </div>
     </form>
   </div>
@@ -2398,35 +2398,46 @@
 <div class="modal-ov" id="modal-todo" onclick="if(event.target===this)closeTodoModal()">
   <div class="modal modal-md">
     <div class="modal-hd"><div class="modal-title" id="todo-modal-title">New task</div><button class="modal-close" onclick="closeTodoModal()">×</button></div>
-    <form id="todo-form" onsubmit="submitTodo(event)">
+    <form id="todo-form" onsubmit="submitTodo(event)" autocomplete="off">
       <div class="fg">
         <div class="fgrp fgrp-full">
-          <label class="flbl">Title *</label>
-          <input class="finp" name="todoTitle" required placeholder="What needs to be done?">
+          <div class="cd-line">
+            <div class="cd-line-hl" id="todo-line-hl" aria-hidden="true"></div>
+            <input class="finp cd-line-in" name="todoTitle" required aria-label="Task" placeholder='What needs doing? Try "Send Acme the quote Friday 3pm !high #payroll"' oninput="todoLineChanged()" onscroll="todoLineScroll()" onkeyup="todoLineScroll()" onclick="todoLineScroll()">
+          </div>
+          <div class="cd-understood" id="todo-understood" hidden></div>
         </div>
-        <div class="fgrp">
-          <label class="flbl">Type</label>
-          <select class="finp" name="todoType" onchange="toggleTodoClient(this.value)">
-            <option value="general">Internal task</option>
-            <option value="client">Client task</option>
-          </select>
+        <div class="fgrp-full cd-tiles">
+          <div class="fgrp">
+            <label class="flbl">Due</label>
+            <input type="date" class="finp" name="todoDue" onchange="todoFieldTouched('todoDue')">
+          </div>
+          <div class="fgrp" id="todo-client-group">
+            <label class="flbl">Client</label>
+            <input class="finp" name="todoClient" placeholder="No client" oninput="todoFieldTouched('todoClient')">
+          </div>
+          <div class="fgrp">
+            <label class="flbl">Project</label>
+            <select class="finp" name="todoProject" onchange="todoFieldTouched('todoProject')">
+              <option value="">— No project —</option>
+            </select>
+          </div>
+          <div class="fgrp">
+            <label class="flbl">Kind</label>
+            <select class="finp" name="todoKind">
+              <option value="task">Task</option>
+              <option value="promise">⚑ We owe</option>
+            </select>
+          </div>
         </div>
-        <div class="fgrp" id="todo-client-group" style="display:none">
-          <label class="flbl">Company</label>
-          <input class="finp" name="todoClient" placeholder="Search or type a company">
-          
-        </div>
+        <input type="hidden" name="todoType" value="general">
         <div class="fgrp-more fgrp">
           <label class="flbl">Priority</label>
-          <select class="finp" name="todoPriority">
+          <select class="finp" name="todoPriority" onchange="todoFieldTouched('todoPriority')">
             <option value="Medium">Medium</option>
             <option value="High">High</option>
             <option value="Low">Low</option>
           </select>
-        </div>
-        <div class="fgrp">
-          <label class="flbl">Due date</label>
-          <input type="date" class="finp" name="todoDue">
         </div>
         <div class="fgrp-more fgrp">
           <label class="flbl">Status</label>
@@ -2438,17 +2449,11 @@
         </div>
         <div class="fgrp-more fgrp">
           <label class="flbl">Repeat</label>
-          <select class="finp" name="todoRecurrence">
+          <select class="finp" name="todoRecurrence" onchange="todoFieldTouched('todoRecurrence')">
             <option value="">None</option>
             <option value="daily">Daily</option>
             <option value="weekly">Weekly</option>
             <option value="monthly">Monthly</option>
-          </select>
-        </div>
-        <div class="fgrp-more fgrp">
-          <label class="flbl">Project</label>
-          <select class="finp" name="todoProject">
-            <option value="">— No project —</option>
           </select>
         </div>
         <div class="fgrp-more fgrp">
@@ -2463,8 +2468,7 @@
           <div id="todo-tags-chips" class="tag-chip-input"></div>
         </div>
         <div class="fgrp fgrp-full">
-          <label class="flbl">Notes</label>
-          <textarea class="finp" name="todoDesc" rows="2" placeholder="Additional details…"></textarea>
+          <textarea class="finp" name="todoDesc" rows="2" placeholder="Notes (optional)" aria-label="Notes"></textarea>
         </div>
       </div>
       <div class="fact">

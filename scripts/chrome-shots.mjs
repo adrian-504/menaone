@@ -31,6 +31,14 @@ const SHOTS = [
   ['settings-data', CLOCK, "navToModule('settings'), setSettingsPane('data')"],
   ['newmenu', CLOCK, "switchTab('myday'), document.getElementById('sb-new-btn').click()"],
   ['newmenu-filter', CLOCK, "switchTab('myday'), document.getElementById('sb-new-btn').click(), (() => { const f = document.getElementById('new-menu-filter'); f.value = 'pro'; f.dispatchEvent(new Event('input', { bubbles: true })); })()"],
+  ['newtask', CLOCK, "switchTab('myday'), openTodoModal(null), (() => { const f = document.querySelector('#todo-form [name=todoTitle]'); f.value = 'Send Acme Holdings the revised quote Friday 3pm !high #payroll'; f.dispatchEvent(new Event('input', { bubbles: true })); })()"],
+  ['newmeeting', CLOCK, "switchTab('myday'), openMeetingModal(null)"],
+  ['newpromise', CLOCK, "switchTab('myday'), openCommitmentModal()"],
+  ['newcompany', CLOCK, "switchTab('myday'), openNewCompanyModal()"],
+  ['newcontact', CLOCK, "switchTab('myday'), openContactModal()"],
+  ['newopportunity', CLOCK, "switchTab('myday'), openOpportunityModal(null)"],
+  ['newagreement', CLOCK, "switchTab('myday'), openAgrModal(null)"],
+  ['newproject', CLOCK, "switchTab('myday'), openProjectModal(null)"],
 ].filter(([n]) => !process.env.ONLY || process.env.ONLY.split(',').includes(n));
 
 const port = 9700 + Math.floor(Math.random() * 100);

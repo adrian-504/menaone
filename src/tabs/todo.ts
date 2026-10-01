@@ -28,6 +28,8 @@ import { renderPromisesView, leavePromisesView } from './commitments';
 import { normalizeCompanyKey, taskCompanyKey, todayRailCounts } from '../lib/taskRail';
 import { tileHtml } from '../lib/pageKit';
 import { dueRight, owedWhen, promiseChip, splitTasks, todayProgress } from '../lib/tasksPage';
+import { highlightSegments, prefillFromParse, understoodChips } from '../lib/createDialog';
+import { addManualPromise } from './commitments';
 
 // ── Dates ───────────────────────────────────────────────────────────────────
 
@@ -1445,10 +1447,15 @@ export function openTodoModal(id: number | null, ctx: WorkContext | null = null)
   const title = document.getElementById('todo-modal-title');
   if (title) title.textContent = parent ? `New subtask of “${parent.title}”` : 'New task';
   const btn = document.getElementById('todo-submit-btn'); if (btn) btn.textContent = 'Create task';
-  const type = ctx?.companyName ? 'client' : 'general';
-  (f.elements.namedItem('todoType') as HTMLSelectElement).value = type;
   (f.elements.namedItem('todoClient') as HTMLInputElement).value = ctx?.companyName || '';
-  toggleTodoClient(type);
+  // A subtask is a task: only a task of its own can be a promise.
+  const kind = f.elements.namedItem('todoKind') as HTMLSelectElement | null;
+  if (kind) { kind.value = 'task'; kind.disabled = S.todoParentId != null; }
+  // What the dialog was opened with is the person's, not the typed line's.
+  lineTouched = new Set([ctx?.companyName ? 'todoClient' : '', ctx?.projectId != null ? 'todoProject' : ''].filter(Boolean));
+  lineFilled = new Set();
+  lineParsed = null;
+  todoLineChanged();
   const meeting = ctx?.meetingId != null ? S.meetings.find((m) => m.id === ctx.meetingId) : undefined;
   const note = ctx?.noteId != null ? S.notes.find((n) => n.id === ctx.noteId) : undefined;
   const ctxEl = document.getElementById('todo-context');
@@ -1507,24 +1514,72 @@ export function closeTodoModal(): void {
 }
 expose('closeTodoModal', closeTodoModal);
 
-export function toggleTodoClient(type: string): void {
-  const g = document.getElementById('todo-client-group');
-  if (g) g.style.display = type === 'client' ? '' : 'none';
+// ── The typed line: highlighted where it was understood, and filling the field tiles ──
+
+/** The fields the person edited by hand (the line leaves them alone), the ones the line filled, and its last reading. */
+let lineTouched = new Set<string>();
+let lineFilled = new Set<string>();
+let lineParsed: ParsedTask | null = null;
+
+const parseLine = (value: string): ParsedTask => parseTaskInput(value, {
+  today: new Date(),
+  projects: S.projects.filter((p) => !p.archived).map((p) => ({ id: p.id, name: p.name })),
+  companies: S.companies.map((c) => ({ id: c.id, name: c.name })),
+});
+
+export function todoFieldTouched(name: string): void { lineTouched.add(name); }
+expose('todoFieldTouched', todoFieldTouched);
+
+/** The copy drawn behind the input follows it when a long line scrolls. */
+export function todoLineScroll(): void {
+  const f = document.getElementById('todo-form') as HTMLFormElement | null;
+  const input = f?.elements.namedItem('todoTitle') as HTMLInputElement | null;
+  const hl = document.getElementById('todo-line-hl');
+  if (input && hl) hl.scrollLeft = input.scrollLeft;
 }
-expose('toggleTodoClient', toggleTodoClient);
+expose('todoLineScroll', todoLineScroll);
+
+/** Reads the line as it is typed: highlights what was understood, says it in chips, and fills the tiles. */
+export function todoLineChanged(): void {
+  const f = document.getElementById('todo-form') as HTMLFormElement | null;
+  const input = f?.elements.namedItem('todoTitle') as HTMLInputElement | null;
+  const hl = document.getElementById('todo-line-hl');
+  const chips = document.getElementById('todo-understood');
+  if (!f || !input || !hl || !chips) return;
+  const value = input.value;
+  lineParsed = value.trim() ? parseLine(value) : null;
+  hl.innerHTML = lineParsed ? highlightSegments(value, lineParsed.ranges).map((sg) => (sg.kind ? `<span class="hl-${sg.kind}">${escHtml(sg.text)}</span>` : escHtml(sg.text))).join('') : '';
+  todoLineScroll();
+  const understood = lineParsed ? understoodChips(lineParsed, lineParsed.projectId != null ? S.projects.find((p) => p.id === lineParsed!.projectId)?.name : null) : [];
+  chips.hidden = !understood.length;
+  chips.innerHTML = understood.length ? `<span class="cd-understood-l">Understood as →</span>${understood.map((c) => (c.kind === 'company'
+    ? `<span class="pk-mini-co">${tileHtml(c.label, 'pk-tile mini')}${escHtml(c.label)}</span>` : `<span class="task-chip t-${c.tone}">${escHtml(c.label)}</span>`)).join('')}` : '';
+  const fill = prefillFromParse(lineParsed ?? { dueDate: null, companyName: null, priority: null, projectId: null, recurrence: null }, lineTouched, lineFilled);
+  lineFilled = fill.filled;
+  for (const [name, v] of Object.entries(fill.set)) {
+    const el = f.elements.namedItem(name) as HTMLInputElement | HTMLSelectElement | null;
+    if (el) el.value = v;
+  }
+}
+expose('todoLineChanged', todoLineChanged);
 
 export function submitTodo(e: Event): void {
   e.preventDefault();
   const f = e.target as HTMLFormElement;
-  const type = (f.elements.namedItem('todoType') as HTMLSelectElement).value;
-  const projVal = (f.elements.namedItem('todoProject') as HTMLSelectElement | null)?.value || '';
-  const oppVal = (f.elements.namedItem('todoOpportunity') as HTMLSelectElement | null)?.value || '';
-  const status = (f.elements.namedItem('todoStatus') as HTMLSelectElement).value;
+  const val = (name: string) => (f.elements.namedItem(name) as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | null)?.value || '';
+  const projVal = val('todoProject');
+  const oppVal = val('todoOpportunity');
+  const status = val('todoStatus') || 'Pending';
   const ctx = todoModalContext;
+  // The line as it was understood: its words without the dates, tags and markers.
+  const raw = val('todoTitle').trim();
+  const parsed = raw ? parseLine(raw) : null;
+  const title = parsed?.title || raw;
+  if (!title) return;
   // Company: kept by id while the field shows the context's company; another
-  // typed name is an explicit reassignment; a general task with a project or
-  // opportunity takes that record's company.
-  const typed = type === 'client' ? (f.elements.namedItem('todoClient') as HTMLInputElement).value : '';
+  // typed name is an explicit reassignment; a task with a project or
+  // opportunity and no company takes that record's.
+  const typed = val('todoClient');
   const fromForm = {
     ...EMPTY_CONTEXT, ...companyFromForm(ctx, typed),
     projectId: projVal ? Number(projVal) : null,
@@ -1534,20 +1589,39 @@ export function submitTodo(e: Event): void {
   // A company the dialog offered and the person removed stays removed.
   const removedCompany = !!ctx?.companyName && !typed.trim();
   const graph = removedCompany ? fromForm : inheritCompany(S, fromForm);
-  const task = blankTask({
+  const dueDate = val('todoDue') || null;
+  const fields: Partial<Todo> = {
     ...taskFields(graph),
-    title: (f.elements.namedItem('todoTitle') as HTMLInputElement).value.trim(),
-    priority: (f.elements.namedItem('todoPriority') as HTMLSelectElement).value,
-    dueDate: (f.elements.namedItem('todoDue') as HTMLInputElement).value || null,
-    recurrenceRule: (f.elements.namedItem('todoRecurrence') as HTMLSelectElement).value || null,
-    description: (f.elements.namedItem('todoDesc') as HTMLTextAreaElement).value.trim() || null,
+    title,
+    priority: val('todoPriority') || 'Medium',
+    dueDate,
+    // The line's time goes with the line's day; a day picked by hand has no time.
+    dueTime: parsed?.dueTime && dueDate && dueDate === parsed.dueDate ? parsed.dueTime : null,
+    someday: !!parsed?.someday && !dueDate,
+    recurrenceRule: val('todoRecurrence') || null,
+    description: val('todoDesc').trim() || null,
     parentId: S.todoParentId,
-    tags: [...modalTaskTags],
-  });
-  if (!task.title) return;
+    tags: [...new Set([...modalTaskTags, ...(parsed?.tags ?? [])])],
+  };
+  const noteId = ctx?.noteId ?? null;
+  // "We owe": a promise, which the backend writes with its own task; the rest of the fields are set on that task.
+  if (val('todoKind') === 'promise' && S.todoParentId == null) {
+    closeTodoModal();
+    void addManualPromise({ text: title, dueDate, companyId: fields.companyId ?? null, opportunityId: fields.opportunityId ?? null, projectId: fields.projectId ?? null, meetingId: fields.meetingId ?? null }).then((added) => {
+      const t = added.tasks[0];
+      if (t) {
+        Object.assign(t, { priority: fields.priority, dueTime: fields.dueTime, recurrenceRule: fields.recurrenceRule, description: fields.description, tags: fields.tags });
+        if (status === 'Done') markDone(t); else t.status = status;
+        if (noteId != null) void linkTaskToNote(t.id, noteId);
+      }
+      afterTodoListChange();
+      toast('Promise added, with its task');
+    }).catch((err) => toast('Could not add the promise', { tone: 'error', detail: String(err) }));
+    return;
+  }
+  const task = blankTask(fields);
   S.todos.push(task);
   if (status === 'Done') markDone(task); else task.status = status;
-  const noteId = ctx?.noteId ?? null;
   closeTodoModal();
   afterTodoListChange();
   if (noteId != null) void linkTaskToNote(task.id, noteId);

@@ -47,6 +47,7 @@ import './core/router';
 import './lib/links';
 import './core/commandPalette';
 import './core/newMenu';
+import { startCreateDialogs } from './core/createDialog';
 import { backfillMilestoneDates, registerPopulateAllSelects } from './core/proposals';
 import './core/backup';
 import './core/pageMore';
@@ -101,6 +102,7 @@ startMotion();
 // One registry for every shortcut (foundations O4).
 registerAppKeys();
 startKeys();
+startCreateDialogs();
 startTooltips();
 void startFileDrop();
 startQuickLook();

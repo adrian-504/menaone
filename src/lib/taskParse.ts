@@ -40,7 +40,11 @@ export interface ParsedTask {
   someday: boolean;
   recurrence: 'daily' | 'weekly' | 'monthly' | null;
   tokens: ParsedToken[];
+  /** Where each recognised piece sits in the input (for highlighting it in place), in order. */
+  ranges: TokenRange[];
 }
+
+export interface TokenRange { start: number; end: number; kind: TokenKind }
 
 const DAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
@@ -92,7 +96,7 @@ function norm(s: string): string {
 interface Match { start: number; end: number; apply: (t: ParsedTask) => void; token: ParsedToken }
 
 export function parseTaskInput(input: string, ctx: ParseContext, ignored: Set<string> = new Set()): ParsedTask {
-  const result: ParsedTask = { title: input, dueDate: null, dueTime: null, priority: null, projectId: null, companyName: null, tags: [], someday: false, recurrence: null, tokens: [] };
+  const result: ParsedTask = { title: input, dueDate: null, dueTime: null, priority: null, projectId: null, companyName: null, tags: [], someday: false, recurrence: null, tokens: [], ranges: [] };
   const matches: Match[] = [];
   const taken = (s: number, e: number) => matches.some((m) => s < m.end && e > m.start);
   const add = (start: number, end: number, token: ParsedToken, apply: (t: ParsedTask) => void) => {
@@ -219,10 +223,19 @@ export function parseTaskInput(input: string, ctx: ParseContext, ignored: Set<st
     const name = best.name;
     result.tokens.push({ kind: 'company', label: name, text: name });
     result.companyName = name;
+    result.ranges.push({ start: best.start, end: best.end, kind: 'company' });
   }
 
   matches.sort((a, b) => a.start - b.start);
-  for (const m of matches) { m.apply(result); result.tokens.push(m.token); }
+  for (const m of matches) {
+    m.apply(result);
+    result.tokens.push(m.token);
+    // A marker match takes its leading space with it; the highlight starts at the word.
+    const lead = input.slice(m.start, m.end).length - input.slice(m.start, m.end).trimStart().length;
+    const tail = input.slice(m.start, m.end).length - input.slice(m.start, m.end).trimEnd().length;
+    result.ranges.push({ start: m.start + lead, end: m.end - tail, kind: m.token.kind });
+  }
+  result.ranges.sort((a, b) => a.start - b.start);
   // A time on its own means today.
   if (result.dueTime && !result.dueDate && !result.someday) result.dueDate = isoDate(today);
 

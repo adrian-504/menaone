@@ -4807,3 +4807,42 @@ a.rk-snote:hover{text-decoration-color:currentColor}
 .newmenu-filter{font:inherit;flex:1;min-width:0;height:18px;padding:0;border:none;outline:none;background:none;color:var(--text)}
 .newmenu-filter::placeholder{color:var(--muted)}
 .newmenu .newmenu-ft input.newmenu-filter{border:none;border-radius:0;box-shadow:none;background:none;padding:0}
+/* Create dialogs: one shell — a tile, an eyebrow, the kind in Saira, hints and one primary */
+.modal.cd{padding:0;overflow:hidden}
+.modal.cd .modal-hd{display:grid;grid-template-columns:40px minmax(0,1fr) auto;grid-template-areas:"tile eyebrow close" "tile title close";column-gap:14px;align-items:center;margin:0;padding:22px 24px 16px}
+.cd-tile{grid-area:tile;width:40px;height:40px;border-radius:9px;display:grid;place-items:center;background:color-mix(in srgb,var(--c) 13%,transparent);color:var(--c)}
+.cd-eyebrow{grid-area:eyebrow;align-self:end;font:600 10px var(--font-text);letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+.cd-eyebrow:empty{display:none}
+.modal.cd .modal-title{grid-area:title;align-self:start;font:600 22px/1.15 var(--font-display);color:var(--navy);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.modal.cd .cd-eyebrow:empty + .modal-title{grid-row:1 / span 2;align-self:center}
+.modal.cd .modal-close{grid-area:close}
+.modal.cd form,.modal.cd > .fgrp,.modal.cd > .fg{padding:0 24px}
+.modal.cd form > .fact{margin:18px -24px 0;padding:14px 24px;align-items:center;border-top:1px solid var(--hairline);background:var(--surface-2)}
+.cd-hints{margin-right:auto;min-width:0;font:500 11px var(--font-mono);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* Fields as tiles: a small label over a borderless control */
+.modal.cd .fg > .fgrp:not(.fgrp-full),.cd-tiles > .fgrp{gap:0;min-width:0;padding:7px 12px 6px;border:1px solid var(--border);border-radius:9px;background:var(--surface);transition:border-color var(--dur-fast) var(--ease-out),box-shadow var(--dur-fast) var(--ease-out)}
+.modal.cd .fg > .fgrp:not(.fgrp-full):focus-within,.cd-tiles > .fgrp:focus-within{border-color:var(--accent-border);box-shadow:var(--shadow-focus)}
+.modal.cd .fg > .fgrp:not(.fgrp-full) > .flbl,.cd-tiles > .fgrp > .flbl{font:600 10px var(--font-text);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.modal.cd .fg > .fgrp:not(.fgrp-full) > .flbl .flbl-hint,.cd-tiles .flbl-hint{letter-spacing:0;text-transform:none}
+.modal.cd .fg > .fgrp:not(.fgrp-full) :is(input.finp,select.finp,select.fsel),.cd-tiles :is(input.finp,select.finp){height:24px;min-height:0;padding:0;border:none;border-radius:0;background-color:transparent;box-shadow:none;font-size:var(--type-body);font-weight:500;color:var(--text)}
+.modal.cd .fg > .fgrp:not(.fgrp-full) :is(input.finp,select.finp):focus,.cd-tiles :is(input.finp,select.finp):focus{box-shadow:none;outline:none}
+.cd-tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+/* A task's line: the same text drawn behind the input, tinted where it was understood */
+.cd-line{position:relative}
+.cd-line-in.finp,.cd-line-hl{font:400 15px/22px var(--font-text);letter-spacing:0;padding:11px 14px}
+.cd-line-in.finp{position:relative;width:100%;height:auto;min-height:0;border-radius:9px;background:transparent;color:transparent;caret-color:var(--text)}
+.cd-line-in.finp::placeholder{color:var(--muted)}
+.cd-line-hl{position:absolute;inset:1px;white-space:pre;overflow:hidden;color:var(--text);border-radius:9px;background:var(--surface);pointer-events:none}
+.cd-line-hl span{border-radius:6px}
+.cd-line-hl .hl-company,.cd-line-hl .hl-project{color:var(--blue);background:var(--blue-50)}
+.cd-line-hl .hl-date,.cd-line-hl .hl-time,.cd-line-hl .hl-repeat{color:var(--amber-deep);background:var(--amber-bg)}
+.cd-line-hl .hl-priority{color:var(--red);background:var(--red-bg)}
+.cd-line-hl .hl-tag,.cd-line-hl .hl-someday{color:var(--sub);background:var(--surface-2)}
+.cd-understood{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;margin-top:10px}
+.cd-understood[hidden]{display:none}
+.cd-understood-l{font:500 11px var(--font-mono);color:var(--sub)}
+.cd-understood .pk-mini-co{gap:6px;font:500 11.5px var(--font-mono)}
+.cd-understood .pk-tile.mini{width:18px;height:18px;font-size:8px}
+.task-chip.t-blue{background:var(--blue-50);color:var(--blue)}
+@media (max-width:720px){.cd-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}.cd-hints{display:none}}
+.modal.cd.modal-md{width:640px}

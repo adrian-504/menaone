@@ -60,6 +60,11 @@ export async function readCommitmentsFrom(sourceType: 'meeting' | 'note' | 'capt
   return addToState(await commitmentsAdd(items), { announce: sourceType !== 'capture' });
 }
 
+/** A promise of ours added by hand (the task dialog's "We owe"): the backend writes it with its task. */
+export async function addManualPromise(f: { text: string; dueDate: string | null; companyId: number | null; opportunityId: number | null; projectId: number | null; meetingId: number | null }): Promise<AddedRecords> {
+  return addToState(await commitmentsAdd([{ direction: 'ours', ...f, sourceType: 'manual' }]));
+}
+
 function addToState(added: { commitments: Commitment[]; tasks: import('../lib/types').Todo[]; proposals?: import('../lib/types').Proposal[] }, opts: { announce?: boolean } = {}): AddedRecords {
   // New promises are added; ones the backend changed (a line an edit replaced, dropped as edited) are updated.
   const commitments = added.commitments.map((c) => {
@@ -438,7 +443,7 @@ export function openCommitmentModal(ctx: WorkContext = EMPTY_CONTEXT, editId: nu
   const c = editId != null ? byId(editId) : undefined;
   modalContext = c ? { ...EMPTY_CONTEXT, companyId: c.companyId, companyName: S.companies.find((x) => x.id === c.companyId)?.name ?? null, opportunityId: c.opportunityId, projectId: c.projectId } : inheritCompany(S, ctx);
   (document.getElementById('commitment-modal-title') as HTMLElement).textContent = c ? 'Edit commitment' : 'New commitment';
-  (document.getElementById('commitment-submit-btn') as HTMLElement).textContent = c ? 'Save changes' : 'Create commitment';
+  (document.getElementById('commitment-submit-btn') as HTMLElement).textContent = c ? 'Save changes' : 'Create promise';
   setCommitmentDirection(c?.direction ?? 'ours');
   (f.elements.namedItem('cmText') as HTMLInputElement).value = c?.text ?? '';
   (f.elements.namedItem('cmDue') as HTMLInputElement).value = c?.dueDate ?? '';
