@@ -5,7 +5,10 @@
 // commercials, the client's OneDrive folder and documents, what it's linked
 // to, notes and activity.
 
-import { paintFigures, proposalFigures } from '../lib/recordFigures';
+import { paintFigures } from '../lib/recordFigures';
+import { proposalHeaderFigures, proposalStepper, stepperHtml } from '../lib/recordStory';
+import { contactTrail, trailTouches, TOUCH_ICON, type TrailPoint } from '../lib/pagesQueues';
+import { tableCells } from '../lib/pagesProposals';
 import { registerKey } from '../core/keys';
 import { registerDragSource, registerDropTarget } from '../lib/dnd';
 import { arrive, settleNew, shake } from '../lib/motion';
@@ -35,7 +38,7 @@ import { endPropsEdit, mountPropsList, propsEditButton, propsListHtml, resetProp
 import { renderIcons } from '../core/chrome';
 import { ST, LEAD_SOURCES } from '../lib/constants';
 import { renderLinesEditor, lineForService } from '../lib/linesEditor';
-import { snapshotProposal, changeProposalStatus, contactFirstName, recordReview, undoReview, openRevisionDialog, openWlModal, updateStatus, archiveProposal, unarchiveProposal, snoozeProposal, isSnoozed } from '../core/proposals';
+import { needsFollowUp, proposalLastTouch, snapshotProposal, changeProposalStatus, contactFirstName, recordReview, undoReview, openRevisionDialog, openWlModal, updateStatus, archiveProposal, unarchiveProposal, snoozeProposal, isSnoozed } from '../core/proposals';
 import {
   PS, PROPOSAL_STAGES, proposalSentDate, stageIndex, isWon, isLost, isWithdrawn, isClosed, lineTotals, syncProposalTotals, fmtMoney, currencyOf,
   teamMember, reviewers, defaultReviewer, activeTeam, ownerName, entityById, defaultEntity, activeServices, newLine,
@@ -112,16 +115,22 @@ export function renderProposalPage(): void {
   if (avatar) { avatar.textContent = initials(p.client); avatar.style.background = strColor(p.client); }
   const eyebrow = document.getElementById('prd-eyebrow'); if (eyebrow) eyebrow.innerHTML = `Proposal · SL# ${p.id}<button class="rec-icon-btn rec-eyebrow-copy" onclick="copyText('SL# ${p.id}','Reference copied')" data-tip="Copy reference" aria-label="Copy reference">${icon('copy', 11)}</button>`;
   const title = document.getElementById('prd-title');
-  if (title) title.innerHTML = `${companyLink(p.companyId, p.client)}<span class="pr-title-services">${escHtml(lineTotals(p.lines, p.contractMonths).serviceNames.join(' + ') || p.type || 'Services to be confirmed')}</span>`;
+  if (title) title.innerHTML = `${companyLink(p.companyId, p.client)}<span class="pr-title-services"> — ${escHtml(lineTotals(p.lines, p.contractMonths).serviceNames.join(' + ') || p.type || 'Services to be confirmed')}</span>`;
   const entity = entityById(p.businessEntityId);
   const owner = ownerName(p);
   const badges = document.getElementById('prd-badges');
-  paintFigures('prd-figures', proposalFigures(p, today()));
+  const t = today();
+  const touch = proposalLastTouch(p);
+  const due = needsFollowUp(p);
+  paintFigures('prd-figures', proposalHeaderFigures(p, { today: t, touch, due }));
+  const cells = tableCells(p, { today: t, reviewer: teamMember(p.reviewerId)?.name || defaultReviewer()?.name || 'the reviewer', due });
+  const contact = p.primaryContactId != null ? S.contacts.find((c) => c.id === p.primaryContactId)?.name : null;
   if (badges) badges.innerHTML = [
-    p.archived ? '<span class="rec-badge">Archived</span>' : '',
-    isSnoozed(p) ? `<span class="rec-badge tone-amber">Snoozed until ${fmtDate(p.snoozedUntil)}</span>` : '',
-    entity ? `<span class="rec-meta">${escHtml(entity.name)} · ${escHtml(currencyOf(p))}</span>` : `<span class="rec-meta">${escHtml(currencyOf(p))}</span>`,
-    owner ? `<span class="rec-meta">${icon('people', 12)} ${escHtml(owner)}</span>` : '',
+    `<span class="pk-stage t-${cells.chip.tone}"><i></i>${escHtml(p.status === PS.SENT ? 'With the client' : cells.chip.text)}</span>`,
+    due ? '<span class="pk-chip is-text t-amber">Follow-up due</span>' : '',
+    p.archived ? '<span class="pk-chip t-grey">Archived</span>' : '',
+    isSnoozed(p) ? `<span class="pk-chip t-amber">Snoozed until ${fmtDate(p.snoozedUntil)}</span>` : '',
+    `<span class="rec-meta">${escHtml([entity?.name, currencyOf(p), owner ? `owner ${owner}` : '', contact ? `contact ${contact}` : ''].filter(Boolean).join(' · '))}</span>`,
     promisedByFact(p),
     revisionFact(p) ? `<span class="rec-meta">${escHtml(revisionFact(p)!)}</span>` : '',
     p.winLossReason && isClosed(p) ? `<span class="rec-meta">${escHtml(p.winLossReason)}</span>` : '',
@@ -159,12 +168,17 @@ function contextualTool(p: Proposal): { label: string; run: string } | null {
 export function renderActions(p: Proposal): void {
   const el = document.getElementById('prd-actions');
   if (!el) return;
-  const { primary, secondary } = proposalNextStep(p, S.agreements);
-  const tool = contextualTool(p);
+  const step = proposalNextStep(p, S.agreements);
+  // With the client and a follow-up due: the next step is to follow up (Record signature is in "…").
+  const dueNow = p.status === PS.SENT && needsFollowUp(p);
+  const primary = dueNow ? null : step.primary;
+  const secondary = dueNow ? { label: 'Client asked for changes', run: `openRevisionDialog(${p.id})` } : step.secondary;
+  const tool = dueNow ? null : contextualTool(p);
   el.innerHTML = [
     tool ? `<button class="btn-secondary" onclick="${tool.run}">${escHtml(tool.label)}</button>` : '',
     secondary ? `<button class="btn-secondary" onclick="${secondary.run}">${escHtml(secondary.label)}</button>` : '',
     primary ? `<button class="btn-primary" onclick="${primary.run}">${escHtml(primary.label)}</button>` : '',
+    dueNow ? `<button class="btn-primary" onclick="followUpMenu(event, ${p.id})" aria-haspopup="menu">Followed up ${icon('chevronDown', 11)}</button>` : '',
     `<button class="loc-nav rec-more" onclick="proposalMoreMenu(event)" data-tip="More" aria-label="More">${icon('more', 16)}</button>`,
   ].join('');
 }
@@ -216,6 +230,8 @@ export function proposalMoreMenu(e: MouseEvent): void {
   items.push({ label: '', run: () => {}, separator: true });
   if (!isClosed(p)) {
     if (p.status === PS.CLIENT_SIGNED) items.push({ label: 'Client asked for changes…', iconName: 'edit', run: () => openRevisionDialog(p.id) });
+    if (p.status === PS.SENT) items.push({ label: 'Signed by the client…', iconName: 'check', run: () => { void changeProposalStatus(p.id, PS.CLIENT_SIGNED).then(() => renderProposalPage()); } });
+    if (p.status === PS.SENT) items.push({ label: 'Signed by both parties…', iconName: 'check', run: () => openWlModal(p.id, 'won') });
     if (p.status === PS.SENT) items.push({ label: 'Snooze follow-up 7 days', iconName: 'clock', run: () => { snoozeProposal(p.id, 7); renderProposalPage(); } });
     items.push({ label: 'Mark as lost', iconName: 'close', run: () => openWlModal(p.id, 'lost') });
     items.push({ label: 'Withdraw', iconName: 'archive', run: () => void withdrawProposal(p.id) });
@@ -276,25 +292,25 @@ async function deleteProposalFromPage(id: number): Promise<void> {
 
 function renderStages(p: Proposal): void {
   const el = document.getElementById('prd-stages');
-  if (!el) return;
-  const at = stageIndex(p.status);
-  const ended = isLost(p) || isWithdrawn(p);
-  const dates: Record<string, string | null | undefined> = {
-    [PS.REQUEST]: p.dateAdded,
-    [PS.DRAFTING]: null,
-    [PS.REVIEW]: p.dateSentToHassan,
-    [PS.SENT]: p.dateSentToClient || p.sentDate,
-    [PS.CLIENT_SIGNED]: p.dateSigned,
-    [PS.WON]: p.dblSignedDate,
-  };
-  const labels: Record<string, string> = {
-    [PS.REQUEST]: 'Request', [PS.DRAFTING]: 'Drafting', [PS.REVIEW]: 'Internal review', [PS.SENT]: 'Sent to client',
-    [PS.CLIENT_SIGNED]: 'Client signed', [PS.WON]: 'Signed by both',
-  };
-  el.innerHTML = PROPOSAL_STAGES.map((s, i) => {
-    const state = ended ? (dates[s] ? 'done' : 'todo') : i < at ? 'done' : i === at ? 'current' : 'todo';
-    return `<li class="pr-stage ${state}"><span class="pr-stage-dot">${state === 'done' ? icon('check', 11) : ''}</span><span class="pr-stage-label">${labels[s]}</span><span class="pr-stage-date">${dates[s] ? fmtDate(dates[s]) : ''}</span></li>`;
-  }).join('') + (ended ? `<li class="pr-stage ended"><span class="pr-stage-dot">${icon('close', 11)}</span><span class="pr-stage-label">${escHtml(p.status)}</span><span class="pr-stage-date">${escHtml(p.winLossReason || '')}</span></li>` : '');
+  if (el) el.innerHTML = stepperHtml(proposalStepper(p, today()));
+  // Once it is with the client: sent, each touch since, today and the offer's expiry on one line.
+  const trail = document.getElementById('prd-trail');
+  if (!trail) return;
+  const sent = proposalSentDate(p)?.slice(0, 10);
+  trail.hidden = p.status !== PS.SENT || !sent;
+  if (trail.hidden) { trail.innerHTML = ''; return; }
+  const t = today();
+  const touch = proposalLastTouch(p);
+  const due = needsFollowUp(p);
+  const mine = touchesOf(p, S.touches).filter((x) => x.at.slice(0, 10) >= sent! && x.at.slice(0, 10) <= t);
+  const tr = contactTrail({ sent: sent!, touches: trailTouches(mine, touch), today: t, validUntil: p.validUntil ?? null, late: due ? touch?.date ?? sent! : null });
+  const WHAT: Record<string, string> = { email_out: 'Followed up', email_in: 'Client emailed', call: 'Call', whatsapp: 'WhatsApp', meeting: 'Met', note: 'Note' };
+  const top = (x: TrailPoint) => x.kind === 'sent' ? 'Sent' : x.kind === 'expiry' ? 'Offer expires'
+    : x.kind === 'today' ? (due ? `No contact · ${touch?.days ?? 0} ${touch?.days === 1 ? 'day' : 'days'}` : 'Today')
+    : `${TOUCH_ICON[x.touch || ''] || ''} ${WHAT[x.touch || ''] || 'Contact'}`.trim();
+  const under = (x: TrailPoint) => (x.kind === 'today' ? 'today' : fmtDateShort(x.date, true));
+  trail.innerHTML = `<div class="rk-trail"><span class="rk-trail-line"></span>${tr.late ? `<span class="rk-trail-late" style="left:${tr.late.from}%;width:${Math.max(0, tr.late.to - tr.late.from)}%"></span>` : ''}
+    ${tr.points.map((x) => `<span class="rk-tp is-${x.kind}${x.kind === 'today' && due ? ' is-late' : ''}${x.pos > 85 ? ' at-end' : x.pos < 8 ? ' at-start' : ''}" style="left:${x.pos}%"><em>${x.showLabel || x.kind !== 'touch' ? escHtml(top(x)) : ''}</em><i></i><span>${x.showLabel || x.kind !== 'touch' ? escHtml(under(x)) : ''}</span></span>`).join('')}</div>`;
 }
 
 // ── Document actions ──
@@ -464,7 +480,9 @@ export function renderContact(p: Proposal): void {
     const who = t.contactId != null ? contactFirstName(t.contactId) : null;
     return `<li>${[fmtDate(t.at.slice(0, 10)), touchDoing(t, who), t.subject || ''].filter(Boolean).map(escHtml).join(' · ')}</li>`;
   }).join('');
-  el.innerHTML = `<div class="rec-section-hd"><h2>Follow-up</h2><div class="rec-section-actions"><button class="btn-secondary btn-sm" onclick="openRevisionDialog(${p.id})" data-tip="Record what the client wants changed; the proposal goes back to drafting as a revision">Client asked for changes</button><button class="btn-secondary btn-sm" onclick="followUpMenu(event, ${p.id})" data-tip="Log an email, call, WhatsApp or meeting in one click" aria-haspopup="menu">Followed up ${icon('chevronDown', 11)}</button></div></div>
+  // When a follow-up is due the two actions are in the header; otherwise they stay here.
+  const acts = needsFollowUp(p) ? '' : `<div class="rec-section-actions"><button class="btn-secondary btn-sm" onclick="openRevisionDialog(${p.id})" data-tip="Record what the client wants changed; the proposal goes back to drafting as a revision">Client asked for changes</button><button class="btn-secondary btn-sm" onclick="followUpMenu(event, ${p.id})" data-tip="Log an email, call, WhatsApp or meeting in one click" aria-haspopup="menu">Followed up ${icon('chevronDown', 11)}</button></div>`;
+  el.innerHTML = `<div class="rec-section-hd"><h2>Follow-up</h2>${acts}</div>
     ${touches.length ? `<ul class="pr-contact-list">${rows}</ul>${touches.length > 5 && contactAll !== p.id ? `<a href="#" class="rlink pr-contact-all" onclick="event.preventDefault();proposalContactAll(${p.id})">Show all ${touches.length}</a>` : ''}` : `<p class="pr-review-note">${proposalSentDate(p) ? `Sent ${escHtml(fmtDate(proposalSentDate(p)))} · nothing logged since.` : 'Nothing logged since it was sent.'}</p>`}`;
   renderIcons(el);
 }

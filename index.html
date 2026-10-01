@@ -1845,14 +1845,18 @@
     <div class="rec-actions" id="prd-actions"></div>
   </header>
   <div class="thread-host" id="prd-thread" hidden></div>
-  <ol class="pr-stages" id="prd-stages" aria-label="Progress"></ol>
-  <div class="ctd-grid pr-grid">
-    <aside class="sec ctd-props-card">
-      <div class="rec-section-hd"><h2>Details</h2><span class="rec-save-state" id="prd-save-state"></span><div class="rec-section-actions" id="prd-props-act"></div></div>
-      <dl class="rec-props pr-props" id="prd-props"></dl>
+  <!-- The story: where it stands (the stepper) and, once sent, the contact trail. -->
+  <div class="rk-story" id="prd-stages" aria-label="Progress"></div>
+  <div class="rk-trail-card" id="prd-trail" hidden></div>
+  <div class="ctd-grid pr-grid rk-grid">
+    <aside class="rk-side">
+      <section class="rk-panel pr-review" id="prd-review"></section>
+      <section class="rk-panel ctd-props-card">
+        <div class="rec-section-hd"><h2 class="rk-panel-h">Details</h2><span class="rec-save-state" id="prd-save-state"></span><div class="rec-section-actions" id="prd-props-act"></div></div>
+        <dl class="rec-props pr-props" id="prd-props"></dl>
+      </section>
     </aside>
     <div class="ctd-main">
-      <section class="rec-section sec pr-review" id="prd-review"></section>
       <section class="rec-section sec pr-contact" id="prd-contact" hidden></section>
       <section class="rec-section sec" id="prd-commercials-sec">
         <div class="rec-section-hd"><h2 class="hd-major">Commercials</h2><span class="rec-count" id="prd-lines-count"></span><div class="rec-section-actions" id="prd-lines-act"></div></div>

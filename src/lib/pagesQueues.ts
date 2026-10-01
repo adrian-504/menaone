@@ -163,6 +163,14 @@ export function proposalStaleMonths(p: Proposal, touches: Pick<Touch, 'proposalI
   return staleMonths({ sent, followUps, lastFromClient: fromClient }, today);
 }
 
+/** The touches a trail draws: the logged ones, plus the last contact when it was something else (a meeting, an
+ * email received, a note) so the line's last dot is where the silence really starts. Pure. */
+export function trailTouches<T extends { at: string; kind: string }>(logged: T[], last: Pick<LastTouch, 'date' | 'kind'> | null): { at: string; kind: string }[] {
+  const out: { at: string; kind: string }[] = logged.map((t) => ({ at: t.at, kind: t.kind }));
+  if (last && last.kind !== 'sent' && !out.some((t) => t.at.slice(0, 10) === last.date)) out.push({ at: last.date, kind: last.kind === 'email' ? 'email_in' : last.kind });
+  return out;
+}
+
 export interface FollowRow extends QueueRow { expiring: boolean; dueOn: string | null; trail: Trail }
 
 export function followRow(p: Proposal, ctx: { today: string; touch: LastTouch | null; followUps: number; touches: Pick<Touch, 'proposalId' | 'companyId' | 'kind' | 'direction' | 'at' | 'contactId'>[] }): FollowRow | null {
@@ -191,7 +199,7 @@ export function followRow(p: Proposal, ctx: { today: string; touch: LastTouch | 
     id: p.id, bucket: due ? 'due' : 'waiting', client: p.client, companyId: p.companyId ?? null, service: serviceOf(p),
     meta, age: days, ageCaption: caption2, tone: due ? (days! > 30 ? 'red' : 'amber') : 'ok', amount, amountCaption: caption,
     actions, urgent: due, expiring, dueOn: !due && t ? followUpDueOn(t.date) : null,
-    trail: sent ? contactTrail({ sent, touches: mine, today: ctx.today, validUntil: p.validUntil ?? null, late: due ? t?.date ?? sent : null }) : { points: [], late: null },
+    trail: sent ? contactTrail({ sent, touches: trailTouches(mine, t), today: ctx.today, validUntil: p.validUntil ?? null, late: due ? t?.date ?? sent : null }) : { points: [], late: null },
   };
 }
 
@@ -218,10 +226,10 @@ export function inBucket(r: { bucket: string; expiring?: boolean }, bucket: stri
 
 // ── Contact trail ───────────────────────────────────────────────────────────
 
-export interface TrailPoint { kind: 'sent' | 'touch' | 'today' | 'expiry'; date: string; pos: number; label: string; showLabel: boolean }
+export interface TrailPoint { kind: 'sent' | 'touch' | 'today' | 'expiry'; date: string; pos: number; label: string; showLabel: boolean; /** A touch's kind (email_out, call, …), for the proposal page's wider trail. */ touch?: string }
 export interface Trail { points: TrailPoint[]; late: { from: number; to: number } | null }
 
-const TOUCH_ICON: Record<string, string> = { email_out: '✉', email_in: '✉', call: '☎', whatsapp: '✆', meeting: '◎' };
+export const TOUCH_ICON: Record<string, string> = { email_out: '✉', email_in: '✉', call: '☎', whatsapp: '✆', meeting: '◎', note: '✎' };
 /** At most this many touches on the line; older ones are dropped. */
 export const TRAIL_TOUCHES = 5;
 /** Labels closer than this (percent of the line) would overlap: the touch's label gives way. */
@@ -241,7 +249,7 @@ export function contactTrail(i: { sent: string; touches: { at: string; kind: str
   const at = (d: string) => Math.round(((daysBetween(sent, d) ?? 0) / span) * 1000) / 10;
   const points: TrailPoint[] = [
     { kind: 'sent', date: sent, pos: 0, label: fmtDateShort(sent), showLabel: true },
-    ...days.filter((t) => t.date > sent && t.date < i.today).map((t) => ({ kind: 'touch' as const, date: t.date, pos: at(t.date), label: `${fmtDateShort(t.date)} ${TOUCH_ICON[t.kind] || ''}`.trim(), showLabel: true })),
+    ...days.filter((t) => t.date > sent && t.date < i.today).map((t) => ({ kind: 'touch' as const, date: t.date, pos: at(t.date), label: `${fmtDateShort(t.date)} ${TOUCH_ICON[t.kind] || ''}`.trim(), showLabel: true, touch: t.kind })),
     { kind: 'today', date: i.today, pos: at(i.today), label: 'today', showLabel: true },
   ];
   if (expiry && expiry > i.today) points.push({ kind: 'expiry', date: expiry, pos: 100, label: fmtDateShort(expiry), showLabel: true });

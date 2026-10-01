@@ -4063,3 +4063,59 @@ a.btn-primary,a.btn-secondary{text-decoration:none}
   .rk-row > .pk-age-sm{grid-column:3;grid-row:1}
   .rk-row > .btn-secondary{grid-column:4;grid-row:1}
 }
+
+/* The story under a record's header: the stage stepper, then one full-width visual. */
+.rk-story{margin:0 4px 14px}
+.rk-stepper{list-style:none;margin:0;padding:0;display:flex;align-items:center}
+.rk-sp{flex:none;display:flex;align-items:center;gap:8px;min-width:0}
+.rk-sp i{flex:none;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font:600 10px var(--font-mono);font-style:normal;background:var(--surface);border:2px solid var(--border);color:var(--muted)}
+.rk-sp.is-done i{background:var(--blue);border-color:var(--blue);color:var(--on-accent)}
+.rk-stepper.t-green .rk-sp.is-done i{background:var(--green);border-color:var(--green);color:var(--on-tile)}
+.rk-sp.is-current i{border-color:var(--coral);color:var(--coral-text);box-shadow:0 0 0 4px color-mix(in srgb,var(--coral) 16%,transparent)}
+.rk-sp.is-ended i{background:var(--red);border-color:var(--red);color:var(--on-tile)}
+.rk-sp-t{display:flex;flex-direction:column;min-width:0}
+.rk-sp-t b{font:600 13px/1.2 var(--font-display);color:var(--navy);white-space:nowrap}
+.rk-sp-t span{font:500 10.5px var(--font-mono);color:var(--muted);white-space:nowrap}
+.rk-sp.is-todo .rk-sp-t b{color:var(--muted);font-weight:500}
+.rk-sline{flex:1;min-width:18px;height:2px;margin:0 12px;background:var(--hairline)}
+.rk-sline.is-done{background:var(--blue)}
+.rk-stepper.t-green .rk-sline.is-done{background:var(--green)}
+.rk-sline.is-cur{background:repeating-linear-gradient(90deg,var(--coral) 0 4px,transparent 4px 7px)}
+.rk-sline span{display:block;transform:translateY(-15px);text-align:center;font:500 10px var(--font-mono);color:var(--coral-text);white-space:nowrap}
+.rk-stepper.is-compact .rk-sp.is-todo .rk-sp-t,.rk-stepper.is-compact .rk-sp.is-done .rk-sp-t span{display:none}
+.rk-stepper.is-compact .rk-sline{margin:0 8px}
+/* The proposal's contact trail at full width. */
+.rk-trail-card{border-radius:13px;background:var(--surface);border:1px solid var(--hairline);box-shadow:var(--shadow-xs);padding:0 36px;margin:0 0 22px}
+.rk-trail{position:relative;height:74px}
+.rk-trail-line{position:absolute;left:0;right:0;top:35px;height:3px;border-radius:6px;background:var(--surface-2)}
+.rk-trail-late{position:absolute;top:35px;height:3px;background:repeating-linear-gradient(90deg,var(--amber) 0 5px,transparent 5px 9px)}
+.rk-tp{position:absolute;top:0;height:74px;width:0}
+.rk-tp i{position:absolute;top:29px;left:-7px;width:14px;height:14px;border-radius:50%;background:var(--surface);border:3px solid var(--blue)}
+.rk-tp.is-sent i{background:var(--blue)}
+.rk-tp.is-today.is-late i{border-color:var(--amber)}
+.rk-tp.is-expiry i{border-color:var(--red);border-radius:0;background:var(--surface)}
+.rk-tp em,.rk-tp > span{position:absolute;left:0;transform:translateX(-50%);white-space:nowrap;font-style:normal}
+.rk-tp em{top:8px;font-size:var(--type-meta);color:var(--text)}
+.rk-tp > span{top:50px;font:500 10.5px var(--font-mono);color:var(--muted)}
+.rk-tp.at-start em,.rk-tp.at-start > span{transform:translateX(-12px)}
+.rk-tp.at-end em,.rk-tp.at-end > span{transform:translateX(calc(-100% + 12px))}
+.rk-tp.is-today.is-late > span{color:var(--amber)}
+.rk-tp.is-expiry > span{color:var(--red)}
+/* Record grid: working sections left, Details and context panels right. */
+.ctd-grid.rk-grid{grid-template-columns:minmax(0,1fr) 340px;gap:28px}
+.rk-grid > .rk-side{order:2;display:flex;flex-direction:column;gap:12px;position:sticky;top:56px}
+.rk-panel{border-radius:13px;background:var(--panel-bg);padding:16px 18px;box-shadow:var(--shadow-xs)}
+.rk-panel.ctd-props-card{position:static;padding:16px 18px}
+.rk-panel:empty{display:none}
+.rk-panel .rec-section-hd{margin-bottom:8px}
+.rk-panel .rec-section-hd h2{font:600 15px/1.2 var(--font-display);color:var(--navy)}
+.pr-title-services{display:inline;font:inherit;color:inherit;margin:0}
+@media (max-width:1280px){
+  .ctd-grid.rk-grid{grid-template-columns:minmax(0,1fr)}
+  .rk-grid > .rk-side{position:static}
+  .rk-stepper{flex-wrap:wrap;gap:8px 0}
+  .rk-sline{min-width:12px;margin:0 6px}
+  .rk-trail-card{padding:0 28px}
+}
+.pk-chip.is-text{font-family:var(--font-text)}
+.rk-sline.is-cur{min-width:64px}
