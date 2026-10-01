@@ -1942,6 +1942,12 @@
           <div class="prb-service-menu" id="prb-service-menu" role="listbox" hidden></div>
         </div>
         <div class="prb-top" id="prb-top"></div>
+        <!-- Start from a past proposal (1.66): its lines, term and entity; never its client or contact. -->
+        <div class="prb-from" id="prb-from" hidden>
+          <input class="finp" id="prb-from-q" placeholder="Search past proposals by client or service…" role="combobox" aria-expanded="false" aria-controls="prb-from-menu" aria-autocomplete="list" oninput="prbFromSearch()" onfocus="prbFromSearch()" onkeydown="prbFromKey(event)" onblur="window.setTimeout(prbFromClose, 150)">
+          <div class="prb-service-menu" id="prb-from-menu" role="listbox" hidden></div>
+        </div>
+        <div class="prb-from-line" id="prb-from-line" hidden></div>
         <div class="prb-service-picker" id="prb-service-picker" hidden></div>
         <div id="prb-lines"></div>
         <div class="prb-blocks" id="prb-blocks-after" data-sort="prb-block-order" data-drop-value="after" data-sort-shift></div>
@@ -2286,6 +2292,35 @@
       <button class="btn-danger entry-delete" id="entry-delete" onclick="deleteEntryFromDialog()" hidden>Delete entry</button>
       <button class="btn-secondary" onclick="closeEntryDialog()">Cancel</button>
       <button class="btn-primary" id="entry-save" onclick="saveEntryDialog()">Log it</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-ov" id="modal-revise" onclick="if(event.target===this)closeRevisePrices()">
+  <div class="modal modal-sm">
+    <div class="modal-hd"><div class="modal-title" id="revise-title">Revise prices</div><button class="modal-close" onclick="closeRevisePrices()">×</button></div>
+    <div class="modal-sub" id="revise-sub"></div>
+    <div class="revise-result" id="revise-result" aria-live="polite"></div>
+    <div id="revise-form">
+      <div class="fgrp">
+        <div class="seg-btns entry-seg" id="revise-round" role="radiogroup" aria-label="Review round">
+          <button type="button" class="seg-btn" role="radio" data-round="internal" onclick="reviseRound('internal')">Internal round</button>
+          <button type="button" class="seg-btn" role="radio" data-round="client" onclick="reviseRound('client')">Client revision</button>
+        </div>
+      </div>
+      <div class="fgrp" id="revise-reason-grp">
+        <label class="flbl" for="revise-reason">What the client asked for (one line)</label>
+        <input type="text" class="finp" id="revise-reason" maxlength="120" placeholder="Price for 40 employees">
+      </div>
+      <div class="fgrp">
+        <label class="flbl" for="revise-file">File name</label>
+        <input type="text" class="finp" id="revise-file">
+      </div>
+    </div>
+    <div class="fact">
+      <button class="btn-secondary" onclick="closeRevisePrices()" id="revise-cancel">Cancel</button>
+      <button class="btn-secondary" id="revise-regen" onclick="reviseRegenerate()" hidden>Regenerate instead</button>
+      <button class="btn-primary" id="revise-save" onclick="saveRevisePrices()">Save</button>
     </div>
   </div>
 </div>

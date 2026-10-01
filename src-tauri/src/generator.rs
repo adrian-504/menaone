@@ -518,7 +518,7 @@ pub fn proposal_library(state: State<DbState>) -> CmdResult<LibraryInfo> {
     Ok(LibraryInfo { dir: Some(dir.to_string_lossy().to_string()), templates, master, ignored })
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct GenerateRequest {
     pub proposal_id: i64,
@@ -540,6 +540,14 @@ pub struct GenerateRequest {
     /// Build from the 2026 proposal master (tagged slides and fields).
     #[serde(default)]
     pub from_master: bool,
+    /// The review round the new version belongs to (1.66): internal or client, and a client revision's one line.
+    #[serde(default)]
+    pub round: Option<String>,
+    #[serde(default)]
+    pub round_reason: Option<String>,
+    /// Regenerated instead of revising this version in place: its hand edits are not carried, and the record says so.
+    #[serde(default)]
+    pub not_carried_from: Option<i64>,
 }
 
 #[derive(Debug, Clone, Serialize, Default)]
@@ -562,7 +570,12 @@ pub struct GenerateResult {
     pub services_title: Option<String>,
 }
 
-fn safe_file_name(name: &str) -> String {
+/// A custom line: a named service outside the catalogue, with a unit (1.66).
+fn is_custom(l: &CommercialLine) -> bool {
+    l.unit.as_deref().map(|u| !u.trim().is_empty()).unwrap_or(false)
+}
+
+pub(crate) fn safe_file_name(name: &str) -> String {
     let cleaned: String = name.chars().map(|c| if matches!(c, '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|') { ' ' } else { c }).collect();
     let trimmed = cleaned.split_whitespace().collect::<Vec<_>>().join(" ");
     if trimmed.to_lowercase().ends_with(".pptx") { trimmed } else { format!("{trimmed}.pptx") }
@@ -579,6 +592,8 @@ pub fn smart_line(l: &CommercialLine, card: Option<&crate::pricing::Card>, categ
         rates: l.rates.clone(),
         preset_labels: card.map(|c| c.preset_labels()).unwrap_or_default(),
         months: None,
+        quantity: l.quantity,
+        unit: l.unit.clone().filter(|u| !u.trim().is_empty()),
     }
 }
 
@@ -688,7 +703,7 @@ pub fn generate_proposal(db: &Mutex<Connection>, request: &GenerateRequest, poli
             }
             let mut wanted: Vec<&'static str> = Vec::new();
             for (line, ml) in proposal.lines.iter().zip(master_lines.iter()) {
-                if ml.modules.is_empty() && !line.service_name.trim().is_empty() {
+                if ml.modules.is_empty() && !line.service_name.trim().is_empty() && !is_custom(line) {
                     warnings.push(format!("No slides are known for \"{}\"; add its scope and fees by hand.", line.service_name.trim()));
                 }
                 for m in &ml.modules {
@@ -727,7 +742,7 @@ pub fn generate_proposal(db: &Mutex<Connection>, request: &GenerateRequest, poli
             let mut wanted: Vec<&'static str> = Vec::new();
             for (line, category) in proposal.lines.iter().zip(categories.iter()) {
                 let modules = lib::modules_for_service(&line.service_name, category.as_deref());
-                if modules.is_empty() && !line.service_name.trim().is_empty() {
+                if modules.is_empty() && !line.service_name.trim().is_empty() && !is_custom(line) {
                     warnings.push(format!("No template slides are known for \"{}\"; add its scope and fees by hand.", line.service_name.trim()));
                 }
                 for m in modules {
@@ -740,6 +755,9 @@ pub fn generate_proposal(db: &Mutex<Connection>, request: &GenerateRequest, poli
             let ignored = lib::ignored_files(dir);
             if !ignored.is_empty() {
                 warnings.push(format!("Not read as templates (only \"… Template.pptx\" files are): {}", ignored.join(", ")));
+            }
+            if wanted.is_empty() && proposal.lines.iter().any(is_custom) {
+                return Err("The current design starts from a catalogue service's template, and this proposal has custom lines only. Use the 2026 design for it.".into());
             }
             let composed = lib::compose(&library, &wanted)?;
             for m in &composed.missing {
@@ -766,11 +784,45 @@ pub fn generate_proposal(db: &Mutex<Connection>, request: &GenerateRequest, poli
         (None, None) => return Err("Choose a template.".into()),
     };
     let months = proposal.contract_months.filter(|m| *m > 0);
+    let smart_lines: Vec<crate::smartfill::SmartLine> = proposal
+        .lines
+        .iter()
+        .zip(line_cards.iter())
+        .zip(categories.iter())
+        .map(|((l, card), category)| crate::smartfill::SmartLine {
+            months: (l.billing != "one_time").then(|| months.unwrap_or(12) as f64),
+            ..smart_line(l, card.as_ref(), category.as_deref())
+        })
+        .collect();
+    let currency = proposal.currency.clone().unwrap_or_else(|| "SAR".into());
     for (s, info) in slides.iter_mut().zip(inspection.slides.iter()).filter(|_| master.is_none()) {
         if let Some(reason) = automatic_exclusion(&info.text, &proposal.lines, &categories, months) {
             s.included = false;
             s.reason = reason.into();
         }
+    }
+    // Slides MENA One adds itself (1.66): one per custom line, and the summary of fees for a deck with two or more
+    // services. They are on by default and can be left out in the preview like any slide. They are numbered after
+    // the template's slides and listed where they go in the deck: after the last service slide.
+    let template_slides = slides.len();
+    let custom_lines: Vec<&crate::smartfill::SmartLine> = smart_lines.iter().filter(|l| crate::extra_slides::is_custom(l) && !l.service.trim().is_empty()).collect();
+    let mut added: Vec<SlideChoice> = custom_lines.iter().enumerate().map(|(k, l)| SlideChoice {
+        index: template_slides + k + 1, slide_id: String::new(), title: l.service.trim().to_string(), included: true, reason: "A custom line: its scope and fee".into(), source: "Added by MENA One".into(),
+    }).collect();
+    let summary_index = crate::extra_slides::summary_slide(&smart_lines, months, &currency).map(|_| {
+        let index = template_slides + added.len() + 1;
+        added.push(SlideChoice { index, slide_id: String::new(), title: "Summary of fees".into(), included: true, reason: "Every service's fee and the totals".into(), source: "Added by MENA One".into() });
+        index
+    });
+    if !added.is_empty() {
+        let after_services = if master.is_some() {
+            inspection.slides.iter().rposition(|s| { let t = crate::master::parse(&s.notes); t.module.is_some() && !matches!(t.role.as_deref(), Some("terms")) })
+        } else {
+            use crate::proposal_library::Role;
+            crate::proposal_library::classify(&inspection).iter().rposition(|s| matches!(s.role, Role::ServiceDivider | Role::Approach | Role::FeesDivider | Role::Fees))
+        };
+        let at = after_services.map(|i| i + 1).unwrap_or(slides.len()).min(slides.len());
+        slides.splice(at..at, added);
     }
     if let Some(keep) = &request.keep {
         for s in slides.iter_mut() {
@@ -845,24 +897,18 @@ pub fn generate_proposal(db: &Mutex<Connection>, request: &GenerateRequest, poli
         },
         None => None,
     };
-    let smart_lines: Vec<crate::smartfill::SmartLine> = proposal
-        .lines
-        .iter()
-        .zip(line_cards.iter())
-        .zip(categories.iter())
-        .map(|((l, card), category)| crate::smartfill::SmartLine {
-            months: (l.billing != "one_time").then(|| months.unwrap_or(12) as f64),
-            ..smart_line(l, card.as_ref(), category.as_deref())
-        })
-        .collect();
-    let currency = proposal.currency.clone().unwrap_or_else(|| "SAR".into());
     let country = deck.values.get("client_country").cloned().unwrap_or_default();
     let smart = template.as_ref().map(|t| t.config.smart_fields).unwrap_or(true).then(|| crate::smartfill::SmartInput {
         client_name: &proposal.client, date_iso: &request.date, country: Some(country.as_str()).filter(|c| !c.is_empty()),
         currency: &currency, lines: &smart_lines, logo, contract_months: months, standards: standards.clone(),
     });
-    if keep.is_empty() {
+    if !keep.iter().any(|k| *k <= template_slides) {
         return Err("No slides are selected.".into());
+    }
+    // The added slides that are kept, in deck order: the custom lines', then the summary.
+    let mut extras: Vec<crate::extra_slides::ExtraSlide> = custom_lines.iter().enumerate().filter(|(k, _)| keep.contains(&(template_slides + k + 1))).map(|(_, l)| crate::extra_slides::custom_slide(l, &currency)).collect();
+    if summary_index.map(|i| keep.contains(&i)).unwrap_or(false) {
+        extras.extend(crate::extra_slides::summary_slide(&smart_lines, months, &currency));
     }
     let report = if master.is_some() {
         if result.warnings.iter().all(|w| !w.contains("logo")) && request.logo_path.as_deref().map(|p| !p.trim().is_empty()).unwrap_or(false) {
@@ -870,7 +916,21 @@ pub fn generate_proposal(db: &Mutex<Connection>, request: &GenerateRequest, poli
         }
         let empty = HashMap::new();
         let mut built = pptx::build(&mut pkg, &pptx::BuildInput { keep: &keep, values: &empty, lines: &[], replacements: &[] })?;
-        let tags: Vec<crate::master::MasterTags> = inspection.slides.iter().filter(|s| keep.contains(&s.index)).map(|s| crate::master::parse(&s.notes)).collect();
+        if !extras.is_empty() {
+            // Before the fields are filled, so the agenda's page numbers count them: after the last service slide,
+            // each a rewritten copy of one of the master's own fee slides.
+            let tags: Vec<crate::master::MasterTags> = pptx::inspect(&pkg).slides.iter().map(|s| crate::master::parse(&s.notes)).collect();
+            let service = |t: &crate::master::MasterTags| t.module.is_some() && !matches!(t.role.as_deref(), Some("terms"));
+            let at = tags.iter().rposition(service).map(|i| i + 1)
+                .or_else(|| tags.iter().position(|t| matches!(t.role.as_deref(), Some("section-terms") | Some("terms") | Some("acceptance"))))
+                .unwrap_or(tags.len());
+            let source = Package::read(master.as_deref().expect("master"))?;
+            match crate::extra_slides::donor_in(&source).filter(|d| d.1) {
+                Some(donor) => built.slides_after += crate::extra_slides::add_slides(&mut pkg, &source, donor, at, &extras)?,
+                None => result.warnings.push(format!("The 2026 master has no plain fee slide to make {} from; add {} by hand.", if extras.len() == 1 { "this slide" } else { "these slides" }, extras.iter().map(|e| e.title.clone()).collect::<Vec<_>>().join(", "))),
+            }
+        }
+        let tags: Vec<crate::master::MasterTags> = pptx::inspect(&pkg).slides.iter().map(|s| crate::master::parse(&s.notes)).collect();
         let mut values = deck.values.clone();
         values.insert("services_title".into(), result.services_title.clone().unwrap_or_default());
         values.insert("entity_region".into(), deck.entity_code.clone().unwrap_or_else(|| "KSA".into()));
@@ -886,7 +946,31 @@ pub fn generate_proposal(db: &Mutex<Connection>, request: &GenerateRequest, poli
         built.smart = Some(crate::smartfill::SmartReport { filled: filled.filled, fees_to_check: vec![], warnings: vec![], checks: filled.checks });
         built
     } else {
-        pptx::build_with_smart_fields(&mut pkg, &pptx::BuildInput { keep: &keep, values: &deck.values, lines: &deck.lines, replacements: &replacements }, smart)?
+        let mut built = pptx::build(&mut pkg, &pptx::BuildInput { keep: &keep, values: &deck.values, lines: &deck.lines, replacements: &replacements })?;
+        let mut added_at: Option<(usize, usize)> = None;
+        if !extras.is_empty() {
+            // Before the automatic fields, so the agenda is recounted with them: after the last service slide, under
+            // a copy of the deck's own "Project Fees" title.
+            let roles = crate::proposal_library::classify(&pptx::inspect(&pkg));
+            let content = |r: crate::proposal_library::Role| matches!(r, crate::proposal_library::Role::ServiceDivider | crate::proposal_library::Role::Approach | crate::proposal_library::Role::FeesDivider | crate::proposal_library::Role::Fees);
+            let at = roles.iter().rposition(|s| content(s.role)).map(|i| i + 1)
+                .or_else(|| roles.iter().position(|s| matches!(s.role, crate::proposal_library::Role::Terms | crate::proposal_library::Role::Acceptance)))
+                .unwrap_or(roles.len());
+            let source = Package { order: pkg.order.clone(), parts: pkg.parts.clone() };
+            match crate::extra_slides::donor_in(&source) {
+                Some(donor) => { built.slides_after += crate::extra_slides::add_slides(&mut pkg, &source, donor, at, &extras)?; added_at = Some((at, extras.len())); }
+                None => result.warnings.push(format!("This deck has no fee slide to make {} from; add {} by hand.", if extras.len() == 1 { "this slide" } else { "these slides" }, extras.iter().map(|e| e.title.clone()).collect::<Vec<_>>().join(", "))),
+            }
+        }
+        if let Some(smart) = smart {
+            let mut report = crate::smartfill::apply(&mut pkg, smart);
+            // The figures on the added slides are the proposal's own: nothing there to check by hand.
+            if let Some((at, n)) = added_at {
+                report.fees_to_check.retain(|f| !(at + 1..=at + n).any(|slide| f.starts_with(&format!("Slide {slide}:"))));
+            }
+            built.smart = Some(report);
+        }
+        built
     };
     result.errors = generation_errors(&proposal, &report);
     if request.dry_run {
@@ -935,7 +1019,8 @@ pub fn generate_proposal(db: &Mutex<Connection>, request: &GenerateRequest, poli
     let folder_text = folder.to_string_lossy().to_string();
     let path_text = out.to_string_lossy().to_string();
     let recorded = db.lock().map_err(err).and_then(|mut conn| {
-        record_generated_document(&mut conn, proposal.id, &file_name, &path_text, &notes, &request.date, &folder_text).map_err(err)
+        let marks = DocumentMarks { round: request.round.clone(), round_reason: request.round_reason.clone(), carried_from_version: request.not_carried_from, not_carried: request.not_carried_from.is_some() };
+        record_generated_document_with(&mut conn, proposal.id, &file_name, &path_text, &notes, &request.date, &folder_text, &marks).map_err(err)
     });
     let document = match recorded {
         Ok(d) => d,
@@ -950,6 +1035,134 @@ pub fn generate_proposal(db: &Mutex<Connection>, request: &GenerateRequest, poli
     result.path = Some(path_text);
     result.document = Some(document);
     result.report = Some(report);
+    Ok(result)
+}
+
+// ═══════════════ Revise prices ═══════════════
+
+#[derive(Debug, Clone, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct ReviseRequest {
+    pub proposal_id: i64,
+    /// The version to revise: one of the proposal's decks.
+    pub document_id: i64,
+    /// YYYY-MM-DD in the user's time zone: the new version's cover and letter date.
+    pub date: String,
+    pub file_name: String,
+    #[serde(default)]
+    pub round: Option<String>,
+    #[serde(default)]
+    pub round_reason: Option<String>,
+    /// Read the deck and say what would change; nothing is written.
+    #[serde(default)]
+    pub dry_run: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct ReviseResult {
+    pub report: crate::reprice::RepriceReport,
+    /// Every price found its row, nothing else stands in the way, and something changed.
+    pub can_save: bool,
+    /// Why not, in one sentence; empty when it can be saved.
+    pub reason: String,
+    /// The line kept in the new version's notes.
+    pub line: String,
+    pub from_version: Option<i64>,
+    pub file_name: String,
+    pub path: Option<String>,
+    pub document: Option<ProposalDocument>,
+}
+
+/// The proposal's lines as the fee rewrite needs them (their rate cards say how each is priced), and the rate
+/// cards' standards for prices a deck quotes without a line.
+pub fn fee_lines(conn: &Connection, proposal: &Proposal, services: &[crate::commercial::Service]) -> rusqlite::Result<(Vec<crate::smartfill::SmartLine>, crate::feefill::Standards)> {
+    let rate_cards = crate::commercial::read_rate_cards(conn)?;
+    let card_of = |s: &crate::commercial::Service| s.rate_card_id.and_then(|id| rate_cards.iter().find(|r| r.id == id)).and_then(|r| crate::pricing::Card::from_json(&r.pricing));
+    let months = proposal.contract_months.filter(|m| *m > 0);
+    let lines = proposal.lines.iter().map(|l| {
+        let by_id = l.service_id.and_then(|id| services.iter().find(|s| s.id == id));
+        let service = by_id.or_else(|| services.iter().find(|s| s.name.eq_ignore_ascii_case(l.service_name.trim())));
+        let category = by_id.and_then(|s| s.category.clone());
+        crate::smartfill::SmartLine {
+            months: (l.billing != "one_time").then(|| months.unwrap_or(12) as f64),
+            ..smart_line(l, service.and_then(card_of).as_ref(), category.as_deref())
+        }
+    }).collect();
+    let standard_of = |name: &str| services.iter().find(|s| s.name.eq_ignore_ascii_case(name)).and_then(card_of).and_then(|c| c.standard_price());
+    let standards = crate::feefill::Standards { constitution: standard_of("Business Setup").or_else(|| standard_of("Company Constitution")), maintenance: standard_of("Company Maintenance") };
+    Ok((lines, standards))
+}
+
+#[tauri::command]
+pub fn proposal_revise_prices(state: State<DbState>, request: ReviseRequest) -> CmdResult<ReviseResult> {
+    revise_prices(&state.0, &request, OutputPolicy::OneDriveOnly)
+}
+
+/// "Revise prices": the next version of a deck with only its prices, the price sentences, the term wording and
+/// the two dates changed (see reprice.rs), so the hand edits in the version before are kept. The version it is
+/// made from is only read. Nothing is written or recorded on a dry run, or when the revision cannot be done in
+/// place: the result says why, and the caller offers to regenerate instead.
+pub fn revise_prices(db: &Mutex<Connection>, request: &ReviseRequest, policy: OutputPolicy) -> CmdResult<ReviseResult> {
+    let (proposal, source, lines, standards) = {
+        let conn = db.lock().map_err(err)?;
+        let data = read_all_data(&conn).map_err(err)?;
+        let proposal = data.proposals.into_iter().find(|p| p.id == request.proposal_id).ok_or("Proposal not found.")?;
+        let source = proposal.documents.iter().find(|d| d.id == request.document_id && d.kind == "proposal").cloned().ok_or("That version is not one of this proposal's decks.")?;
+        let (lines, standards) = fee_lines(&conn, &proposal, &data.services).map_err(err)?;
+        (proposal, source, lines, standards)
+    };
+    let from = format!("V{}", source.version.unwrap_or(1));
+    let path = PathBuf::from(source.path.clone().filter(|p| !p.trim().is_empty()).ok_or(format!("{from} has no file to revise."))?);
+    if !policy.allows(&path) {
+        return Err(format!("{from} is outside OneDrive, so it wasn't read."));
+    }
+    if !path.extension().map(|e| e.to_string_lossy().eq_ignore_ascii_case("pptx")).unwrap_or(false) {
+        return Err(format!("{from} is not a PowerPoint file, so its prices can't be revised."));
+    }
+    if !path.is_file() {
+        return Err(format!("{} is not in the client folder any more.", source.file_name));
+    }
+    let mut pkg = Package::read(&path)?;
+    let currency = proposal.currency.clone().unwrap_or_else(|| "SAR".into());
+    let report = crate::reprice::reprice(&mut pkg, &crate::reprice::RepriceInput { lines: &lines, currency: &currency, months: proposal.contract_months, date_iso: &request.date, standards: &standards });
+    let file_name = safe_file_name(&request.file_name);
+    let mut result = ReviseResult { can_save: report.can_save(), reason: report.reason(&from), line: report.line(&from), from_version: source.version, file_name: file_name.clone(), report, ..Default::default() };
+    if request.dry_run || !result.can_save {
+        return Ok(result);
+    }
+
+    let folder = path.parent().map(Path::to_path_buf).ok_or("The client folder couldn't be found.")?;
+    if !policy.allows(&folder) {
+        return Err(format!("The client folder {} is outside OneDrive, so the proposal wasn't saved.", folder.to_string_lossy()));
+    }
+    let out = folder.join(&file_name);
+    if out.exists() {
+        return Err(format!("{file_name} already exists in the client folder. Choose another name."));
+    }
+    let tmp = folder.join(format!(".{file_name}.partial"));
+    if let Err(e) = pkg.write(&tmp) {
+        let _ = std::fs::remove_file(&tmp);
+        return Err(e);
+    }
+    if let Err(e) = std::fs::rename(&tmp, &out) {
+        let _ = std::fs::remove_file(&tmp);
+        return Err(format!("Could not save the proposal: {e}"));
+    }
+    let folder_text = folder.to_string_lossy().to_string();
+    let path_text = out.to_string_lossy().to_string();
+    let marks = DocumentMarks { round: request.round.clone(), round_reason: request.round_reason.clone(), carried_from_version: source.version, not_carried: false };
+    let recorded = db.lock().map_err(err).and_then(|mut conn| {
+        record_generated_document_with(&mut conn, proposal.id, &file_name, &path_text, &result.line, &request.date, &folder_text, &marks).map_err(err)
+    });
+    match recorded {
+        Ok(d) => result.document = Some(d),
+        Err(e) => {
+            let _ = std::fs::remove_file(&out);
+            return Err(format!("The proposal couldn't be recorded, so the file was not kept: {e}"));
+        }
+    }
+    result.path = Some(path_text);
     Ok(result)
 }
 
@@ -996,6 +1209,25 @@ pub fn version_in_name(file_name: &str) -> Option<i64> {
 /// earlier versions are never touched. Also remembers the client folder when
 /// the proposal has none yet.
 pub fn record_generated_document(conn: &mut Connection, proposal_id: i64, file_name: &str, path: &str, notes: &str, date: &str, folder: &str) -> rusqlite::Result<ProposalDocument> {
+    record_generated_document_with(conn, proposal_id, file_name, path, notes, date, folder, &DocumentMarks::default())
+}
+
+/// What a recorded version says about itself beyond its file (migration 46): the review round it belongs to and why,
+/// the version a price revision was made from, and whether hand edits were left behind by regenerating.
+#[derive(Debug, Clone, Default)]
+pub struct DocumentMarks {
+    pub round: Option<String>,
+    pub round_reason: Option<String>,
+    pub carried_from_version: Option<i64>,
+    pub not_carried: bool,
+}
+
+/// The same, with the version's marks. The file's fingerprint is taken as it is on disk now, so a later edit shows.
+#[allow(clippy::too_many_arguments)]
+pub fn record_generated_document_with(conn: &mut Connection, proposal_id: i64, file_name: &str, path: &str, notes: &str, date: &str, folder: &str, marks: &DocumentMarks) -> rusqlite::Result<ProposalDocument> {
+    let sha = crate::localfiles::sha256_of(Path::new(path));
+    let round = marks.round.as_deref().filter(|r| *r == "internal" || *r == "client").map(str::to_string);
+    let reason = marks.round_reason.as_deref().map(str::trim).filter(|r| !r.is_empty()).map(str::to_string);
     let tx = conn.transaction()?;
     let exists: bool = tx.query_row("SELECT EXISTS(SELECT 1 FROM proposals WHERE id = ?1)", params![proposal_id], |r| r.get(0))?;
     if !exists {
@@ -1005,14 +1237,16 @@ pub fn record_generated_document(conn: &mut Connection, proposal_id: i64, file_n
     let id: i64 = tx.query_row("SELECT COALESCE(MAX(id), 0) + 1 FROM proposal_documents", [], |r| r.get(0))?;
     let created_at = date.get(0..10).unwrap_or(date).to_string();
     tx.execute(
-        "INSERT INTO proposal_documents (id, proposal_id, kind, version, file_name, path, url, notes, created_at) VALUES (?1, ?2, 'proposal', ?3, ?4, ?5, NULL, ?6, ?7)",
-        params![id, proposal_id, version, file_name, path, notes, created_at],
+        "INSERT INTO proposal_documents (id, proposal_id, kind, version, file_name, path, url, notes, created_at, round, round_reason, generated_sha256, carried_from_version, not_carried)
+         VALUES (?1, ?2, 'proposal', ?3, ?4, ?5, NULL, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+        params![id, proposal_id, version, file_name, path, notes, created_at, round, reason, sha, marks.carried_from_version, marks.not_carried.then_some(1i64)],
     )?;
     tx.execute("UPDATE proposals SET folder_path = ?2 WHERE id = ?1 AND (folder_path IS NULL OR folder_path = '')", params![proposal_id, folder])?;
     // A first deck means the proposal is being drafted; it never moves a proposal back.
     tx.execute("UPDATE proposals SET status = ?2 WHERE id = ?1 AND status = ?3", params![proposal_id, crate::commercial::STATUS_DRAFTING, crate::commercial::STATUS_REQUEST])?;
     tx.commit()?;
-    Ok(ProposalDocument { id, kind: "proposal".into(), version: Some(version), file_name: file_name.to_string(), path: Some(path.to_string()), url: None, notes: Some(notes.to_string()), created_at: Some(created_at) })
+    Ok(ProposalDocument { id, kind: "proposal".into(), version: Some(version), file_name: file_name.to_string(), path: Some(path.to_string()), url: None, notes: Some(notes.to_string()), created_at: Some(created_at),
+        round, round_reason: reason, generated_sha256: sha, carried_from_version: marks.carried_from_version, not_carried: marks.not_carried, sent_to_client_at: None })
 }
 
 #[cfg(test)]

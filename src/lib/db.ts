@@ -1,6 +1,8 @@
 import { invoke } from '@tauri-apps/api/core';
 import { toast } from './ui';
 import { normalizeMeeting, normalizeEmail } from './outlookTime';
+import type { SendCheck } from './sendCheck';
+import type { ReviseResult } from './revisePrices';
 import type {
   AppData, Proposal, Contact, Agreement, Todo, Note, ImportSummary,
   Area, Project, Milestone, Meeting, EntityLink, NoteTemplate, InboxItem,
@@ -25,6 +27,8 @@ export async function deleteContacts(ids: number[]): Promise<void> { await invok
 export async function upsertAgreements(items: Agreement[]): Promise<RecordCompanyLink[]> { return (await invoke<RecordCompanyLink[] | null>('upsert_agreements', { items })) ?? []; }
 export async function deleteAgreements(ids: number[]): Promise<void> { await invoke('delete_agreements', { ids }); }
 export async function createAgreementsFromProposals(): Promise<Agreement[]> { return invoke<Agreement[]>('sync_agreements_from_proposals'); }
+/** One signed proposal's agreement, drafted from it; empty when it has one already or is not signed by both. */
+export async function draftAgreementForProposal(proposalId: number): Promise<Agreement[]> { return invoke<Agreement[]>('draft_agreement_for_proposal', { proposalId }); }
 export interface PendingAgreement { proposalId: number; client: string; agreementType: string | null }
 /** What drafting from proposals would create, without creating it. */
 export async function pendingAgreementsFromProposals(): Promise<PendingAgreement[]> { return invoke<PendingAgreement[]>('pending_agreements_from_proposals'); }
@@ -86,7 +90,7 @@ export async function templateSave(template: ProposalTemplate): Promise<Template
 export async function templateDelete(id: number): Promise<void> { await invoke('template_delete', { id }); }
 export async function templateTokens(): Promise<TokenInfo[]> { return invoke<TokenInfo[]>('template_tokens'); }
 export async function proposalLibrary(): Promise<ProposalLibraryInfo> { return invoke<ProposalLibraryInfo>('proposal_library'); }
-export async function proposalGenerate(request: { proposalId: number; templateId: number; date: string; fileName: string; keep?: number[] | null; logoPath?: string | null; dryRun: boolean; fromLibrary?: boolean; fromMaster?: boolean }): Promise<GenerateResult> {
+export async function proposalGenerate(request: { proposalId: number; templateId: number; date: string; fileName: string; keep?: number[] | null; logoPath?: string | null; dryRun: boolean; fromLibrary?: boolean; fromMaster?: boolean; round?: 'internal' | 'client' | null; roundReason?: string | null; notCarriedFrom?: number | null }): Promise<GenerateResult> {
   return invoke<GenerateResult>('proposal_generate', { request });
 }
 export async function getCommercialSetup(): Promise<CommercialSetup> { return invoke<CommercialSetup>('get_commercial_setup'); }
@@ -329,6 +333,12 @@ export async function filesGetByIds(ids: number[]): Promise<LocalFileItem[]> {
 export async function filesResolveCompanyId(name: string): Promise<number> { return invoke<number>('files_resolve_company_id', { name }); }
 export async function filesListLinked(): Promise<LinkedFileEntry[]> { return invoke<LinkedFileEntry[]>('files_list_linked'); }
 export async function filesStatPaths(paths: string[]): Promise<LocalFileItem[]> { return paths.length ? invoke<LocalFileItem[]>('files_stat_paths', { paths }) : Promise.resolve([]); }
+/** Revise prices (1.66): the next version of a deck with only its prices and dates changed; a dry run says what would change. */
+export async function proposalRevisePrices(request: { proposalId: number; documentId: number; date: string; fileName: string; round: 'internal' | 'client'; roundReason: string | null; dryRun: boolean }): Promise<ReviseResult> { return invoke<ReviseResult>('proposal_revise_prices', { request }); }
+/** The check before sending (1.66): what is still wrong with a deck, read from the file. It changes nothing. */
+export async function proposalSendCheck(path: string): Promise<SendCheck> { return invoke<SendCheck>('proposal_send_check', { path }); }
+/** The files' fingerprints as they are now (1.66): to say a deck MENA One wrote was edited since. */
+export async function filesFingerprints(paths: string[]): Promise<{ path: string; exists: boolean; sha256: string | null }[]> { return paths.length ? invoke('files_fingerprints', { paths }) : Promise.resolve([]); }
 
 // ═══════════════ Intelligence (Regulatory Watch / Business Watch) ═══════════════
 

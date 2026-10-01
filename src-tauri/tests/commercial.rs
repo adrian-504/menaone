@@ -216,6 +216,24 @@ fn drafting_one_proposals_agreement_leaves_the_others_alone() {
     assert!(menabig_tracker_lib::commands::draft_agreement_for_proposal_core(&mut conn, 3).unwrap().is_empty(), "not for an unsigned proposal");
     let pending = menabig_tracker_lib::commercial::pending_agreements_core(&conn).unwrap();
     assert_eq!(pending.iter().map(|p| p.proposal_id).collect::<Vec<_>>(), vec![1], "the other signed one is still waiting to be asked");
+    // What it carries (1.66): the lines as they are, the term, the entity and currency, and the day the service started.
+    conn.execute("UPDATE proposals SET contract_months = 12, currency = 'SAR', service_started_at = '2026-10-05', kickoff_date = '2026-09-20' WHERE id = 1", []).unwrap();
+    conn.execute(
+        "INSERT INTO proposal_lines (id, proposal_id, service_name, description, billing, quantity, unit_price, commission, sort_order, rates_json, employee_count)
+         VALUES (901, 1, 'Recruitment', 'Three engineers', 'one_time', 1, NULL, 0, 0, '[{\"label\":\"Engineers\",\"percent\":12.0}]', NULL),
+                (902, 1, 'Payroll with GOSI', NULL, 'monthly', 1, 4000, 0, 1, NULL, 14)",
+        [],
+    ).unwrap();
+    let one = menabig_tracker_lib::commands::draft_agreement_for_proposal_core(&mut conn, 1).unwrap();
+    assert_eq!(one.len(), 1);
+    let a = &one[0];
+    assert_eq!((a.proposal_id, a.contract_months, a.currency.as_deref(), a.start_date.as_deref(), a.end_date.as_deref()), (Some(1), Some(12), Some("SAR"), Some("2026-10-05"), Some("2027-10-04")));
+    let lines: Vec<(String, Option<String>, String, Option<f64>, Option<String>, Option<i64>)> = conn
+        .prepare("SELECT service_name, description, billing, unit_price, rates_json, employee_count FROM agreement_lines WHERE agreement_id = ?1 ORDER BY sort_order").unwrap()
+        .query_map([a.id], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?, r.get(5)?))).unwrap().map(|r| r.unwrap()).collect();
+    assert_eq!(lines.len(), 2);
+    assert_eq!(lines[0], ("Recruitment".to_string(), Some("Three engineers".to_string()), "one_time".to_string(), None, Some("[{\"label\":\"Engineers\",\"percent\":12.0}]".to_string()), None));
+    assert_eq!((lines[1].0.as_str(), lines[1].3, lines[1].5), ("Payroll with GOSI", Some(4000.0), Some(14)));
     drop(conn);
     let _ = std::fs::remove_file(path);
 }

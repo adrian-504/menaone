@@ -238,7 +238,7 @@ fn generates_real_decks_on_a_database_copy() {
     for p in &rows { menabig_tracker_lib::commercial::save_lines(&conn, "proposal_lines", "proposal_id", p.id, &p.lines).unwrap(); }
     let db = std::sync::Mutex::new(conn);
     for (id, name, _) in cases {
-        let req = GenerateRequest { proposal_id: id, template_id: 0, date: "2026-09-22".into(), file_name: format!("Acme Test Co_{name}_check.pptx"), keep: None, logo_path: None, dry_run: false, from_library: true, from_master: false };
+        let req = GenerateRequest { proposal_id: id, template_id: 0, date: "2026-09-22".into(), file_name: format!("Acme Test Co_{name}_check.pptx"), keep: None, logo_path: None, dry_run: false, from_library: true, from_master: false, ..Default::default() };
         let r = generate_proposal(&db, &req, OutputPolicy::AnyFolder).unwrap();
         println!("\n{name}: {:?}\n  errors {:?}\n  warnings {:?}", r.path, r.errors, r.warnings);
         written.extend(r.path.clone().map(PathBuf::from));
@@ -295,7 +295,7 @@ fn mixed_proposal_is_consistent() {
     let db = std::sync::Mutex::new(conn);
     let mut problems = Vec::new();
     for (id, tag, _) in &cases {
-        let req = GenerateRequest { proposal_id: *id, template_id: 0, date: "2026-09-22".into(), file_name: format!("Acme Test Co_{tag}_check.pptx"), keep: None, logo_path: None, dry_run: false, from_library: !master_mode, from_master: master_mode };
+        let req = GenerateRequest { proposal_id: *id, template_id: 0, date: "2026-09-22".into(), file_name: format!("Acme Test Co_{tag}_check.pptx"), keep: None, logo_path: None, dry_run: false, from_library: !master_mode, from_master: master_mode, ..Default::default() };
         let r = generate_proposal(&db, &req, OutputPolicy::AnyFolder).unwrap();
         assert!(r.errors.is_empty(), "{tag}: {:?}", r.errors);
         let path = PathBuf::from(r.path.clone().unwrap());
@@ -533,7 +533,7 @@ fn matrix_is_consistent() {
     let mut table = Vec::new();
     let mut failures = Vec::new();
     for (pid, label, months, set) in &plan {
-        let req = GenerateRequest { proposal_id: *pid, template_id: 0, date: "2026-09-22".into(), file_name: format!("Acme Test Co_matrix_{pid}.pptx"), keep: None, logo_path: None, dry_run: false, from_library: !master_mode, from_master: master_mode };
+        let req = GenerateRequest { proposal_id: *pid, template_id: 0, date: "2026-09-22".into(), file_name: format!("Acme Test Co_matrix_{pid}.pptx"), keep: None, logo_path: None, dry_run: false, from_library: !master_mode, from_master: master_mode, ..Default::default() };
         let mut problems: Vec<String> = Vec::new();
         match generate_proposal(&db, &req, OutputPolicy::AnyFolder) {
             Err(e) => problems.push(format!("refused: {e}")),

@@ -5,7 +5,7 @@
 
 use crate::commands::now_iso;
 use crate::db::DbState;
-use crate::models::{CommercialLine, ProposalDocument};
+use crate::models::{CommercialLine, LineRate, ProposalDocument};
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -643,6 +643,9 @@ pub fn derive_totals(lines: &[CommercialLine]) -> (Option<String>, Option<f64>, 
     if lines.is_empty() {
         return (None, None, None);
     }
+    // As they are saved: a custom line's unit decides its billing, and whether it has an amount to count at all.
+    let lines: Vec<CommercialLine> = lines.iter().map(normalize_custom_line).collect();
+    let lines = &lines[..];
     let mut names: Vec<String> = Vec::new();
     for l in lines {
         let n = l.service_name.trim();
@@ -663,7 +666,56 @@ pub fn derive_totals(lines: &[CommercialLine]) -> (Option<String>, Option<f64>, 
 }
 
 // with_recruitment is deprecated (recruitment is proposed separately since 22-Sep-2026): the column stays, unread.
-const LINE_COLS: &str = "id, service_id, service_name, description, billing, quantity, unit_price, commission, sort_order, rates_json, employee_count";
+const LINE_COLS: &str = "id, service_id, service_name, description, billing, quantity, unit_price, commission, sort_order, rates_json, employee_count, unit";
+
+/// A custom line's units (migration 46). The first two have a single amount that counts in the totals; the other
+/// three say how the line is priced and never count.
+pub const UNIT_PER_MONTH: &str = "per_month";
+pub const UNIT_ONE_TIME: &str = "one_time";
+pub const UNIT_PER_PERSON_PER_MONTH: &str = "per_person_per_month";
+pub const UNIT_PER_VISA: &str = "per_visa";
+pub const UNIT_PERCENT_OF_PACKAGE: &str = "percent_of_annual_package";
+
+/// What a unit's priced row is called on the line ("Per person per month · 150").
+pub fn unit_label(unit: &str) -> &'static str {
+    match unit {
+        UNIT_PER_PERSON_PER_MONTH => "Per person per month",
+        UNIT_PER_VISA => "Per visa",
+        UNIT_PERCENT_OF_PACKAGE => "% of annual package",
+        UNIT_ONE_TIME => "One-time",
+        _ => "Per month",
+    }
+}
+
+/// A custom line as it is saved, so its unit and its billing can never disagree — `billing` stays the only thing
+/// totals read:
+/// - per month → billing 'monthly'; one-time → billing 'one_time'; the amount is the line's unit price and counts.
+/// - per person per month → billing 'monthly'; per visa and % of annual package → billing 'one_time'. These three
+///   are not a sum: the price lives in the line's one priced row (as per-person and percentage lines of the
+///   catalogue already do) and the unit price is empty, so no total, anywhere, can count it.
+/// A unit it does not know is dropped (the line is then an ordinary one). A catalogue line (no unit) is untouched.
+pub fn normalize_custom_line(l: &CommercialLine) -> CommercialLine {
+    let mut out = l.clone();
+    let Some(unit) = l.unit.as_deref().map(str::trim).filter(|u| !u.is_empty()) else {
+        out.unit = None;
+        return out;
+    };
+    match unit {
+        UNIT_PER_MONTH => out.billing = "monthly".into(),
+        UNIT_ONE_TIME => out.billing = "one_time".into(),
+        UNIT_PER_PERSON_PER_MONTH | UNIT_PER_VISA | UNIT_PERCENT_OF_PACKAGE => {
+            out.billing = if unit == UNIT_PER_PERSON_PER_MONTH { "monthly".into() } else { "one_time".into() };
+            // The price moves from the unit price to the line's one priced row.
+            let price = out.unit_price.take().or_else(|| out.rates.first().and_then(|r| if unit == UNIT_PERCENT_OF_PACKAGE { r.percent } else { r.price }));
+            let row = LineRate { label: unit_label(unit).to_string(), ..Default::default() };
+            out.rates = vec![if unit == UNIT_PERCENT_OF_PACKAGE { LineRate { percent: price, ..row } } else { LineRate { price, ..row } }];
+            out.quantity = 1.0;
+        }
+        _ => { out.unit = None; return out; }
+    }
+    out.unit = Some(unit.to_string());
+    out
+}
 
 fn line_from_row(r: &rusqlite::Row, offset: usize) -> rusqlite::Result<CommercialLine> {
     Ok(CommercialLine {
@@ -678,6 +730,7 @@ fn line_from_row(r: &rusqlite::Row, offset: usize) -> rusqlite::Result<Commercia
         sort_order: r.get(offset + 8)?,
         rates: r.get::<_, Option<String>>(offset + 9)?.and_then(|j| serde_json::from_str(&j).ok()).unwrap_or_default(),
         employee_count: r.get(offset + 10)?,
+        unit: r.get(offset + 11)?,
     })
 }
 
@@ -702,13 +755,13 @@ pub fn save_lines(conn: &Connection, table: &str, parent_col: &str, parent_id: i
         params![parent_id, serde_json::to_string(&ids).unwrap_or_else(|_| "[]".into())],
     )?;
     let sql = format!(
-        "INSERT INTO {table} (id, {parent_col}, service_id, service_name, description, billing, quantity, unit_price, commission, sort_order, rates_json, employee_count)
-         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12)
+        "INSERT INTO {table} (id, {parent_col}, service_id, service_name, description, billing, quantity, unit_price, commission, sort_order, rates_json, employee_count, unit)
+         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13)
          ON CONFLICT(id) DO UPDATE SET {parent_col} = excluded.{parent_col}, service_id = excluded.service_id,
            service_name = excluded.service_name, description = excluded.description, billing = excluded.billing,
            quantity = excluded.quantity, unit_price = excluded.unit_price, commission = excluded.commission, sort_order = excluded.sort_order,
-           rates_json = excluded.rates_json, employee_count = excluded.employee_count
-         WHERE {table}.{parent_col} IS NOT excluded.{parent_col} OR {table}.service_id IS NOT excluded.service_id
+           rates_json = excluded.rates_json, employee_count = excluded.employee_count, unit = excluded.unit
+         WHERE {table}.unit IS NOT excluded.unit OR {table}.{parent_col} IS NOT excluded.{parent_col} OR {table}.service_id IS NOT excluded.service_id
            OR {table}.service_name IS NOT excluded.service_name OR {table}.description IS NOT excluded.description
            OR {table}.billing IS NOT excluded.billing OR {table}.quantity IS NOT excluded.quantity
            OR {table}.unit_price IS NOT excluded.unit_price OR {table}.commission IS NOT excluded.commission
@@ -717,13 +770,15 @@ pub fn save_lines(conn: &Connection, table: &str, parent_col: &str, parent_id: i
     );
     let mut stmt = conn.prepare_cached(&sql)?;
     for (i, l) in lines.iter().enumerate() {
+        // A custom line's unit decides its billing (and where its price lives) before it is written.
+        let l = &normalize_custom_line(l);
         let billing = if l.billing == "one_time" { "one_time" } else { "monthly" };
         let quantity = if l.quantity > 0.0 { l.quantity } else { 1.0 };
         stmt.execute(params![
             l.id, parent_id, l.service_id, l.service_name.trim(), l.description, billing, quantity, l.unit_price,
             l.commission as i64, i as i64,
             if l.rates.is_empty() { None } else { serde_json::to_string(&l.rates).ok() },
-            l.employee_count,
+            l.employee_count, l.unit,
         ])?;
     }
     Ok(())
@@ -731,7 +786,8 @@ pub fn save_lines(conn: &Connection, table: &str, parent_col: &str, parent_id: i
 
 pub fn read_documents(conn: &Connection) -> rusqlite::Result<HashMap<i64, Vec<ProposalDocument>>> {
     let mut stmt = conn.prepare(
-        "SELECT proposal_id, id, kind, version, file_name, path, url, notes, created_at FROM proposal_documents ORDER BY proposal_id, id",
+        "SELECT proposal_id, id, kind, version, file_name, path, url, notes, created_at, round, round_reason, sent_to_client_at, generated_sha256, carried_from_version, not_carried
+         FROM proposal_documents ORDER BY proposal_id, id",
     )?;
     let rows = stmt.query_map([], |r| {
         Ok((
@@ -745,6 +801,12 @@ pub fn read_documents(conn: &Connection) -> rusqlite::Result<HashMap<i64, Vec<Pr
                 url: r.get(6)?,
                 notes: r.get(7)?,
                 created_at: r.get(8)?,
+                round: r.get(9)?,
+                round_reason: r.get(10)?,
+                sent_to_client_at: r.get(11)?,
+                generated_sha256: r.get(12)?,
+                carried_from_version: r.get(13)?,
+                not_carried: r.get::<_, Option<i64>>(14)?.unwrap_or(0) != 0,
             },
         ))
     })?;
@@ -763,18 +825,24 @@ pub fn save_documents(conn: &Connection, proposal_id: i64, docs: &[ProposalDocum
         params![proposal_id, serde_json::to_string(&ids).unwrap_or_else(|_| "[]".into())],
     )?;
     let mut stmt = conn.prepare_cached(
-        "INSERT INTO proposal_documents (id, proposal_id, kind, version, file_name, path, url, notes, created_at)
-         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9)
+        "INSERT INTO proposal_documents (id, proposal_id, kind, version, file_name, path, url, notes, created_at, round, round_reason, sent_to_client_at, generated_sha256, carried_from_version, not_carried)
+         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15)
          ON CONFLICT(id) DO UPDATE SET proposal_id = excluded.proposal_id, kind = excluded.kind, version = excluded.version,
-           file_name = excluded.file_name, path = excluded.path, url = excluded.url, notes = excluded.notes, created_at = excluded.created_at
-         WHERE proposal_documents.kind IS NOT excluded.kind OR proposal_documents.version IS NOT excluded.version
+           file_name = excluded.file_name, path = excluded.path, url = excluded.url, notes = excluded.notes, created_at = excluded.created_at,
+           round = excluded.round, round_reason = excluded.round_reason, sent_to_client_at = excluded.sent_to_client_at,
+           generated_sha256 = excluded.generated_sha256, carried_from_version = excluded.carried_from_version, not_carried = excluded.not_carried
+         WHERE proposal_documents.round IS NOT excluded.round OR proposal_documents.round_reason IS NOT excluded.round_reason
+           OR proposal_documents.sent_to_client_at IS NOT excluded.sent_to_client_at OR proposal_documents.generated_sha256 IS NOT excluded.generated_sha256
+           OR proposal_documents.carried_from_version IS NOT excluded.carried_from_version OR proposal_documents.not_carried IS NOT excluded.not_carried
+           OR proposal_documents.kind IS NOT excluded.kind OR proposal_documents.version IS NOT excluded.version
            OR proposal_documents.file_name IS NOT excluded.file_name OR proposal_documents.path IS NOT excluded.path
            OR proposal_documents.url IS NOT excluded.url OR proposal_documents.notes IS NOT excluded.notes
            OR proposal_documents.proposal_id IS NOT excluded.proposal_id",
     )?;
     for d in docs {
         let kind = if d.kind.is_empty() { "proposal" } else { d.kind.as_str() };
-        stmt.execute(params![d.id, proposal_id, kind, d.version, d.file_name, d.path, d.url, d.notes, d.created_at])?;
+        stmt.execute(params![d.id, proposal_id, kind, d.version, d.file_name, d.path, d.url, d.notes, d.created_at,
+            d.round, d.round_reason, d.sent_to_client_at, d.generated_sha256, d.carried_from_version, d.not_carried.then_some(1i64)])?;
     }
     Ok(())
 }
@@ -885,19 +953,25 @@ pub fn create_agreements_core(conn: &Connection) -> rusqlite::Result<Vec<i64>> {
     create_agreements_for(conn, None)
 }
 
-/// Same, for one proposal only (`only`), or every qualifying one (None).
+/// Same, for one proposal only (`only`), or every qualifying one (None). The agreement takes the proposal's lines as
+/// they are (their options and priced rows with them), its term, entity and currency; it starts the day the
+/// service started when the proposal records one, else on the kickoff date, and ends a term later.
 pub fn create_agreements_for(conn: &Connection, only: Option<i64>) -> rusqlite::Result<Vec<i64>> {
     type Pending = (i64, String, Option<String>, Option<String>, Option<String>, Option<f64>, Option<i64>, Option<String>, Option<String>, Option<i64>, Option<String>, Option<i64>);
+    // An early migration calls this on a database that has no `service_started_at` yet (it arrives with migration 44).
+    // The same for a custom line's unit (migration 46).
+    let unit = if crate::db::column_exists(conn, "proposal_lines", "unit")? && crate::db::column_exists(conn, "agreement_lines", "unit")? { ", unit" } else { "" };
+    let start = if crate::db::column_exists(conn, "proposals", "service_started_at")? { "coalesce(nullif(p.service_started_at, ''), p.kickoff_date)" } else { "p.kickoff_date" };
     let pending: Vec<Pending> = {
-        let mut stmt = conn.prepare(
+        let mut stmt = conn.prepare(&format!(
             "SELECT p.id, p.client, p.type, p.dbl_signed_date, p.sent_date, p.monthly_fee, p.contract_months, p.hubspot,
-                    p.kickoff_date, p.business_entity_id, p.currency, p.company_id
+                    {start}, p.business_entity_id, p.currency, p.company_id
              FROM proposals p
              WHERE p.status IN (SELECT value FROM json_each(?1))
                AND NOT EXISTS (SELECT 1 FROM agreements a WHERE a.proposal_id = p.id)
                AND (?2 IS NULL OR p.id = ?2)
-             ORDER BY p.id",
-        )?;
+             ORDER BY p.id"
+        ))?;
         let statuses = serde_json::to_string(AGREEMENT_QUALIFYING_STATUSES).unwrap_or_else(|_| "[]".into());
         let rows = stmt.query_map(params![statuses, only], |r| {
             Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?, r.get(5)?, r.get(6)?, r.get(7)?, r.get(8)?, r.get(9)?, r.get(10)?, r.get(11)?))
@@ -936,9 +1010,11 @@ pub fn create_agreements_for(conn: &Connection, only: Option<i64>) -> rusqlite::
         )?;
         let id = conn.last_insert_rowid();
         conn.execute(
-            "INSERT INTO agreement_lines (agreement_id, service_id, service_name, description, billing, quantity, unit_price, commission, sort_order, rates_json, employee_count)
-             SELECT ?1, service_id, service_name, description, billing, quantity, unit_price, commission, sort_order, rates_json, employee_count
-             FROM proposal_lines WHERE proposal_id = ?2 ORDER BY sort_order, id",
+            &format!(
+                "INSERT INTO agreement_lines (agreement_id, service_id, service_name, description, billing, quantity, unit_price, commission, sort_order, rates_json, employee_count{unit})
+                 SELECT ?1, service_id, service_name, description, billing, quantity, unit_price, commission, sort_order, rates_json, employee_count{unit}
+                 FROM proposal_lines WHERE proposal_id = ?2 ORDER BY sort_order, id"
+            ),
             params![id, pid],
         )?;
         crate::v2_search::reindex_agreement(conn, id)?;

@@ -23,6 +23,7 @@ import { setCommitmentKept } from './commitments';
 import { toggleTodoDone } from './todo';
 import type { ActivityEntry, Agreement, Milestone } from '../lib/types';
 import type { FeedItem } from '../lib/activityFeed';
+import { draftAgreementFor } from '../core/agreements';
 
 type Rec = { kind: ThreadKind; id: number };
 const w = () => window as any;
@@ -64,19 +65,7 @@ export async function threadNext(action: string, kind: ThreadKind, id: number): 
     return;
   }
   if (action === 'create_project') { w().createProjectForOpportunity?.(id); return; }
-  if (action === 'draft_agreement') {
-    try {
-      const created = await invoke<Agreement[]>('draft_agreement_for_proposal', { proposalId: id });
-      if (!created.length) { toast('Nothing to draft', { detail: 'This proposal already has an agreement, or isn\'t signed by both parties.' }); return; }
-      S.agreements.push(...created);
-      markAgreementsSaved(created);
-      refreshAll();
-      toast(`Drafted ${created[0].agrRef || 'the agreement'}`, { detail: 'In Preparation, with the proposal\'s price lines — check the terms before sending.', action: { label: 'Open', run: () => w().openRecord('agreement', created[0].id) } });
-    } catch (err) {
-      toast('Could not draft the agreement', { tone: 'error', detail: String(err) });
-    }
-    return;
-  }
+  if (action === 'draft_agreement') { await draftAgreementFor(id); return; }
   // 'open': the record's own page has the button for its next step.
   const here = kind === 'proposal' && S.currentProposalId === id && document.getElementById('pr-detail')?.classList.contains('open');
   if (here) { (document.querySelector('#prd-actions .btn-primary') as HTMLElement | null)?.click(); return; }

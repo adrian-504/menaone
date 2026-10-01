@@ -3,6 +3,10 @@
 One entry per install, newest first: the version, the day it was installed, and in two lines what changed.
 Settings → Data shows the last five. `scripts/release-check.mjs` refuses a build whose version has no entry here.
 
+## 1.66 — 2026-10-01
+The proposal's deck: any version can be marked as the one sent to the client and leads the documents; a file edited after MENA One wrote it says so; beside the latest draft, a short check read from the file (highlights, comments, placeholder text, cover and letter dates, agenda pages) with Mark as sent — it warns, never blocks; "Revise prices" makes the next version with only the prices and dates changed, or names the price it can't place and offers to regenerate.
+A new proposal can start from a past one for any client (its services, prices, term and entity, never its client); a line can be a custom service with its own price, unit and scope, which gets its own slide; a deck with two or more services ends its fees with a summary; and a signed proposal drafts its agreement in one click.
+
 ## 1.65 — 2026-10-01
 Follow-up is by client and request: several proposals sent together are one row with the client's last word, who followed up last and how; a client's reply stops the clock; a Decide group asks to close, keep or snooze what has had no word for 60 days; several requests can be ticked and logged at once.
 "Followed up" is still one click, with optional details (day, who, channel, a line) you can edit later; Mark as sent asks who sent it; marking lost takes its day and who it was lost to; a proposal shows an "After the yes" checklist; Follow-up's menu copies a status list for Hassan.

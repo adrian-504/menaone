@@ -83,7 +83,8 @@ pub(crate) fn read_proposals(conn: &Connection) -> rusqlite::Result<Vec<Proposal
                 date_sent_to_client, date_signed, company_id, business_entity_id, currency, one_time_fee,
                 primary_contact_id, owner_id, reviewer_id, review_status, review_requested_at, reviewed_at,
                 review_note, valid_until, folder_path, lead_source, promised_by, request_group, revision, last_sent_at,
-                service_started_at, sent_by_id, accepted_at, engagement_letter_sent_at, lost_at, lost_to, keep_reason, keep_until
+                service_started_at, sent_by_id, accepted_at, engagement_letter_sent_at, lost_at, lost_to, keep_reason, keep_until,
+                based_on_id
          FROM proposals ORDER BY id",
     )?;
     let rows = stmt.query_map([], |r| {
@@ -139,6 +140,7 @@ pub(crate) fn read_proposals(conn: &Connection) -> rusqlite::Result<Vec<Proposal
             lost_to: r.get(45)?,
             keep_reason: r.get(46)?,
             keep_until: r.get(47)?,
+            based_on_id: r.get(48)?,
             revisions: Vec::new(),
         })
     })?;
@@ -397,8 +399,9 @@ pub fn write_proposals(conn: &mut Connection, items: &[Proposal]) -> rusqlite::R
                 doc_link, archived, archived_at, snoozed_until, date_sent_to_hassan, date_sent_to_client, date_signed, company_id,
                 business_entity_id, currency, one_time_fee, primary_contact_id, owner_id, reviewer_id, review_status,
                 review_requested_at, reviewed_at, review_note, valid_until, folder_path, lead_source, promised_by, request_group,
-                service_started_at, sent_by_id, accepted_at, engagement_letter_sent_at, lost_at, lost_to, keep_reason, keep_until)
-             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,?22,?23,?24,?25,?26,?27,?28,?29,?30,?31,?32,?33,?34,?35,?36,?37,?38,?39,?40,?41,?42,?43,?44,?45,?46)",
+                service_started_at, sent_by_id, accepted_at, engagement_letter_sent_at, lost_at, lost_to, keep_reason, keep_until,
+                based_on_id)
+             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,?22,?23,?24,?25,?26,?27,?28,?29,?30,?31,?32,?33,?34,?35,?36,?37,?38,?39,?40,?41,?42,?43,?44,?45,?46,?47)",
         )?;
         let mut nstmt = tx.prepare(
             "INSERT INTO proposal_activity_notes (id, proposal_id, note_date, text) VALUES (?1,?2,?3,?4)",
@@ -418,10 +421,18 @@ pub fn write_proposals(conn: &mut Connection, items: &[Proposal]) -> rusqlite::R
                 p.review_status, p.review_requested_at, p.reviewed_at, p.review_note, p.valid_until, p.folder_path, p.lead_source,
                 p.promised_by, p.request_group, p.service_started_at,
                 p.sent_by_id, p.accepted_at, p.engagement_letter_sent_at, p.lost_at, p.lost_to, p.keep_reason, p.keep_until,
+                // The whole table is rewritten: a proposal it was based on may not be there yet, so the link is set after.
+                Option::<i64>::None,
             ])?;
             for n in &p.notes {
                 nstmt.execute(params![n.id, p.id, n.date, n.text])?;
             }
+        }
+    }
+    // Now that every row is there: what each was started from (only another proposal in this set).
+    for p in items {
+        if let Some(b) = p.based_on_id.filter(|b| *b != p.id && items.iter().any(|x| x.id == *b)) {
+            tx.execute("UPDATE proposals SET based_on_id = ?2 WHERE id = ?1", params![p.id, b])?;
         }
     }
     for p in items {
@@ -667,6 +678,7 @@ const PROPOSAL_COLS: &[&str] = &[
     "review_requested_at", "reviewed_at", "review_note", "valid_until", "folder_path", "lead_source",
     "promised_by", "request_group", "revision", "last_sent_at", "service_started_at",
     "sent_by_id", "accepted_at", "engagement_letter_sent_at", "lost_at", "lost_to", "keep_reason", "keep_until",
+    "based_on_id",
 ];
 const ACTIVITY_NOTE_COLS: &[&str] = &["id", "proposal_id", "note_date", "text"];
 const CONTACT_COLS: &[&str] = &["id", "client_name", "name", "role", "email", "phone", "whatsapp", "service", "company_id", "is_decision_maker"];
@@ -685,6 +697,14 @@ pub fn upsert_proposal_rows(conn: &mut Connection, items: &[Proposal]) -> rusqli
     tx.commit()
 }
 
+/// The proposal one was started from, kept only while that proposal exists (and is not itself): a link to a row
+/// that is gone would be refused by the database, and what it was based on is a fact worth losing quietly.
+fn based_on_in(conn: &Connection, p: &Proposal) -> rusqlite::Result<Option<i64>> {
+    let Some(id) = p.based_on_id.filter(|id| *id != p.id) else { return Ok(None) };
+    let there: bool = conn.query_row("SELECT EXISTS(SELECT 1 FROM proposals WHERE id = ?1)", params![id], |r| r.get(0))?;
+    Ok(there.then_some(id))
+}
+
 pub fn upsert_proposal_rows_in(tx: &Connection, items: &[Proposal]) -> rusqlite::Result<()> {
     for p in items {
         let prior = crate::opportunities::prior_company(tx, "proposals", Some("client"), p.id)?;
@@ -698,6 +718,7 @@ pub fn upsert_proposal_rows_in(tx: &Connection, items: &[Proposal]) -> rusqlite:
             p.review_status, p.review_requested_at, p.reviewed_at, p.review_note, p.valid_until, p.folder_path, p.lead_source,
             p.promised_by, p.request_group, p.revision.max(1), p.last_sent_at, p.service_started_at,
             p.sent_by_id, p.accepted_at, p.engagement_letter_sent_at, p.lost_at, p.lost_to, p.keep_reason, p.keep_until,
+            based_on_in(tx, p)?,
         ])?;
         let note_ids: Vec<i64> = p.notes.iter().map(|n| n.id).collect();
         tx.execute(

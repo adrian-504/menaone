@@ -75,6 +75,8 @@ export interface Proposal {
   /** Follow-up's "Keep with a reason" (1.65): why, and the day it may be asked about again. */
   keepReason?: string | null;
   keepUntil?: string | null;
+  /** The proposal this one was started from (1.66): its lines, term, options and entity were copied. */
+  basedOnId?: number | null;
   revisions?: ProposalRevision[];
 }
 
@@ -156,8 +158,14 @@ export interface CommercialLine {
   rates?: LineRate[];
   /** Employees the client has, when known (tranche services). */
   employeeCount?: number | null;
+  /** A custom line's unit (1.66); not set on a catalogue line. Its billing follows it (lib/customLine.ts). */
+  unit?: LineUnit | null;
   /** Workforce proposals that include the recruitment process slides. */
 }
+
+/** How a custom line is priced. The first two are a sum that counts in the totals; the other three say how it is
+ * priced and never count. */
+export type LineUnit = 'per_month' | 'one_time' | 'per_person_per_month' | 'per_visa' | 'percent_of_annual_package';
 
 export interface LineRate {
   label: string;
@@ -178,6 +186,18 @@ export interface ProposalDocument {
   url: string | null;
   notes: string | null;
   createdAt: string | null;
+  /** A review round (1.66): internal or client. Not set on what was recorded before. */
+  round?: 'internal' | 'client' | null;
+  /** The one line a client revision takes. */
+  roundReason?: string | null;
+  /** The day this version was marked as the one sent to the client. */
+  sentToClientAt?: string | null;
+  /** The file's SHA-256 when MENA One wrote it; "edited after generation" is said only when this is set and the file now differs. */
+  generatedSha256?: string | null;
+  /** The version a price revision was made from. */
+  carriedFromVersion?: number | null;
+  /** A regenerated version made after hand edits: "hand edits from V<n> not carried". */
+  notCarried?: boolean;
 }
 
 export interface Service {

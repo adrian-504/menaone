@@ -129,6 +129,9 @@ pub struct Proposal {
     pub keep_reason: Option<String>,
     #[serde(default)]
     pub keep_until: Option<String>,
+    /// The proposal this one was started from (migration 46): its lines, term, options and entity were copied.
+    #[serde(default)]
+    pub based_on_id: Option<i64>,
     #[serde(default)]
     pub revisions: Vec<ProposalRevision>,
 }
@@ -155,7 +158,7 @@ pub struct ProposalRevision {
 }
 
 /// One service on a proposal or agreement.
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct CommercialLine {
     pub id: i64,
@@ -183,6 +186,11 @@ pub struct CommercialLine {
     /// Employees the client has, when known (tranche services).
     #[serde(default)]
     pub employee_count: Option<i64>,
+    /// A custom line's unit (migration 46): per_month | per_person_per_month | per_visa | one_time |
+    /// percent_of_annual_package. None on every catalogue line. `billing` follows it on save
+    /// (commercial.rs `normalize_custom_line`), so the two never disagree.
+    #[serde(default)]
+    pub unit: Option<String>,
 }
 
 /// One priced row of a proposal line.
@@ -233,6 +241,25 @@ pub struct ProposalDocument {
     pub notes: Option<String>,
     #[serde(default)]
     pub created_at: Option<String>,
+    /// A review round (migration 46): internal | client. None on what was recorded before.
+    #[serde(default)]
+    pub round: Option<String>,
+    /// The one line a client revision takes.
+    #[serde(default)]
+    pub round_reason: Option<String>,
+    /// The day this version was marked as the one sent to the client.
+    #[serde(default)]
+    pub sent_to_client_at: Option<String>,
+    /// The file's SHA-256 when MENA One wrote it. "Edited after generation" is said only when this is set and the
+    /// file now differs.
+    #[serde(default)]
+    pub generated_sha256: Option<String>,
+    /// The version a price revision was made from (the file it copied).
+    #[serde(default)]
+    pub carried_from_version: Option<i64>,
+    /// A regenerated version made after hand edits: "hand edits from V<n> not carried".
+    #[serde(default)]
+    pub not_carried: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]

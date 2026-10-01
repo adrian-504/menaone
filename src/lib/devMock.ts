@@ -7,6 +7,9 @@
 import catalogSeed from '../../src-tauri/src/catalog_seed.json';
 import type { Agreement, CommercialSetup, AppData, Project, Area, Meeting, InboxItem, NoteTemplate, Milestone, NoteRef, EmailRecord, EmailCompletedRecord, IntelligenceItem, Company, Opportunity, OpportunityActivity, ProjectActivity, EntityLink, ReviewQueueEntry, SavedList , Touch, EmailTemplate } from './types';
 
+/** The sample Proposals folder (the same one the Files preview lists). */
+const MOCK_PROPOSALS = '/Users/demo/Library/CloudStorage/OneDrive-MENABIG/MENA BD 2026/Proposals';
+
 const SAMPLE: AppData = {
   proposals: [
     {
@@ -30,7 +33,8 @@ const SAMPLE: AppData = {
       dateSentToClient: null, dateSigned: null, notes: [],
       businessEntityId: 1, currency: 'SAR', reviewerId: 1, reviewStatus: 'pending', reviewRequestedAt: '2026-09-10', leadSource: 'Referral',
       lines: [{ id: 3, serviceId: 18, serviceName: 'Recruitment', description: null, billing: 'monthly', quantity: 1, unitPrice: 7000, commission: false, sortOrder: 0 }],
-      documents: [],
+      // 1.66: a draft with Hassan — the check before sending reads it.
+      documents: [{ id: 201, kind: 'proposal', version: 1, fileName: 'Acme_Recruitment_12.09.2026.pptx', path: `${MOCK_PROPOSALS}/Acme Holdings/Acme_Recruitment_12.09.2026.pptx`, url: null, notes: 'Generated from Recruitment Proposal Template', createdAt: '2026-09-12', round: 'internal', generatedSha256: `mock:${MOCK_PROPOSALS}/Acme Holdings/Acme_Recruitment_12.09.2026.pptx` }],
     },
     // An old proposal never closed: dormant on Company 360, waiting in Clean-up.
     {
@@ -48,7 +52,11 @@ const SAMPLE: AppData = {
       dateSentToClient: '2026-09-02', dateSigned: null, notes: [], validUntil: '2026-10-02',
       businessEntityId: 1, currency: 'SAR', reviewerId: 1, reviewStatus: 'approved', reviewedAt: '2026-09-01',
       lines: [{ id: 4, serviceId: 15, serviceName: 'Payroll', description: null, billing: 'monthly', quantity: 1, unitPrice: 5000, commission: false, sortOrder: 0 }],
-      documents: [],
+      // 1.66: V1 is the one the client has (edited by hand after it was generated); V2 is a price revision not sent yet.
+      documents: [
+        { id: 301, kind: 'proposal', version: 1, fileName: 'Northwind Trading_Payroll Proposal_02.09.2026_V1.pptx', path: `${MOCK_PROPOSALS}/Northwind Trading/Northwind Trading_Payroll Proposal_02.09.2026_V1.pptx`, url: null, notes: 'Generated from Payroll Proposal Template', createdAt: '2026-09-01', round: 'internal', sentToClientAt: '2026-09-02', generatedSha256: 'mock:as-generated' },
+        { id: 302, kind: 'proposal', version: 2, fileName: 'Northwind Trading_Payroll Proposal_28.09.2026_V2.pptx', path: `${MOCK_PROPOSALS}/Northwind Trading/Northwind Trading_Payroll Proposal_28.09.2026_V2.pptx`, url: null, notes: 'Prices revised from V1: 3 amounts updated on slides 9 and 10; dates on slides 1 and 2', createdAt: '2026-09-28', round: 'client', roundReason: 'Price for 40 employees', carriedFromVersion: 1, generatedSha256: `mock:${MOCK_PROPOSALS}/Northwind Trading/Northwind Trading_Payroll Proposal_28.09.2026_V2.pptx` },
+      ],
     },
     // My Day 1.57 (Proposals in play): a request with a promise, one without, a revision the client asked for, an offer about to expire.
     { id: 5, primaryContactId: 3, client: 'Northwind Trading', companyId: 2, type: 'GM Representative', status: 'Proposal Request Received', sentDate: null, dateAdded: '2026-09-24', promisedBy: '2026-10-02', monthlyFee: 6500, contractMonths: 12, dateSentToHassan: null, dateSentToClient: null, dblSignedDate: null, kickoffDate: null, finance: null, hubspot: null, owner: 'Ahmad', remarks: null, winLossReason: null, docLink: null, archived: false, archivedAt: null, snoozedUntil: null, dateSigned: null, notes: [], businessEntityId: 1, currency: 'SAR', documents: [],
@@ -344,7 +352,7 @@ const msFilesStore: { id: number; path: string; name: string; itemType: string }
 // The mock OneDrive (1.63): the proposals folder with seven client folders — five matched to companies, two not —
 // and a few files in each, so Files shows folder tiles, file cards and the matching banner.
 const OD = '/Users/demo/Library/CloudStorage/OneDrive-MENABIG';
-const PR = `${OD}/MENA BD 2026/Proposals`;
+const PR = MOCK_PROPOSALS;
 type MockFile = { path: string; name: string; isFolder: boolean; modifiedAt?: string };
 const mockFiles = (dir: string, names: [string, string][]): MockFile[] => names.map(([name, modifiedAt]) => ({ path: `${dir}/${name}`, name, isFolder: !/\.[a-z0-9]+$/i.test(name), modifiedAt: `${modifiedAt}T09:00:00Z` }));
 const mockOneDriveTree: Record<string, MockFile[]> = {
@@ -353,7 +361,7 @@ const mockOneDriveTree: Record<string, MockFile[]> = {
   [PR]: mockFiles(PR, [['Acme Holdings', '2026-10-01'], ['Northwind Trading', '2026-09-02'], ['Globex', '2026-09-22'], ['Red Sea Global', '2026-09-26'], ['Elite HR', '2026-09-27'], ['Al Faisal Group', '2026-08-12'], ['Old pitches', '2025-11-03']]),
   [`${PR}/Acme Holdings`]: mockFiles(`${PR}/Acme Holdings`, [['Correspondence', '2026-09-12'], ['Acme Holdings_Payroll Proposal_10.01.2026_V1.pptx', '2026-01-10'], ['Acme_Recruitment_12.09.2026.pptx', '2026-09-12'], ['Retainer Agreement.docx', '2026-01-20'], ['Signed agreement.pdf', '2026-01-22'], ['Fee model.xlsx', '2026-09-05'], ['GOSI registrations.xlsx', '2026-09-20'], ['Onboarding checklist.pdf', '2026-09-02'], ['Logo.png', '2026-01-05'], ['Headcount October.xlsx', '2026-10-01']]),
   [`${PR}/Acme Holdings/Correspondence`]: [],
-  [`${PR}/Northwind Trading`]: mockFiles(`${PR}/Northwind Trading`, [['Northwind Trading_Payroll Proposal_02.09.2026_V1.pptx', '2026-09-02'], ['Commercials.xlsx', '2026-09-01'], ['Company profile.pdf', '2026-08-28'], ['NDA.docx', '2026-08-20']]),
+  [`${PR}/Northwind Trading`]: mockFiles(`${PR}/Northwind Trading`, [['Northwind Trading_Payroll Proposal_02.09.2026_V1.pptx', '2026-09-02'], ['Northwind Trading_Payroll Proposal_28.09.2026_V2.pptx', '2026-09-28'], ['Commercials.xlsx', '2026-09-01'], ['Company profile.pdf', '2026-08-28'], ['NDA.docx', '2026-08-20']]),
   [`${PR}/Globex`]: mockFiles(`${PR}/Globex`, [['GLX_BS_renewal_draft.docx', '2026-09-30'], ['Globex_Business setup Proposal_22.09.2026_V2.pptx', '2026-09-22'], ['Licence.pdf', '2026-02-11']]),
   [`${PR}/Red Sea Global`]: mockFiles(`${PR}/Red Sea Global`, [['Red Sea Global_EOR Proposal_26.09.2026_V1.pptx', '2026-09-26'], ['Rate card.xlsx', '2026-09-24']]),
   [`${PR}/Elite HR`]: mockFiles(`${PR}/Elite HR`, [['Elite HR_Recruitment Proposal_27.09.2026_V1.pptx', '2026-09-27']]),
@@ -424,7 +432,25 @@ let templatesStore: NoteTemplate[] = [
 let nextTemplateId = 100;
 let nextAttachmentId = 1;
 /** The preview part of a mock generation (slides, values, report). */
+/** The slides MENA One adds itself (1.66): one per custom line of the proposal, and the summary for two or more services. */
+function mockAddedSlides(r: any, from: number): any[] {
+  const lines = ((SAMPLE.proposals.find((x: any) => x.id === r.proposalId) as any)?.lines || []).filter((l: any) => (l.serviceName || '').trim());
+  const on = (index: number) => !r.keep || r.keep.includes(index);
+  const added = lines.filter((l: any) => l.unit).map((l: any, k: number) => ({ index: from + k + 1, slideId: '', title: l.serviceName, included: on(from + k + 1), reason: 'A custom line: its scope and fee', source: 'Added by MENA One' }));
+  if (lines.length >= 2) added.push({ index: from + added.length + 1, slideId: '', title: 'Summary of fees', included: on(from + added.length + 1), reason: 'Every service\u2019s fee and the totals', source: 'Added by MENA One' });
+  return added;
+}
+
 function mockBuildDeck(r: any): any {
+  const built = mockBuildDeckBase(r);
+  // Listed where they go in the deck: after the last service slide (here, before the terms).
+  const added = mockAddedSlides(r, built.slides.length);
+  const at = Math.max(0, built.slides.findIndex((s: any) => /terms|acceptance/i.test(s.title)));
+  built.slides.splice(at > 0 ? at : built.slides.length, 0, ...added);
+  return built;
+}
+
+function mockBuildDeckBase(r: any): any {
           if (r.fromLibrary) {
             const src = (i: number) => (i >= 11 && i <= 13 ? 'Labor Law - HR - Manpower Consultancy Services Proposal Template' : 'Accountancy & VAT Service Proposal Template');
             const titles = ['Cover', 'Attn: Acme Holdings', 'AGENDA', 'Detailed Approach & Project Fees', 'ACCOUNTANCY SERVICES', 'Detailed Approach', 'Detailed Approach', 'Detailed Approach', 'ACCOUNTANCY FEES BREAKDOWN', 'Value Based', 'LABOR LAW & EMPLOYMENT', 'Detailed Approach', 'Value Based', 'Terms & Conditions, and Acceptance', 'Terms', 'Applicable Law', 'We believe that this proposal', 'About MENA BIG', '50+ Clients', 'Selected References', 'MENA - BIG'];
@@ -540,7 +566,8 @@ export async function installDevMockIfNeeded(): Promise<void> {
           const named = Number((r.fileName.match(/_V(\d+)\.pptx$/i) || [])[1] || 0);
           const version = Math.max(recorded + 1, named);
           const id = 900 + generatedDecks.length + 1;
-          const document = { id, kind: 'proposal', version, fileName: r.fileName, path: built.path, url: null, notes: `Generated from ${built.baseTemplate || 'Standard deck'}`, createdAt: new Date().toISOString().slice(0, 10) };
+          const document = { id, kind: 'proposal', version, fileName: r.fileName, path: built.path, url: null, notes: `Generated from ${built.baseTemplate || 'Standard deck'}`, createdAt: new Date().toISOString().slice(0, 10),
+            round: r.round ?? null, roundReason: r.roundReason ?? null, carriedFromVersion: r.notCarriedFrom ?? null, notCarried: r.notCarriedFrom != null, generatedSha256: `mock:${built.path}` };
           generatedDecks.push({ proposalId: r.proposalId, fileName: r.fileName, version });
           return { ...built, errors: [], document };
         }
@@ -641,6 +668,18 @@ export async function installDevMockIfNeeded(): Promise<void> {
         }
         case 'sync_agreements_from_proposals':
           return [];
+        // "Draft agreement" from one signed proposal: its lines, term, entity and service start (commercial.rs).
+        case 'draft_agreement_for_proposal': {
+          const p = SAMPLE.proposals.find((x) => x.id === (_payload as any)?.proposalId) as any;
+          if (!p || p.status !== 'Signed by Both Parties' || SAMPLE.agreements.some((a: any) => a.proposalId === p.id)) return [];
+          const id = Math.max(0, ...SAMPLE.agreements.map((a: any) => a.id)) + 1;
+          const start = p.serviceStartedAt || p.kickoffDate || null;
+          const agreement = { id, agrRef: `DRAFT_${String(id).padStart(3, '0')}_1026`, client: p.client, companyId: p.companyId ?? null, type: p.type, status: 'In Preparation', preparedBy: '', datePrepared: '', dateSentToClient: '', dateClientSigned: '', dateMenaSigned: '', dateFiled: '',
+            monthlyFee: p.monthlyFee ?? null, contractMonths: p.contractMonths ?? null, proposalId: p.id, hubspot: '', docLink: null, actionDate: p.dblSignedDate || '', remarks: `Auto-created from proposal SL# ${p.id} (${p.type || ''})`, createdAt: new Date().toISOString(),
+            businessEntityId: p.businessEntityId ?? null, currency: p.currency ?? 'SAR', startDate: start, endDate: null, serviceStatus: null, lines: (p.lines || []).map((l: any) => ({ ...l })) };
+          (SAMPLE.agreements as any[]).push(agreement);
+          return [agreement];
+        }
         case 'get_activity': {
           const f = (_payload as any)?.filter ?? {};
           const now = Date.now();
@@ -916,6 +955,43 @@ export async function installDevMockIfNeeded(): Promise<void> {
           }
           return null;
         }
+        // Revise prices: the Acme draft takes its new prices in place; a Northwind deck has a price with no row, so
+        // it offers to regenerate.
+        case 'proposal_revise_prices': {
+          const r = (_payload as any).request;
+          const p = SAMPLE.proposals.find((x: any) => x.id === r.proposalId) as any;
+          const src = (p?.documents || []).find((d: any) => d.id === r.documentId);
+          if (!p || !src) throw 'That version is not one of this proposal\u2019s decks.';
+          const from = `V${src.version}`;
+          const stuck = /Northwind/.test(src.fileName);
+          const report = stuck
+            ? { amounts: 0, amountSlides: [], termSlides: [], dateSlides: [1, 2], rowsFound: 1, unplaced: ['Payroll: 16\u201330 employees'], blocked: [], checks: [], termsStated: [12] }
+            : { amounts: 3, amountSlides: [9, 10], termSlides: [], dateSlides: [1, 2], rowsFound: 4, unplaced: [], blocked: [], checks: [], termsStated: [12] };
+          const line = `Prices revised from ${from}: 3 amounts updated on slides 9 and 10; dates on slides 1 and 2`;
+          const base = { report, canSave: !stuck, reason: stuck ? `One price has no row in ${from}: Payroll: 16\u201330 employees.` : '', line, fromVersion: src.version, fileName: r.fileName, path: null, document: null };
+          if (r.dryRun || stuck) return base;
+          const version = Math.max(0, ...(p.documents || []).filter((d: any) => d.kind === 'proposal').map((d: any) => d.version || 0), ...generatedDecks.filter((d) => d.proposalId === r.proposalId).map((d) => d.version)) + 1;
+          const path = `${String(src.path).split('/').slice(0, -1).join('/')}/${r.fileName}`;
+          generatedDecks.push({ proposalId: r.proposalId, fileName: r.fileName, version });
+          return { ...base, path, document: { id: 950 + generatedDecks.length, kind: 'proposal', version, fileName: r.fileName, path, url: null, notes: line, createdAt: new Date().toISOString().slice(0, 10), round: r.round ?? null, roundReason: r.roundReason ?? null, carriedFromVersion: src.version, notCarried: false, generatedSha256: `mock:${path}` } };
+        }
+        // The check before sending: the Acme draft still has things to fix; any other sample deck is clean.
+        case 'proposal_send_check': {
+          const path = String((_payload as any)?.path || '');
+          const fileName = path.split('/').pop() || path;
+          if (!/\.pptx$/i.test(fileName)) return { fileName, checked: false, note: 'Not a PowerPoint file, not checked', lines: [], slideCount: 0 };
+          const rough = /Acme_Recruitment/.test(fileName);
+          return { fileName, checked: true, note: '', slideCount: 14, lines: [
+            rough ? { key: 'highlights', label: 'Highlights left', status: 'fail', detail: 'Text still highlighted on slides 9 and 10', slides: [9, 10] } : { key: 'highlights', label: 'No highlights left', status: 'pass', detail: '', slides: [] },
+            rough ? { key: 'marks', label: 'Red text: check these', status: 'check', detail: 'Text in red on slide 6', slides: [6] } : { key: 'marks', label: 'No review marks', status: 'pass', detail: '', slides: [] },
+            { key: 'placeholders', label: 'No placeholder text', status: 'pass', detail: '', slides: [] },
+            { key: 'dates', label: 'Cover and letter dates match', status: 'pass', detail: rough ? '12 September 2026' : '28 September 2026', slides: [1, 2] },
+            rough ? { key: 'agenda', label: 'Agenda: not found, not checked', status: 'not_checked', detail: 'No agenda slide with a page number for each section', slides: [] } : { key: 'agenda', label: 'Agenda page numbers match', status: 'pass', detail: '', slides: [] },
+          ] };
+        }
+        // A file's fingerprint in the preview is its path: a sample deck "edited by hand" simply recorded another one.
+        case 'files_fingerprints':
+          return (((_payload as any)?.paths ?? []) as string[]).map((path) => ({ path, exists: true, sha256: `mock:${path}` }));
         case 'files_list_roots':
           return [{ path: OD, name: 'MENA BIG', isFolder: true, size: null, modifiedAt: null, exists: true }];
         case 'files_list_folder': {

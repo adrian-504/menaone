@@ -1,3 +1,4 @@
+import { markSentVersion } from '../lib/proposalDocuments';
 import { proposalCascade } from '../lib/chromeKit';
 import { nudgeTip } from '../lib/pagesQueues';
 import { applyStatus, defaultSender } from '../lib/bulkProposals';
@@ -158,11 +159,12 @@ registerBadgeUpdater(updateBadge);
 
 /** Records a status change with the dates and review state that go with it.
  * No questions asked — use changeProposalStatus from the UI. */
-export function updateStatus(id: number, newStatus: string, o: { date?: string; sentById?: number | null } = {}): void {
+export function updateStatus(id: number, newStatus: string, o: { date?: string; sentById?: number | null; /** The version that went (1.66): marked as the one sent to the client, that day. */ sentDocId?: number } = {}): void {
   const p = S.proposals.find((x) => x.id === id);
   if (!p || p.status === newStatus) return;
   // What the status sets (review asked, the day sent, the day signed) is one rule, shared with the batch change.
   const { revisionSent } = applyStatus(p, newStatus, o.date || today(), { defaultReviewerId: defaultReviewer()?.id ?? null, explicit: !!o.date, sentById: o.sentById });
+  if (newStatus === PS.SENT && o.sentDocId != null) markSentVersion(p, o.sentDocId, o.date || today());
   persistProposals();
   updateBadge();
   refreshAll();
@@ -177,7 +179,7 @@ expose('updateStatus', updateStatus);
 
 /** Status change from any screen: winning or losing asks for the reason,
  * and sending an unreviewed proposal asks first (every proposal is reviewed). */
-export async function changeProposalStatus(id: number, newStatus: string): Promise<boolean> {
+export async function changeProposalStatus(id: number, newStatus: string, o: { sentDocId?: number } = {}): Promise<boolean> {
   const p = S.proposals.find((x) => x.id === id);
   if (!p || p.status === newStatus) return false;
   if (newStatus === PS.WON) { openWlModal(id, 'won'); return false; }
@@ -191,9 +193,9 @@ export async function changeProposalStatus(id: number, newStatus: string): Promi
   // opens the one question for the rest (owner, 1-Oct-2026: the common case is one click, details are optional).
   if (newStatus === PS.SENT) {
     const restore = snapshotProposal(p);
-    updateStatus(id, newStatus, { sentById: p.ownerId ?? null });
+    updateStatus(id, newStatus, { sentById: p.ownerId ?? null, sentDocId: o.sentDocId });
     const undo = () => { restore(); if (S.currentProposalId === id) (window as any).renderProposalPage?.(); };
-    undoToast(`${p.client}: marked as sent today`, undo, undefined, { label: 'Change day or sender', run: () => { void changeSent(id, restore); } });
+    undoToast(`${p.client}: marked as sent today`, undo, undefined, { label: 'Change day or sender', run: () => { void changeSent(id, restore, o.sentDocId); } });
     return true;
   }
   updateStatus(id, newStatus);
@@ -202,13 +204,13 @@ export async function changeProposalStatus(id: number, newStatus: string): Promi
 
 /** "Change day or sender" on a proposal just marked sent: the one question (the day, and who sent it), then the
  * send is redone with the answer. Cancelled, it stays as it was marked. */
-async function changeSent(id: number, restore: () => void): Promise<void> {
+async function changeSent(id: number, restore: () => void, sentDocId?: number): Promise<void> {
   const p = S.proposals.find((x) => x.id === id);
   if (!p) return;
   const sent = await askSent({ title: `${p.client} — sent to the client`, label: `The day ${p.type || 'it'} was sent`, confirmLabel: 'Save' }, [p]);
   if (!sent) return;
   restore();
-  updateStatus(id, PS.SENT, sent);
+  updateStatus(id, PS.SENT, { ...sent, sentDocId });
   if (S.currentProposalId === id) (window as any).renderProposalPage?.();
   undoToast(`${p.client}: sent ${fmtDateShort(sent.date, true)}`, () => { restore(); if (S.currentProposalId === id) (window as any).renderProposalPage?.(); });
 }

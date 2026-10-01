@@ -21,6 +21,7 @@ import { renderIcons } from '../core/chrome';
 import { lineTotals, nextDeckFileName, applyGeneratedDocument, proposalDecks, PS } from '../lib/commercial';
 import { designOptions } from '../lib/generateChoice';
 import type { GenerateResult } from '../lib/types';
+import { defaultRound, type Round } from '../lib/revisePrices';
 
 const w = window as any;
 
@@ -52,7 +53,10 @@ export async function renderTemplatesView(container: HTMLElement): Promise<void>
 // ═══════════════ Generate proposal: the studio sheet ═══════════════
 
 type Phase = 'edit' | 'working' | 'done';
-let generating: { proposalId: number; preview: GenerateResult | null; keep: Set<number> | null; phase: Phase; result?: GenerateResult; error?: string } | null = null;
+/** What a generated version is recorded with (1.66): its review round, and the version it replaces when it was
+ * regenerated instead of revised in place. */
+interface Marks { round: Round | null; roundReason: string | null; notCarriedFrom?: number | null }
+let generating: { proposalId: number; preview: GenerateResult | null; keep: Set<number> | null; phase: Phase; result?: GenerateResult; error?: string; marks: Marks } | null = null;
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T | null;
 const current = () => (generating ? S.proposals.find((x) => x.id === generating!.proposalId) : undefined);
@@ -79,11 +83,12 @@ function paintHeader(): void {
   if (tile) { tile.textContent = initialsOf(p.client); tile.style.background = strColor(p.client); }
   const title = $('gen-title'); if (title) title.textContent = `${p.client} — ${services} proposal`;
   const v = nextVersion();
-  const sub = $('gen-sub'); if (sub) sub.textContent = `Generate V${v} · ${templateLabel()}`;
+  const from = generating?.marks.notCarriedFrom;
+  const sub = $('gen-sub'); if (sub) sub.textContent = `Generate V${v} · ${templateLabel()}${from ? ` · built afresh: edits made by hand in V${from} are not carried` : ''}`;
   const btn = $<HTMLButtonElement>('gen-confirm'); if (btn && generating?.phase === 'edit') btn.textContent = `Generate V${v}`;
 }
 
-export async function openGenerateProposal(proposalId: number): Promise<void> {
+export async function openGenerateProposal(proposalId: number, marks?: Marks): Promise<void> {
   const p = S.proposals.find((x) => x.id === proposalId);
   if (!p) return;
   const library = await proposalLibrary().catch(() => null);
@@ -110,7 +115,9 @@ export async function openGenerateProposal(proposalId: number): Promise<void> {
     logoSel.innerHTML = `<option value="">No logo — remove the "Logo" box</option>` + [...likely, ...logos.filter((f) => !likely.includes(f))]
       .map((f, i) => `<option value="${escHtml(f.path)}"${i === 0 && likely.length ? ' selected' : ''}>${escHtml(f.name)}${/logo/i.test(f.name) ? '' : ' (image in the client folder)'}</option>`).join('');
   }
-  generating = { proposalId, preview: null, keep: null, phase: 'edit' };
+  // Without a word from the caller, the round follows the proposal: internal until it has gone to the client.
+  const round = defaultRound(p);
+  generating = { proposalId, preview: null, keep: null, phase: 'edit', marks: marks ?? { round: round.round, roundReason: round.reason || null } };
   resetFooter();
   const controls = $('gen-controls'); if (controls) controls.hidden = false;
   paintHeader();
@@ -134,7 +141,7 @@ function request(dryRun: boolean) {
   const templateId = 0;
   const fileName = $<HTMLInputElement>('gen-file-name')!.value.trim();
   const logoPath = $<HTMLSelectElement>('gen-logo')?.value || null;
-  return { proposalId: generating!.proposalId, templateId, date: localIsoDate(new Date()), fileName, keep: generating!.keep ? [...generating!.keep] : null, logoPath, dryRun, fromLibrary, fromMaster };
+  return { proposalId: generating!.proposalId, templateId, date: localIsoDate(new Date()), fileName, keep: generating!.keep ? [...generating!.keep] : null, logoPath, dryRun, fromLibrary, fromMaster, ...generating!.marks };
 }
 
 export async function refreshGeneratePreview(resetSlides = false): Promise<void> {

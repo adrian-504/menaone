@@ -1946,6 +1946,13 @@ body.dnd-active .opp-board .board-column.stage-hidden{display:flex}
 .le-service-cell{min-width:220px}
 .le-service-sel{width:100%;font-weight:600}
 .le-desc{width:100%;margin-top:2px;color:var(--sub)}
+/* 1.66: a custom line — a named service outside the catalogue, with its unit and a short scope. */
+.le-custom-hd{display:flex;align-items:center;gap:8px}
+.le-custom-tag{flex:none;padding:1px 7px;border-radius:6px;background:var(--surface-2);color:var(--sub);font-size:var(--type-caption);font-weight:500}
+.le-custom-name{flex:1;min-width:0;font-weight:500}
+.le-custom-scope{display:block;width:100%;margin-top:4px;color:var(--sub);resize:vertical;min-height:44px;line-height:1.4}
+.le-unit-text{font-weight:400;font-size:var(--type-meta);color:var(--sub);white-space:normal}
+.le-adds{display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap}
 .le-billing-sel{min-width:96px}
 .le-qty{width:56px;text-align:right}
 .le-price{width:110px;text-align:right}
@@ -2802,6 +2809,12 @@ body.brief-open{overflow:hidden}
 .prb-top{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:10px 0 4px}
 .prb-top .prb-chip svg{color:var(--muted)}
 .prb-browse{margin-left:2px}
+.prb-from{position:relative;max-width:480px;margin:8px 0 2px}
+.prb-from[hidden],.prb-from-line[hidden]{display:none}
+.prb-from-row{flex-direction:column;align-items:flex-start;gap:1px}
+.prb-from-none{padding:8px 10px;font-size:var(--type-secondary);color:var(--sub)}
+.prb-from-line{display:flex;align-items:center;gap:10px;margin:8px 0 2px;font-size:var(--type-secondary);color:var(--sub)}
+.prb-from-line .rlink{font:inherit;background:none;border:none;padding:0;color:var(--accent);cursor:pointer}
 .prb-service-picker{margin-top:10px}
 #prb-lines:not(:empty){margin-top:12px}
 .prb-defaults{display:flex;align-items:center;gap:10px;color:var(--sub);font-size:var(--type-body);margin:2px 0 10px}
@@ -3376,6 +3389,39 @@ body.dnd-active [data-sort-shift] .dnd-source{opacity:0}
 .deck-latest{padding:0 6px;border-radius:6px;background:color-mix(in srgb,var(--coral) 14%,transparent);color:var(--coral-text);font-weight:600}
 .deck-hand{padding:0 6px;border-radius:6px;background:var(--surface-2);color:var(--sub)}
 .deck-tile-file{font-size:var(--type-meta);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* 1.66: the version the client has leads the section and says so; a version's round, a regeneration that left hand
+   edits behind and a file edited after MENA One wrote it are one quiet line under its status. */
+.deck-tile.is-sent{border-color:color-mix(in srgb,var(--green) 45%,var(--hairline))}
+.deck-line.t-green{color:var(--green);font-weight:500}
+.deck-tile-marks{display:flex;flex-wrap:wrap;gap:0 5px;font-size:var(--type-meta);color:var(--sub);line-height:1.4}
+.deck-tile-marks i{font-style:normal;color:var(--muted)}
+.deck-tile-note{font-size:var(--type-meta);color:var(--sub);line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.deck-tile-acts .rec-icon-btn[aria-pressed="true"]{color:var(--green)}
+/* 1.66: the check before sending, in the grid beside the draft it read. Five lines; it warns, never blocks. */
+.deck-check{grid-column:span 2;min-width:0;display:flex;flex-direction:column;gap:8px;padding:12px 14px;border-radius:13px;background:var(--panel-bg);border:1px solid var(--hairline)}
+.deck-check.is-narrow{grid-column:span 1}
+.deck-check-hd{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;font-size:var(--type-secondary)}
+.deck-check-hd b{font:600 14px/1.25 var(--font-display);color:var(--navy)}
+.deck-check-hd span{font-family:var(--font-mono);font-size:var(--type-meta);color:var(--muted)}
+.deck-check-hd em{font-style:normal;margin-left:auto;font-weight:500;color:var(--sub)}
+.deck-check-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:5px;flex:1}
+.deck-check-list li{display:flex;gap:8px;align-items:baseline;font-size:var(--type-secondary);line-height:1.35}
+.deck-check-list li i{flex:none;width:16px;height:16px;border-radius:50%;display:grid;place-items:center;font-style:normal;font-size:10px;font-weight:600;background:color-mix(in srgb,currentColor 14%,transparent);transform:translateY(2px)}
+.deck-check-list li span{min-width:0;display:flex;flex-direction:column}
+.deck-check-list li b{font-weight:500;color:var(--text)}
+.deck-check-list li small{font-size:var(--type-meta);color:var(--sub)}
+.deck-check-list li.t-green{color:var(--green)}.deck-check-list li.t-grey,.deck-check-hd em.t-grey{color:var(--muted)}
+.deck-check-hd em.t-green{color:var(--green)}
+.deck-check-list li.t-grey b{color:var(--sub)}
+.deck-check-note{margin:0;flex:1;font-size:var(--type-secondary);color:var(--sub)}
+.deck-check-ft{display:flex;align-items:center;justify-content:space-between;gap:10px}
+/* 1.66: Revise prices — what the next version changes, or why it cannot be done in place. */
+.revise-wait{margin:0 0 14px;font-size:var(--type-secondary);color:var(--sub)}
+.revise-box{margin:0 0 14px;padding:12px 14px;border-radius:9px;background:var(--panel-bg);border:1px solid var(--hairline);font-size:var(--type-secondary);color:var(--text)}
+.revise-box b{display:block;font-weight:600;color:var(--navy)}
+.revise-box ul{margin:8px 0 0;padding:0 0 0 18px;display:flex;flex-direction:column;gap:3px;color:var(--sub)}
+.revise-box.is-stop{background:color-mix(in srgb,var(--amber) 9%,var(--surface));border-color:color-mix(in srgb,var(--amber) 35%,var(--hairline))}
+.revise-box.is-stop b{color:var(--text)}
 .deck-tile-acts{position:absolute;top:12px;right:12px;display:flex;gap:2px;padding:2px;border-radius:9px;background:var(--surface);box-shadow:var(--shadow-sm);opacity:0;transition:opacity var(--dur-fast) var(--ease-out)}
 .deck-tile:hover .deck-tile-acts,.deck-tile:focus-within .deck-tile-acts{opacity:1}
 .prb-folder .pr-folder-line{display:flex;flex-wrap:nowrap;align-items:flex-start;gap:6px}.prb-folder .pr-folder-line .icon{margin-top:2px}
