@@ -12,7 +12,7 @@ const w = () => window as any;
 /** ⌘1–⌘9: the same pages, in the same order, as the native Go menu. */
 export const GOTO: [string, string][] = [
   ['myday', 'My Day'], ['todo', 'Tasks'], ['opportunities', 'Opportunities'], ['projects', 'Projects'], ['pending', 'Pending'],
-  ['notes', 'Notes'], ['companies', 'Companies'], ['contacts', 'Contacts'], ['followup', 'Follow-Up'],
+  ['notes', 'Notes'], ['companies', 'Companies'], ['contacts', 'Contacts'], ['followup', 'Follow-up'],
 ];
 
 const pageSearch = (): HTMLInputElement | null =>
@@ -37,7 +37,7 @@ export const APP_KEYS: KeyBinding[] = [
   { combo: 'mod+shift+\\', inInputs: true, label: 'Show or hide the list beside a record', group: 'Everywhere', id: 'toggle-rail', run: () => w().toggleRecordRail?.() },
   ...GOTO.map(([tab, name], i): KeyBinding => ({
     combo: `mod+${i + 1}`, inInputs: true, id: `goto-${tab}`, run: () => w().navToModule?.(tab),
-    ...(i === 0 ? { label: 'Go to My Day, Tasks, Opportunities, Projects, Pending, Notes, Companies, Contacts, Follow-Up', group: 'Everywhere', note: `${name} is 1, the rest in that order to 9` } : {}),
+    ...(i === 0 ? { label: 'Go to My Day, Tasks, Opportunities, Projects, Pending, Notes, Companies, Contacts, Follow-up', group: 'Everywhere', note: `${name} is 1, the rest in that order to 9` } : {}),
   })),
   { combo: 'mod+t', inInputs: true, label: 'New task', group: 'Everywhere', id: 'new-task', run: () => w().openTodoModal?.(null) },
   { combo: 'mod+n', inInputs: true, label: 'New note', group: 'Everywhere', id: 'new-note', run: () => { w().switchTab?.('notes'); w().createNewNote?.(null); } },

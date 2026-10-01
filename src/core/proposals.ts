@@ -12,7 +12,7 @@ import { optimistic } from '../lib/optimistic';
 import { draftAgreementsFromProposals } from './agreements';
 import { PS, stageIndex, isLost, isWithdrawn, defaultReviewer, teamMember, renewalsDue, activeMrr, pipelineMonthly, fmtMoneyByCurrency } from '../lib/commercial';
 import { applyRevisionRequest, applyRevisionSent } from '../lib/revisions';
-import { activityForget, touchesAdd, touchesDelete } from '../lib/db';
+import { activityForget, activityLog, activityRemove, touchesAdd, touchesDelete } from '../lib/db';
 import { showMenuAt, type ContextMenuItem } from '../lib/contextMenu';
 import type { Proposal, Touch, TouchKind } from '../lib/types';
 
@@ -608,4 +608,17 @@ export function registerPopulateAllSelects(fn: () => void): void {
 }
 function populateAllSelects(): void {
   populateAllSelectsFn();
+}
+
+/** A nudge to the reviewer (My Day, Pending): ours, not contact with the client, so it goes in the activity log, not the touches. */
+export async function nudgeReview(id: number): Promise<void> {
+  const p = S.proposals.find((x) => x.id === id);
+  if (!p) return;
+  const who = teamMember(p.reviewerId)?.name || defaultReviewer()?.name || 'the reviewer';
+  try {
+    const entryId = await activityLog({ action: 'review_nudged', entityType: 'proposal', entityId: id, entityLabel: `${p.client} — ${p.type || 'proposal'}`, detail: `Nudged ${who} about the review`, companyId: p.companyId ?? null });
+    undoToast(`Nudged ${who} about ${p.client}`, () => { void activityRemove(entryId); });
+  } catch (err) {
+    toast("Couldn't log the nudge", { tone: 'error', detail: String(err) });
+  }
 }

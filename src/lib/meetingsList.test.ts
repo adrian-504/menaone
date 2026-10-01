@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { durationLabel, groupMeetingsByDay, meetingOutcomes, nextMeeting, placeLabel } from './meetingsList';
+import { durationLabel, groupMeetingsByDay, meetingOutcomes, nextMeeting, placeLabel, meetingDays, nowLineAfter, isRunning } from './meetingsList';
 import type { Commitment, Meeting } from './types';
 
 // Local times: the list's days are the user's days.
@@ -51,5 +51,34 @@ describe('outcomes', () => {
     expect(placeLabel({ location: 'Microsoft Teams Meeting', isOnlineMeeting: true })).toBe('Teams');
     expect(placeLabel({ location: null, isOnlineMeeting: true })).toBe('Online');
     expect(placeLabel({ location: 'Riyadh office', isOnlineMeeting: false })).toBe('Riyadh office');
+  });
+});
+
+describe('day medallions (1.59 pages)', () => {
+  const now = new Date('2026-10-01T14:05:00');
+  const M = (id: number, date: string, start?: string, mins = 30) => ({ id, meetingDate: date, startAt: start ? new Date(`${date}T${start}:00`).toISOString() : null, endAt: start ? new Date(new Date(`${date}T${start}:00`).getTime() + mins * 60_000).toISOString() : null, isCancelled: false });
+  it('one group per day: today and onward soonest first, then earlier days newest first, with their eyebrows', () => {
+    const days = meetingDays([M(1, '2026-09-15', '11:00'), M(2, '2026-10-02', '11:05'), M(3, '2026-10-01', '16:05'), M(4, '2026-10-01', '10:35'), M(5, '2026-09-16', '11:00'), M(6, '2025-04-10', '09:00')], now);
+    expect(days.map((d) => [d.eyebrow, d.day, d.weekdayMonth, d.meetings.map((m) => m.id)])).toEqual([
+      ['Today', '1', 'Thu Oct', [4, 3]],
+      ['Tomorrow', '2', 'Fri Oct', [2]],
+      ['Earlier', '16', 'Wed Sept', [5]],
+      ['', '15', 'Tue Sept', [1]],
+      ['', '10', 'Thu Apr 2025', [6]],
+    ]);
+    expect(days[0].today).toBe(true);
+    expect(days[2].earlier).toBe(true);
+  });
+  it('the now-line goes after the meetings that have started', () => {
+    const today = [M(1, '2026-10-01', '10:35'), M(2, '2026-10-01', '12:05'), M(3, '2026-10-01', '13:53', 45), M(4, '2026-10-01', '16:05')];
+    expect(nowLineAfter(today, now)).toBe(3);
+    expect(nowLineAfter(today, new Date('2026-10-01T08:00:00'))).toBe(0);
+    expect(nowLineAfter(today, new Date('2026-10-01T20:00:00'))).toBe(4);
+  });
+  it('running: started and not yet ended; cancelled never', () => {
+    expect(isRunning(M(3, '2026-10-01', '13:53', 45), now)).toBe(true);
+    expect(isRunning(M(2, '2026-10-01', '12:05'), now)).toBe(false);
+    expect(isRunning(M(4, '2026-10-01', '16:05'), now)).toBe(false);
+    expect(isRunning({ ...M(3, '2026-10-01', '13:53', 45), isCancelled: true }, now)).toBe(false);
   });
 });

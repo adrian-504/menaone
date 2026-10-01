@@ -3,16 +3,19 @@ import { S } from '../lib/state';
 import { emptyState } from '../lib/ui';
 import { companyLink } from '../lib/links';
 import { WQ_STATUSES, WQ_CFG } from '../lib/constants';
-import { today, fmtDate, daysSince, escHtml, expose, kpiCard, statusDot, showConfirm, fmtDateShort } from '../lib/utils';
+import { today, fmtDate, escHtml, expose, showConfirm } from '../lib/utils';
 import { matchesProposalPeriod } from '../lib/period';
 import { registerTabRenderer, registerBadgeUpdater, refreshAll, getActiveTabId } from '../lib/registry';
 import { persistProposals } from '../lib/persist';
-import { changeProposalStatus, snoozeProposal, snoozeCustom, archiveProposal, openNotesModal, openRevisionDialog, openWlModal } from '../core/proposals';
+import { changeProposalStatus, snoozeProposal, snoozeCustom, archiveProposal, openNotesModal, openRevisionDialog, openWlModal, nudgeReview, followUpMenu } from '../core/proposals';
 import { showContextMenu } from '../lib/contextMenu';
 import { icon } from '../lib/icons';
-import { PS, teamMember, defaultReviewer, ownerName, fmtMoney, currencyOf } from '../lib/commercial';
+import { PS, teamMember, defaultReviewer, ownerName } from '../lib/commercial';
 import type { Proposal } from '../lib/types';
 import { pendingRuns } from '../lib/queues';
+import { ageHtml, groupHeadHtml, registerStrip, stripHtml, stripPick, tileHtml, valueHtml, bucketOf, clearBucket } from '../lib/pageKit';
+import { pendingRow, pendingStrip, PENDING_GROUP, PENDING_ORDER, inBucket, type QueueRow, type RowActionKind } from '../lib/pagesQueues';
+import { proposalContact, companyIndustry, personHtml } from '../lib/pagePeople';
 
 export function getPendingProposals(): Proposal[] {
   return S.proposals.filter((p) => !p.archived && matchesProposalPeriod(p) && WQ_STATUSES.includes(p.status));
@@ -25,20 +28,6 @@ export function updatePendingBadge(): void {
 }
 registerBadgeUpdater(updatePendingBadge);
 expose('updatePendingBadge', updatePendingBadge);
-
-export function wqAgeClass(days: number | null): string {
-  if (days === null) return 'age-fresh';
-  if (days < 3) return 'age-fresh';
-  if (days < 7) return 'age-warn';
-  if (days < 14) return 'age-late';
-  return 'age-urgent';
-}
-
-export function wqAgeColor(days: number | null): string {
-  if (days === null || days < 3) return 'var(--green)';
-  if (days < 14) return 'var(--amber)';
-  return 'var(--red)';
-}
 
 export function toggleWqArchived(): void {
   S.wqShowArchived = !S.wqShowArchived;
@@ -61,108 +50,125 @@ export async function archiveAllPending(): Promise<void> {
 }
 expose('archiveAllPending', archiveAllPending);
 
+const reviewerName = (p?: Proposal) => teamMember(p?.reviewerId)?.name || defaultReviewer()?.name || 'the reviewer';
+
+/** The latest proposal deck on file (its version), for "deck V1 in folder". */
+const latestDeck = (p: Proposal) => Math.max(0, ...(p.documents || []).filter((d) => d.kind === 'proposal').map((d) => d.version ?? 1)) || null;
+
 export function renderPending(): void {
   (window as any).renderProposalViews?.();
-  const search = ((document.getElementById('wq-search') as HTMLInputElement).value || '').toLowerCase();
-  const filterStatus = (document.getElementById('wq-filter-status') as HTMLSelectElement).value;
-  const sort = (document.getElementById('wq-sort') as HTMLSelectElement).value;
+  const search = ((document.getElementById('wq-search') as HTMLInputElement | null)?.value || '').toLowerCase().trim();
+  const sort = (document.getElementById('wq-sort') as HTMLSelectElement | null)?.value || 'age';
+  const t = today();
+  const reviewer = reviewerName();
+  const sub = document.getElementById('wq-sub');
+  if (sub) sub.textContent = `Proposals waiting on you or on ${reviewer.split(' ')[0]} before they go to the client.`;
 
-  let data = getPendingProposals().filter((p) => {
-    if (filterStatus && p.status !== filterStatus) return false;
-    // Search covers the owner (as the row shows it), so there's no separate owner filter.
-    if (search && ![p.client, p.type, p.owner, ownerName(p)].some((v) => (v || '').toLowerCase().includes(search))) return false;
-    return true;
-  });
+  const all = getPendingProposals().filter((p) => !search || [p.client, p.type, p.owner, ownerName(p), `sl# ${p.id}`, String(p.id)].some((v) => (v || '').toLowerCase().includes(search)));
+  const rowOf = new Map<number, QueueRow>();
+  for (const p of all) {
+    const r = pendingRow(p, { today: t, reviewer: reviewerName(p), latestDeck: latestDeck(p) });
+    if (r) rowOf.set(p.id, r);
+  }
+  const rows = [...rowOf.values()];
+  // A picked panel whose bucket has emptied lets go.
+  if (bucketOf('pending') && !rows.some((r) => inBucket(r, bucketOf('pending')))) clearBucket('pending');
+  const bucket = bucketOf('pending');
 
-  if (sort === 'age') data.sort((a, b) => (daysSince(b.dateAdded || b.sentDate) || 0) - (daysSince(a.dateAdded || a.sentDate) || 0));
-  else if (sort === 'age-desc') data.sort((a, b) => (daysSince(a.dateAdded || a.sentDate) || 0) - (daysSince(b.dateAdded || b.sentDate) || 0));
-  else if (sort === 'client') data.sort((a, b) => a.client.localeCompare(b.client));
-
-  const cntEl = document.getElementById('wq-cnt'); if (cntEl) cntEl.textContent = `${data.length} pending`;
+  const strip = document.getElementById('wq-strip');
+  if (strip) strip.innerHTML = rows.length ? stripHtml('pending', pendingStrip(rows, all, { reviewer, today: t })) : '';
+  const cntEl = document.getElementById('wq-cnt'); if (cntEl) cntEl.textContent = `${rows.length} pending`;
 
   const container = document.getElementById('wq-content');
   if (!container) return;
-  if (data.length === 0) {
-    container.innerHTML = `<div class="sec">${emptyState({ icon: 'check', title: 'No pending proposals', body: 'Every proposal has been drafted and sent.' })}</div>`;
-    return;
+  if (rows.length === 0) {
+    container.innerHTML = `<div class="sec">${emptyState({ icon: 'check', title: search ? 'No pending proposal matches' : 'No pending proposals', body: search ? 'Try another name or SL#.' : 'Every proposal has been drafted and sent.' })}</div>`;
+    setNewPrimary(true);
+  } else {
+    // One blue button per page: the most urgent row's next step, if any row has one; else New proposal.
+    const shown = PENDING_ORDER.filter((b) => inBucket({ bucket: b }, bucket));
+    const ordered: { b: (typeof PENDING_ORDER)[number]; runs: ReturnType<typeof pendingRuns<Proposal>> }[] = shown.map((b) => ({ b, runs: pendingRuns(all.filter((p) => rowOf.get(p.id)?.bucket === b), sort) }));
+    const primaryId = ordered.flatMap((g) => g.runs.flatMap((r) => r.items)).map((p) => rowOf.get(p.id)!).find((r) => r.urgent)?.id ?? null;
+    setNewPrimary(primaryId == null);
+    container.innerHTML = ordered.map(({ b, runs }) => {
+      const n = runs.reduce((k, r) => k + r.items.length, 0);
+      if (!n) return '';
+      const g = PENDING_GROUP[b];
+      const body = runs.map((r) => (r.group ? `<div class="pq-together">Requested together · ${escHtml(fmtDate(r.items.map((p) => p.dateAdded || '').sort().pop() || r.date))}</div>` : '')
+        + r.items.map((p) => queueRowHtml(rowOf.get(p.id)!, { primary: p.id === primaryId, who: whoOf(p, b === 'review') })).join('')).join('');
+      return `<section class="pk-group">${groupHeadHtml({ tone: g.tone, name: g.name(reviewer), count: n, note: g.note })}<div class="pk-list">${body}</div></section>`;
+    }).join('');
   }
-
-  const groups = WQ_STATUSES.filter((s) => !filterStatus || s === filterStatus);
-  let html = '';
-  groups.forEach((status) => {
-    const group = data.filter((p) => p.status === status);
-    if (group.length === 0) return;
-    const cfg = WQ_CFG[status];
-    // Requested together: side by side under one quiet line, ordered by the oldest.
-    const runs = pendingRuns(group, sort);
-    html += `<section class="sec pq-group">
-      <div class="rec-section-hd"><h2>${statusDot(cfg, cfg.label)}</h2><span class="rec-count">${group.length}</span></div>
-      <div class="pq-list">${runs.map((r) => (r.group ? `<div class="pq-together">Requested together · ${escHtml(fmtDate(r.items.map((p) => p.dateAdded || '').sort().pop() || r.date))}</div>` : '') + r.items.map((p) => wqCard(p)).join('')).join('')}</div>
-    </section>`;
-  });
-  container.innerHTML = html;
 
   if (S.wqShowArchived) {
     const archPending = S.proposals.filter((p) => p.archived && WQ_STATUSES.includes(p.status));
-    let archHtml = '';
-    if (archPending.length > 0) {
-      archHtml = `<section class="sec pq-group is-archived">
-        <div class="rec-section-hd"><h2>Archived</h2><span class="rec-count">${archPending.length}</span></div>
-        <div class="pq-list">${archPending.map((p) => `<div class="pq-row">
+    container.innerHTML += archPending.length
+      ? `<section class="pk-group is-archived">${groupHeadHtml({ tone: 'grey', name: 'Archived', count: archPending.length })}<div class="pk-list">${archPending.map((p) => `<div class="pq-row">
           <div class="pq-main"><div class="pq-title">${companyLink(p.companyId, p.client)}<span class="pq-services">${escHtml(p.type || '')}</span></div>
           <div class="pq-meta">${escHtml((WQ_CFG[p.status] || { label: p.status }).label)} · archived ${fmtDate(p.archivedAt || '')}</div></div>
           <div class="pq-actions"><button class="btn-secondary btn-sm" onclick="unarchiveProposal(${p.id});renderPending()">Unarchive</button></div>
-        </div>`).join('')}</div>
-      </section>`;
-    } else {
-      archHtml = `<div class="soft-note">No archived pending proposals.</div>`;
-    }
-    container.innerHTML += archHtml;
+        </div>`).join('')}</div></section>`
+      : `<div class="soft-note">No archived pending proposals.</div>`;
   }
 }
 registerTabRenderer('pending', () => { renderPending(); });
+registerStrip('pending', () => renderPending());
 expose('renderPending', renderPending);
+expose('stripPick', stripPick);
 
-/** "promised by 2 Oct", red once the day has come. Meta only: it changes neither the order nor the age. */
-function promisedMeta(p: Proposal): string {
-  if (!p.promisedBy) return '';
-  const d = new Date(`${p.promisedBy.slice(0, 10)}T12:00:00`);
-  const label = isNaN(d.getTime()) ? p.promisedBy : fmtDateShort(d);
-  return `<span class="${p.promisedBy.slice(0, 10) <= today() ? 't-red' : ''}">promised by ${escHtml(label)}</span>`;
+/** New proposal is the page's blue button unless a row's next step holds it. */
+function setNewPrimary(on: boolean): void {
+  const b = document.getElementById('wq-new');
+  if (!b) return;
+  b.classList.toggle('btn-primary', on);
+  b.classList.toggle('btn-secondary', !on);
 }
 
-/** One pending proposal: age, client and services, where it is, and the next step. */
-export function wqCard(p: Proposal): string {
-  const refDate = p.dateAdded || p.sentDate || null;
-  const days = daysSince(refDate);
-  const cfg = WQ_CFG[p.status] || { step: 1, c: 'var(--muted)', label: p.status };
-  const step = cfg.step;
-  const nc = (p.notes || []).length;
-  const reviewer = teamMember(p.reviewerId)?.name || defaultReviewer()?.name || 'the reviewer';
-  const primary = step <= 1 ? `<button class="btn-secondary btn-sm" onclick="wqAdvance(${p.id},'${PS.DRAFTING}')">Start drafting</button>`
-    : step === 2 ? `<button class="btn-secondary btn-sm" onclick="wqAdvance(${p.id},'${PS.REVIEW}')" data-tip="Send to ${escHtml(reviewer)} for review">Send for review</button>`
-    : p.reviewStatus === 'approved' ? `<button class="btn-primary btn-sm" onclick="wqAdvance(${p.id},'${PS.SENT}')">Mark sent</button>`
-    : `<button class="btn-secondary btn-sm" onclick="openRecord('proposal', ${p.id})" data-tip="Record ${escHtml(reviewer)}'s review">Record review</button>`;
-  const meta = [
-    step === 3 ? `<span class="${p.reviewStatus === 'approved' ? 't-positive' : ''}">${p.reviewStatus === 'approved' ? 'Approved by' : 'With'} ${escHtml(reviewer)}</span>` : '',
-    ownerName(p) ? escHtml(ownerName(p)) : '',
-    `SL# ${p.id}`,
-    refDate ? `added ${fmtDate(refDate)}` : '',
-    promisedMeta(p),
-    (p.revision ?? 1) > 1 ? `Revision ${p.revision}` : '',
-    nc ? `<a href="#" class="rlink" onclick="event.preventDefault();openNotesModal(${p.id})">${nc} note${nc === 1 ? '' : 's'}</a>` : '',
-  ].filter(Boolean).join('<span class="pq-sep">·</span>');
-  return `<div class="pq-row" data-row-id="${p.id}" onclick="if(!event.target.closest('a,button'))openRecord('proposal', ${p.id})" oncontextmenu="pqMenu(event, ${p.id})">
-    <span class="pq-age ${wqAgeClass(days)}" title="${days ?? '?'} days since it was added">${days ?? '?'}<small>d</small></span>
-    <div class="pq-main">
-      <div class="pq-title">${companyLink(p.companyId, p.client)}<span class="pq-services">${escHtml(p.type || '')}</span></div>
-      <div class="pq-meta">${meta}</div>
-      ${p.remarks ? `<div class="pq-remarks" title="${escHtml(p.remarks)}">${escHtml(p.remarks)}</div>` : ''}
+/** The "who" column: the client's contact and industry, or the reviewer for a proposal in review. */
+export function whoOf(p: Proposal, reviewer = false): string {
+  if (reviewer) return personHtml(reviewerName(p), '');
+  const c = proposalContact(p);
+  return personHtml(c?.name || null, companyIndustry(p.companyId));
+}
+
+/** One queue row (Pending, Follow-up): tile, client — service and SL#, one meta line, who, value, age, actions and "…". */
+export function queueRowHtml(r: QueueRow, o: { primary: boolean; who: string; below?: string }): string {
+  const meta = r.meta.map((m) => (m.chip ? `<span class="pk-chip t-${m.tone || 'amber'}">${escHtml(m.text)}</span>` : m.tone ? `<span class="t-${m.tone}">${escHtml(m.text)}</span>` : escHtml(m.text))).join('<span class="pk-sep">·</span>');
+  const acts = r.actions.map((a, i) => {
+    const blue = o.primary && i === r.actions.length - 1;
+    const chevron = a.kind === 'followed_up' ? ` ${icon('chevronDown', 11)}` : '';
+    return `<button class="${blue ? 'btn-primary' : 'btn-secondary'} btn-sm" onclick="event.stopPropagation();queueAct(event, ${r.id}, '${a.kind}')"${a.kind === 'followed_up' ? ' aria-haspopup="menu"' : ''}>${escHtml(a.label)}${chevron}</button>`;
+  }).join('');
+  return `<div class="pq-row pk-row${o.below ? ' has-below' : ''}" data-row-id="${r.id}" onclick="if(!event.target.closest('a,button'))openRecord('proposal', ${r.id})" oncontextmenu="pqMenu(event, ${r.id})">
+    ${tileHtml(r.client)}
+    <div class="pk-main">
+      <div class="pk-title">${companyLink(r.companyId, r.client)}<span class="pk-svc">— ${escHtml(r.service)}</span><span class="pk-sl">SL# ${r.id}</span></div>
+      <div class="pk-meta">${meta}</div>${o.below || ''}
     </div>
-    ${p.monthlyFee ? `<span class="pq-fee">${fmtMoney(p.monthlyFee, currencyOf(p))}<small>/mo</small></span>` : '<span class="pq-fee"></span>'}
-    <div class="pq-actions">${primary}<button class="rec-icon-btn" onclick="pqMenu(event, ${p.id})" data-tip="More" aria-label="More">${icon('more', 14)}</button></div>
+    <div class="pk-who">${o.who}</div>
+    ${valueHtml(r.amount, r.amountCaption)}
+    ${ageHtml(r.age, r.ageCaption, r.tone)}
+    <div class="pk-acts">${acts}</div>
+    <button class="rec-icon-btn pk-more" onclick="event.stopPropagation();pqMenu(event, ${r.id})" data-tip="More" aria-label="More">${icon('more', 14)}</button>
   </div>`;
 }
+
+/** A row's action, by kind (Pending and Follow-up). */
+export async function queueAct(e: MouseEvent, id: number, kind: RowActionKind): Promise<void> {
+  const w = window as any;
+  switch (kind) {
+    case 'draft': return wqAdvance(id, PS.DRAFTING);
+    case 'generate': return w.openGenerateProposal(id);
+    case 'review': return wqAdvance(id, PS.REVIEW);
+    case 'nudge': return nudgeReview(id);
+    case 'record': return w.openRecord('proposal', id);
+    case 'mark_sent': return wqAdvance(id, PS.SENT);
+    case 'changes': return openRevisionDialog(id);
+    case 'followed_up': return followUpMenu(e, id);
+    case 'mark_lost': return openWlModal(id, 'lost');
+  }
+}
+expose('queueAct', queueAct);
 
 /** Shared "…" menu for pending and follow-up rows. */
 export function pqMenu(e: MouseEvent, id: number): void {
@@ -199,7 +205,7 @@ export async function wqAdvance(id: number, newStatus: string): Promise<void> {
 expose('wqAdvance', wqAdvance);
 
 export function wqClear(): void {
-  ['wq-search', 'wq-filter-status', 'wq-sort'].forEach((id) => {
+  ['wq-search', 'wq-sort'].forEach((id) => {
     const el = document.getElementById(id) as HTMLInputElement | HTMLSelectElement | null;
     if (el) { if (el.tagName === 'SELECT') (el as HTMLSelectElement).selectedIndex = 0; else el.value = ''; }
   });

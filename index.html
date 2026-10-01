@@ -85,7 +85,7 @@
       </button>
       <button class="sb-item sb-item-sub" data-tab="followup" onclick="navToModule('followup')">
         <span class="sb-icon" data-icon="repeat" data-icon-size="15"></span>
-        <span class="sb-label">Follow-Up</span><span class="sb-badge" id="fu-badge" style="display:none">0</span>
+        <span class="sb-label">Follow-up</span><span class="sb-badge" id="fu-badge" style="display:none">0</span>
       </button>
       <button class="sb-item" data-tab="agreements" onclick="navToModule('agreements')">
         <span class="sb-icon" data-icon="document"></span>
@@ -574,23 +574,20 @@
     </div>
   </div>
 
-  <div id="meeting-list-view">
-    <div class="page-header">
-      <div>
-        <div class="page-title">Meetings</div>
-        <div class="page-subtitle">Attendees, decisions, and action items — never lost in someone's inbox.</div>
-      </div>
-      <div class="page-header-actions"><button class="btn-primary" onclick="openMeetingModal(null)"><span data-icon="plus" data-icon-size="14"></span> New meeting</button></div>
+  <div id="meeting-list-view" class="pk-page">
+    <div class="page-header pk-head">
+      <div class="pk-head-t"><div class="page-title">Meetings</div><span class="bars lg" aria-hidden="true"><i></i><i></i><i></i></span><div class="page-subtitle">Agendas before, decisions and promises after.</div></div>
+      <div class="page-header-actions"><button class="btn-primary" id="mt-new" onclick="openMeetingModal(null)"><span data-icon="plus" data-icon-size="14"></span> New meeting</button></div>
     </div>
-    <div class="toolbar">
-      <div class="segmented" id="meeting-when-seg">
-        <button class="active" data-when="all" onclick="setMeetingFilter('all')">All</button>
-        <button data-when="upcoming" onclick="setMeetingFilter('upcoming')">Upcoming</button>
-        <button data-when="past" onclick="setMeetingFilter('past')">Past</button>
-        <button data-when="writeup" onclick="setMeetingFilter('writeup')" data-tip="Past meetings with no notes, decisions or action items">Needs write-up</button>
-      </div>
-      <input type="text" class="f-search" id="meeting-search" placeholder="Search title, company, attendee…" oninput="filterSoon('renderMeetingsTab')" aria-label="Search meetings">
-      <span class="rcnt" id="meeting-count"></span>
+    <div class="pk-tools">
+      <nav class="pr-views" id="meeting-when-seg" aria-label="Which meetings">
+        <button class="pr-view active" data-when="all" onclick="setMeetingFilter('all')">All<span></span></button>
+        <button class="pr-view" data-when="upcoming" onclick="setMeetingFilter('upcoming')">Upcoming<span></span></button>
+        <button class="pr-view" data-when="past" onclick="setMeetingFilter('past')">Past<span></span></button>
+        <button class="pr-view" data-when="writeup" onclick="setMeetingFilter('writeup')" data-tip="Past meetings with no notes, decisions or action items">Needs write-up<span></span></button>
+      </nav>
+      <input type="text" class="f-search pk-search" id="meeting-search" placeholder="Search title, company, attendee…" oninput="filterSoon('renderMeetingsTab')" aria-label="Search meetings">
+      <span class="pk-order" id="meeting-count"></span>
     </div>
     <div id="meeting-list"></div>
   </div>
@@ -929,39 +926,36 @@
 
 <!-- PROJECTS TAB -->
 <div id="tab-projects" class="tab">
-  <div id="proj-list-view">
-    <div class="page-header">
-      <div>
-        <div class="page-title">Projects</div>
-        <div class="page-subtitle">Client engagements and internal initiatives — one system, equally first-class.</div>
-      </div>
+  <div id="proj-list-view" class="pk-page">
+    <div class="page-header pk-head">
+      <div class="pk-head-t"><div class="page-title">Projects</div><span class="bars lg" aria-hidden="true"><i></i><i></i><i></i></span><div class="page-subtitle">Client delivery and internal initiatives, milestone by milestone.</div></div>
       <div class="page-header-actions">
         <button class="btn-primary" onclick="openProjectModal(null)"><span data-icon="plus" data-icon-size="14"></span> New project</button>
       </div>
     </div>
-    <div class="toolbar">
-      <div class="segmented" id="proj-type-seg">
-        <button class="active" onclick="setProjectFilter('all')">All</button>
-        <button onclick="setProjectFilter('client')">Client</button>
-        <button onclick="setProjectFilter('internal')">Internal</button>
-      </div>
-      <input type="text" class="f-search" id="proj-search" placeholder="Search projects…" oninput="filterSoon('renderProjects')">
-      <select class="ssel" id="proj-status-filter" onchange="renderProjects()">
-        <option value="">All Statuses</option>
+    <div class="pk-tools">
+      <nav class="pr-views" id="proj-type-seg" aria-label="Which projects">
+        <button class="pr-view active" onclick="setProjectFilter('all')">All<span></span></button>
+        <button class="pr-view" onclick="setProjectFilter('client')">Client<span></span></button>
+        <button class="pr-view" onclick="setProjectFilter('internal')">Internal<span></span></button>
+      </nav>
+      <input type="text" class="f-search pk-search" id="proj-search" placeholder="Search projects…" oninput="filterSoon('renderProjects')">
+      <select class="fsel" id="proj-status-filter" onchange="renderProjects()" aria-label="Status">
+        <option value="">All statuses</option>
         <option>Idea</option><option>Planning</option><option>Not Started</option><option>In Progress</option>
         <option>At Risk</option><option>On Hold</option><option>Completed</option><option>Cancelled</option>
       </select>
-      <select class="ssel" id="proj-owner-filter" onchange="renderProjects()" aria-label="Owner"><option value="">All owners</option></select>
-      <select class="ssel" id="proj-sort" onchange="renderProjects()">
-        <option value="updated">Sort: Recently Updated</option>
-        <option value="priority">Sort: Priority</option>
-        <option value="target">Sort: Target Date</option>
-        <option value="progress">Sort: Progress</option>
-        <option value="status">Sort: Status</option>
+      <select class="fsel" id="proj-owner-filter" onchange="renderProjects()" aria-label="Owner"><option value="">All owners</option></select>
+      <select class="fsel pk-sort" id="proj-sort" onchange="renderProjects()" aria-label="Order">
+        <option value="milestone">Sorted by next milestone</option>
+        <option value="updated">Recently updated</option>
+        <option value="priority">Priority</option>
+        <option value="target">Target date</option>
+        <option value="progress">Progress</option>
+        <option value="status">Status</option>
       </select>
-      <span class="rcnt" id="proj-cnt">0 projects</span>
     </div>
-    <div class="rec-list pj-list" id="proj-grid"></div>
+    <div class="pk-projects" id="proj-grid"></div>
   </div>
 
   <div id="proj-detail" class="proj-detail record-page">
@@ -1085,36 +1079,34 @@
 
 <!-- OPPORTUNITIES TAB -->
 <div id="tab-opportunities" class="tab">
-  <div id="opp-list-view">
-    <div class="page-header">
-      <div>
-        <div class="page-title">Opportunities</div>
-        <div class="page-subtitle">The pipeline from first contact to signed proposal — before a Proposal exists.</div>
-      </div>
+  <div id="opp-list-view" class="pk-page">
+    <div class="page-header pk-head">
+      <div class="pk-head-t"><div class="page-title">Opportunities</div><span class="bars lg" aria-hidden="true"><i></i><i></i><i></i></span><div class="page-subtitle">The pipeline before a proposal exists.</div></div>
       <div class="page-header-actions">
+        <div class="seg-btns pk-seg" id="opp-view-btns">
+          <button class="seg-btn active" id="opp-view-board" onclick="setOpportunityView('board')">Board</button>
+          <button class="seg-btn" id="opp-view-list" onclick="setOpportunityView('list')">List</button>
+        </div>
         <button class="btn-primary" onclick="openOpportunityModal(null)"><span data-icon="plus" data-icon-size="14"></span> New opportunity</button>
       </div>
     </div>
-    <div class="toolbar">
-      <input type="text" class="f-search" id="opp-search" placeholder="Search opportunities…" oninput="opportunitySearchChanged()">
-      <select class="ssel" id="opp-stage-filter" onchange="opportunityFilterChanged()">
-        <option value="">All Stages</option>
+    <div id="opp-strip"></div>
+    <div class="pk-tools">
+      <input type="text" class="f-search pk-search" id="opp-search" placeholder="Search opportunities…" oninput="opportunitySearchChanged()">
+      <select class="fsel" id="opp-stage-filter" onchange="opportunityFilterChanged()" aria-label="Stage">
+        <option value="">All stages</option>
         <option>Lead</option><option>Qualified</option><option>Discovery</option><option>Meeting</option>
         <option>Solution Design</option><option>Proposal</option><option>Negotiation</option>
         <option>Verbal Commitment</option><option>Won</option><option>Lost</option><option>On Hold</option>
       </select>
-      <select class="ssel" id="opp-owner-filter" onchange="opportunityFilterChanged()" aria-label="Owner"><option value="">All owners</option></select>
-      <span class="rcnt" id="opp-cnt">0 opportunities</span>
-      <div class="seg-btns" id="opp-view-btns">
-        <button class="seg-btn active" id="opp-view-board" onclick="setOpportunityView('board')">Board</button>
-        <button class="seg-btn" id="opp-view-list" onclick="setOpportunityView('list')">List</button>
-      </div>
+      <select class="fsel" id="opp-owner-filter" onchange="opportunityFilterChanged()" aria-label="Owner"><option value="">All owners</option></select>
+      <span class="pk-order" id="opp-cnt">0 opportunities</span>
     </div>
     <div id="opp-board"></div>
-    <div id="opp-list-table-wrap" class="tbl-wrap" style="display:none">
+    <div id="opp-list-table-wrap" class="tbl-wrap pk-table" style="display:none">
       <table>
         <thead><tr>
-          <th>Name</th><th>Company</th><th>Stage</th><th>Value</th><th>Probability</th><th>Expected Close</th><th>Owner</th>
+          <th class="pk-td-co">Opportunity</th><th>Stage</th><th class="num">Value</th><th class="num">Probability</th><th>Close</th><th>Owner</th>
         </tr></thead>
         <tbody id="opp-tbody"></tbody>
       </table>
@@ -1357,12 +1349,9 @@
 </div>
 
 <!-- PENDING / WORK QUEUE -->
-<div id="tab-pending" class="tab">
-  <div class="page-header">
-    <div>
-      <div class="page-title">Proposals</div>
-      <div class="page-subtitle">Requests, drafts and proposals in internal review.</div>
-    </div>
+<div id="tab-pending" class="tab pk-page">
+  <div class="page-header pk-head">
+    <div class="pk-head-t"><div class="page-title">Pending</div><span class="bars lg" aria-hidden="true"><i></i><i></i><i></i></span><div class="page-subtitle" id="wq-sub">Proposals waiting on you or on your reviewer before they go to the client.</div></div>
     <div class="page-header-actions"><select class="fsel period-sel" onchange="setGlobalPeriod(this.value)" title="Period" aria-label="Period">
       <option value="all">All time</option>
       <option value="2026" class="opt-year">2026</option>
@@ -1385,36 +1374,25 @@
       <option value="2023-Q2"> 2023 Q2 — Apr–Jun</option>
       <option value="2023-Q3"> 2023 Q3 — Jul–Sep</option>
       <option value="2023-Q4"> 2023 Q4 — Oct–Dec</option>
-    </select><button class="btn-primary" onclick="openProposalBuilder()"><span data-icon="plus" data-icon-size="14"></span> New proposal</button></div>
+    </select><button class="btn-secondary btn-sm" id="wq-toggle-archived" onclick="toggleWqArchived()">Show archived</button><button class="btn-primary" id="wq-new" onclick="openProposalBuilder()"><span data-icon="plus" data-icon-size="14"></span> New proposal</button></div>
   </div>
-  <nav class="pr-views" data-pr-views aria-label="Proposal views"></nav>
-  <div class="fbar">
-    <input type="text" class="f-search" id="wq-search" placeholder="Search client, type, owner…" oninput="filterSoon('renderPending')">
-    <select class="fsel" id="wq-filter-status" onchange="renderPending()">
-      <option value="">All stages</option>
-      <option value="Proposal Request Received">Request received</option>
-      <option value="Drafting">Drafting</option>
-      <option value="In Internal Review">In internal review</option>
+  <div class="pk-tools">
+    <nav class="pr-views" data-pr-views aria-label="Proposal views"></nav>
+    <input type="text" class="f-search pk-search" id="wq-search" placeholder="Search client, service, SL#…" oninput="filterSoon('renderPending')" aria-label="Search pending proposals">
+    <select class="fsel pk-sort" id="wq-sort" onchange="renderPending()" aria-label="Order">
+      <option value="age">Oldest first</option>
+      <option value="age-desc">Newest first</option>
+      <option value="client">Client A–Z</option>
     </select>
-    <select class="fsel" id="wq-sort" onchange="renderPending()">
-      <option value="age">Sort: Oldest First</option>
-      <option value="age-desc">Sort: Newest First</option>
-      <option value="client">Sort: Client A–Z</option>
-    </select>
-    <button class="btn-secondary btn-sm" onclick="wqClear()">Clear</button>
-    <button class="btn-secondary btn-sm" id="wq-toggle-archived" onclick="toggleWqArchived()">Show archived</button>
-    <span class="rcnt" id="wq-cnt">0 pending</span>
   </div>
+  <div id="wq-strip"></div>
   <div id="wq-content"></div>
 </div>
 
 <!-- FOLLOW-UP -->
-<div id="tab-followup" class="tab">
-  <div class="page-header">
-    <div>
-      <div class="page-title">Proposals</div>
-      <div class="page-subtitle">Sent to a client, and no contact for over 10 days — log your follow-up, or mark them won or lost.</div>
-    </div>
+<div id="tab-followup" class="tab pk-page">
+  <div class="page-header pk-head">
+    <div class="pk-head-t"><div class="page-title">Follow-up</div><span class="bars lg" aria-hidden="true"><i></i><i></i><i></i></span><div class="page-subtitle">Sent to clients. Due a follow-up after 10 days without contact.</div></div>
     <div class="page-header-actions"><select class="fsel period-sel" onchange="setGlobalPeriod(this.value)" title="Period" aria-label="Period">
       <option value="all">All time</option>
       <option value="2026" class="opt-year">2026</option>
@@ -1441,7 +1419,12 @@
       <button class="btn-secondary btn-sm" id="fu-toggle-archived" onclick="toggleFuArchived()">Show archived</button>
     </div>
   </div>
-  <nav class="pr-views" data-pr-views aria-label="Proposal views"></nav>
+  <div class="pk-tools">
+    <nav class="pr-views" data-pr-views aria-label="Proposal views"></nav>
+    <input type="text" class="f-search pk-search" id="fu-search" placeholder="Search client, service, SL#…" oninput="filterSoon('renderFollowup')" aria-label="Search proposals with clients">
+    <span class="pk-order">Longest without contact first</span>
+  </div>
+  <div id="fu-strip"></div>
   <div id="fu-list"></div>
 </div>
 
@@ -1504,16 +1487,19 @@
 
 <!-- COMPANIES -->
 <div id="tab-companies" class="tab">
-  <div class="page-header">
-    <div>
-      <div class="page-title">Companies</div>
-      <div class="page-subtitle">Clients and prospects — proposals, contacts, files, and activity in one place.</div>
+  <div class="page-header pk-head">
+    <div class="pk-head-t"><div class="page-title">Companies</div><span class="bars lg" aria-hidden="true"><i></i><i></i><i></i></span><div class="page-subtitle">Clients and prospects, with what they're worth and when they renew.</div></div>
+    <div class="page-header-actions">
+      <div class="seg-btns pk-seg" id="co-view-btns">
+        <button class="seg-btn co-vbtn" data-view="grid" onclick="setCoListView('grid')">Grid</button>
+        <button class="seg-btn co-vbtn active" data-view="list" onclick="setCoListView('list')">List</button>
+      </div>
+      <button class="btn-primary" onclick="openNewCompanyModal()"><span data-icon="plus" data-icon-size="14"></span> New company</button>
     </div>
-    <div class="page-header-actions"><button class="btn-primary" onclick="openNewCompanyModal()"><span data-icon="plus" data-icon-size="14"></span> New company</button></div>
   </div>
-  <div class="co-list-view" id="co-list-view">
+  <div class="co-list-view pk-page" id="co-list-view">
     <div class="co-review-queue" id="co-review-queue" style="display:none"></div>
-    <div class="co-quality-bar" id="co-quality-bar"></div>
+    <div id="co-strip"></div>
     <div class="co-search-bar">
       <input type="text" class="f-search" id="co-search" placeholder="Search companies…" oninput="filterSoon('renderCompanyList')">
       <select class="fsel" id="co-filter-status" onchange="renderCompanyList()" aria-label="Relationship">
@@ -1554,16 +1540,12 @@
         <option value="contacts">Sort: Most contacts</option>
         <option value="proposals">Sort: Most proposals</option>
       </select>
-      <span class="rcnt" id="co-cnt">0 companies</span>
+      <span class="rcnt" id="co-cnt">0 companies</span><span class="rcnt pk-gaps" id="co-gaps"></span>
       <button class="rlink" id="co-columns-btn" onclick="openCompanyColumns(event)" data-tip="Choose columns">Columns</button>
-      <div class="seg-btns" id="co-view-btns">
-        <button class="seg-btn co-vbtn" data-view="grid" onclick="setCoListView('grid')">Grid</button>
-        <button class="seg-btn co-vbtn active" data-view="list" onclick="setCoListView('list')">List</button>
-      </div>
     </div>
     <div class="list-bar" id="co-lists-bar" aria-label="Company lists"></div>
     <div class="co-grid" id="co-grid" style="display:none"></div>
-    <div class="tbl-wrap" id="co-list-table"><table class="tbl-lists"><thead id="co-thead"></thead><tbody id="co-tbody"></tbody></table></div>
+    <div class="tbl-wrap pk-table" id="co-list-table"><table class="tbl-lists"><thead id="co-thead"></thead><tbody id="co-tbody"></tbody></table></div>
   </div>
 
   <div class="co-detail record-page" id="co-detail">
@@ -1795,12 +1777,9 @@
 
 <!-- DATABASE (Proposals) -->
 <div id="tab-database" class="tab">
-<div id="pr-list-view">
-  <div class="page-header">
-    <div>
-      <div class="page-title">Proposals</div>
-      <div class="page-subtitle">Every proposal, from the first request to signature.</div>
-    </div>
+<div id="pr-list-view" class="pk-page">
+  <div class="page-header pk-head">
+    <div class="pk-head-t"><div class="page-title">Proposals</div><span class="bars lg" aria-hidden="true"><i></i><i></i><i></i></span><div class="page-subtitle">Every proposal from the first request to signature.</div></div>
     <div class="page-header-actions"><select class="fsel period-sel" onchange="setGlobalPeriod(this.value)" title="Period" aria-label="Period">
       <option value="all">All time</option>
       <option value="2026" class="opt-year">2026</option>
@@ -1828,9 +1807,10 @@
       <button class="loc-nav rec-more" onclick="pageMoreMenu(event, 'proposals')" data-tip="More" aria-label="More"><span data-icon="more" data-icon-size="16"></span></button>
     </div>
   </div>
+  <div class="pk-tools">
   <nav class="pr-views" data-pr-views aria-label="Proposal views"></nav>
   <div class="fbar">
-    <input type="text" class="f-search" id="db-search" placeholder="Search client, service, owner, remarks…" oninput="dbSearchChanged()">
+    <input type="text" class="f-search pk-search" id="db-search" placeholder="Search client, service, SL#…" oninput="dbSearchChanged()">
     <select class="fsel" id="db-status" onchange="dbFilter()"><option value="">All statuses</option></select>
     <select class="fsel" id="db-type" onchange="dbFilter()"><option value="">All services</option></select>
     <select class="fsel" id="db-owner" onchange="dbFilter()"><option value="">All owners</option></select>
@@ -1845,21 +1825,19 @@
     <span class="rcnt" id="db-cnt">0 results</span>
     <label class="rlink fbar-toggle"><input type="checkbox" id="db-show-archived" onchange="dbFilter()" hidden>Show archived</label>
   </div>
-  <div class="tbl-wrap data-table">
+  </div>
+  <div id="db-strip"></div>
+  <div class="tbl-wrap data-table pk-table">
     <table id="db-table">
       <thead><tr>
         <th class="td-chk"><input type="checkbox" id="db-select-all" onchange="dbSelectAll(this.checked)" aria-label="Select all on this page"></th>
+        <th class="pk-th-co" onclick="dbSort('client')">Client and service</th>
         <th onclick="dbSort('id')">SL#</th>
-        <th onclick="dbSort('client')">Client</th>
-        <th onclick="dbSort('type')">Services</th>
-        <th onclick="dbSort('status')">Status</th>
-        <th onclick="dbSort('owner')">Owner</th>
-        <th onclick="dbSort('dateAdded')">Received</th>
-        <th onclick="dbSort('sentDate')">Sent</th>
-        <th onclick="dbSort('dblSignedDate')">Signed</th>
+        <th onclick="dbSort('status')">Stage</th>
+        <th class="num">In stage</th>
         <th class="num" onclick="dbSort('monthlyFee')">Monthly</th>
-        <th onclick="dbSort('contractMonths')">Term</th>
-        
+        <th onclick="dbSort('owner')">Owner</th>
+        <th class="num" aria-label="Next step"></th>
       </tr></thead>
       <tbody id="db-tbody"></tbody>
     </table>

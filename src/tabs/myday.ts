@@ -21,10 +21,10 @@ import { onChange } from '../lib/changes';
 import { showContextMenu, type ContextMenuItem } from '../lib/contextMenu';
 import { deferWhileHovered, toast, undoToast } from '../lib/ui';
 import { renderIcons } from '../core/chrome';
-import { changeProposalStatus, contactFirstName, snoozeProposal } from '../core/proposals';
+import { changeProposalStatus, contactFirstName, nudgeReview, snoozeProposal } from '../core/proposals';
 import { addTaskFromText, deleteTodo, openDatePopover, quickAddTokensHtml, setTasksDue, toggleTodoDone } from './todo';
 import { unprocessedInboxItems } from './inbox';
-import { activityLog, activityRemove, getAppMeta, getIntelligenceItems, getPipelineFacts, ms365GetCachedEmails, setAppMeta } from '../lib/db';
+import { getAppMeta, getIntelligenceItems, getPipelineFacts, ms365GetCachedEmails, setAppMeta } from '../lib/db';
 import { buildInPlay, buildComingUpFocus, regulatoryNotes, STAGE_LABEL, STAGE_ORDER, type ComingDay, type ComingItem, type InPlay, type PlayRow } from '../lib/mydayFocus';
 import { briefInputFor } from './companyState';
 import { companyContact, companyRecords } from '../lib/companyBrief';
@@ -32,6 +32,7 @@ import { initialsOf } from '../lib/appearance';
 import { ownDomains } from '../lib/clientMatch';
 import { PS, teamMember, defaultReviewer, isAgreementActive, isOpenProposal } from '../lib/commercial';
 import { strColor } from '../lib/utils';
+import { attendeeName } from '../lib/pagePeople';
 import { followUpMenu } from '../core/proposals';
 import {
   buildAttention, buildTimeline, shownAttentionKeys, personName, greeting, summaryLine, addDays, isClientMeeting, buildIndex, nowMeeting,
@@ -71,12 +72,6 @@ function input(): MyDayInput {
 }
 
 /** An attendee as a name: the contact with that email, else the email's name part, capitalised. */
-function attendeeName(a: string): string {
-  const email = a.trim().toLowerCase();
-  const c = email.includes('@') ? S.contacts.find((x) => (x.email || '').toLowerCase() === email) : null;
-  return c?.name || personName(a);
-}
-
 /** Active clients (a running agreement or an open proposal) and when we last met, emailed or called them. */
 function quietClients(): QuietClient[] {
   const t = today();
@@ -471,16 +466,7 @@ export async function mydayPlay(e: MouseEvent, id: number, action: string): Prom
   if (action === 'draft') { w.openRecord('proposal', id); return; }
   if (action === 'followed_up') { followUpMenu(e, id); return; }
   if (action === 'revision_sent' || action === 'mark_sent') { if (await changeProposalStatus(id, PS.SENT)) renderMyDay(); return; }
-  if (action === 'nudge') {
-    // A nudge to the reviewer is ours, not contact with the client: it goes in the activity log, not the client's touches.
-    const who = teamMember(p.reviewerId)?.name || defaultReviewer()?.name || 'the reviewer';
-    try {
-      const entryId = await activityLog({ action: 'review_nudged', entityType: 'proposal', entityId: id, entityLabel: `${p.client} — ${p.type || 'proposal'}`, detail: `Nudged ${who} about the review`, companyId: p.companyId ?? null });
-      undoToast(`Nudged ${who} about ${p.client}`, () => { void activityRemove(entryId); });
-    } catch (err) {
-      toast("Couldn't log the nudge", { tone: 'error', detail: String(err) });
-    }
-  }
+  if (action === 'nudge') await nudgeReview(id);
 }
 expose('mydayPlay', mydayPlay);
 

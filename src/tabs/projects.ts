@@ -28,7 +28,10 @@ import { attachCompanySelector } from '../lib/companySelector';
 import type { Project, Milestone, Note } from '../lib/types';
 import { statusTone, toneVar } from '../lib/statusTone';
 import { renderCommitmentSection } from './commitments';
-import { currentUser, matchesOwnerFilter, ownerFilterOptions } from '../lib/commercial';
+import { currentUser, matchesOwnerFilter, ownerFilterOptions, isAgreementActive } from '../lib/commercial';
+import { tileHtml } from '../lib/pageKit';
+import { nextMilestoneKey, projectFigures as trackFigures, projectTrack, ringDash, ringProgress } from '../lib/pagesProjects';
+import { fmtDateShort } from '../lib/dates';
 
 // Project status dots use the shared tones (statusTone.ts).
 const STATUS_COLOR: Record<string, { c: string }> = Object.fromEntries(
@@ -41,7 +44,15 @@ const STATUS_COLOR: Record<string, { c: string }> = Object.fromEntries(
  * a refetch rather than a local patch to stay accurate. */
 async function loadProjects(): Promise<void> {
   S.projects = await getProjects(true);
+  // The list draws each project's milestone track (1.59 pages).
+  const live = S.projects.filter((p) => !p.archived);
+  const lists = await Promise.all(live.map((p) => getMilestones(p.id).catch(() => [] as Milestone[])));
+  milestonesByProject.clear();
+  live.forEach((p, i) => milestonesByProject.set(p.id, lists[i]));
 }
+
+/** Each project's milestones, for the list's tracks; refreshed on load and when a project page closes. */
+const milestonesByProject = new Map<number, Milestone[]>();
 
 async function renderProjectsTab(): Promise<void> {
   if (!(await loadInto(document.getElementById('proj-grid'), 'projects', 'renderTab(\'projects\')', loadProjects, 'cards'))) return;
@@ -73,7 +84,7 @@ expose('setProjectFilter', setProjectFilter);
 
 export function renderProjects(): void {
   const statusF = (document.getElementById('proj-status-filter') as HTMLSelectElement | null)?.value || '';
-  const sortBy = (document.getElementById('proj-sort') as HTMLSelectElement | null)?.value || 'updated';
+  const sortBy = (document.getElementById('proj-sort') as HTMLSelectElement | null)?.value || 'milestone';
   const search = ((document.getElementById('proj-search') as HTMLInputElement | null)?.value || '').toLowerCase();
   const ownerSel = document.getElementById('proj-owner-filter') as HTMLSelectElement | null;
   const ownerF = ownerSel?.value || '';
@@ -90,13 +101,18 @@ export function renderProjects(): void {
   });
 
   const priOrder: Record<string, number> = { High: 0, Medium: 1, Low: 2 };
+  const ms = (p: Project) => milestonesByProject.get(p.id) || [];
   if (sortBy === 'priority') data.sort((a, b) => (priOrder[a.priority] ?? 1) - (priOrder[b.priority] ?? 1));
   else if (sortBy === 'target') data.sort((a, b) => (a.targetDate || '9999').localeCompare(b.targetDate || '9999'));
   else if (sortBy === 'progress') data.sort((a, b) => b.computedProgress - a.computedProgress);
   else if (sortBy === 'status') data.sort((a, b) => a.status.localeCompare(b.status));
-  else data.sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
+  else if (sortBy === 'updated') data.sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
+  else data.sort((a, b) => nextMilestoneKey(a, ms(a)).localeCompare(nextMilestoneKey(b, ms(b))) || a.name.localeCompare(b.name));
 
-  const cnt = document.getElementById('proj-cnt'); if (cnt) cnt.textContent = `${data.length} project${data.length !== 1 ? 's' : ''}`;
+  // Counts on the switch: live projects of each kind.
+  const live = S.projects.filter((p) => !p.archived);
+  const counts = [live.length, live.filter((p) => p.type === 'client').length, live.filter((p) => p.type === 'internal').length];
+  document.querySelectorAll('#proj-type-seg button span').forEach((el, i) => { el.textContent = String(counts[i] ?? ''); });
 
   const grid = document.getElementById('proj-grid');
   if (!grid) return;
@@ -105,9 +121,58 @@ export function renderProjects(): void {
     renderIcons(grid);
     return;
   }
-  grid.innerHTML = data.map(projectRow).join('');
+  grid.innerHTML = data.map(projectCard).join('');
 }
 expose('renderProjects', renderProjects);
+
+const PROJECT_STAGE_TONE: Record<string, string> = { 'In Progress': 'blue', 'At Risk': 'red', 'On Hold': 'amber', Completed: 'green' };
+
+/** A client project's services: what its company has under an active agreement. */
+function projectServices(p: Project): string[] {
+  if (p.type !== 'client' || !p.companyName) return [];
+  const ref = { id: p.companyId ?? null, name: p.companyName };
+  const t = today();
+  return [...new Set(S.agreements.filter((a) => inCompany(ref, a.companyId, a.client) && isAgreementActive(a, t)).flatMap((a) => (a.lines?.length ? a.lines.map((l) => l.serviceName) : [a.type || ''])).filter(Boolean))];
+}
+
+/** A project as a card with its milestone track (1.59 pages): the list's unit. */
+function projectCard(p: Project): string {
+  const list = milestonesByProject.get(p.id) || [];
+  const t = today();
+  const f = trackFigures(p, list, t);
+  const track = projectTrack(p, list, t);
+  const internal = p.type !== 'client';
+  const tile = internal ? '<span class="pk-tile lg is-internal" aria-hidden="true">MB</span>' : tileHtml(p.companyName || p.name, 'pk-tile lg');
+  const services = projectServices(p);
+  const sub = [internal ? 'Internal' : 'Client', services.slice(0, 3).join(', ')].filter(Boolean).map(escHtml).join(' · ');
+  const days = f.daysToTarget;
+  const ring = ringProgress(p, f);
+  const figs = `${f.total ? `<div class="pk-fig"><b>${f.done} of ${f.total}</b><span>milestones</span></div>` : ''}${days != null ? `<div class="pk-fig${days < 0 ? ' t-red' : ''}"><b>${Math.abs(days)} ${Math.abs(days) === 1 ? 'day' : 'days'}</b><span>${days < 0 ? 'past' : 'to'} ${escHtml(f.targetLabel)}</span></div>` : ''}
+    <svg class="pk-ring" viewBox="0 0 36 36" role="img" aria-label="${ring.pct}% ${ring.of === 'milestones' ? 'of milestones done' : ring.of === 'tasks' ? 'of tasks done' : 'done'}"><circle cx="18" cy="18" r="15" fill="none" class="pk-ring-bg" stroke-width="4"/>${ring.pct > 0 ? `<circle cx="18" cy="18" r="15" fill="none" class="pk-ring-fg" stroke-width="4" stroke-dasharray="${ringDash(ring.pct)}" transform="rotate(-90 18 18)" stroke-linecap="round"/>` : ''}<text x="18" y="21.5" text-anchor="middle">${ring.pct}%</text></svg>`;
+  const trackHtml = track.points.length
+    ? `<div class="pk-track"><div class="pk-track-line"></div><div class="pk-track-done" style="width:${track.done}%"></div>${track.today != null ? `<div class="pk-track-today" style="left:${track.today}%"><span>today</span></div>` : ''}
+        ${track.points.map((x) => `<div class="pk-ms is-${x.state}" style="left:${x.pos}%"><i></i><b title="${escHtml(x.name)}">${escHtml(x.name)}</b><span>${escHtml(x.dateLabel)}</span></div>`).join('')}</div>`
+    : `<div class="pk-track-none">No milestones yet · <button class="rlink" onclick="event.stopPropagation();openRecord('project', ${p.id})">Add milestone</button></div>`;
+  const open = p.taskCount - p.taskDoneCount;
+  const lastMeeting = S.meetings.filter((m) => m.projectId === p.id && m.meetingDate && m.meetingDate <= t && !m.isCancelled).sort((a, b) => (b.startAt || b.meetingDate!).localeCompare(a.startAt || a.meetingDate!))[0];
+  const foot = [
+    f.next ? `<span>Next: <b>${escHtml(f.next.name)}</b>${f.next.days != null ? ` · ${f.next.days < 0 ? `${-f.next.days} days late` : f.next.days === 0 ? 'today' : `${f.next.days} ${f.next.days === 1 ? 'day' : 'days'}`}` : ''}</span>` : '',
+    p.taskCount ? `<span>${open} ${open === 1 ? 'task' : 'tasks'} open</span>` : `<span>No tasks yet · <button class="rlink" onclick="event.stopPropagation();projectAddTask(${p.id})">Add the first task</button></span>`,
+    lastMeeting ? `<span>Last meeting <b>${lastMeeting.meetingDate === t ? 'today' : escHtml(fmtDateShort(lastMeeting.meetingDate!, true))}</b> · ${escHtml(lastMeeting.title)}</span>` : '',
+  ].filter(Boolean).join('');
+  return `<article class="pk-proj pj-row${internal ? ' is-internal' : ''}" data-project-id="${p.id}" tabindex="0" onclick="if(!event.target.closest('a,button'))openRecord('project', ${p.id})" onkeydown="if(event.key==='Enter'&&event.target===this)this.click()" oncontextmenu="projectContextMenu(event,${p.id})">
+    <div class="pk-proj-hd">${tile}<div class="pk-proj-tt"><h3>${escHtml(p.name)}</h3><div class="pk-proj-s">${sub}${sub ? ' · ' : ''}<span class="pk-stage t-${PROJECT_STAGE_TONE[p.status] || 'grey'}"><i></i>${escHtml(p.status)}</span></div></div><div class="pk-figs">${figs}</div></div>
+    ${trackHtml}
+    <div class="pk-proj-foot">${foot}<button class="rlink pk-proj-open" onclick="event.stopPropagation();openRecord('project', ${p.id})">Open project</button></div>
+  </article>`;
+}
+
+/** "Add the first task": the project, with a new task started. */
+export function projectAddTask(id: number): void {
+  (window as any).switchTab('projects');
+  void openProjectDetail(id).then(() => createTodoForCurrentProject());
+}
+expose('projectAddTask', projectAddTask);
 
 export function projectContextMenu(e: MouseEvent, id: number): void {
   const p = S.projects.find((x) => x.id === id);
@@ -149,8 +214,11 @@ export async function openProjectDetail(id: number): Promise<void> {
 expose('openProjectDetail', openProjectDetail);
 
 export function closeProjectDetail(): void {
+  // The list's track for this project follows what was just edited on its page.
+  if (S.currentProjectId != null) milestonesByProject.set(S.currentProjectId, [...S.currentProjectMilestones]);
   S.currentProjectId = null;
   S.currentProjectMilestones = [];
+  renderProjects();
   document.getElementById('proj-detail')?.classList.remove('open');
   document.getElementById('proj-list-view')?.classList.remove('hidden');
   notifyNavigated();

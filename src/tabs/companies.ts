@@ -1,4 +1,11 @@
 import { createListNav } from '../lib/listNav';
+import { bucketOf, clearBucket, registerStrip, stripHtml, tileHtml } from '../lib/pageKit';
+import { companiesStrip, companyBuckets, goneQuiet, inFlight, runway, runwayNote, RELATIONSHIP_TONE, type CompanyBucket, type CompanyFigures, type Runway } from '../lib/pagesCompanies';
+import { companyContact } from '../lib/companyBrief';
+import { needsFollowUp } from '../core/proposals';
+import { PS } from '../lib/commercial';
+import { initialsOf } from '../lib/appearance';
+import { fmtTime } from '../lib/dates';
 import { companyFigures, paintFigures } from '../lib/recordFigures';
 import { arrive } from '../lib/motion';
 import { suggestWebsites } from '../lib/clientMatch';
@@ -502,7 +509,7 @@ function companyProposals(ref: CompanyRef): Proposal[] {
 }
 
 function renderQualityBar(allNames: string[]): void {
-  const el = document.getElementById('co-quality-bar');
+  const el = document.getElementById('co-gaps');
   if (!el) return;
   const total = allNames.length;
   if (total === 0) { el.innerHTML = ''; return; }
@@ -525,10 +532,9 @@ function renderQualityBar(allNames: string[]): void {
     unmatched: 'unresolved names',
   };
   const websites = suggestWebsites().length;
-  el.innerHTML = (Object.keys(counts) as QualityFilter[])
-    .filter((k) => counts[k] > 0)
-    .map((k) => `<button class="co-quality-chip${qualityFilter === k ? ' active' : ''}" onclick="setQualityFilter('${k}')">${counts[k]} ${labels[k]}</button>`)
-    .join('') + (websites ? `<button class="co-quality-chip co-quality-action" onclick="openWebsiteSuggestions()">Fill ${websites} website${websites === 1 ? '' : 's'} from email domains</button>` : '');
+  // 1.59: the data-quality chips live in Clean-up; the list says there are gaps and links there.
+  const gaps = (Object.keys(counts) as QualityFilter[]).some((k) => counts[k] > 0) || websites > 0;
+  el.innerHTML = gaps ? `· data gaps in <button class="rlink" onclick="navToModule('cleanup')" data-tip="${escHtml((Object.keys(counts) as QualityFilter[]).filter((k) => counts[k] > 0).map((k) => `${counts[k]} ${labels[k]}`).join(', '))}">Clean-up</button>` : '';
 }
 
 /** Filter controls, by the key a smart list saves them under. */
@@ -709,6 +715,8 @@ interface CoRow {
   openOpps: number; openProposals: number; lastActivity: string | null; lists: string[];
   statusCfg: { c: string; bg?: string; br?: string; ch?: string } | null;
   color: string; initials: string; accent: string; opportunityCount: number; projectCount: number;
+  /** 1.59 pages: the latest meeting, email or call; the agreement's runway; what is in flight; the strip's figures. */
+  lastContact: string | null; runway: Runway | null; flight: ReturnType<typeof inFlight>; figures: CompanyFigures;
 }
 
 const RELATIONSHIP_RANK: Record<string, number> = { 'Active client': 0, 'In discussion': 1, Prospect: 2, 'Past client or prospect': 3 };
@@ -738,8 +746,17 @@ function buildCoRow(name: string, byName: Map<string, Company>, listsByName: Map
   const todayIso = today();
   const renewal = d.clientAgreements.map((a) => a.endDate || '').filter((x) => x && x >= todayIso).sort()[0] || null;
   const opps = S.opportunities.filter((o) => inCompany(ref, o.companyId, o.companyName) && !o.archived);
+  const rel = relationshipStatus(d);
+  const contact = companyContact(briefInputFor(ref));
+  const ending = d.clientAgreements.filter((a) => a.endDate && a.endDate >= todayIso).sort((a, b) => (a.endDate || '').localeCompare(b.endDate || ''))[0];
+  const open = d.proposals.filter((p) => !p.archived && isOpenProposal(p));
+  const proposed: MoneyByCurrency = {};
+  open.forEach((p) => { if (p.monthlyFee) proposed[currencyOf(p)] = (proposed[currencyOf(p)] || 0) + p.monthlyFee; });
+  const firstMet = S.meetings.filter((m) => inCompany(ref, m.companyId, m.companyName) && m.meetingDate && !m.isCancelled).map((m) => m.meetingDate!.slice(0, 10)).sort()[0] || co?.createdAt?.slice(0, 10) || null;
+  const next = contact.next;
+  const quietDays = goneQuiet(rel.label, contact.lastContact, todayIso);
   return {
-    name, co, d, rel: relationshipStatus(d), industry: co?.industries[0] || null, activeServices, otherServices,
+    name, co, d, rel, industry: co?.industries[0] || null, activeServices, otherServices,
     mrr: Object.keys(d.activeMrr).length ? toReporting(d.activeMrr) ?? null : null,
     mrrStr: Object.keys(d.activeMrr).length ? `${fmtMoneyByCurrency(d.activeMrr)}/mo` : null,
     renewal,
@@ -748,10 +765,18 @@ function buildCoRow(name: string, byName: Map<string, Company>, listsByName: Map
     lastActivity: lastActivityFor(ref, d),
     lists: listsByName.get(name) || [],
     statusCfg, color: strColor(name),
-    initials: name.split(/\s+/).slice(0, 2).map((w) => w[0] || '').join('').toUpperCase(),
+    initials: initialsOf(name) || '·',
     accent: statusCfg?.ch || statusCfg?.c || 'var(--border)',
     opportunityCount: opps.length,
     projectCount: S.projects.filter((p) => inCompany(ref, p.companyId, p.companyName) && !p.archived).length,
+    lastContact: contact.lastContact,
+    runway: ending ? runway(ending, todayIso) : null,
+    flight: inFlight({
+      proposals: open.map((p) => ({ promisedBy: p.status === PS.REQUEST ? p.promisedBy : null, validUntil: p.status === PS.SENT ? p.validUntil : null, status: p.status, revision: p.revision, due: needsFollowUp(p) })),
+      openOpps: opps.filter((o) => o.status === 'Open').length,
+      nextMeeting: next?.meetingDate ? { date: next.meetingDate.slice(0, 10), time: next.startAt ? fmtTime(next.startAt) : null } : null,
+    }, todayIso),
+    figures: { name, relationship: rel.label, mrr: d.activeMrr, renewal, proposed, firstMet, quietDays },
   };
 }
 
@@ -759,29 +784,38 @@ const muted = '<span class="t-muted">—</span>';
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 export const COMPANY_COLUMNS: Column<CoRow>[] = [
-  { key: 'company', label: 'Company', shown: true, fixed: true, sort: (r) => r.name.toLowerCase(),
-    cell: (r) => `<div class="tbl-primary">${escHtml(r.name)}</div><div class="tbl-secondary">${r.industry ? escHtml(r.co!.industries.join(', ')) : '<span class="t-amber">Industry unknown</span>'}</div>` },
+  { key: 'company', label: 'Company', shown: true, fixed: true, sort: (r) => r.name.toLowerCase(), className: 'pk-td-co',
+    cell: (r) => {
+      const place = [r.co?.city].filter(Boolean).join('');
+      const sub = r.industry ? escHtml([r.co!.industries.join(', '), place].filter(Boolean).join(' · ')) : '<span class="t-amber">Industry not set</span>';
+      return `<div class="pk-co">${tileHtml(r.name, 'pk-tile sm')}<div class="pk-co-t"><b>${escHtml(r.name)}</b><div class="pk-co-sub">${sub}</div></div></div>`;
+    } },
   { key: 'relationship', label: 'Relationship', shown: true, sort: (r) => RELATIONSHIP_RANK[r.rel.label] ?? 9,
-    cell: (r) => `<span class="rec-badge tone-${r.rel.tone}">${escHtml(r.rel.label)}</span>` },
-  { key: 'services', label: 'Services', shown: true, sort: (r) => r.activeServices.length * 100 + r.otherServices.length, descFirst: true,
+    cell: (r) => `<span class="pk-stage t-${RELATIONSHIP_TONE[r.rel.label] || 'grey'}"><i></i>${escHtml(r.rel.label)}</span>` },
+  { key: 'services', label: 'Services', shown: true, sort: (r) => r.activeServices.length * 100 + r.otherServices.length, descFirst: true, className: 'pk-narrow-hide',
     cell: (r) => {
-      const chips = [...r.activeServices.map((s) => `<span class="chip chip-on" title="On retainer">${escHtml(s)}</span>`), ...r.otherServices.map((s) => `<span class="chip chip-quiet" title="Proposed">${escHtml(s)}</span>`)];
-      return chips.length ? `<div class="co-type-chips">${chips.slice(0, 3).join('')}${chips.length > 3 ? `<span class="chip chip-quiet" title="${escHtml([...r.activeServices, ...r.otherServices].slice(3).join(', '))}">+${chips.length - 3}</span>` : ''}</div>` : muted;
+      const chips = [...r.activeServices.map((s) => `<span class="pk-svc-pill is-on" data-tip="Under an active agreement">${escHtml(s)}</span>`), ...r.otherServices.map((s) => `<span class="pk-svc-pill" data-tip="Proposed">${escHtml(s)}</span>`)];
+      return chips.length ? `<div class="pk-svcs">${chips.slice(0, 3).join('')}${chips.length > 3 ? `<span class="pk-svc-pill" data-tip="${escHtml([...r.activeServices, ...r.otherServices].slice(3).join(', '))}">+${chips.length - 3}</span>` : ''}</div>` : muted;
     } },
-  { key: 'mrr', label: 'MRR', shown: true, sort: (r) => r.mrr, descFirst: true, className: 'td-num',
-    cell: (r) => (r.mrrStr ? `<span class="t-positive fw-600">${r.mrrStr}</span>` : muted) },
-  { key: 'renewal', label: 'Agreement ends', shown: true, sort: (r) => r.renewal,
+  { key: 'mrr', label: 'Monthly', shown: true, sort: (r) => r.mrr, descFirst: true, className: 'num',
     cell: (r) => {
-      if (!r.renewal) return muted;
-      const days = daysUntil(r.renewal) ?? 0;
-      const tone = days <= 30 ? 't-danger' : days <= 90 ? 't-amber' : 't-sub';
-      return `<div>${fmtDate(r.renewal)}</div><div class="tbl-secondary ${tone}">in ${plural(days, 'day', 'days')}</div>`;
+      const cur = Object.keys(r.d.activeMrr);
+      if (!cur.length) return '<span class="pk-mrr is-none">—</span>';
+      if (cur.length === 1 && cur[0] === 'SAR') return `<span class="pk-mrr">${Math.round(r.d.activeMrr.SAR).toLocaleString('en-US')}</span>`;
+      return `<span class="pk-mrr">${escHtml(fmtMoneyByCurrency(r.d.activeMrr))}</span>`;
     } },
-  { key: 'pipeline', label: 'Open deals', shown: true, sort: (r) => r.openOpps + r.openProposals, descFirst: true,
-    cell: (r) => (r.openOpps || r.openProposals ? [r.openOpps ? plural(r.openOpps, 'opportunity', 'opportunities') : '', r.openProposals ? plural(r.openProposals, 'proposal', 'proposals') : ''].filter(Boolean).map((t) => `<div>${t}</div>`).join('') : muted) },
-  { key: 'contacts', label: 'Contacts', shown: true, sort: (r) => r.d.contacts.length, descFirst: true, className: 'td-num',
+  { key: 'renewal', label: 'Agreement', shown: true, sort: (r) => r.renewal,
+    cell: (r) => {
+      if (!r.runway) return muted;
+      const w = r.runway;
+      return `<div class="pk-runway${w.soon ? ' is-soon' : ''}"><b>${escHtml(fmtDate(w.end))}</b> <span>${escHtml(runwayNote(w))}</span><div class="pk-runway-bar"><i style="width:${w.pct}%"></i></div></div>`;
+    } },
+  { key: 'pipeline', label: 'In flight', shown: true, sort: (r) => r.openOpps + r.openProposals, descFirst: true,
+    cell: (r) => (r.flight.text || r.flight.urgent ? `<span class="pk-flight">${escHtml(r.flight.text)}${r.flight.urgent ? `${r.flight.text ? ' · ' : ''}<span class="t-${r.flight.urgent.tone}">${escHtml(r.flight.urgent.text)}</span>` : ''}</span>` : muted) },
+  { key: 'contacts', label: 'Contacts', shown: false, sort: (r) => r.d.contacts.length, descFirst: true, className: 'td-num',
     cell: (r) => (r.d.contacts.length ? String(r.d.contacts.length) : '<span class="t-amber">None</span>') },
-  { key: 'activity', label: 'Last activity', shown: true, sort: (r) => r.lastActivity, descFirst: true, cell: (r) => agoLabel(r.lastActivity) },
+  { key: 'activity', label: 'Last contact', shown: true, sort: (r) => r.lastContact, descFirst: true,
+    cell: (r) => (r.figures.quietDays != null ? `<span class="pk-quiet"><i></i>${escHtml(plural(r.figures.quietDays, 'day', 'days'))} · gone quiet</span>` : `<span class="pk-flight">${agoLabel(r.lastContact)}</span>`) },
   { key: 'owner', label: 'Owner', shown: false, sort: (r) => r.co?.owner || '', cell: (r) => (r.co?.owner ? escHtml(r.co.owner) : muted) },
   { key: 'location', label: 'Location', shown: false, sort: (r) => locationOf(r.co), cell: (r) => escHtml(locationOf(r.co)) || muted },
   { key: 'website', label: 'Website', shown: false, sort: (r) => r.co?.website || '', cell: (r) => (r.co?.website ? escHtml(r.co.website.replace(/^https?:\/\//, '')) : muted) },
@@ -862,7 +896,13 @@ export function renderCompanyList(): void {
   const sort = sortState('companies', COMPANY_COLUMNS, COMPANY_SORT_DEFAULT);
   const sortSel = document.getElementById('co-sort') as HTMLSelectElement | null;
   if (sortSel) sortSel.value = sort.key;
-  const rows = sortRows(names.map((n) => buildCoRow(n, byName, listsByName, services)), COMPANY_COLUMNS, sort);
+  const built = sortRows(names.map((n) => buildCoRow(n, byName, listsByName, services)), COMPANY_COLUMNS, sort);
+  // The strip sums what the filters leave; a panel narrows the list to its bucket.
+  if (bucketOf('companies') && !built.some((r) => companyBuckets(r.figures).includes(bucketOf('companies') as CompanyBucket))) clearBucket('companies');
+  const stripEl = document.getElementById('co-strip');
+  if (stripEl) stripEl.innerHTML = built.length ? stripHtml('companies', companiesStrip(built.map((r) => r.figures))) : '';
+  const bucket = bucketOf('companies') as CompanyBucket | null;
+  const rows = bucket ? built.filter((r) => companyBuckets(r.figures).includes(bucket)) : built;
 
   const cntEl = document.getElementById('co-cnt');
   if (cntEl) cntEl.textContent = `${rows.length} compan${rows.length === 1 ? 'y' : 'ies'}${list ? ` in ${list.name}` : ''}`;
@@ -882,15 +922,9 @@ export function renderCompanyList(): void {
     return;
   }
 
-  grid.innerHTML = rows.map(({ name, d, rel, color, initials, mrrStr, industry, activeServices, otherServices, opportunityCount, projectCount }) => {
+  grid.innerHTML = rows.map(({ name, d, rel, color, initials, mrrStr, industry, activeServices, otherServices, runway: w, flight, figures, lastContact }) => {
     const escName = escHtml(name).replace(/'/g, "\\'");
     const types = [...activeServices, ...otherServices];
-    // Counts read as one quiet line; a zero is greyed rather than boxed, and
-    // agreements are left off entirely for a company that has none and isn't
-    // a client — a card shouldn't lead with what a company doesn't have.
-    const stat = (n: number, one: string, many: string) =>
-      `<span class="${n === 0 ? 'co-stat zero' : 'co-stat'}"><b>${n}</b> ${n === 1 ? one : many}</span>`;
-    const showAgreements = d.agreements.length > 0 || rel.label === 'Active client';
     // Missing data becomes something to act on, not a blank line.
     const flag = !industry ? 'Needs industry' : d.contacts.length === 0 ? 'Needs contact' : '';
     const record = S.companies.find((c) => c.name === name);
@@ -907,16 +941,13 @@ export function renderCompanyList(): void {
         <span class="co-dot tone-${rel.tone}" title="${escHtml(rel.label)}"></span>
       </div>
       <div class="co-type-chips">${types.slice(0, 2).map((t) => `<span class="chip${activeServices.includes(t) ? ' chip-on' : ''}">${escHtml(t)}</span>`).join('')}${types.length > 2 ? `<span class="chip chip-more">+${types.length - 2}</span>` : ''}</div>
-      <div class="co-footer">
-        <span class="co-stats">
-          ${stat(d.contacts.length, 'contact', 'contacts')}
-          ${stat(d.proposals.length, 'proposal', 'proposals')}
-          ${showAgreements ? stat(d.agreements.length, 'agreement', 'agreements') : ''}
-          ${opportunityCount > 0 ? stat(opportunityCount, 'opportunity', 'opportunities') : ''}
-          ${projectCount > 0 ? stat(projectCount, 'project', 'projects') : ''}
-        </span>
-        <span class="co-state tone-${rel.tone}">${escHtml(rel.label)}${mrrStr ? ` · ${mrrStr}` : ''}</span>
+      <div class="pk-cofigs">
+        ${mrrStr ? `<div class="pk-cofig"><span class="pk-mrr">${escHtml(fmtMoneyByCurrency(d.activeMrr))}</span><span class="pk-cofig-l">a month</span></div>` : ''}
+        ${w ? `<div class="pk-runway${w.soon ? ' is-soon' : ''}"><b>${escHtml(fmtDate(w.end))}</b> <span>${escHtml(runwayNote(w))}</span><div class="pk-runway-bar"><i style="width:${w.pct}%"></i></div></div>` : ''}
+        ${flight.text || flight.urgent ? `<div class="pk-flight">${escHtml(flight.text)}${flight.urgent ? `${flight.text ? ' · ' : ''}<span class="t-${flight.urgent.tone}">${escHtml(flight.urgent.text)}</span>` : ''}</div>` : ''}
+        <div class="pk-flight">${figures.quietDays != null ? `<span class="pk-quiet"><i></i>${figures.quietDays} days · gone quiet</span>` : `Last contact ${agoLabel(lastContact)}`}</div>
       </div>
+      <div class="co-footer"><span class="co-state tone-${rel.tone}">${escHtml(rel.label)}</span></div>
     </div>`;
   }).join('');
 
@@ -937,6 +968,7 @@ export function renderCompanyList(): void {
 }
 // With a company open, a refresh re-renders its page (previously only the
 // hidden list refreshed, leaving the open page stale until reopened).
+registerStrip('companies', () => renderCompanyList());
 registerTabRenderer('companies', () => {
   if (S.currentCompany && document.getElementById('co-detail')?.classList.contains('open')) renderCompanyDetail();
   else renderCompanyList();

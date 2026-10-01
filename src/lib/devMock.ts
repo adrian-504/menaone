@@ -54,13 +54,16 @@ const SAMPLE: AppData = {
     { id: 5, client: 'Northwind Trading', companyId: 2, type: 'GM Representative', status: 'Proposal Request Received', sentDate: null, dateAdded: '2026-09-24', promisedBy: '2026-10-02', monthlyFee: 6500, contractMonths: 12, dateSentToHassan: null, dateSentToClient: null, dblSignedDate: null, kickoffDate: null, finance: null, hubspot: null, owner: 'Ahmad', remarks: null, winLossReason: null, docLink: null, archived: false, archivedAt: null, snoozedUntil: null, dateSigned: null, notes: [], businessEntityId: 1, currency: 'SAR', documents: [],
       lines: [{ id: 50, serviceId: null, serviceName: 'GM Representative', description: null, billing: 'monthly', quantity: 1, unitPrice: 6500, commission: false, sortOrder: 0 }] },
     { id: 6, client: 'Elite HR', companyId: 5, type: 'Recruitment', status: 'Proposal Request Received', sentDate: null, dateAdded: '2026-09-27', monthlyFee: null, contractMonths: null, dateSentToHassan: null, dateSentToClient: null, dblSignedDate: null, kickoffDate: null, finance: null, hubspot: null, owner: 'Ahmad', remarks: null, winLossReason: null, docLink: null, archived: false, archivedAt: null, snoozedUntil: null, dateSigned: null, notes: [], businessEntityId: 1, currency: 'SAR', documents: [], lines: [] },
-    { id: 7, client: 'Globex', companyId: 3, type: 'Business setup', status: 'Drafting', sentDate: '2026-09-22', dateAdded: '2026-09-10', monthlyFee: null, contractMonths: null, dateSentToHassan: '2026-09-18', dateSentToClient: '2026-09-22', revision: 2, dblSignedDate: null, kickoffDate: null, finance: null, hubspot: null, owner: 'Ahmad', remarks: null, winLossReason: null, docLink: null, archived: false, archivedAt: null, snoozedUntil: null, dateSigned: null, notes: [], businessEntityId: 1, currency: 'SAR', documents: [],
+    { id: 7, client: 'Globex', companyId: 3, type: 'Business setup', status: 'Drafting', sentDate: '2026-09-22', dateAdded: '2026-09-10', monthlyFee: 4000, contractMonths: 12, dateSentToHassan: '2026-09-18', dateSentToClient: '2026-09-22', revision: 2, dblSignedDate: null, kickoffDate: null, finance: null, hubspot: null, owner: 'Ahmad', remarks: null, winLossReason: null, docLink: null, archived: false, archivedAt: null, snoozedUntil: null, dateSigned: null, notes: [], businessEntityId: 1, currency: 'SAR', documents: [],
       revisions: [{ id: 70, number: 2, requestedAt: '2026-09-26', requestedByContactId: null, reason: 'Two people instead of three', linesBeforeJson: '[]', sentAt: null }], lines: [] },
     { id: 8, client: 'Red Sea Global', companyId: 4, type: 'EOR', status: 'Sent to Client', sentDate: '2026-09-26', dateAdded: '2026-09-20', monthlyFee: 12000, contractMonths: 12, dateSentToHassan: '2026-09-24', dateSentToClient: '2026-09-26', validUntil: '2026-10-05', dblSignedDate: null, kickoffDate: null, finance: null, hubspot: null, owner: 'Ahmad', remarks: null, winLossReason: null, docLink: null, archived: false, archivedAt: null, snoozedUntil: null, dateSigned: null, notes: [], businessEntityId: 1, currency: 'SAR', documents: [], lines: [] },
   ],
   contacts: [
     { id: 1, clientName: 'Acme Holdings', companyId: 1, name: 'Jane Doe', role: 'CEO', email: 'jane@acme.test', phone: null, whatsapp: null, service: null, lists: [], isDecisionMaker: true },
     { id: 2, clientName: 'Acme Holdings', companyId: 1, name: 'Omar Haddad', role: 'Finance manager', email: 'omar@acme.test', phone: null, whatsapp: null, service: null, lists: [] },
+    { id: 3, clientName: 'Northwind Trading', companyId: 2, name: 'Lina Saleh', role: 'HR director', email: 'lina@northwind.test', phone: null, whatsapp: null, service: null, lists: [], isDecisionMaker: true },
+    { id: 4, clientName: 'Globex', companyId: 3, name: 'Mariam Khalil', role: 'General manager', email: 'mariam@globex.test', phone: null, whatsapp: null, service: null, lists: [], isDecisionMaker: true },
+    { id: 5, clientName: 'Red Sea Global', companyId: 4, name: 'Faisal Alami', role: 'People operations', email: 'faisal@redsea.test', phone: null, whatsapp: null, service: null, lists: [] },
   ],
   agreements: [
     {
@@ -142,7 +145,18 @@ const SAMPLE_PROJECTS: Project[] = [
 // browser tab. The real Tauri build never touches this file's state; it's
 // re-seeded from SAMPLE_PROJECTS on every page load.
 let projectsStore: Project[] = SAMPLE_PROJECTS.map((p) => ({ ...p }));
-let milestonesStore: Milestone[] = [];
+let milestonesStore: Milestone[] = [
+  // Acme's retainer: two milestones done, the October payroll run next.
+  { id: 101, projectId: 1, name: 'Onboarding pack', description: null, status: 'Done', targetDate: '2026-09-02', completionDate: '2026-09-02', sortOrder: 1 },
+  { id: 102, projectId: 1, name: 'GOSI registrations', description: null, status: 'Done', targetDate: '2026-09-20', completionDate: '2026-09-19', sortOrder: 2 },
+  { id: 103, projectId: 1, name: 'October payroll run', description: null, status: 'In Progress', targetDate: '2026-10-28', completionDate: null, sortOrder: 3 },
+  { id: 104, projectId: 1, name: 'Iqama renewals', description: null, status: 'Not Started', targetDate: '2026-11-30', completionDate: null, sortOrder: 4 },
+  { id: 105, projectId: 1, name: 'Year-end WPS', description: null, status: 'Not Started', targetDate: '2026-12-31', completionDate: null, sortOrder: 5 },
+  { id: 106, projectId: 2, name: 'Hire a recruiter', description: null, status: 'Not Started', targetDate: '2026-10-15', completionDate: null, sortOrder: 1 },
+  { id: 107, projectId: 2, name: 'Service pack and pricing', description: null, status: 'Not Started', targetDate: '2026-11-01', completionDate: null, sortOrder: 2 },
+  { id: 108, projectId: 2, name: 'First three clients', description: null, status: 'Not Started', targetDate: '2026-11-20', completionDate: null, sortOrder: 3 },
+  { id: 109, projectId: 2, name: 'Launch', description: null, status: 'Not Started', targetDate: '2026-12-01', completionDate: null, sortOrder: 4 },
+];
 const mockMeeting = (id: number, title: string, date: string, emails: { email: string; name: string }[]): Meeting => ({
   id, title, meetingDate: date, companyName: null, companyId: null, projectId: null, opportunityId: null, attendees: emails.map((e) => e.name),
   agenda: null, discussion: null, decisions: null, actionItems: null, followUp: null, nextMeeting: null, noteId: null,
@@ -163,14 +177,21 @@ let emailTemplatesStore: EmailTemplate[] = [
 ].map(([name, subject, body], i) => ({ id: i + 1, name, subject, body, sortOrder: i + 1, updatedAt: '2026-09-29T00:00:00Z' }));
 let touchesStore: Touch[] = [
   { id: 1, companyId: null, proposalId: 3, kind: 'email_out', direction: 'out', at: '2026-09-15', subject: 'Re: Payroll proposal', contactId: null, source: 'manual', sourceId: null, createdAt: '2026-09-15T09:00:00Z' },
+  // The old mobilization proposal: four follow-ups, never an answer (Follow-up offers "mark lost?").
+  { id: 2, companyId: null, proposalId: 4, kind: 'email_out', direction: 'out', at: '2025-05-02', subject: 'Mobilization proposal', contactId: 1, source: 'manual', sourceId: null, createdAt: '2025-05-02T09:00:00Z' },
+  { id: 3, companyId: null, proposalId: 4, kind: 'call', direction: 'out', at: '2025-06-20', subject: null, contactId: 1, source: 'manual', sourceId: null, createdAt: '2025-06-20T09:00:00Z' },
+  { id: 4, companyId: null, proposalId: 4, kind: 'email_out', direction: 'out', at: '2025-08-03', subject: 'Mobilization proposal', contactId: 1, source: 'manual', sourceId: null, createdAt: '2025-08-03T09:00:00Z' },
+  { id: 5, companyId: null, proposalId: 4, kind: 'email_out', direction: 'out', at: '2026-09-28', subject: 'Still of interest?', contactId: 1, source: 'manual', sourceId: null, createdAt: '2026-09-28T09:00:00Z' },
 ];
-let nextTouchId = 1;
+let nextTouchId = 5;
 let meetingsStore: Meeting[] = [
   { ...mockMeeting(1, 'Acme — payroll kickoff', '2026-08-20', [{ email: 'jane@acme.test', name: 'Jane Doe' }]), companyName: 'Acme Holdings', companyId: 1, followUp: 'Send the onboarding checklist\nConfirm GOSI access', decisions: 'Start payroll from October' },
   { ...mockMeeting(2, 'Monthly check-in', '2026-09-15', [{ email: 'jane@acme.test', name: 'Jane Doe' }, { email: 'omar@acme.test', name: 'Omar Haddad' }]), companyName: 'Acme Holdings', companyId: 1, opportunityId: 1,
     discussion: '- Headcount goes from 4 to **3** people\n- Omar wants the GOSI report monthly\n- [ ] Check the October payroll calendar', decisions: '- Price on three people from November\n- Monthly GOSI report from us',
     nextMeeting: '2026-10-13', inviteText: '________________________________\nMicrosoft Teams meeting\nJoin: https://teams.microsoft.com/l/meetup-join/demo\nMeeting ID: 000 000 000\n________________________________' },
   mockMeeting(3, 'Intro call — Northwind', '2026-09-16', [{ email: 'lina@northwind.test', name: 'Lina Saleh' }]),
+  // A client last seen a month ago: Companies shows it gone quiet.
+  { ...mockMeeting(40, 'Payroll review — Elite HR', '2026-08-31', []), companyName: 'Elite HR', companyId: 5 },
   ...todaysMockMeetings(),
 ];
 
@@ -188,7 +209,7 @@ function todaysMockMeetings(): Meeting[] {
     make(13, 'GM Representative', 2, 30, { companyName: 'Northwind', attendeeEmails: ['lina@northwind.test'], attendees: ['Lina Saleh'], isOnlineMeeting: false, location: 'Riyadh office' }),
     // Ended earlier today with nothing written (My Day's write-up prompt), and one tomorrow (Coming up).
     make(14, 'Payroll questions — Acme', -3.5, 30, { companyName: 'Acme Holdings', companyId: 1, attendeeEmails: ['omar@acme.test'], attendees: ['omar@acme.test'] }),
-    make(15, 'Payroll kickoff — month one', 21, 60, { companyName: 'Acme Holdings', companyId: 1, attendeeEmails: ['omar@acme.test'], attendees: ['omar@acme.test'], onlineMeetingUrl: 'https://teams.microsoft.com/l/meetup-join/demo', isOnlineMeeting: true }),
+    make(15, 'Payroll kickoff — month one', 21, 60, { agenda: 'October calendar, GOSI, cut-off', companyName: 'Acme Holdings', companyId: 1, attendeeEmails: ['omar@acme.test'], attendees: ['omar@acme.test'], onlineMeetingUrl: 'https://teams.microsoft.com/l/meetup-join/demo', isOnlineMeeting: true }),
   ];
 }
 let companiesStore: Company[] = [];
@@ -230,7 +251,7 @@ let opportunitiesStore: Opportunity[] = [
 let opportunityActivityStore: OpportunityActivity[] = [];
 let projectActivityStore: ProjectActivity[] = [];
 let nextProjectId = 1000;
-let nextMilestoneId = 1;
+let nextMilestoneId = 200; // above the sample milestones' ids
 let nextMeetingId = 1;
 let nextCompanyId = 100; // above the sample companies' ids
 let nextOpportunityId = 100; // above the sample opportunities' ids
