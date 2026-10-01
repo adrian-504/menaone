@@ -3,10 +3,9 @@
 // signature trail and activity. Active agreements make a company an active
 // client and count towards MRR; the end date drives renewal alerts.
 
-import { agreementFigures, paintFigures } from '../lib/recordFigures';
-import { statusBadge } from '../lib/statusTone';
+import { paintFigures } from '../lib/recordFigures';
 import { S } from '../lib/state';
-import { escHtml, expose, fmtDate, today, showConfirm } from '../lib/utils';
+import { escHtml, expose, fmtDate, today, showConfirm, inCompany, nextAgrId, strColor } from '../lib/utils';
 import { icon } from '../lib/icons';
 import { recordHeaderHtml } from '../lib/recordHeader';
 import { companyLink, recordLink } from '../lib/links';
@@ -19,12 +18,21 @@ import { renderRecordTimeline, renderThreadStrip } from './recordThread';
 import { renderIcons } from '../core/chrome';
 import { AGR_STATUSES, AGR_TYPES, SERVICE_STATUSES } from '../lib/constants';
 import { renderLinesEditor } from '../lib/linesEditor';
-import { endPropsEdit, mountPropsList, propsEditButton, propsListHtml, resetPropsLists, type PropField } from '../lib/propsList';
-import { agrBadge, updateAgrStatus } from '../core/agreements';
-import { syncAgreementTotals, fmtMoney, currencyOf, agreementMonthly, teamMember, activeTeam, entityById, contractEndDate, lineTotals, isAgreementActive } from '../lib/commercial';
+import { endPropsEdit, isEditingAll, mountPropsList, propsEditButton, propsListHtml, resetPropsLists, type PropField } from '../lib/propsList';
+import { agrBadge, genAgrRef, updateAgrStatus } from '../core/agreements';
+import { syncAgreementTotals, currencyOf, teamMember, activeTeam, entityById, contractEndDate, lineTotals, isAgreementActive, isOpenProposal, nextLineId, defaultReviewer, PS } from '../lib/commercial';
 import { proposalProject } from '../lib/workGraph';
 import { agreementNextStep } from '../lib/recordSteps';
-import type { Agreement } from '../lib/types';
+import type { Agreement, RenewalDecision } from '../lib/types';
+import { agreementHeaderFigures, decisionChip, renewalDraft, renewalFor, termLane } from '../lib/recordAgreement';
+import { signatureStepper, stepperHtml } from '../lib/recordStory';
+import { nextDecision } from '../lib/pagesAgreements';
+import { tileHtml, plural } from '../lib/pageKit';
+import { initialsOf } from '../lib/appearance';
+import { fmtDateShort } from '../lib/dates';
+import { daysBetween } from '../lib/pipeline';
+import { companyContact } from '../lib/companyBrief';
+import { briefInputFor } from './companyState';
 
 const w = window as any;
 const current = (): Agreement | undefined => S.agreements.find((a) => a.id === S.currentAgreementId);
@@ -67,33 +75,157 @@ function commit(a: Agreement, rerender = true): void {
 }
 
 
+const STATUS_TONE: Record<string, string> = { Signed: 'green', 'Client Signature': 'amber', 'MENA Signature': 'amber', 'On Hold': 'amber', Canceled: 'red' };
+
 export function renderAgreementPage(): void {
   const a = current();
   if (!a) return;
+  const t = today();
+  const services = lineTotals(a.lines, a.contractMonths).serviceNames.join(' + ') || a.type || 'Agreement';
+  const avatar = document.getElementById('agd-avatar');
+  if (avatar) { avatar.textContent = initialsOf(a.client || a.agrRef || '?') || '?'; avatar.style.background = strColor(a.client || a.agrRef || '?'); }
+  const eyebrow = document.getElementById('agd-eyebrow');
+  if (eyebrow) eyebrow.innerHTML = `Agreement${a.agrRef ? ` · ${escHtml(a.agrRef)}<button class="rec-icon-btn rec-eyebrow-copy" onclick="copyText('${escHtml(a.agrRef)}','Reference copied')" data-tip="Copy reference" aria-label="Copy reference">${icon('copy', 11)}</button>` : ''}`;
   const title = document.getElementById('agd-title');
-  if (title) title.innerHTML = `${escHtml(a.agrRef || 'Agreement')}${a.agrRef ? `<button class="rec-icon-btn rec-title-copy" onclick="copyText('${escHtml(a.agrRef)}','Reference copied')" data-tip="Copy reference" aria-label="Copy reference">${icon('copy', 14)}</button>` : ''}<span class="pr-title-services">${companyLink(a.companyId, a.client)}</span>`;
-  const monthly = agreementMonthly(a);
-  paintFigures('agd-figures', agreementFigures(a, today()));
+  if (title) title.innerHTML = `${companyLink(a.companyId, a.client)}<span class="pr-title-services"> — ${escHtml(services)}</span>`;
+  paintFigures('agd-figures', agreementHeaderFigures(a, t));
+  const decided = decisionChip(a);
+  const next = nextDecision(a, t);
+  const entity = entityById(a.businessEntityId);
+  const preparer = teamMember(a.preparedById)?.name || a.preparedBy;
+  const from = a.renewedFrom != null ? S.agreements.find((x) => x.id === a.renewedFrom) : undefined;
+  const renewal = S.agreements.find((x) => x.renewedFrom === a.id);
   const badges = document.getElementById('agd-badges');
   if (badges) badges.innerHTML = [
-    statusBadge('agreement', a.status),
-    a.serviceStatus ? statusBadge('service', a.serviceStatus, `Service ${a.serviceStatus.toLowerCase()}`) : '',
-
+    a.client ? `<span class="pk-mini-co">${tileHtml(a.client, 'pk-tile mini')}${companyLink(a.companyId, a.client)}</span>` : '',
+    `<span class="pk-stage t-${STATUS_TONE[a.status || ''] || 'grey'}"><i></i>${escHtml([a.status || 'In preparation', a.serviceStatus ? `service ${a.serviceStatus.toLowerCase()}` : ''].filter(Boolean).join(' · '))}</span>`,
+    decided ? `<span class="pk-chip is-text t-${decided.tone}">${escHtml(decided.text)}</span>`
+      : a.status === 'Signed' && (next.tone === 'amber' || next.tone === 'blue') ? `<span class="pk-chip is-text t-${next.tone}">${escHtml(next.text)}</span>` : '',
+    [entity?.name, preparer ? `prepared by ${preparer}` : ''].some(Boolean) ? `<span class="rec-meta">${escHtml([entity?.name, preparer ? `prepared by ${preparer}` : ''].filter(Boolean).join(' · '))}</span>` : '',
+    from ? `<span class="rec-meta">renews ${recordLink('agreement', from.id, from.agrRef || 'the previous agreement')}</span>` : '',
+    renewal ? `<span class="rec-meta">renewal ${recordLink('agreement', renewal.id, renewal.agrRef || 'drafted')}</span>` : '',
   ].filter(Boolean).join('');
   const actions = document.getElementById('agd-actions');
   if (actions) {
-    const step = agreementNextStep(a, today());
+    const step = agreementNextStep(a, t);
     actions.innerHTML = recordHeaderHtml([], step, 'agreementMoreMenu(event)');
   }
+  renderLane(a);
   renderThreadStrip('agd-thread', { kind: 'agreement', id: a.id });
+  renderRenewal(a);
   renderProps(a);
   renderTerm(a);
+  renderAt(a);
   renderLines(a);
   renderDates(a);
   void renderActivity(a);
   const page = document.getElementById('agr-detail'); if (page) renderIcons(page);
 }
 expose('renderAgreementPage', renderAgreementPage);
+
+/** The term at full width: what has run (lighter), what is left, today in coral and the notice window hatched. */
+function renderLane(a: Agreement): void {
+  const el = document.getElementById('agd-lane');
+  if (!el) return;
+  const l = termLane(a, today());
+  el.hidden = !l;
+  if (!l) { el.innerHTML = ''; return; }
+  el.innerHTML = `<div class="rk-lane${a.status === 'Signed' ? '' : ' is-outline'}">
+      ${l.notice ? `<span class="rk-lane-nl" style="left:${l.notice.left}%">${escHtml(l.notice.label)}</span>` : ''}
+      <div class="rk-lane-bar"><span class="rk-lane-ran" style="width:${l.elapsed}%"></span>${l.notice ? `<span class="rk-lane-notice" style="left:${l.notice.left}%"></span>` : ''}</div>
+      ${l.today != null ? `<span class="rk-lane-today" style="left:${l.today}%"><em>today</em></span>` : ''}
+      <span class="rk-lane-s">${escHtml(l.startLabel)}</span><span class="rk-lane-e">${escHtml(l.endLabel)}</span>
+    </div>`;
+}
+
+/** Renewal: three choices, each saying what it does; the chosen one is marked and can be changed. */
+function renderRenewal(a: Agreement): void {
+  const el = document.getElementById('agd-renewal');
+  if (!el) return;
+  const r = renewalFor(a, today());
+  el.hidden = !r;
+  if (!r) { el.innerHTML = ''; return; }
+  const draft = S.agreements.find((x) => x.renewedFrom === a.id);
+  el.innerHTML = `<div class="rk-sh"><h2 class="hd-major">Renewal</h2><span class="rk-cnt${r.tone ? ` t-${r.tone}` : ''}">${escHtml(r.decided ? r.decided.on : r.deadline)}</span>${r.decided ? `<a href="#" class="rlink rk-sh-r" onclick="event.preventDefault();agreementRenewalClear()">Change</a>` : ''}</div>
+    <div class="rk-choices">${r.cards.map((c) => `<button type="button" class="rk-choice${c.chosen ? ' is-chosen' : ''}" aria-pressed="${c.chosen}" onclick="agreementRenewalChoose('${c.key}')">
+      <b>${escHtml(c.title)}</b><span>${escHtml(c.body)}</span>${c.chosen && c.key === 'renew' && draft ? `<em>Drafted: ${escHtml(draft.agrRef || 'the renewal')}</em>` : c.chosen ? '<em>Chosen</em>' : ''}</button>`).join('')}</div>`;
+}
+
+/** The header's "Start renewal": to the three choices. */
+export function agreementStartRenewal(): void {
+  const el = document.getElementById('agd-renewal');
+  if (!el || el.hidden) return;
+  el.scrollIntoView({ block: 'center' });
+  el.querySelector<HTMLElement>('.rk-choice')?.focus();
+}
+expose('agreementStartRenewal', agreementStartRenewal);
+
+/** Records a renewal choice and does what it says; the toast undoes it. */
+export function agreementRenewalChoose(choice: RenewalDecision): void {
+  const a = current();
+  if (!a) return;
+  if (a.renewalDecision === choice) {
+    // Clicking the chosen card again goes to what it made.
+    const made = choice === 'renew' ? S.agreements.find((x) => x.renewedFrom === a.id) : undefined;
+    if (made) w.openRecord('agreement', made.id);
+    else if (choice === 'changes') agreementRenew();
+    return;
+  }
+  const before = { decision: a.renewalDecision ?? null, at: a.renewalDecidedAt ?? null };
+  const t = today();
+  a.renewalDecision = choice;
+  a.renewalDecidedAt = t;
+  let drafted: Agreement | undefined;
+  if (choice === 'renew' && !S.agreements.some((x) => x.renewedFrom === a.id && x.status !== 'Canceled')) {
+    drafted = renewalDraft(a, { id: nextAgrId(), agrRef: '', today: t, lineId: nextLineId });
+    // Its reference is dated by its own start: the day after this one ends.
+    drafted.agrRef = genAgrRef(a.client || '', a.type || '', drafted.startDate || t);
+    S.agreements.push(drafted);
+  }
+  commit(a);
+  const undo = () => {
+    a.renewalDecision = before.decision;
+    a.renewalDecidedAt = before.at;
+    if (drafted) { const i = S.agreements.findIndex((x) => x.id === drafted!.id); if (i > -1) S.agreements.splice(i, 1); }
+    commit(a);
+  };
+  undoToast(choice === 'renew' ? `Renewal drafted${drafted ? `: ${drafted.agrRef}` : ''}` : choice === 'changes' ? 'Recorded: renewing with changes' : `Recorded: it ends ${a.endDate ? fmtDateShort(a.endDate, true) : 'at term'}`, undo);
+  if (choice === 'changes') agreementRenew();
+}
+expose('agreementRenewalChoose', agreementRenewalChoose);
+
+/** "Change": back to undecided. A renewal already drafted stays; it is its own agreement now. */
+export function agreementRenewalClear(): void {
+  const a = current();
+  if (!a || !a.renewalDecision) return;
+  const before = { decision: a.renewalDecision, at: a.renewalDecidedAt ?? null };
+  a.renewalDecision = null;
+  a.renewalDecidedAt = null;
+  commit(a);
+  undoToast('Renewal undecided again', () => { a.renewalDecision = before.decision; a.renewalDecidedAt = before.at; commit(a); });
+}
+expose('agreementRenewalClear', agreementRenewalClear);
+
+/** "At <client>": who to talk to, what else is open there, when we last spoke. */
+function renderAt(a: Agreement): void {
+  const el = document.getElementById('agd-at');
+  if (!el) return;
+  el.hidden = !a.client;
+  if (!a.client) { el.innerHTML = ''; return; }
+  const ref = { id: a.companyId ?? null, name: a.client };
+  const people = S.contacts.filter((c) => inCompany(ref, c.companyId, c.clientName));
+  const who = people.find((c) => c.isDecisionMaker) || people[0];
+  const open = S.proposals.filter((p) => !p.archived && isOpenProposal(p) && inCompany(ref, p.companyId, p.client));
+  const reviewer = (p: (typeof open)[number]) => (teamMember(p.reviewerId)?.name || defaultReviewer()?.name || 'the reviewer').split(' ')[0];
+  const last = companyContact(briefInputFor(ref)).lastContact;
+  const ago = last ? Math.max(0, daysBetween(last, today()) ?? 0) : null;
+  el.innerHTML = `<div class="rec-section-hd"><h2 class="rk-panel-h">At ${escHtml(a.client)}</h2></div>
+    <dl class="rec-props od-at">
+      ${who ? `<dt>Contact</dt><dd>${recordLink('contact', who.id, who.name || 'Contact')}${who.role ? ` · ${escHtml(who.role)}` : ''}</dd>` : ''}
+      ${open.length ? `<dt>In flight</dt><dd>${open.slice(0, 3).map((p) => `<div>${recordLink('proposal', p.id, `${p.type || 'Proposal'}, SL# ${p.id}${p.status === PS.REVIEW ? ` in review with ${reviewer(p)}` : ''}`)}</div>`).join('')}</dd>` : ''}
+      <dt>Last contact</dt><dd>${ago == null ? '<span class="rec-muted">none on record</span>' : ago === 0 ? 'today' : ago === 1 ? 'yesterday' : `${plural(ago, 'day')} ago`}</dd>
+    </dl>`;
+}
 
 /** "Renew…" near the notice date: a new proposal for the client, starting from this agreement's lines and term. */
 export function agreementRenew(): void {
@@ -169,6 +301,7 @@ function renderTerm(a: Agreement): void {
       control: () => input('endDate', 'date', a.endDate || '') },
     { key: 'autoRenew', label: 'Auto-renews', display: a.autoRenew ? 'Yes' : '', control: () => select('autoRenew', [['no', 'No'], ['yes', 'Yes']], a.autoRenew ? 'yes' : 'no') },
     { key: 'noticeDays', label: 'Notice', display: a.noticeDays != null ? `${a.noticeDays} days` : '', control: () => input('noticeDays', 'number', a.noticeDays != null ? String(a.noticeDays) : '', 'Days') },
+    { key: 'actionDate', label: 'Next action', display: dateText(a.actionDate), control: () => input('actionDate', 'date', a.actionDate || '') },
     { key: 'countsAs', label: 'Counts as', display: active ? '<span class="t-positive">Active client · in MRR</span>' : '<span class="rec-muted">Not active — set the service to Active once it has started</span>' },
   ];
   readList('agd-term', 'agd-term-act', fields, again(renderTerm));
@@ -187,7 +320,7 @@ function renderLines(a: Agreement): void {
   const count = document.getElementById('agd-lines-count'); if (count) count.textContent = (a.lines || []).length ? String(a.lines!.length) : '';
   const act = document.getElementById('agd-lines-act');
   const editing = linesEditing || !(a.lines || []).length;
-  if (act) act.innerHTML = (a.lines || []).length ? `<button class="btn-ghost btn-sm" onclick="toggleAgreementLines()" aria-pressed="${linesEditing}">${linesEditing ? 'Done' : 'Edit'}</button>` : '';
+  if (act) act.innerHTML = (a.lines || []).length ? `<button class="rlink" onclick="toggleAgreementLines()" aria-pressed="${linesEditing}">${linesEditing ? 'Done' : 'Edit services'}</button>` : '';
   renderLinesEditor(`agreement:${a.id}`, 'agd-lines', {
     lines: () => a.lines || [],
     setLines: (lines) => { a.lines = lines; },
@@ -196,18 +329,23 @@ function renderLines(a: Agreement): void {
     editable: editing,
     onChange: () => {
       commit(a, false);
-      const badges = document.getElementById('agd-badges');
-      if (badges) { const m = lineTotals(a.lines, a.contractMonths).monthly; badges.querySelector('.rec-meta')?.replaceWith(Object.assign(document.createElement('span'), { className: 'rec-meta', textContent: m ? `${fmtMoney(m, currencyOf(a))}/mo` : '' })); }
+      // The header's money follows the lines.
+      paintFigures('agd-figures', agreementHeaderFigures(a, today()));
+      renderRenewal(a);
     },
   });
 }
 
+/** The signature trail as five green steps; Edit opens the dates. */
 function renderDates(a: Agreement): void {
+  const sign = document.getElementById('agd-sign');
+  if (sign) sign.innerHTML = stepperHtml(signatureStepper(a), { tone: 'green' });
   const fields: PropField[] = ([
     ['Prepared', 'datePrepared'], ['Sent to client', 'dateSentToClient'], ['Client signed', 'dateClientSigned'],
-    ['MENA BIG signed', 'dateMenaSigned'], ['Filed', 'dateFiled'], ['Next action', 'actionDate'],
-  ] as const).map(([label, key]) => ({ key, label, display: dateText((a as any)[key]), control: () => input(key, 'date', ((a as any)[key] as string) || '') }));
+    ['MENA BIG signed', 'dateMenaSigned'], ['Filed', 'dateFiled'],
+  ] as const).map(([label, key]) => ({ key, label, always: true, display: dateText((a as any)[key]), control: () => input(key, 'date', ((a as any)[key] as string) || '') }));
   readList('agd-dates', 'agd-dates-act', fields, again(renderDates));
+  const list = document.getElementById('agd-dates'); if (list) list.hidden = !isEditingAll('agd-dates');
 }
 
 async function renderActivity(a: Agreement): Promise<void> {

@@ -57,6 +57,10 @@ describe('the next decision', () => {
     expect(nextDecision(acme, T)).toMatchObject({ text: 'Notice due 2 Dec', tone: 'blue', action: 'open' });
     expect(nextDecision(ehr, T)).toMatchObject({ text: 'Running · 154 days left', tone: 'green', action: 'open' });
     expect(nextDecision(A({ endDate: '2026-11-15', noticeDays: 60 }), T)).toMatchObject({ text: 'Notice open · ends in 45 days', tone: 'amber', action: 'renew' });
+    // A decided renewal says what was chosen, and there is no renewal left to start.
+    expect(nextDecision(A({ renewalDecision: 'renew' }), T)).toMatchObject({ text: 'Renewal drafted', tone: 'green', action: 'open', actionLabel: 'Open' });
+    expect(nextDecision(A({ renewalDecision: 'changes' }), T)).toMatchObject({ text: 'Renewing with changes', tone: 'blue', action: 'open' });
+    expect(nextDecision(A({ renewalDecision: 'end' }), T)).toMatchObject({ text: 'Ending 31 Dec', tone: 'grey', action: 'open' });
   });
   it('unsigned, ended and cancelled say so', () => {
     expect(nextDecision(nwt, T)).toMatchObject({ text: 'Awaiting the client’s signature', tone: 'amber', on: T });

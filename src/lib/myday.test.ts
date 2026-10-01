@@ -88,6 +88,13 @@ describe('attention', () => {
     const keys = buildAttention(base).map((x) => x.key);
     expect(keys).toEqual(['agreement:1:renewal', 'meeting:1:prepare']);
     expect(buildAttention(base)[0].reason).toBe('Ends in 18 days — plan the renewal; notice due in 3 days');
+    // Once the renewal is decided there is nothing to plan; it comes back on the end date, to mark the service ended.
+    const decided = (renewalDecision: 'renew' | 'changes' | 'end', endDate: string) => buildAttention(input({ agreements: [agreement({ serviceStatus: 'Active', endDate, noticeDays: 15, renewalDecision })] }));
+    expect(decided('end', '2026-10-01')).toEqual([]);
+    expect(decided('renew', '2026-10-01')).toEqual([]);
+    const today = input({}).today;
+    expect(decided('end', today)[0].reason).toBe('Ends today — mark the service ended');
+    expect(decided('renew', today)[0].reason).toBe('Ends today — mark the service ended (the renewal is drafted)');
     expect(buildAttention({ ...base, snoozed: { 'meeting:1:prepare': '2026-09-14' } }).map((x) => x.key)).toEqual(['agreement:1:renewal']);
     expect(buildAttention({ ...base, snoozed: { 'meeting:1:prepare': '2026-09-13' } })).toHaveLength(2);
   });

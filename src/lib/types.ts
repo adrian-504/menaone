@@ -269,7 +269,15 @@ export interface Agreement {
   noticeDays?: number | null;
   preparedById?: number | null;
   lines?: CommercialLine[];
+  /** What was decided about the renewal (migration 44): renew as it is, renew with changes, or let it end. Null = undecided. */
+  renewalDecision?: RenewalDecision | null;
+  /** The day that was decided (YYYY-MM-DD). */
+  renewalDecidedAt?: string | null;
+  /** On a drafted renewal: the agreement it renews. */
+  renewedFrom?: number | null;
 }
+
+export type RenewalDecision = 'renew' | 'changes' | 'end';
 
 export type ServiceStatus = 'Not started' | 'Kickoff scheduled' | 'Active' | 'Ended';
 

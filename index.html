@@ -1742,33 +1742,40 @@
 
 <div class="record-page agr-page" id="agr-detail">
   <header class="rec-header">
-    <div class="rec-avatar rec-avatar-icon" data-icon="document" data-icon-size="24"></div>
+    <div class="rec-avatar" id="agd-avatar"></div>
     <div class="rec-head-main">
-      <div class="rec-eyebrow">Agreement</div>
+      <div class="rec-eyebrow" id="agd-eyebrow">Agreement</div>
       <h1 class="rec-title" id="agd-title"></h1>
       <div class="rec-badges" id="agd-badges"></div>
-        <div class="rec-figures" id="agd-figures" hidden></div>
+      <div class="rec-figures" id="agd-figures" hidden></div>
     </div>
     <div class="rec-actions" id="agd-actions"></div>
   </header>
+  <!-- The story: the term as one lane — what has run, today, the notice window. -->
+  <div class="rk-lane-card" id="agd-lane" hidden></div>
   <div class="thread-host" id="agd-thread" hidden></div>
-  <div class="ctd-grid">
-    <aside class="sec ctd-props-card">
-      <div class="rec-section-hd"><h2>Details</h2><span class="rec-save-state" id="agd-save-state"></span><div class="rec-section-actions" id="agd-props-act"></div></div>
-      <dl class="rec-props pr-props" id="agd-props"></dl>
-    </aside>
-    <div class="ctd-main">
-      <section class="rec-section sec">
-        <div class="rec-section-hd"><h2>Term and service</h2><div class="rec-section-actions" id="agd-term-act"></div></div>
+  <div class="ctd-grid rk-grid">
+    <aside class="rk-side">
+      <section class="rk-panel ctd-props-card">
+        <div class="rec-section-hd"><h2 class="rk-panel-h">Details</h2><span class="rec-save-state" id="agd-save-state"></span><div class="rec-section-actions" id="agd-props-act"></div></div>
+        <dl class="rec-props pr-props" id="agd-props"></dl>
+      </section>
+      <section class="rk-panel">
+        <div class="rec-section-hd"><h2 class="rk-panel-h">Term and service</h2><div class="rec-section-actions" id="agd-term-act"></div></div>
         <dl class="rec-props pr-props" id="agd-term"></dl>
       </section>
-      <section class="rec-section sec">
-        <div class="rec-section-hd"><h2>Services on this agreement</h2><span class="rec-count" id="agd-lines-count"></span><div class="rec-section-actions" id="agd-lines-act"></div></div>
+      <section class="rk-panel" id="agd-at" hidden></section>
+    </aside>
+    <div class="ctd-main">
+      <section class="rk-sec" id="agd-renewal" hidden></section>
+      <section class="rk-sec">
+        <div class="rk-sh"><h2 class="hd-major">Services on this agreement</h2><span class="rk-cnt" id="agd-lines-count"></span><span class="rk-sh-r" id="agd-lines-act"></span></div>
         <div id="agd-lines"></div>
       </section>
-      <section class="rec-section sec">
-        <div class="rec-section-hd"><h2>Signature trail</h2><div class="rec-section-actions" id="agd-dates-act"></div></div>
-        <dl class="rec-props pr-props" id="agd-dates"></dl>
+      <section class="rk-sec">
+        <div class="rk-sh"><h2 class="hd-major">Signature trail</h2><span class="rk-sh-r" id="agd-dates-act"></span></div>
+        <div class="rk-sign" id="agd-sign"></div>
+        <dl class="rec-props pr-props" id="agd-dates" hidden></dl>
       </section>
       <section class="rec-section sec" id="agd-activity"></section>
     </div>

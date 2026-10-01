@@ -50,13 +50,14 @@ export function noticeDate(a: Pick<Agreement, 'endDate' | 'noticeDays'>): string
 }
 
 /** Agreement: sign it, start the service, renew near the notice date, else the proposal it came from. */
-export function agreementNextStep(a: Pick<Agreement, 'status' | 'serviceStatus' | 'endDate' | 'noticeDays' | 'proposalId'>, today: string): Step | null {
+export function agreementNextStep(a: Pick<Agreement, 'status' | 'serviceStatus' | 'endDate' | 'noticeDays' | 'proposalId' | 'renewalDecision'>, today: string): Step | null {
   if (a.status === 'Canceled') return null;
   if (a.status !== 'Signed') return { label: 'Mark signed', run: 'agreementMarkSigned()' };
   if (a.serviceStatus !== 'Active' && a.serviceStatus !== 'Ended') return { label: 'Mark active', run: "agreementFieldChanged('serviceStatus','Active')" };
   const notice = noticeDate(a);
   if (a.serviceStatus === 'Active' && notice && a.endDate && daysTo(today, notice) <= 30 && daysTo(today, a.endDate) >= -7) {
-    return { label: 'Renew…', run: 'agreementRenew()' };
+    // Decided already: nothing to start (the choice is marked on the page).
+    if (!a.renewalDecision) return { label: 'Start renewal', run: 'agreementStartRenewal()' };
   }
   return a.proposalId != null ? { label: 'Open proposal', run: `openRecord('proposal', ${a.proposalId})` } : null;
 }

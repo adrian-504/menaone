@@ -56,13 +56,14 @@ describe('agreement: sign, start, renew, else its proposal', () => {
     expect(agreementNextStep(agr({ status: 'Sent' }), today)?.label).toBe('Mark signed');
     expect(agreementNextStep(agr({ serviceStatus: 'Not started' }), today)?.label).toBe('Mark active');
   });
-  it('Renew… from 30 days before the notice date to a week after the end', () => {
+  it('Start renewal from 30 days before the notice date to a week after the end, until it is decided', () => {
     expect(noticeDate({ endDate: '2026-12-31', noticeDays: 30 })).toBe('2026-12-01');
-    expect(agreementNextStep(agr({ endDate: '2026-12-31', noticeDays: 90 }), today)?.label).toBe('Renew…');
+    expect(agreementNextStep(agr({ endDate: '2026-12-31', noticeDays: 90 }), today)?.label).toBe('Start renewal');
     expect(agreementNextStep(agr({ endDate: '2026-12-31', noticeDays: 60 }), today)).toBeNull();
     expect(agreementNextStep(agr({ endDate: '2027-06-30', noticeDays: 30, proposalId: 9 }), today)).toEqual({ label: 'Open proposal', run: "openRecord('proposal', 9)" });
-    expect(agreementNextStep(agr({ endDate: '2026-09-25' }), today)?.label).toBe('Renew…');
+    expect(agreementNextStep(agr({ endDate: '2026-09-25' }), today)?.label).toBe('Start renewal');
     expect(agreementNextStep(agr({ endDate: '2026-09-01' }), today)).toBeNull();
+    expect(agreementNextStep(agr({ endDate: '2026-12-31', noticeDays: 90, renewalDecision: 'end' }), today)).toBeNull();
   });
   it('cancelled: nothing', () => {
     expect(agreementNextStep(agr({ status: 'Canceled' }), today)).toBeNull();

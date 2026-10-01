@@ -81,7 +81,8 @@ const SAMPLE: AppData = {
     // A client whose notice window opens this week, and one gone quiet (no meeting or email on record).
     {
       id: 2, agrRef: 'GLX_BS_001_0126', client: 'Globex', companyId: 3, type: 'Company maintenance', status: 'Signed', preparedBy: 'Hassan Balaghi', datePrepared: '2026-01-02', dateSentToClient: '2026-01-03', dateClientSigned: '2026-01-05', dateMenaSigned: '2026-01-05', dateFiled: '2026-01-06',
-      monthlyFee: 4000, contractMonths: 12, proposalId: null, hubspot: null, docLink: null, actionDate: null, remarks: null, createdAt: '2026-01-02', businessEntityId: 1, currency: 'SAR', startDate: '2026-01-06', endDate: '2026-12-31', serviceStatus: 'Active', autoRenew: false, noticeDays: 90, preparedById: 1, lines: [],
+      monthlyFee: 4000, contractMonths: 12, proposalId: null, hubspot: null, docLink: null, actionDate: null, remarks: null, createdAt: '2026-01-02', businessEntityId: 1, currency: 'SAR', startDate: '2026-01-06', endDate: '2026-12-31', serviceStatus: 'Active', autoRenew: false, noticeDays: 90, preparedById: 1,
+      lines: [{ id: 21, serviceId: null, serviceName: 'Company maintenance', description: null, billing: 'monthly', quantity: 1, unitPrice: 4000, commission: false, sortOrder: 0 }],
     },
     {
       id: 3, agrRef: 'EHR_PAY_001_0326', client: 'Elite HR', companyId: 5, type: 'Payroll', status: 'Signed', preparedBy: 'Hassan Balaghi', datePrepared: '2026-03-01', dateSentToClient: '2026-03-02', dateClientSigned: '2026-03-04', dateMenaSigned: '2026-03-04', dateFiled: '2026-03-05',

@@ -23,7 +23,7 @@ const iso = (s: string | null | undefined) => (s ? s.slice(0, 10) : null);
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sept', 'Oct', 'Nov', 'Dec'];
 const ymd = (y: number, m: number, d = 1) => `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 
-type A = Pick<Agreement, 'startDate' | 'endDate' | 'noticeDays' | 'dateClientSigned' | 'status' | 'serviceStatus'>;
+type A = Pick<Agreement, 'startDate' | 'endDate' | 'noticeDays' | 'dateClientSigned' | 'status' | 'serviceStatus' | 'renewalDecision'>;
 
 export const isSigned = (a: Pick<Agreement, 'status'>): boolean => a.status === 'Signed';
 const AWAITING = new Set(['Client Signature', 'MENA Signature']);
@@ -108,6 +108,11 @@ export function nextDecision(a: A, today: string): Decision {
   if (!end) return { text: 'Running · no end date', tone: 'green', action: 'open', actionLabel: 'Open', on: '9999-12-30' };
   const left = daysBetween(today, end) ?? 0;
   if (left < 0) return { text: `Ended ${fmtDateShort(end, true)}`, tone: 'grey', action: 'open', actionLabel: 'Open', on: '9999-12-29' };
+  // Decided already (1.61): the chip says what was chosen, and there is no renewal left to start.
+  if (a.renewalDecision) {
+    const text = a.renewalDecision === 'renew' ? 'Renewal drafted' : a.renewalDecision === 'changes' ? 'Renewing with changes' : `Ending ${fmtDateShort(end, true)}`;
+    return { text, tone: a.renewalDecision === 'renew' ? 'green' : a.renewalDecision === 'changes' ? 'blue' : 'grey', action: 'open', actionLabel: 'Open', on: end };
+  }
   const { noticeDate, daysToNotice } = agreementRenewal(a, today);
   if (noticeDate && daysToNotice != null) {
     if (daysToNotice <= 0) return { text: `Notice open · ends ${inDays(left)}`, tone: 'amber', action: 'renew', actionLabel: 'Start renewal', on: noticeDate };
