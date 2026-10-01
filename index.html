@@ -1406,7 +1406,7 @@
   <div class="pk-tools">
     <nav class="pr-views" data-pr-views aria-label="Proposal views"></nav>
     <input type="text" class="f-search pk-search" id="fu-search" placeholder="Search client, service, SL#…" oninput="filterSoon('renderFollowup')" aria-label="Search proposals with clients">
-    <span class="pk-order">Longest without contact first</span>
+    <span class="pk-order">Oldest request first, by client</span>
   </div>
   <div id="fu-strip"></div>
   <div id="fu-list"></div>
@@ -2251,12 +2251,16 @@
     <div class="modal-hd"><div class="modal-title" id="wl-title">Close Proposal</div><button class="modal-close" onclick="closeWlModal()">×</button></div>
     <div class="modal-sub" id="wl-client"></div>
     <div class="fgrp" id="wl-date-grp">
-      <label class="flbl" for="wl-date">Date signed by both parties</label>
+      <label class="flbl" id="wl-date-lbl" for="wl-date">Date signed by both parties</label>
       <input type="date" class="finp" id="wl-date">
     </div>
     <div class="fgrp">
       <label class="flbl" id="wl-reason-lbl" for="wl-reason">Reason</label>
       <select class="finp" id="wl-reason"></select>
+    </div>
+    <div class="fgrp" id="wl-lostto-grp" hidden>
+      <label class="flbl" for="wl-lostto">Lost to (optional)</label>
+      <input type="text" class="finp" id="wl-lostto" placeholder="Another provider, in-house, nobody…">
     </div>
     <div class="fgrp">
       <label class="flbl">Additional Notes (optional)</label>

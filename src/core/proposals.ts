@@ -11,13 +11,13 @@ import { matchesProposalPeriod } from '../lib/period';
 import { persistProposals, saved } from '../lib/persist';
 import { registerBadgeUpdater, refreshAll, getActiveTabId, renderTab } from '../lib/registry';
 import { toast, undoToast } from '../lib/ui';
-import { optimistic } from '../lib/optimistic';
 import { draftAgreementsFromProposals } from './agreements';
 import { PS, stageIndex, isLost, isWithdrawn, defaultReviewer, teamMember, renewalsDue, activeMrr, pipelineMonthly, fmtMoneyByCurrency } from '../lib/commercial';
 import { applyRevisionRequest, applyRevisionSent } from '../lib/revisions';
-import { activityForget, activityLog, activityRemove, touchesAdd, touchesDelete } from '../lib/db';
+import { activityForget, activityLog, activityRemove } from '../lib/db';
 import { showMenuAt, type ContextMenuItem } from '../lib/contextMenu';
-import type { Proposal, Touch, TouchKind } from '../lib/types';
+import type { Proposal, TouchKind } from '../lib/types';
+import { logEntry, withSentWith } from './followLog';
 
 // ═══════════════ PERSISTENCE / LOAD ═══════════════
 
@@ -51,43 +51,22 @@ export function proposalLastTouch(p: Proposal): LastTouch | null {
 
 // ═══════════════ FOLLOW-UP TOUCHES ═══════════════
 
-const TOUCH_WORD: Record<TouchKind, string> = { email_out: 'email', email_in: 'email', call: 'call', whatsapp: 'WhatsApp', meeting: 'meeting' };
-
-/** One click from Follow-up or the proposal page: an email, call, WhatsApp or
- * meeting with the client today, ours or theirs, with the primary contact.
- * No dialog; the toast offers Undo. */
+/** One click from Follow-up or the proposal page: an email, call, WhatsApp or meeting with the client today, ours or
+ * theirs. No dialog; the toast offers Undo. It is written on the proposal and on the others sent with it (the same
+ * request), as one entry (core/followLog.ts). */
 export async function logTouch(proposalId: number, kind: TouchKind, direction: 'out' | 'in' = 'out'): Promise<void> {
-  const p = S.proposals.find((x) => x.id === proposalId);
-  if (!p) return;
-  const draft = { proposalId, companyId: p.companyId ?? null, kind, direction, at: today(), contactId: p.primaryContactId ?? null };
-  // Shown at once with a stand-in id; the saved row replaces it (delight 2: optimistic).
-  const temp = { ...draft, id: -Date.now(), subject: null, source: 'manual', sourceId: null, createdAt: new Date().toISOString() } as unknown as Touch;
-  const redraw = () => { updateBadge(); refreshAll(); if (S.currentProposalId === proposalId) (window as any).renderProposalPage?.(); };
-  const t = await optimistic({
-    apply: () => { S.touches = [...S.touches, temp]; redraw(); },
-    commit: () => touchesAdd(draft),
-    revert: () => { S.touches = S.touches.filter((x) => x.id !== temp.id); redraw(); },
-  });
-  if (!t) return;
-  S.touches = [...S.touches.filter((x) => x.id !== temp.id && x.id !== t.id), t];
-  redraw();
-  const what = direction === 'in' ? `client replied by ${TOUCH_WORD[kind]} today` : `${TOUCH_WORD[kind]} today`;
-  undoToast(`Logged: ${what}`, () => { void undoTouch(t.id); });
+  await logEntry({ ids: withSentWith(proposalId), kind, direction });
+  updateBadge();
 }
 expose('logTouch', logTouch);
 
-async function undoTouch(id: number): Promise<void> {
-  await touchesDelete(id);
-  S.touches = S.touches.filter((t) => t.id !== id);
-  updateBadge();
-  refreshAll();
-  (window as any).renderProposalPage?.();
-}
-
-/** "Followed up ▾": what we did, and below, how the client replied. */
-export function followUpMenu(e: MouseEvent, proposalId: number): void {
+/** "Followed up ▾": what we did, and below, how the client replied — one click each. "Add details…" is for the
+ * rest (another day, who did it, what was said, "will revert after"): optional, never asked for. `target` is one
+ * proposal (the others sent with it are included) or the proposals themselves. */
+export function followUpMenu(e: MouseEvent, target: number | number[]): void {
   e.stopPropagation();
-  const log = (kind: TouchKind, direction: 'out' | 'in' = 'out') => () => { void logTouch(proposalId, kind, direction); };
+  const ids = Array.isArray(target) ? target : withSentWith(target);
+  const log = (kind: TouchKind, direction: 'out' | 'in' = 'out') => () => { void logEntry({ ids, kind, direction }).then(() => updateBadge()); };
   const items: ContextMenuItem[] = [
     { label: 'Followed up', heading: true, run: () => {} },
     { label: 'Email', run: log('email_out') },
@@ -100,8 +79,8 @@ export function followUpMenu(e: MouseEvent, proposalId: number): void {
     { label: 'Call', run: log('call', 'in') },
     { label: 'WhatsApp', run: log('whatsapp', 'in') },
     { label: '', run: () => {}, separator: true },
-    // What the client said, in words: the proposal's follow-up note.
-    { label: 'Log a note…', iconName: 'note', run: () => openNotesModal(proposalId, 'followup') },
+    // The optional details: another day, who did it, what was said, "will revert after".
+    { label: 'Add details…', iconName: 'edit', run: () => (window as any).openEntryDialog?.(ids) },
   ];
   showMenuAt(e.currentTarget as HTMLElement, items);
 }
@@ -501,8 +480,14 @@ export interface OutcomeDialog {
   subtitle: string;
   withDate: boolean;
   date?: string | null;
+  /** What the date is ("Date signed by both parties" unless said). */
+  dateLabel?: string;
+  /** A loss may say who it was lost to. */
+  withLostTo?: boolean;
+  /** The reason picked when it opens ("Client unresponsive" from Follow-up's Decide). */
+  reason?: string;
   /** Reason is required for a loss. */
-  onConfirm: (result: { reason: string; note: string; date: string }) => void;
+  onConfirm: (result: { reason: string; note: string; date: string; lostTo: string }) => void;
 }
 
 let outcome: OutcomeDialog | null = null;
@@ -515,8 +500,11 @@ export function openOutcomeDialog(dialog: OutcomeDialog): void {
   const clientEl = document.getElementById('wl-client'); if (clientEl) clientEl.textContent = dialog.subtitle;
   const lblEl = document.getElementById('wl-reason-lbl'); if (lblEl) lblEl.textContent = isWon ? 'Why did we win it?' : 'Why was it lost?';
   const reasons = isWon ? WIN_REASONS : LOSS_REASONS;
-  const reasonSel = document.getElementById('wl-reason'); if (reasonSel) reasonSel.innerHTML = `<option value="">Choose a reason…</option>` + reasons.map((r) => `<option value="${escHtml(r)}">${escHtml(r)}</option>`).join('');
+  const reasonSel = document.getElementById('wl-reason'); if (reasonSel) reasonSel.innerHTML = `<option value="">Choose a reason…</option>` + reasons.map((r) => `<option value="${escHtml(r)}"${r === dialog.reason ? ' selected' : ''}>${escHtml(r)}</option>`).join('');
   const dateWrap = document.getElementById('wl-date-grp'); if (dateWrap) dateWrap.hidden = !dialog.withDate;
+  const dateLbl = document.getElementById('wl-date-lbl'); if (dateLbl) dateLbl.textContent = dialog.dateLabel || 'Date signed by both parties';
+  const lostToWrap = document.getElementById('wl-lostto-grp'); if (lostToWrap) lostToWrap.hidden = !dialog.withLostTo;
+  const lostToEl = document.getElementById('wl-lostto') as HTMLInputElement | null; if (lostToEl) lostToEl.value = '';
   const dateEl = document.getElementById('wl-date') as HTMLInputElement | null; if (dateEl) dateEl.value = dialog.date || today();
   const btn = document.getElementById('wl-confirm-btn') as HTMLButtonElement | null;
   if (btn) { btn.textContent = isWon ? 'Mark as won' : 'Mark as lost'; btn.classList.toggle('btn-danger', !isWon); }
@@ -525,36 +513,63 @@ export function openOutcomeDialog(dialog: OutcomeDialog): void {
   reasonSel?.focus();
 }
 
-export function openWlModal(id: number, mode: 'won' | 'lost'): void {
+/** What a loss sets on a proposal: the status, the reason, the day it was lost (back-datable), who it was lost to
+ * when known, and its "[LOST: …]" note on that day. A snooze or "keep" on it ends. */
+export function applyLost(p: Proposal, r: { reason: string; note?: string; date: string; lostTo?: string }): void {
+  p.status = PS.LOST;
+  p.winLossReason = r.reason || null;
+  p.lostAt = r.date;
+  p.lostTo = r.lostTo?.trim() || null;
+  p.snoozedUntil = null;
+  p.keepReason = null;
+  p.keepUntil = null;
+  p.notes = [...(p.notes || []), { id: Date.now() + p.id, date: r.date, text: `[LOST${r.reason ? `: ${r.reason}` : ''}]${r.note ? ` ${r.note}` : ''}` }];
+}
+
+/** Signed by both, or lost. A loss asks for the reason, the day (today unless back-dated) and, optionally, who it
+ * was lost to. `ids` closes several proposals as lost together (a request from Follow-up), with one undo. */
+export function openWlModal(id: number, mode: 'won' | 'lost', o: { ids?: number[]; reason?: string } = {}): void {
   const p = S.proposals.find((x) => x.id === id);
   if (!p) return;
   const isWon = mode === 'won';
+  const ids = !isWon && o.ids?.length ? o.ids : [id];
+  const many = S.proposals.filter((x) => ids.includes(x.id));
   openOutcomeDialog({
     mode,
-    title: isWon ? 'Signed by both parties' : 'Mark as lost',
-    subtitle: `${p.client} — ${p.type || 'Proposal'}`,
-    withDate: isWon,
-    date: p.dblSignedDate,
-    onConfirm: ({ reason, note, date }) => {
-      if (isWon) {
-        p.dblSignedDate = date;
-        if (!p.dateSigned) p.dateSigned = date;
+    title: isWon ? 'Signed by both parties' : many.length > 1 ? `Close ${many.length} proposals as lost` : 'Mark as lost',
+    subtitle: many.length > 1 ? `${p.client} — ${many.map((x) => x.type || 'Proposal').join(', ')}` : `${p.client} — ${p.type || 'Proposal'}`,
+    withDate: true,
+    date: isWon ? p.dblSignedDate : today(),
+    dateLabel: isWon ? undefined : 'The day it was lost',
+    withLostTo: !isWon,
+    reason: o.reason,
+    onConfirm: ({ reason, note, date, lostTo }) => {
+      if (!isWon) {
+        const before = many.map((x) => [x, structuredClone(x)] as const);
+        many.forEach((x) => applyLost(x, { reason, note, date, lostTo }));
+        persistProposals();
+        updateBadge();
+        refreshAll();
+        if (S.currentProposalId != null && ids.includes(S.currentProposalId)) (window as any).renderProposalPage?.();
+        undoToast(many.length > 1 ? `Marked lost: ${many.length} proposals` : 'Marked as lost', () => {
+          for (const [x, copy] of before) { for (const k of Object.keys(x)) if (!(k in copy)) delete (x as unknown as Record<string, unknown>)[k]; Object.assign(x, copy); }
+          persistProposals(); updateBadge(); refreshAll(); (window as any).renderProposalPage?.();
+        });
+        return;
       }
-      p.status = isWon ? PS.WON : PS.LOST;
+      p.dblSignedDate = date;
+      if (!p.dateSigned) p.dateSigned = date;
+      p.status = PS.WON;
       p.winLossReason = reason || null;
       p.snoozedUntil = null;
       if (note || reason) {
         if (!p.notes) p.notes = [];
-        p.notes.push({ id: Date.now(), date: today(), text: `[${isWon ? 'WON' : 'LOST'}${reason ? `: ${reason}` : ''}]${note ? ` ${note}` : ''}` });
+        p.notes.push({ id: Date.now(), date: today(), text: `[WON${reason ? `: ${reason}` : ''}]${note ? ` ${note}` : ''}` });
       }
       persistProposals();
       updateBadge();
       refreshAll();
-      toast(isWon ? 'Marked as won' : 'Marked as lost', {
-        tone: isWon ? 'success' : 'neutral',
-        detail: isWon ? 'No agreement was created.' : undefined,
-        action: isWon ? { label: 'Draft agreement', run: () => { void draftAgreementsFromProposals(); } } : undefined,
-      });
+      toast('Marked as won', { tone: 'success', detail: 'No agreement was created.', action: { label: 'Draft agreement', run: () => { void draftAgreementsFromProposals(); } } });
     },
   });
 }
@@ -573,9 +588,10 @@ export function confirmWinLoss(): void {
   if (outcome.mode === 'lost' && !reason) { toast('Choose why it was lost', { tone: 'error' }); reasonSel?.focus(); return; }
   const note = ((document.getElementById('wl-note') as HTMLTextAreaElement | null)?.value || '').trim();
   const date = (document.getElementById('wl-date') as HTMLInputElement | null)?.value || today();
+  const lostTo = outcome.withLostTo ? ((document.getElementById('wl-lostto') as HTMLInputElement | null)?.value || '').trim() : '';
   const current = outcome;
   closeWlModal();
-  current.onConfirm({ reason, note, date });
+  current.onConfirm({ reason, note, date, lostTo });
 }
 expose('confirmWinLoss', confirmWinLoss);
 

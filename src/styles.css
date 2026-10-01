@@ -3511,6 +3511,26 @@ button.pk-st:focus-visible{outline:none;box-shadow:var(--shadow-focus)}
 .pk-group.is-archived{opacity:.75}
 .pk-list{container-type:inline-size}
 .pq-row.pk-row{display:grid;grid-template-columns:36px minmax(0,1fr) 200px 112px 104px 236px 28px;gap:16px;align-items:center;padding:12px 8px;border-radius:0;border-bottom:1px solid var(--hairline);box-shadow:none;transition:background-color var(--dur-fast) var(--ease-out)}
+/* Follow-up by request (1.65): a chip per service, the client's last word on a second line, and the request's
+   proposals under the row when it is opened. */
+.fr-row.pq-row.pk-row{padding-top:8px;padding-bottom:8px}
+.fr-row .pk-meta{line-height:1.35}
+.fr-chips{display:inline-flex;gap:6px;margin-left:10px;min-width:0;overflow:hidden}
+.fr-chip{flex:none;padding:1px 8px;border-radius:18px;background:var(--surface-2);font-size:11.5px;font-weight:500;color:var(--sub);white-space:nowrap}
+.fr-count{font:inherit;flex:none;display:inline-flex;align-items:center;gap:3px;margin-left:8px;padding:2px 6px;border:none;border-radius:6px;background:none;font-size:11.5px;font-weight:500;color:var(--blue);cursor:pointer}
+.fr-count:hover{background:var(--blue-50)}
+.fr-count:active{background:var(--surface-pressed)}
+.fr-count:focus-visible{outline:none;box-shadow:var(--shadow-focus)}
+.pk-meta.fr-word{margin-top:1px;color:var(--muted)}
+.fr-row.is-open{border-bottom-color:transparent}
+.fr-members{margin:0 8px 8px 60px;padding:2px 0 8px;border-bottom:1px solid var(--hairline)}
+.fr-member{display:grid;grid-template-columns:minmax(0,240px) 64px 120px minmax(0,1fr) auto;gap:12px;align-items:center;min-height:30px;padding:0 10px;border-radius:6px;font-size:var(--type-secondary);color:var(--sub);cursor:pointer}
+.fr-member:hover{background:var(--panel-bg)}
+.fr-member:active{background:var(--surface-pressed)}
+.fr-member:focus-visible{outline:none;box-shadow:var(--shadow-focus)}
+.fr-member-t{font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fr-member-v{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pk-acts .btn-secondary.is-danger{color:var(--red)}
 /* Follow-up (1.64): the contact trail in the middle of the row, so a row is about 70 px, not 125. */
 #tab-followup .pq-row.pk-row{grid-template-columns:36px minmax(0,1fr) minmax(200px,270px) 112px 110px 300px 28px}
 .pk-mid{min-width:0;padding:0 26px}

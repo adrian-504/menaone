@@ -57,6 +57,8 @@ const SAMPLE: AppData = {
     { id: 7, primaryContactId: 4, client: 'Globex', companyId: 3, type: 'Business setup', status: 'Drafting', sentDate: '2026-09-22', dateAdded: '2026-09-10', monthlyFee: 4000, contractMonths: 12, dateSentToHassan: '2026-09-18', dateSentToClient: '2026-09-22', revision: 2, dblSignedDate: null, kickoffDate: null, finance: null, hubspot: null, owner: 'Ahmad', remarks: null, winLossReason: null, docLink: null, archived: false, archivedAt: null, snoozedUntil: null, dateSigned: null, notes: [], businessEntityId: 1, currency: 'SAR', documents: [],
       revisions: [{ id: 70, number: 2, requestedAt: '2026-09-26', requestedByContactId: null, reason: 'Two people instead of three', linesBeforeJson: '[]', sentAt: null }], lines: [] },
     { id: 8, primaryContactId: 5, client: 'Red Sea Global', companyId: 4, type: 'EOR', status: 'Sent to Client', sentDate: '2026-09-26', dateAdded: '2026-09-20', monthlyFee: 12000, contractMonths: 12, dateSentToHassan: '2026-09-24', dateSentToClient: '2026-09-26', validUntil: '2026-10-05', dblSignedDate: null, kickoffDate: null, finance: null, hubspot: null, owner: 'Ahmad', remarks: null, winLossReason: null, docLink: null, archived: false, archivedAt: null, snoozedUntil: null, dateSigned: null, notes: [], businessEntityId: 1, currency: 'SAR', documents: [], lines: [] },
+    // 1.65: sent in July, followed up twice, never an answer — Follow-up puts it to a decision.
+    { id: 12, primaryContactId: 6, client: 'Elite HR', companyId: 5, type: 'PRO', status: 'Sent to Client', sentDate: '2026-07-15', dateAdded: '2026-07-10', monthlyFee: 2500, contractMonths: 12, dateSentToHassan: '2026-07-13', dateSentToClient: '2026-07-15', validUntil: null, dblSignedDate: null, kickoffDate: null, finance: null, hubspot: null, owner: 'Ahmad', remarks: null, winLossReason: null, docLink: null, archived: false, archivedAt: null, snoozedUntil: null, dateSigned: null, notes: [], businessEntityId: 1, currency: 'SAR', documents: [], lines: [] },
     // 1.61: three proposals sent together to Red Sea Global — one signed by both with the service not started yet, two
     // still with the client, one of them priced per person (no monthly figure to show).
     ...([[9, 'Accountancy', 'Signed by Both Parties', 2400, '2026-09-22'], [10, 'Workforce', 'Sent to Client', null, null], [11, 'Company Maintenance', 'Sent to Client', 1500, null]] as [number, string, string, number | null, string | null][]).map(([id, type, status, monthlyFee, signed]) => ({
@@ -248,8 +250,15 @@ let touchesStore: Touch[] = [
   { id: 3, companyId: null, proposalId: 4, kind: 'call', direction: 'out', at: '2025-06-20', subject: null, contactId: 1, source: 'manual', sourceId: null, createdAt: '2025-06-20T09:00:00Z' },
   { id: 4, companyId: null, proposalId: 4, kind: 'email_out', direction: 'out', at: '2025-08-03', subject: 'Mobilization proposal', contactId: 1, source: 'manual', sourceId: null, createdAt: '2025-08-03T09:00:00Z' },
   { id: 5, companyId: null, proposalId: 4, kind: 'email_out', direction: 'out', at: '2026-09-28', subject: 'Still of interest?', contactId: 1, source: 'manual', sourceId: null, createdAt: '2026-09-28T09:00:00Z' },
+  // Following up by request (1.65): one call logged on the two proposals sent together (a batch, with who made it),
+  // and a client's reply with what they said and the day they will come back.
+  { id: 9, companyId: 4, proposalId: 10, kind: 'call', direction: 'out', at: '2026-09-19', subject: null, contactId: 5, source: 'manual', sourceId: null, createdAt: '2026-09-19T09:00:00Z', byMemberId: 1, note: null, batchId: 'sample-batch-1', revertAfter: null },
+  { id: 10, companyId: 4, proposalId: 11, kind: 'call', direction: 'out', at: '2026-09-19', subject: null, contactId: 5, source: 'manual', sourceId: null, createdAt: '2026-09-19T09:00:00Z', byMemberId: 1, note: null, batchId: 'sample-batch-1', revertAfter: null },
+  { id: 12, companyId: 5, proposalId: 12, kind: 'email_out', direction: 'out', at: '2026-08-01', subject: null, contactId: 6, source: 'manual', sourceId: null, createdAt: '2026-08-01T09:00:00Z' },
+  { id: 13, companyId: 5, proposalId: 12, kind: 'call', direction: 'out', at: '2026-08-20', subject: null, contactId: 6, source: 'manual', sourceId: null, createdAt: '2026-08-20T09:00:00Z', byMemberId: 1 },
+  { id: 11, companyId: 4, proposalId: 8, kind: 'whatsapp', direction: 'in', at: '2026-09-29', subject: null, contactId: 5, source: 'manual', sourceId: null, createdAt: '2026-09-29T09:00:00Z', byMemberId: null, note: 'Reviewing with finance', batchId: null, revertAfter: '2026-10-12' },
 ];
-let nextTouchId = 8;
+let nextTouchId = 13;
 let meetingsStore: Meeting[] = [
   { ...mockMeeting(1, 'Acme — payroll kickoff', '2026-08-20', [{ email: 'jane@acme.test', name: 'Jane Doe' }]), companyName: 'Acme Holdings', companyId: 1, followUp: 'Send the onboarding checklist\nConfirm GOSI access', decisions: 'Start payroll from October' },
   { ...mockMeeting(2, 'Monthly check-in', '2026-09-15', [{ email: 'jane@acme.test', name: 'Jane Doe' }, { email: 'omar@acme.test', name: 'Omar Haddad' }]), companyName: 'Acme Holdings', companyId: 1, opportunityId: 1,

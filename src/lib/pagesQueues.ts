@@ -288,10 +288,11 @@ export function contactTrail(i: { sent: string; touches: { at: string; kind: str
 
 // ── This month ──────────────────────────────────────────────────────────────
 
-/** Won (signed by both) and lost this month, from the signing date and the "[LOST" note. Pure. */
+/** Won (signed by both) and lost this month: from the signing date, and the day it was lost (1.65; before that, its
+ * "[LOST" note's day). Pure. */
 export function closedThisMonth(proposals: Proposal[], today: string): { won: Proposal[]; lost: Proposal[] } {
   const month = today.slice(0, 7);
-  const lostOn = (p: Proposal) => [...(p.notes || [])].reverse().find((n) => (n.text || '').startsWith('[LOST'))?.date || null;
+  const lostOn = (p: Proposal) => p.lostAt || [...(p.notes || [])].reverse().find((n) => (n.text || '').startsWith('[LOST'))?.date || null;
   return {
     won: proposals.filter((p) => !p.archived && p.status === PS.WON && (p.dblSignedDate || '').slice(0, 7) === month),
     lost: proposals.filter((p) => !p.archived && p.status === PS.LOST && (lostOn(p) || '').slice(0, 7) === month),

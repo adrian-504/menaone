@@ -15,7 +15,7 @@ import { undoToast, toast } from '../lib/ui';
 import { showDatePrompt, today } from '../lib/utils';
 import type { BulkAction } from '../lib/bulkBar';
 import { applyStatus, batchStartDate, BULK_STATUSES, PENDING_BULK_STATUSES, statusDateLabel, statusNeedsDate, unreviewedNote } from '../lib/bulkProposals';
-import { updateBadge } from './proposals';
+import { applyLost, updateBadge } from './proposals';
 import type { Proposal } from '../lib/types';
 
 const STATUS_DONE: Record<string, string> = { [PS.SENT]: 'sent', [PS.CLIENT_SIGNED]: 'signed', [PS.WON]: 'signed' };
@@ -75,10 +75,8 @@ export async function bulkServiceStarted(ids: number[], clear?: () => void): Pro
 
 /** The bar's actions. `scope: 'pending'` keeps the moves that make sense before a proposal has gone out. */
 export function proposalBulkActions(ids: () => number[], clear: () => void, scope: 'all' | 'pending' = 'all'): BulkAction[] {
-  const lost: BulkAction = { label: 'Mark lost', danger: true, choices: () => LOSS_REASONS.map((r) => ({ label: r, run: () => { bulkApply(ids(), 'Marked lost', (p) => {
-    p.status = PS.LOST; p.winLossReason = r; p.snoozedUntil = null;
-    p.notes = [...(p.notes || []), { id: Date.now() + p.id, date: today(), text: `[LOST: ${r}]` }];
-  }, { clear }); } })) };
+  // A batch is lost today for the reason picked (the single dialog takes another day and "lost to").
+  const lost: BulkAction = { label: 'Mark lost', danger: true, choices: () => LOSS_REASONS.map((r) => ({ label: r, run: () => { bulkApply(ids(), 'Marked lost', (p) => { applyLost(p, { reason: r, date: today() }); }, { clear }); } })) };
   const owner: BulkAction = { label: 'Owner', choices: () => activeTeam().map((t) => ({ label: t.name, run: () => { bulkApply(ids(), `Owner set to ${t.name}`, (p) => { p.ownerId = t.id; p.owner = t.name; }, { clear }); } })) };
   if (scope === 'pending') {
     return [
