@@ -2081,24 +2081,21 @@
 </div>
 
 <!-- SERVICES (catalog + rate card) -->
-<div id="tab-pricing" class="tab">
-  <div class="page-header">
-    <div>
-      <div class="page-title">Services</div>
-      <div class="page-subtitle">The services MENA BIG sells, what agreement each becomes, and the rate card behind their prices.</div>
-    </div>
+<div id="tab-pricing" class="tab pk-page">
+  <div class="page-header pk-head">
+    <div class="pk-head-t"><div class="page-title">Services</div><span class="bars lg" aria-hidden="true"><i></i><i></i><i></i></span><div class="page-subtitle">What MENA BIG sells, what each costs, and who's using it.</div></div>
     <div class="page-header-actions">
+      <div class="seg-btns svc-views pk-seg" role="tablist" aria-label="Services view">
+        <button class="seg-btn active" data-svc-view="catalog" onclick="setServicesView('catalog')">Catalog</button>
+        <button class="seg-btn" data-svc-view="rates" onclick="setServicesView('rates')">Rate card</button>
+        <button class="seg-btn" data-svc-view="templates" onclick="setServicesView('templates')">Proposal templates</button>
+      </div>
       <button class="btn-primary" onclick="openServiceEditor(null)"><span data-icon="plus" data-icon-size="14"></span> New service</button>
     </div>
   </div>
-  <div class="seg-btns svc-views" role="tablist" aria-label="Services view">
-    <button class="seg-btn active" data-svc-view="catalog" onclick="setServicesView('catalog')">Catalog</button>
-    <button class="seg-btn" data-svc-view="rates" onclick="setServicesView('rates')">Rate card</button>
-    <button class="seg-btn" data-svc-view="templates" onclick="setServicesView('templates')">Proposal templates</button>
-  </div>
-  <div class="fbar">
-    <input type="text" class="f-search" id="price-search" placeholder="Search services…" oninput="filterSoon('renderPricingTab')">
-    <select class="fsel" id="price-filter" onchange="renderPricingTab()"><option value="">All categories</option></select>
+  <div class="fbar pk-svc-tools">
+    <input type="text" class="f-search pk-search" id="price-search" placeholder="Search services…" oninput="filterSoon('renderPricingTab')">
+    <select class="fsel" id="price-filter" onchange="renderPricingTab()" aria-label="Category"><option value="">All categories</option></select>
     <label class="check-label" id="svc-inactive-wrap"><input type="checkbox" id="svc-show-inactive" onchange="renderPricingTab()"> Show retired services</label>
   </div>
   <div id="pricing-content"></div>

@@ -30,7 +30,9 @@ const SHOTS = [
   ['contacts', CLOCK, "navToModule('contacts')"],
   ['agreements', CLOCK, "navToModule('agreements')"],
   ['cleanup', CLOCK, "navToModule('cleanup')"],
-  ['services', CLOCK, "navToModule('pricing')"],
+  ['services', CLOCK, "navToModule('pricing'), setServicesView('catalog')"],
+  ['services-rates', CLOCK, "navToModule('pricing'), setServicesView('rates')"],
+  ['services-templates', CLOCK, "navToModule('pricing'), setServicesView('templates')"],
 ].filter(([n]) => !process.env.ONLY || process.env.ONLY.split(',').includes(n));
 
 const port = 9700 + Math.floor(Math.random() * 100);

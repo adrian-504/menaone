@@ -3934,3 +3934,44 @@ a.btn-primary,a.btn-secondary{text-decoration:none}
   .pk-facts,.pk-choices{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
   .pk-cu-foot{flex-wrap:wrap}
 }
+
+/* Services: category cards. */
+.pk-svc-tools{display:flex;align-items:center;gap:10px;margin:0 0 18px;padding:0;border:none}
+.pk-banner{display:flex;gap:14px;align-items:center;margin:0 0 18px;padding:14px 16px;border-radius:13px;background:var(--amber-bg);border:1px solid var(--amber-border)}
+.pk-banner .bars{width:18px}
+.pk-banner-t{min-width:0}
+.pk-banner-t b{display:block;font:600 15px var(--font-display);color:var(--navy)}
+.pk-banner-t span{font-size:12.5px;color:var(--sub)}
+.pk-banner .btn-secondary{margin-left:auto;flex:none}
+.pk-review{margin:-6px 0 18px}
+.pk-cats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;align-items:start}
+.pk-cat{position:relative;border-radius:13px;background:var(--surface);border:1px solid var(--hairline);box-shadow:var(--shadow-xs);padding:18px 18px 12px;overflow:hidden}
+.pk-cat::before{content:"";position:absolute;left:0;top:0;right:0;height:3px;background:var(--c)}
+.pk-cat-hd{display:flex;gap:12px;align-items:center}
+.pk-cat-ic{flex:none;width:36px;height:36px;border-radius:9px;display:grid;place-items:center;background:var(--c);color:var(--on-tile);font:600 12px var(--font-mono)}
+.pk-cat-tt{min-width:0}
+.pk-cat-tt h3{margin:0;font:600 18px/1.2 var(--font-display);color:var(--navy);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pk-cat-s{font-size:11.5px;color:var(--muted)}
+.pk-cat-cl{margin-left:auto;text-align:right;flex:none}
+.pk-cat-cl b{display:block;font:600 20px/1 var(--font-display);color:var(--green)}
+.pk-cat-cl span{font-size:10.5px;color:var(--muted);white-space:nowrap}
+.pk-cat-cl.is-none b{color:var(--muted)}
+.pk-svl{margin-top:12px}
+.svc-row.pk-svr{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:baseline;padding:7px 4px;margin:0 -4px;border:none;border-top:1px solid var(--hairline);border-radius:0;background:none;font-size:12.5px;cursor:pointer;position:relative;transition:background-color var(--dur-fast) var(--ease-out)}
+.svc-row.pk-svr:hover{background:var(--hover)}
+.svc-row.pk-svr:active{background:var(--surface-pressed)}
+.svc-row.pk-svr:focus-visible{outline:none;box-shadow:var(--shadow-focus)}
+.pk-svr-n{min-width:0;color:var(--text)}
+.pk-svr-u{margin-left:6px;font-size:var(--type-meta);color:var(--green);white-space:nowrap}
+.pk-svr-p{font:500 11.5px var(--font-mono);color:var(--sub);white-space:nowrap}
+.pk-svr-merge{display:none;position:absolute;right:4px;top:5px;padding:1px 6px;border-radius:6px;background:var(--surface);font-size:var(--type-meta);color:var(--blue)}
+.pk-svr:hover .pk-svr-merge,.pk-svr:focus-within .pk-svr-merge{display:inline-block}
+.pk-svr:hover .pk-svr-p,.pk-svr:focus-within .pk-svr-p{visibility:hidden}
+.pk-cat-more{margin-top:14px;font-size:var(--type-secondary);color:var(--muted)}
+.pk-cat-more .rlink{color:var(--blue);font-weight:500;font-size:inherit}
+@media (max-width:1280px){.pk-cats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:1280px){#tab-pricing .pk-head{flex-wrap:wrap}}
+/* Rate card: the "how it's priced" line and the footer keep the card's inset; names in Saira. */
+#tab-pricing .price-card-how{margin:8px 15px 0}
+#tab-pricing .price-card-ft{margin:0;padding:9px 15px 11px}
+#tab-pricing .price-card-name{font-family:var(--font-display);font-size:16px;font-weight:600;color:var(--navy)}
