@@ -1,18 +1,18 @@
 import { createListNav } from '../lib/listNav';
 import { keepPlace } from '../lib/keepPlace';
-import { PS, proposalSentDate, teamMember, fmtMoney, currencyOf } from '../lib/commercial';
+import { PS, proposalSentDate, teamMember, defaultReviewer, fmtMoney, currencyOf } from '../lib/commercial';
 import { ownDomains } from '../lib/clientMatch';
 import { S } from '../lib/state';
-import { emptyState } from '../lib/ui';
+import { emptyState, toast } from '../lib/ui';
 import { companyLink } from '../lib/links';
 import { today, fmtDate, daysSince, daysUntil, escHtml, expose, showConfirm, showDatePrompt, showTextPrompt } from '../lib/utils';
 import { fmtDateShort } from '../lib/dates';
 import { matchesProposalPeriod } from '../lib/period';
-import { ageHtml, bucketOf, clearBucket, groupHeadHtml, registerStrip, stripHtml, tileHtml, valueHtml } from '../lib/pageKit';
+import { ageHtml, bucketOf, clearBucket, groupHeadHtml, plural, registerStrip, stripHtml, tileHtml, valueHtml } from '../lib/pageKit';
 import { pricingShape } from '../lib/pricingShape';
 import { cardFor } from '../lib/linesEditor';
 import { closedThisMonth, proposalValue, type MetaBit, type Trail } from '../lib/pagesQueues';
-import { DECIDE_DAYS, KEEP_DAYS, buildRequests, requestInBucket, requestStrip, type FollowRequest, type RequestActionKind, type RequestBucket, type RequestContext } from '../lib/followRequests';
+import { DECIDE_DAYS, KEEP_DAYS, buildRequests, requestInBucket, requestStrip, statusList, type FollowRequest, type RequestActionKind, type RequestBucket, type RequestContext } from '../lib/followRequests';
 import { pqMenu } from './pending';
 import { proposalContact } from '../lib/pagePeople';
 import { registerTabRenderer, refreshAll } from '../lib/registry';
@@ -355,6 +355,21 @@ export function fuMenu(e: MouseEvent, lead: number): void {
   if (e.type === 'contextmenu') showContextMenu(e, items); else showMenuAt(e.currentTarget as HTMLElement, items);
 }
 expose('fuMenu', fuMenu);
+
+/** The page's "…" menu: the status list to paste to the reviewer (plain text, one line per request on the page,
+ * oldest first — no amounts). */
+export function fuPageMenu(e: MouseEvent): void {
+  e.stopPropagation();
+  const { rows } = followRequests();
+  const who = firstName(defaultReviewer()?.name);
+  showMenuAt(e.currentTarget as HTMLElement, [
+    { label: `Copy status list${who ? ` for ${who}` : ''}`, iconName: 'copy', run: () => {
+      if (!rows.length) { toast('Nothing with clients to list'); return; }
+      (window as any).copyText(statusList(rows, today()), `Status list copied: ${plural(rows.length, 'request')}`);
+    } },
+  ]);
+}
+expose('fuPageMenu', fuPageMenu);
 
 /** An archived sent proposal, with Unarchive. */
 export function fuCard(p: Proposal): string {
