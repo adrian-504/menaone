@@ -23,7 +23,7 @@ const SAMPLE: AppData = {
       documents: [],
     },
     {
-      id: 2, client: 'Acme Holdings', type: 'Recruitment', status: 'In Internal Review', sentDate: null,
+      id: 2, primaryContactId: 1, client: 'Acme Holdings', type: 'Recruitment', status: 'In Internal Review', sentDate: null,
       dblSignedDate: null, kickoffDate: null, finance: null, hubspot: null, owner: null,
       remarks: 'Five engineers for the Riyadh site', dateAdded: '2026-09-08', monthlyFee: 7000, contractMonths: 6, winLossReason: null,
       docLink: null, archived: false, archivedAt: null, snoozedUntil: null, dateSentToHassan: '2026-09-10',
@@ -126,7 +126,7 @@ const SAMPLE: AppData = {
   companyNotes: {},
   // Fictional commitments from the Monthly check-in (meeting 2): one each way.
   commitments: [
-    { id: 1, direction: 'ours', text: 'Send the revised quote for three people', contactId: null, dueDate: '2026-09-19', status: 'open', closedAt: null, dropReason: null,
+    { id: 1, direction: 'ours', text: 'Send the revised quote for three people', contactId: 1, dueDate: '2026-09-19', status: 'open', closedAt: null, dropReason: null,
       companyId: 1, opportunityId: 1, projectId: null, sourceType: 'meeting', sourceId: 2, sourceKey: 'send the revised quote for three people', todoId: 6, createdAt: '2026-09-15T10:00:00Z', updatedAt: null },
     { id: 2, direction: 'theirs', text: 'Omar to share the October headcount', contactId: 2, dueDate: '2026-09-18', status: 'open', closedAt: null, dropReason: null,
       companyId: 1, opportunityId: 1, projectId: null, sourceType: 'meeting', sourceId: 2, sourceKey: 'omar to share the october headcount', todoId: null, createdAt: '2026-09-15T10:00:00Z', updatedAt: null },

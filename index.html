@@ -1465,19 +1465,28 @@
     </div>
     <div class="rec-actions" id="ctd-actions"></div>
   </header>
-  <div class="ctd-grid">
-    <aside class="sec ctd-props-card">
-      <div class="rec-section-hd"><h2>Details</h2><span class="rec-save-state" id="ctd-save-state"></span><div class="rec-section-actions" id="ctd-props-act"></div></div>
-      <dl class="rec-props ctd-props" id="ctd-props"></dl>
-      <div class="rec-section-hd rec-section-hd-spaced"><h2>Lists</h2></div>
-      <div class="ctd-lists" id="ctd-lists"></div>
+  <!-- The story: every meeting, email, call and note with this person over the last months. -->
+  <section class="rk-sec" id="ctd-trail-sec" hidden>
+    <div class="rk-sh"><h2 class="hd-major">Contact trail</h2><span class="rk-cnt" id="ctd-trail-since"></span><span class="rk-sh-r rk-legend" id="ctd-trail-legend"></span></div>
+    <div class="rk-ctrail" id="ctd-trail"></div>
+  </section>
+  <div class="ctd-grid rk-grid">
+    <aside class="rk-side">
+      <section class="rk-panel ctd-props-card">
+        <div class="rec-section-hd"><h2 class="rk-panel-h">Details</h2><span class="rec-save-state" id="ctd-save-state"></span><div class="rec-section-actions" id="ctd-props-act"></div></div>
+        <dl class="rec-props ctd-props" id="ctd-props"></dl>
+        <div class="rec-section-hd rec-section-hd-spaced"><h2 class="rk-panel-h">Lists</h2></div>
+        <div class="ctd-lists" id="ctd-lists"></div>
+      </section>
+      <section class="rk-panel" id="ctd-also" hidden></section>
     </aside>
     <div class="ctd-main">
-      <section class="rec-section sec"><div class="rec-section-hd"><h2>Opportunities</h2><span class="rec-count" id="ctd-opps-count"></span></div><div class="rec-list" id="ctd-opps"></div></section>
-      <section class="rec-section sec"><div class="rec-section-hd"><h2>Meetings</h2><span class="rec-count" id="ctd-meetings-count"></span></div><div class="rec-list" id="ctd-meetings"></div></section>
-      <section class="rec-section sec"><div class="rec-section-hd"><h2>Emails</h2><span class="rec-count" id="ctd-emails-count"></span></div><div class="rec-list" id="ctd-emails"></div></section>
-      <section class="rec-section sec"><div class="rec-section-hd"><h2>Mentioned in</h2><span class="rec-count" id="ctd-mentions-count"></span></div><div class="rec-list" id="ctd-mentions"></div></section>
-      <section class="rec-section sec"><div class="rec-section-hd"><h2>Activity</h2></div><div class="feed" id="ctd-activity"></div></section>
+      <section class="rk-sec" id="ctd-open-sec" hidden><div class="rk-sh"><h2 class="hd-major" id="ctd-open-h">Open</h2><span class="rk-cnt" id="ctd-open-count"></span></div><div id="ctd-open"></div></section>
+      <section class="rk-sec"><div class="rk-sh"><h2 class="hd-major">Meetings</h2><span class="rk-cnt" id="ctd-meetings-count"></span><a href="#" class="rlink rk-sh-r" onclick="event.preventDefault();contactNewMeeting()">New meeting</a></div><div id="ctd-meetings"></div></section>
+      <section class="rk-sec"><div class="rk-sh"><h2 class="hd-major">Emails</h2><span class="rk-cnt" id="ctd-emails-count"></span></div><div id="ctd-emails"></div></section>
+      <section class="rk-sec"><div class="rk-sh"><h2>Opportunities</h2><span class="rk-cnt" id="ctd-opps-count"></span></div><div class="rec-list" id="ctd-opps"></div></section>
+      <section class="rk-sec"><div class="rk-sh"><h2>Mentioned in</h2><span class="rk-cnt" id="ctd-mentions-count"></span></div><div class="rec-list" id="ctd-mentions"></div></section>
+      <section class="rk-sec"><div class="rk-sh"><h2>Activity</h2></div><div class="feed" id="ctd-activity"></div></section>
     </div>
   </div>
 </div>

@@ -4119,3 +4119,29 @@ a.btn-primary,a.btn-secondary{text-decoration:none}
 }
 .pk-chip.is-text{font-family:var(--font-text)}
 .rk-sline.is-cur{min-width:64px}
+
+/* Contact: the trail across months, and people as round avatars. */
+.rk-legend{color:var(--muted);font:500 12px var(--font-mono);text-decoration:none}
+.rk-ctrail{position:relative;height:96px;border-radius:13px;background:var(--surface);border:1px solid var(--hairline);box-shadow:var(--shadow-xs)}
+.rk-ct-ax{position:absolute;left:18px;right:18px;top:52px;height:2px;background:var(--hairline)}
+.rk-ct-m{position:absolute;top:72px;transform:translateX(-50%);font:500 10px var(--font-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.rk-ev{position:absolute;top:40px;width:26px;margin-left:-13px;text-align:center}
+.rk-ev[role=button]{cursor:pointer}
+.rk-ev:active i{transform:scale(.94)}
+.rk-ev:focus-visible{outline:none}
+.rk-ev:focus-visible i{box-shadow:var(--shadow-focus)}
+.rk-ev i{display:grid;place-items:center;width:26px;height:26px;border-radius:50%;font-style:normal;font-size:11px;color:var(--on-tile);background:var(--blue);box-shadow:0 0 0 3px var(--surface);transition:transform var(--dur-fast) var(--ease-out)}
+.rk-ev.is-email i{background:var(--blue-500)}
+.rk-ev.is-note i{background:var(--tile-6)}
+.rk-ev.is-call i{background:var(--green)}
+.rk-ev.is-today i{background:var(--coral)}
+.rk-ev > span{position:absolute;bottom:32px;left:50%;transform:translateX(-50%);white-space:nowrap;font-size:var(--type-meta);color:var(--sub)}
+.rk-row.rk-row-3{grid-template-columns:30px minmax(0,1fr) auto auto}
+.rk-person{display:flex;gap:10px;align-items:center;padding:6px 0;cursor:pointer}
+.rk-person:hover .rk-row-t{color:var(--blue)}
+.rk-person:active{opacity:.8}
+.pk-pav.sm{width:30px;height:30px;font-size:10.5px}
+.rk-row-t .pk-stage{font-size:10px;padding:1px 7px;vertical-align:middle}
+.mono.t-sub{color:var(--sub);font-size:12px}
+.rk-ev.at-end > span{left:auto;right:-6px;transform:none}
+.rk-ev.at-start > span{left:-6px;transform:none}
