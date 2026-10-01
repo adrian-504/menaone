@@ -3554,11 +3554,13 @@ button.pk-st:focus-visible{outline:none;box-shadow:var(--shadow-focus)}
   .pq-row.pk-row,#tab-followup .pq-row.pk-row{grid-template-columns:36px minmax(0,1fr) 104px 96px 28px;gap:6px 14px}
   .pk-who{display:none}
   .pk-row .pk-acts{grid-column:2 / 5;grid-row:2;justify-content:flex-start}
-  /* Follow-up: the trail goes under the meta line at half its height, without its dates. */
-  .pk-row .pk-mid{grid-column:2 / 5;grid-row:2;padding:0 6px}
+  /* Follow-up: three lines — title, meta, then the trail (half its height, without its dates) with the buttons at
+     its right. The value and age columns size to fit the buttons under them. */
+  #tab-followup .pq-row.pk-row.has-mid{grid-template-columns:36px minmax(0,1fr) auto auto 28px}
+  .pk-row .pk-mid{grid-column:2;grid-row:2;align-self:center;padding:0 6px}
   .pk-mid .pk-trail{height:14px;max-width:520px;margin:0}
   .pk-mid .pk-pt span{display:none}
-  .pk-row.has-mid .pk-acts{grid-row:3}
+  .pk-row.has-mid .pk-acts{grid-column:3 / 6;grid-row:2;justify-content:flex-end}
   .pk-row .pk-more{grid-column:5;grid-row:1}
 }
 @container (max-width:620px){
@@ -3566,6 +3568,9 @@ button.pk-st:focus-visible{outline:none;box-shadow:var(--shadow-focus)}
   .pk-val{display:none}
   .pk-row .pk-acts{grid-column:2 / 4}
   .pk-row .pk-more{grid-column:4}
+  #tab-followup .pq-row.pk-row.has-mid{grid-template-columns:36px minmax(0,1fr) 96px 28px}
+  .pk-row .pk-mid{grid-column:2 / 4}
+  .pk-row.has-mid .pk-acts{grid-column:2 / 4;grid-row:3;justify-content:flex-start}
 }
 @media (max-width:1280px){.pk-st-d{white-space:normal}}
 

@@ -819,7 +819,7 @@ const COMPANY_COLUMNS: Column<CoRow>[] = [
     cell: (r) => (r.flight.text || r.flight.urgent ? `<span class="pk-flight">${escHtml(r.flight.text)}${r.flight.urgent ? `${r.flight.text ? ' · ' : ''}<span class="t-${r.flight.urgent.tone}">${escHtml(r.flight.urgent.text)}</span>` : ''}</span>` : muted) },
   { key: 'contacts', label: 'Contacts', shown: false, sort: (r) => r.d.contacts.length, descFirst: true, className: 'td-num',
     cell: (r) => (r.d.contacts.length ? String(r.d.contacts.length) : '<span class="t-amber">None</span>') },
-  // A plain date where there is one, off by default (1.64): no age colouring, no "gone quiet" — a long time without
+  // A plain date where there is one, off by default (1.64): no age colouring and no flag — a long time without
   // contact is not something to raise.
   { key: 'activity', label: 'Last contact', shown: false, sort: (r) => r.lastContact, descFirst: true,
     cell: (r) => (r.lastContact ? `<span class="pk-flight">${escHtml(fmtDateShort(r.lastContact.slice(0, 10), true))}</span>` : muted) },
