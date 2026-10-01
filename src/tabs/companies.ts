@@ -34,7 +34,7 @@ import { renderIcons } from '../core/chrome';
 import { icon } from '../lib/icons';
 import { persistProposals, persistContacts, persistAgreements, persistTodos, persistNotes, persistCompanyNotes, persistCreateCompany } from '../lib/persist';
 import { registerTabRenderer, registerCompanyViewRefresher, refreshBadges, notifyNavigated, refreshAll } from '../lib/registry';
-import { showContextMenu, showMenuAt } from '../lib/contextMenu';
+import { showContextMenu, showMenuAt, menuHead } from '../lib/contextMenu';
 import { renderTagChips } from '../lib/tagChips';
 import { openContactModal } from '../core/contacts';
 import { openAgrModal } from '../core/agreements';
@@ -337,7 +337,8 @@ expose('confirmMergeCompanies', confirmMergeCompanies);
 
 export function companyContextMenu(e: MouseEvent, name: string): void {
   showContextMenu(e, [
-    { label: 'Open', iconName: 'briefcase', run: () => openCompanyDetail(name) },
+    menuHead(name, 'Company', { name }),
+    { label: 'Open', iconName: 'briefcase', shortcut: '↵', run: () => openCompanyDetail(name) },
     { label: 'Edit', iconName: 'edit', run: () => { S.currentCompany = name; openEditCompanyModal(); } },
     { label: 'Add to list…', iconName: 'tag', run: () => { const anchor = document.querySelector<HTMLElement>(`#co-tbody tr[data-company="${CSS.escape(name)}"]`) || (e.target as HTMLElement); showMenuAt(anchor, addToCompanyListChoices(() => [name])); } },
     { label: 'Merge into…', iconName: 'repeat', run: () => openMergeCompanyModal(name) },

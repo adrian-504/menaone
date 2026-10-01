@@ -17,7 +17,7 @@ import { addLinks, companyFromForm, companyOf, contextFromMeeting, contextFromOp
 import { registerTabRenderer, registerBadgeUpdater, refreshProjectViewIfOpen, refreshCompanyViewIfOpen, notifyNavigated, getActiveTabId } from '../lib/registry';
 import { renderTagChips } from '../lib/tagChips';
 import { icon } from '../lib/icons';
-import { showContextMenu, type ContextMenuItem } from '../lib/contextMenu';
+import { showContextMenu, type ContextMenuItem, menuHead } from '../lib/contextMenu';
 import { attachCompanySelector } from '../lib/companySelector';
 import { registerDragSource, registerDropTarget, reorder } from '../lib/dnd';
 import { renderIcons } from '../core/chrome';
@@ -979,17 +979,20 @@ export function todoContextMenu(e: MouseEvent, id: number): void {
   const many = ids.length > 1;
   const anchor = (e.currentTarget as HTMLElement | null)?.closest?.('.task-row') as HTMLElement | null
     ?? document.querySelector<HTMLElement>(`.task-row[data-task-id="${id}"]`);
+  // The shortcuts are the Tasks keys (registered above): the menu says them, it does not define them.
   showContextMenu(e, [
-    { label: many ? `Complete ${ids.length} tasks` : isOpenTask(t) ? 'Complete' : 'Mark as not done', iconName: 'check', run: () => ids.forEach((x) => completeTask(x)) },
-    ...(many ? [] : [{ label: 'Open', iconName: 'edit', run: () => openTaskDetail(id) }]),
-    { label: 'Due today', iconName: 'sun', run: () => scheduleTasks(ids, { dueDate: todayIso() }) },
+    menuHead(many ? `${ids.length} tasks` : t.title, many ? 'selected' : [t.client, t.dueDate ? `due ${dueLabel(t)}` : 'no date'].filter(Boolean).join(' · '), t.client && !many ? { name: t.client } : { icon: 'check' }),
+    { label: many ? `Complete ${ids.length} tasks` : isOpenTask(t) ? 'Complete' : 'Mark as not done', iconName: 'check', shortcut: 'Space', run: () => ids.forEach((x) => completeTask(x)) },
+    ...(many ? [] : [{ label: 'Open', iconName: 'edit', shortcut: '↵', run: () => openTaskDetail(id) }]),
+    { label: '', run: () => {}, separator: true },
+    { label: 'Due today', iconName: 'sun', shortcut: 'T', run: () => scheduleTasks(ids, { dueDate: todayIso() }) },
     { label: 'Due tomorrow', iconName: 'calendar', run: () => scheduleTasks(ids, { dueDate: addDaysIso(todayIso(), 1) }) },
-    { label: 'Pick a date…', iconName: 'calendar', run: () => { if (anchor) openDatePopover(anchor, ids); } },
-    { label: t.someday ? 'Move out of Someday' : 'Move to Someday', iconName: 'archive', run: () => scheduleTasks(ids, t.someday ? { someday: false } : { someday: true, dueDate: null, dueTime: null }) },
-    { label: 'Move to project…', iconName: 'target', run: () => { if (anchor) moveTasksMenu(anchor, ids); } },
+    { label: 'Pick a date…', iconName: 'calendar', shortcut: 'D', run: () => { if (anchor) openDatePopover(anchor, ids); } },
+    { label: t.someday ? 'Move out of Someday' : 'Move to Someday', iconName: 'archive', shortcut: 'S', run: () => scheduleTasks(ids, t.someday ? { someday: false } : { someday: true, dueDate: null, dueTime: null }) },
+    { label: 'Move to project…', iconName: 'target', shortcut: 'M', run: () => { if (anchor) moveTasksMenu(anchor, ids); } },
     { label: '', run: () => {}, separator: true },
     ...(many ? [] : [{ label: 'Duplicate', iconName: 'copy', run: () => duplicateTask(id) }]),
-    { label: many ? `Delete ${ids.length} tasks` : 'Delete', iconName: 'trash', danger: true, run: () => deleteTasks(ids) },
+    { label: many ? `Delete ${ids.length} tasks` : 'Delete', iconName: 'trash', danger: true, shortcut: '⌫', run: () => deleteTasks(ids) },
   ]);
 }
 expose('todoContextMenu', todoContextMenu);

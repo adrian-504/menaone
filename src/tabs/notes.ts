@@ -15,7 +15,7 @@ import { allCompanyNoteEntries } from '../lib/db';
 import { today, fmtDate, fmtDateShort, escHtml, nextNoteId, expose, positionFloatingPopup, showTextPrompt, showConfirm, debounce, inCompany, fmtMonth } from '../lib/utils';
 import { tileHtml } from '../lib/pageKit';
 import { noteExcerpt, noteKind } from '../lib/notesPage';
-import { showContextMenu, showMenuAt, type ContextMenuItem } from '../lib/contextMenu';
+import { showContextMenu, showMenuAt, type ContextMenuItem, menuHead } from '../lib/contextMenu';
 import { persistNotes, persistNoteFolders, persistTodos, saved, saveNotesNow, saveTodosNow } from '../lib/persist';
 import { readCommitmentsFrom } from './commitments';
 import { contextFromNote, replaceLinks, taskFields, unconvertedActionItems, actionItems } from '../lib/workGraph';
@@ -923,7 +923,8 @@ export function noteContextMenu(e: MouseEvent, id: number): void {
   const n = S.notes.find((x) => x.id === id);
   if (!n) return;
   showContextMenu(e, [
-    { label: 'Open', iconName: 'note', run: () => openNote(id) },
+    menuHead(n.title || 'Untitled', [noteKind(n, meetingNoteIds()), n.clientName].filter(Boolean).join(' · '), n.clientName ? { name: n.clientName } : { icon: 'note' }),
+    { label: 'Open', iconName: 'note', shortcut: '↵', run: () => openNote(id) },
     { label: n.pinned ? 'Unpin' : 'Pin', iconName: 'pin', run: () => { n.pinned = !n.pinned; persistNotes(); renderNotesTab(); if (id === S.currentNoteId) updatePinButton(n); } },
     { label: 'Rename', iconName: 'edit', run: () => { void renameNote(id); } },
     { label: 'Duplicate', iconName: 'copy', run: () => duplicateNote(id) },

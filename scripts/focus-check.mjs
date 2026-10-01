@@ -66,7 +66,21 @@ const VIEWS = [
   ['Project', "openRecord('project', 1)", { inputs: 1 }],
   ['Meeting', "openRecord('meeting', 2)", {}],
   ['New proposal', "openProposalBuilder({})", { fitsScreen: true }],
+  ['Files → client folders', "switchTab('files'), msFilesLayout('icons'), msFilesNavigateToPath('/Users/demo/Library/CloudStorage/OneDrive-MENABIG/MENA BD 2026/Proposals')", {}],
+  ['Settings → General', "navToModule('settings'), setSettingsPane('general')", { inputs: 9 }],
   ['Settings → Appearance', "navToModule('settings'), setSettingsPane('appearance')", {}],
+  ['Settings → Team', "navToModule('settings'), setSettingsPane('team')", { inputs: 12 }],
+  ['Settings → Business', "navToModule('settings'), setSettingsPane('business')", { inputs: 12 }],
+  ['Settings → Templates', "navToModule('settings'), setSettingsPane('templates')", {}],
+  ['Settings → Connections', "navToModule('settings'), setSettingsPane('connections')", { inputs: 4 }],
+  ['Settings → Data', "navToModule('settings'), setSettingsPane('data')", {}],
+  // Chrome (1.63): the pop-ups, each opened over a page. One primary per surface, nothing shifts, no error toasts.
+  ['New menu', "switchTab('myday'), document.getElementById('sb-new-btn').click()", { inputs: 1 }],
+  ['New task dialog', "switchTab('myday'), openTodoModal(null)", { inputs: 12 }],
+  ['New meeting dialog', "switchTab('myday'), openMeetingModal(null)", { inputs: 10 }],
+  ['Palette with a query', "switchTab('myday'), openCommandPalette(), onPaletteInput('acme'), new Promise(r => setTimeout(r, 500))", { inputs: 1 }],
+  ['Context menu', "switchTab('todo'), setTodoFilter('anytime'), todoContextMenu(new MouseEvent('contextmenu', { clientX: 700, clientY: 400, bubbles: true }), 1)", {}],
+  ['Undo toast', "switchTab('todo'), setTodoFilter('anytime'), moveOverdueToToday()", {}],
   // Identity: Agreements is hidden in the sidebar by default; while it's open its item shows, highlighted.
   ['Sidebar → hidden module active', "navToModule('agreements')", { activeShown: true }],
   // Studio: the Generate sheet over a proposal (counted inside the sheet), and the builder's

@@ -10,14 +10,14 @@ import { renderIcons } from '../core/chrome';
 import { toast, undoToast } from '../lib/ui';
 import { emitChange } from '../lib/changes';
 import { recordLink, companyLink } from '../lib/links';
-import { escHtml, expose, fmtDate, today, inCompany, showTextPrompt, showConfirm } from '../lib/utils';
+import { escHtml, expose, fmtDate, today, inCompany, showTextPrompt, showConfirm, fmtDateShort } from '../lib/utils';
 import { commitmentsAdd, type NewCommitment } from '../lib/db';
 import { persistCommitments, persistProposals, persistTodos, markCommitmentsSaved } from '../lib/persist';
 import { activeServices, syncProposalTotals } from '../lib/commercial';
 import { lineForService } from '../lib/linesEditor';
 import { refreshBadges } from '../lib/registry';
 import { icon } from '../lib/icons';
-import { showContextMenu } from '../lib/contextMenu';
+import { showContextMenu, menuHead } from '../lib/contextMenu';
 import { attachCompanySelector } from '../lib/companySelector';
 import { isProposalCommitment, parseCommitmentLines } from '../lib/commitments';
 import { nudgeMailto, promisesView } from '../lib/promises';
@@ -243,14 +243,14 @@ export function setCommitmentKept(id: number, kept: boolean): void {
   else refreshCommitmentViews();
   // A promise kept can be taken back (owner, 30-Sep-2026: Undo where a save is reversible).
   if (kept && was.status !== 'kept') {
-    undoToast(`Kept: ${c.text}`, () => {
+    undoToast(c.direction === 'ours' ? 'Promise kept' : 'Received', () => {
       c.status = was.status;
       c.closedAt = was.closedAt;
       persistCommitments();
       refreshBadges();
       refreshCommitmentViews();
       (window as any).renderMyDay?.();
-    });
+    }, undefined, undefined, { detail: c.text, icon: 'flag' });
   }
 }
 
@@ -318,6 +318,7 @@ export function commitmentMenu(e: MouseEvent, id: number): void {
   if (!c) return;
   const hasSource = (c.sourceType === 'meeting' || c.sourceType === 'note') && c.sourceId != null;
   showContextMenu(e, [
+    menuHead(c.text, `${c.direction === 'ours' ? 'We owe' : 'They owe'}${c.dueDate ? ` · due ${fmtDateShort(c.dueDate, true)}` : ''}`, { icon: 'flag' }),
     { label: 'Edit', iconName: 'edit', run: () => openCommitmentModal(EMPTY_CONTEXT, id) },
     ...(c.status === 'open' && c.direction === 'theirs' ? [
       { label: 'Mark kept', iconName: 'check', run: () => setCommitmentKept(id, true) },

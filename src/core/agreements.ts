@@ -5,7 +5,7 @@ import { companyLink } from '../lib/links';
 import { AGR_STATUSES, AGR_TYPES, AGR_ST, SERVICE_STATUSES } from '../lib/constants';
 import { today, fmtDate, daysUntil, escHtml, nextAgrId, expose, kpiCard, showConfirm, statusDot } from '../lib/utils';
 import { icon } from '../lib/icons';
-import { showContextMenu, showMenuAt } from '../lib/contextMenu';
+import { showContextMenu, showMenuAt, menuHead } from '../lib/contextMenu';
 import { emptyState } from '../lib/ui';
 import { activeMrr, renewalsDue, isAgreementActive, fmtMoneyByCurrency, fmtMoney, currencyOf, agreementMonthly, teamMember, activeTeam, entityById, defaultEntity, contractEndDate } from '../lib/commercial';
 import { matchesPeriod } from '../lib/period';
@@ -204,7 +204,8 @@ export function agreementRowMenu(e: MouseEvent, id: number): void {
   const a = S.agreements.find((x) => x.id === id);
   if (!a) return;
   const items = [
-    { label: 'Open', iconName: 'document', run: () => (window as any).openRecord('agreement', id) },
+    menuHead(`${a.client || 'Agreement'}${a.type ? ` — ${a.type}` : ''}`, [a.agrRef, (a.status || '').toLowerCase()].filter(Boolean).join(' · '), { name: a.client || '?' }),
+    { label: 'Open', iconName: 'document', shortcut: '↵', run: () => (window as any).openRecord('agreement', id) },
     { label: '', run: () => {}, separator: true },
     ...AGR_STATUSES.filter((st) => st !== a.status).map((st) => ({ label: `Status: ${st}`, iconName: 'check', run: () => { updateAgrStatus(id, st); renderAgreements(); } })),
   ];

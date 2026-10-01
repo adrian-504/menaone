@@ -30,14 +30,29 @@ beforeEach(() => { document.body.innerHTML = ''; Object.values(db).forEach((f) =
 afterEach(() => vi.useRealTimers());
 
 describe('the undo toast', () => {
-  it('one at a time, bottom-left, gone after 7 s', () => {
+  it('three at most, bottom-left, each gone after 7 s; the newest is what ⌘Z runs', () => {
     vi.useFakeTimers();
-    undoToast('First', () => {});
-    undoToast('Second', () => {});
-    const live = [...document.querySelectorAll('#undo-stack .toast-undo:not(.leaving) .toast-msg')].map((m) => m.textContent);
-    expect(live).toEqual(['Second']);
+    const live = () => [...document.querySelectorAll('#undo-stack .toast-undo:not(.leaving) .toast-msg')].map((m) => m.textContent);
+    const ran: string[] = [];
+    for (const name of ['First', 'Second', 'Third']) undoToast(name, () => ran.push(name));
+    expect(live()).toEqual(['First', 'Second', 'Third']);
+    // A fourth: the oldest leaves.
+    undoToast('Fourth', () => ran.push('Fourth'));
+    expect(live()).toEqual(['Second', 'Third', 'Fourth']);
+    pendingUndo()!();
+    expect(ran).toEqual(['Fourth']);
+    expect(live()).toEqual(['Second', 'Third']);
     vi.advanceTimersByTime(7000);
     expect(pendingUndo()).toBeNull();
+    expect(live()).toEqual([]);
+  });
+
+  it('a message written "Title: what" is a title and a line; a detail given apart is the line', () => {
+    undoToast('Kept: Send the revised quote', () => {});
+    undoToast('Followed up', () => {}, 7000, undefined, { detail: 'Sample Client — Payroll · email', icon: 'flag' });
+    const cards = [...document.querySelectorAll('#undo-stack .toast-undo:not(.leaving)')];
+    expect(cards.map((c) => [c.querySelector('.toast-msg')?.textContent, c.querySelector('.toast-detail')?.textContent])).toEqual([['Kept', 'Send the revised quote'], ['Followed up', 'Sample Client — Payroll · email']]);
+    expect(cards.map((c) => !!c.querySelector('.undo-tile.is-coral'))).toEqual([false, true]);
   });
 
   it('⌘Z runs the latest undo, but not while typing', () => {

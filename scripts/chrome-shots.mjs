@@ -41,6 +41,9 @@ const SHOTS = [
   ['newproject', CLOCK, "switchTab('myday'), openProjectModal(null)"],
   ['palette', CLOCK, "switchTab('myday'), openCommandPalette(), (() => { const f = document.getElementById('cmdk-input'); f.value = 'acme'; onPaletteInput('acme'); })(), new Promise(r => setTimeout(r, 600))"],
   ['palette-empty', CLOCK, "switchTab('myday'), openCommandPalette()"],
+  ['menu', CLOCK, "switchTab('todo'), setTodoFilter('anytime'), (() => { const r = document.querySelector('.task-row[data-task-id=\"1\"]').getBoundingClientRect(); todoContextMenu(new MouseEvent('contextmenu', { clientX: r.left + 320, clientY: r.top + 20, bubbles: true }), 1); })()"],
+  ['toasts', CLOCK, "switchTab('todo'), setTodoFilter('anytime'), moveOverdueToToday(), toggleCommitmentKept(1), new Promise(r => setTimeout(r, 900))"],
+  ['confirm', CLOCK, "openRecord('proposal', 2), new Promise(r => setTimeout(r, 500)).then(() => { document.querySelector('[onclick^=\"proposalMoreMenu\"]')?.click(); return new Promise(r => setTimeout(r, 250)); }).then(() => { [...document.querySelectorAll('#ctx-menu .ctx-menu-item')].find((x) => x.textContent.includes('Delete'))?.click(); return new Promise(r => setTimeout(r, 300)); })"],
 ].filter(([n]) => !process.env.ONLY || process.env.ONLY.split(',').includes(n));
 
 const port = 9700 + Math.floor(Math.random() * 100);

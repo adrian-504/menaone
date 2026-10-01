@@ -13,7 +13,7 @@ import { proposalStaleMonths, type RowActionKind } from '../lib/pagesQueues';
 import { followUpCount } from '../lib/followup';
 import { queueAct } from './pending';
 import { icon } from '../lib/icons';
-import { showContextMenu, showMenuAt } from '../lib/contextMenu';
+import { showContextMenu, showMenuAt, menuHead } from '../lib/contextMenu';
 import { emptyState } from '../lib/ui';
 import { needsFollowUp } from '../core/proposals';
 import { withClients } from './followup';
@@ -127,7 +127,8 @@ export function proposalRowMenu(e: MouseEvent, id: number): void {
   const p = S.proposals.find((x) => x.id === id);
   if (!p) return;
   const items = [
-    { label: 'Open', iconName: 'document', run: () => (window as any).openRecord('proposal', id) },
+    menuHead(`${p.client} — ${p.type || 'Proposal'}`, `Proposal SL# ${p.id} · ${(p.status || '').toLowerCase()}`, { name: p.client || '?' }),
+    { label: 'Open', iconName: 'document', shortcut: '↵', run: () => (window as any).openRecord('proposal', id) },
     // Requested together with others: tick the whole set in one go.
     ...(requestSiblings(p, S.proposals).length ? [{ label: `Select the ${requestSiblings(p, S.proposals).length} sent with this`, iconName: 'check', run: () => dbSelectGroup(id) }] : []),
     { label: '', run: () => {}, separator: true },

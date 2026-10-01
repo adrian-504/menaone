@@ -12,7 +12,7 @@ import { matchesProposalPeriod } from '../lib/period';
 import { registerTabRenderer, registerBadgeUpdater, refreshAll, getActiveTabId } from '../lib/registry';
 import { persistProposals } from '../lib/persist';
 import { changeProposalStatus, snoozeProposal, snoozeCustom, archiveProposal, openNotesModal, openRevisionDialog, openWlModal, nudgeReview, followUpMenu } from '../core/proposals';
-import { showContextMenu } from '../lib/contextMenu';
+import { showContextMenu, menuHead } from '../lib/contextMenu';
 import { icon } from '../lib/icons';
 import { PS, teamMember, defaultReviewer, ownerName } from '../lib/commercial';
 import type { Proposal } from '../lib/types';
@@ -232,7 +232,8 @@ export function pqMenu(e: MouseEvent, id: number): void {
   if (!p) return;
   const snooze = (days: number) => ({ label: `Snooze ${days} days`, iconName: 'clock', run: () => snoozeProposal(id, days) });
   showContextMenu(e, [
-    { label: 'Open', iconName: 'edit', run: () => (window as any).openRecord('proposal', id) },
+    menuHead(`${p.client} — ${p.type || 'Proposal'}`, `Proposal SL# ${p.id} · ${(p.status || '').toLowerCase()}`, { name: p.client || '?' }),
+    { label: 'Open', iconName: 'edit', shortcut: '↵', run: () => (window as any).openRecord('proposal', id) },
     // On Pending (where rows can be ticked): the whole set requested together, in one go.
     ...(pqShownIds().includes(id) && requestSiblings(p, S.proposals).some((x) => pqShownIds().includes(x.id))
       ? [{ label: `Select the ${requestSiblings(p, S.proposals).filter((x) => pqShownIds().includes(x.id)).length} sent with this`, iconName: 'check', run: () => pqSelectGroup(id) }] : []),

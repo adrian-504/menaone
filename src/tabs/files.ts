@@ -20,7 +20,7 @@ import { tileHtml } from '../lib/pageKit';
 import { coverLabel } from '../lib/recordOpportunity';
 import { classifyFolders, clientPlaces, companyForPath, coverKind, extBadge, folderLine, matchProgress, type ClientFolder } from '../lib/filesPage';
 import { registerTabRenderer, getActiveTabId } from '../lib/registry';
-import { showContextMenu } from '../lib/contextMenu';
+import { showContextMenu, menuHead } from '../lib/contextMenu';
 import { quickLook } from '../lib/quickLook';
 import { icon } from '../lib/icons';
 import { emptyState, skeleton, toast } from '../lib/ui';
@@ -353,9 +353,11 @@ expose('msFilesCopyPath', msFilesCopyPath);
 
 function contextItems(item: RowItem) {
   const pinned = isPinned(item.path);
+  const company = companyForPath(item.path, linkedItems);
   return [
-    { label: item.isFolder ? 'Open folder' : 'Open', iconName: 'document', run: () => { void msFilesOpenItem(item.path); } },
-    ...(item.isFolder ? [] : [{ label: 'Quick Look', iconName: 'eye', run: () => { void quickLookRow(item.path); } }]),
+    menuHead(item.name, [kindOf(item).label, company].filter(Boolean).join(' · '), company ? { name: company } : { icon: item.isFolder ? 'folder' : 'document' }),
+    { label: item.isFolder ? 'Open folder' : 'Open', iconName: 'document', shortcut: '↵', run: () => { void msFilesOpenItem(item.path); } },
+    ...(item.isFolder ? [] : [{ label: 'Quick Look', iconName: 'eye', shortcut: 'Space', run: () => { void quickLookRow(item.path); } }]),
     { label: 'Reveal in Finder', iconName: 'folder', run: () => { void filesRevealInFinder(item.path); } },
     { label: 'Copy path', iconName: 'copy', run: () => msFilesCopyPath(item.path) },
     { label: 'Show info and notes', iconName: 'note', run: () => { void openMsFilesInspector(item.path, item.name, item.isFolder, item.size, item.modifiedAt); } },

@@ -2557,10 +2557,16 @@
 </div>
 
 <div class="modal-ov" id="modal-confirm-prompt" onclick="if(event.target===this)resolveConfirmPrompt(false)">
-  <div class="modal modal-sm">
+  <div class="modal modal-sm confirm" id="confirm-prompt-box">
+    <span class="confirm-tile" aria-hidden="true"><span data-icon="trash" data-icon-size="18"></span></span>
     <div class="modal-hd"><div class="modal-title" id="confirm-prompt-title">Are you sure?</div><button class="modal-close" onclick="resolveConfirmPrompt(false)">×</button></div>
-    <div class="fgrp"><div id="confirm-prompt-message" class="modal-body-text prewrap"></div></div>
+    <div class="fgrp">
+      <div id="confirm-prompt-message" class="modal-body-text prewrap"></div>
+      <ul class="confirm-also" id="confirm-prompt-also" hidden></ul>
+      <div class="confirm-stays" id="confirm-prompt-stays" hidden></div>
+    </div>
     <div class="fact">
+      <span class="cd-hints" id="confirm-prompt-undo" hidden>You can undo for 7 seconds</span>
       <button class="btn-secondary" onclick="resolveConfirmPrompt(false)">Cancel</button>
       <button class="btn-danger" id="confirm-prompt-ok-btn" onclick="resolveConfirmPrompt(true)">Confirm</button>
     </div>

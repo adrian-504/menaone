@@ -1,3 +1,4 @@
+import { meetingCascade } from '../lib/chromeKit';
 import { S } from '../lib/state';
 import { foldMoreDetails } from '../lib/moreDetails';
 import { mountPropsList, propsEditButton, propsListHtml, type PropField } from '../lib/propsList';
@@ -329,7 +330,8 @@ export async function deleteCurrentMeeting(): Promise<void> {
     return;
   }
 
-  if (!(await showConfirm(`Delete "${m.title}"? This cannot be undone.`, { confirmLabel: 'Delete' }))) return;
+  const c = meetingCascade(m);
+  if (!(await showConfirm(`${c.named}.${c.also.length ? ' This also removes:' : ''}`, { title: 'Delete this meeting?', confirmLabel: 'Delete', also: c.also, stays: ['This cannot be undone.'] }))) return;
   await deleteMeeting(S.meetingEditId);
   await loadMeetings();
   closeMeetingDetail();

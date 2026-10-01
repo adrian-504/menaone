@@ -4892,3 +4892,40 @@ a.rk-snote:hover{text-decoration-color:currentColor}
 @media (max-width:920px){.cmdk-body{grid-template-columns:minmax(0,1fr)}.cmdk-preview{display:none}}
 .cmdk-body.no-preview{grid-template-columns:minmax(0,1fr)}
 .cmdk-body.no-preview .cmdk-preview{display:none}
+/* Menus: a header naming the record, icons, mono shortcuts, what destroys last */
+.ctx-menu{min-width:232px;padding:6px;border-radius:13px;border-color:var(--hairline)}
+.ctx-menu-head{display:flex;align-items:center;gap:10px;margin-bottom:4px;padding:8px 9px 10px;border-bottom:1px solid var(--hairline)}
+.ctx-head-tile{flex:none;width:28px;height:28px;border-radius:6px;display:grid;place-items:center;color:var(--on-tile);font-size:10.5px;font-weight:600}
+.ctx-head-tile.is-round{border-radius:50%}
+.ctx-head-tile.is-icon{background:var(--blue-50);color:var(--blue)}
+.ctx-head-t{min-width:0;display:flex;flex-direction:column}
+.ctx-head-t b{font-size:var(--type-body);font-weight:600;color:var(--text);max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ctx-head-t span{font-size:var(--type-meta);color:var(--sub);max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ctx-menu-item{gap:10px}
+.ctx-menu-ic{flex:none;display:inline-flex;color:var(--sub)}
+.ctx-menu-item.danger .ctx-menu-ic{color:var(--red)}
+.ctx-menu-l{flex:1;min-width:0}
+.ctx-menu-item kbd{flex:none;margin-left:16px;font:500 11px var(--font-mono);color:var(--muted)}
+.ctx-menu-sep{background:var(--hairline);margin:5px 6px}
+/* Undo toasts: navy cards, bottom-left, three at most, with the time left as a coral bar */
+.toast-undo{position:relative;align-items:center;gap:12px;min-width:340px;padding:12px 10px 14px 14px;border-radius:13px;background:var(--tile-3);color:var(--on-tile);box-shadow:var(--shadow-md);overflow:hidden}
+.undo-tile{flex:none;width:28px;height:28px;border-radius:6px;display:grid;place-items:center;background:color-mix(in srgb,var(--green) 28%,transparent);color:var(--on-tile)}
+.undo-tile.is-coral{background:color-mix(in srgb,var(--coral) 32%,transparent)}
+.toast-undo .toast-msg{font-weight:600}
+.toast-undo .toast-detail{opacity:.78;font-size:var(--type-secondary);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:320px}
+.toast-undo .toast-undo-btn{color:var(--coral);text-decoration:none;font-weight:600}
+.toast-undo .toast-action kbd{font:500 11px var(--font-mono);opacity:.7;margin-left:6px;color:var(--on-tile)}
+.undo-bar{position:absolute;left:14px;right:14px;bottom:5px;height:2px;border-radius:6px;background:var(--coral);transform:scaleX(var(--left,1));transform-origin:left}
+/* Confirmations: red only when something is destroyed; the record named; what else goes */
+.modal.confirm{position:relative;width:440px}
+.confirm-tile{display:none;width:40px;height:40px;margin-bottom:14px;border-radius:9px;place-items:center;background:var(--red-bg);color:var(--red)}
+.modal.confirm.is-destructive .confirm-tile{display:grid}
+.modal.confirm .modal-hd{margin-bottom:8px}
+.modal.confirm .modal-title{font:600 20px/1.2 var(--font-display);color:var(--navy)}
+.modal.confirm.is-destructive .modal-close{position:absolute;right:20px;top:20px}
+.confirm-also{margin:8px 0 0;padding-left:20px;font-size:var(--type-body);color:var(--text);line-height:1.6}
+.confirm-stays{margin-top:10px;font-size:var(--type-secondary);color:var(--sub);line-height:1.5}
+.modal.confirm .fact{align-items:center}
+.modal.confirm.is-destructive .btn-danger{background:var(--red);border-color:var(--red);color:var(--on-accent)}
+.modal.confirm.is-destructive .btn-danger:hover{background:color-mix(in srgb,var(--red) 88%,var(--tile-3));border-color:var(--red)}
+:is(.ctx-menu-item,.cmdk-pv-act,.newmenu-item,.toast-undo .toast-action) kbd{min-width:0;height:auto;padding:0;border:none;border-radius:0;background:none;box-shadow:none}
