@@ -28,11 +28,13 @@ export interface StripPanel {
   total?: boolean;
   /** A panel that opens something instead of filtering (a JS call, e.g. "openPeopleFromMeetings()"). */
   action?: string;
+  /** Shown even at 0 (in a neutral tone), where the 0 is worth saying. */
+  keepZero?: boolean;
 }
 
 /** The panels worth showing: the total always, the others when they hold something. Pure. */
 export function visiblePanels(panels: StripPanel[]): StripPanel[] {
-  return panels.filter((p) => p.total || p.count > 0);
+  return panels.filter((p) => p.total || p.count > 0 || p.keepZero);
 }
 
 /** A panel click: pick that bucket, or clear it on the second click. Pure. */

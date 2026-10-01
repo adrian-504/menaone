@@ -13,7 +13,7 @@ import { contactBuckets, contactsStrip, lastSpokeByContact, openWith, spokeCell,
 import { initialsOf } from '../lib/appearance';
 import { renderBulkBar } from '../lib/bulkBar';
 import { showContextMenu, showMenuAt, menuHead } from '../lib/contextMenu';
-import { shownColumns, sortState, setSort, sortRows, headerCells, openColumnPicker, agoLabel, type Column, type SortState } from '../lib/tableColumns';
+import { shownColumns, sortState, setSort, sortRows, headerCells, openColumnPicker, type Column, type SortState } from '../lib/tableColumns';
 import { companyLists, smartContactLists, companyNamesInList, contactsInCompanyList, createSavedList, renameSavedList, removeSavedList, updateSmartListFilters, exportToActiveCampaign, listById, sameFilters, cleanFilters, listChipLabel, newContactList, renameContactList, addContactsToList, removeContactsFromList } from './lists';
 import { attachCompanySelector } from '../lib/companySelector';
 import { companyFromForm } from '../lib/workGraph';
@@ -432,7 +432,7 @@ const CONTACT_COLUMNS: Column<CtRow>[] = [
   { key: 'dm', label: 'Role', shown: true, sort: (r) => (r.c.isDecisionMaker ? 0 : 1),
     cell: (r) => (r.c.isDecisionMaker ? '<span class="pk-stage t-navy">Decision maker</span>' : muted) },
   { key: 'touch', label: 'Last contact', shown: false, sort: (r) => r.lastTouch, descFirst: true,
-    cell: (r) => `<div class="pk-lc${r.spoke.quiet ? ' is-quiet' : ''}"><b>${escHtml(r.spoke.headline)}</b><span>${escHtml(r.spoke.sub)}</span></div>` },
+    cell: (r) => `<div class="pk-lc"><b>${escHtml(r.spoke.headline)}</b><span>${escHtml(r.spoke.sub)}</span></div>` },
   { key: 'open', label: 'Open with them', shown: false, sort: (r) => r.open.length, descFirst: true, className: 'pk-narrow-hide',
     cell: (r) => (r.open.length ? `<div class="pk-owes">${r.open.map((o) => `<span class="t-${o.tone}">${escHtml(o.text)}</span>`).join('')}</div>` : '') },
   { key: 'email', label: 'Email', shown: true, sort: (r) => (r.c.email || '').toLowerCase(),
@@ -469,6 +469,12 @@ export function contactRowMenu(e: MouseEvent, id: number): void {
   else showMenuAt(e.currentTarget as HTMLElement, items);
 }
 expose('contactRowMenu', contactRowMenu);
+
+/** The companies with nobody on file (Clean-up's "Without contacts" rule), for the strip. */
+function companiesWithNoPerson(): string[] {
+  const withPeople = new Set(S.contacts.map((p) => p.companyId).filter((x): x is number => x != null));
+  return S.companies.filter((c) => !c.archived && !withPeople.has(c.id)).map((c) => c.name).sort((a, b) => a.localeCompare(b));
+}
 
 const CONTACT_SORT_DEFAULT: SortState = { key: 'name', dir: 'asc' };
 /** Where this table's column choice and sort are kept. Renamed in 1.64, when the default columns changed
@@ -518,13 +524,13 @@ export function renderContacts(): void {
   const spoke = lastSpokeByContact(S.contacts, { meetings: S.meetings, emails: S.emails, touches: S.touches, today: t });
   const figures = (c: Contact): ContactFigures => ({ id: c.id, name: c.name || 'Unnamed', company: c.clientName || '', decisionMaker: !!c.isDecisionMaker, last: spoke.get(c.id) });
   // The strip sums what the filters leave; a panel narrows the list (the last one opens the review instead).
-  if (bucketOf('contacts') && !matching.some((c) => contactBuckets(figures(c), t).includes(bucketOf('contacts') as ContactBucket))) clearBucket('contacts');
+  if (bucketOf('contacts') && !matching.some((c) => contactBuckets(figures(c)).includes(bucketOf('contacts') as ContactBucket))) clearBucket('contacts');
   const strip = document.getElementById('ct-strip');
-  if (strip) strip.innerHTML = matching.length ? stripHtml('contacts', contactsStrip(matching.map(figures), t, fromMeetings)) : '';
+  if (strip) strip.innerHTML = matching.length ? stripHtml('contacts', contactsStrip(matching.map(figures), t, fromMeetings, companiesWithNoPerson())) : '';
   const peopleCount = (window as any).peopleFromMeetingsCount as undefined | (() => Promise<number>);
   if (peopleCount) void peopleCount().then((n) => { if (n !== fromMeetings) { fromMeetings = n; if (getActiveTabId() === 'contacts') renderContacts(); } }).catch(() => {});
   const bucket = bucketOf('contacts') as ContactBucket | null;
-  const data = bucket ? matching.filter((c) => contactBuckets(figures(c), t).includes(bucket)) : matching;
+  const data = bucket ? matching.filter((c) => contactBuckets(figures(c)).includes(bucket)) : matching;
   const cntEl = document.getElementById('ct-cnt'); if (cntEl) cntEl.textContent = `${data.length} contact${data.length !== 1 ? 's' : ''}`;
   const tbody = document.getElementById('ct-tbody');
   if (!tbody) return;

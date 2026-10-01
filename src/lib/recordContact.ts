@@ -33,7 +33,8 @@ export function contactHeaderFigures(i: ContactHeaderInput): Figure[] {
   const out: Figure[] = [];
   if (i.last) {
     const d = Math.max(0, daysBetween(i.last.date, i.today) ?? 0);
-    out.push({ value: d === 0 ? 'Today' : d === 1 ? 'Yesterday' : plural(d, 'day'), label: `last contact · ${clip(i.last.subject, 28)}`, tone: d >= 60 ? 'amber' : undefined });
+    // The last contact is a plain date, never coloured for how long ago it was (owner, 1-Oct-2026).
+    out.push({ value: d === 0 ? 'Today' : d === 1 ? 'Yesterday' : fmtDateShort(i.last.date, true), label: `last contact · ${clip(i.last.subject, 28)}` });
   }
   const open = i.commitments.filter((c) => c.status === 'open');
   const ours = open.filter((c) => c.direction === 'ours'), theirs = open.filter((c) => c.direction === 'theirs');

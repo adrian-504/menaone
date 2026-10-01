@@ -1,16 +1,15 @@
 // Contacts in My Day's language (1.60 "pages-2"): one flat list of people —
-// when you last spoke and about what, what is open with each of them — under
-// a strip that counts people, decision makers, who has gone quiet and who
-// from your meetings isn't a contact yet. Pure: core/contacts.ts draws it.
+// who they are and where, what is open with each of them — under a strip that
+// counts people, decision makers, the companies with no contact person and
+// who from your meetings isn't a contact yet. Nobody is flagged for a lack of
+// contact (owner, 1-Oct-2026); the last contact, where shown, is a plain fact.
+// Pure: core/contacts.ts draws it.
 
 import type { Commitment, Contact, EmailRecord, Meeting, Proposal, Touch } from './types';
 import { PS } from './commercial';
 import { daysBetween } from './pipeline';
 import { fmtDateShort, fmtWeekday } from './dates';
 import { plural, type StripPanel } from './pageKit';
-
-/** A person not spoken to for this long has gone quiet. */
-export const CONTACT_QUIET_DAYS = 60;
 
 export type Channel = 'meeting' | 'email' | 'call' | 'whatsapp';
 export interface LastSpoke { date: string; channel: Channel; subject: string }
@@ -67,19 +66,15 @@ function localDay(iso: string): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-export interface SpokeCell { headline: string; sub: string; quiet: boolean; days: number | null }
+export interface SpokeCell { headline: string; sub: string; days: number | null }
 
-/** The Last contact cell: "Today" / "9 days" in display type, the channel and subject under it; amber and "gone quiet" at 60 days. Pure. */
+/** The Last contact cell (a column that is off by default): the date as a plain fact — "Today", "Yesterday" or the
+ * date — with the channel and subject under it. However long ago it was, it is never coloured or flagged. Pure. */
 export function spokeCell(last: LastSpoke | undefined, today: string): SpokeCell {
-  if (!last) return { headline: '—', sub: 'no contact on record', quiet: false, days: null };
+  if (!last) return { headline: '—', sub: '', days: null };
   const days = Math.max(0, daysBetween(last.date, today) ?? 0);
-  const quiet = days >= CONTACT_QUIET_DAYS;
   const subject = last.subject.length > 34 ? `${last.subject.slice(0, 33).trimEnd()}…` : last.subject;
-  return {
-    headline: days === 0 ? 'Today' : days === 1 ? 'Yesterday' : plural(days, 'day'),
-    sub: quiet ? `${CHANNEL_ICON[last.channel]} ${fmtDateShort(last.date, true)} · gone quiet` : `${CHANNEL_ICON[last.channel]} ${subject}`,
-    quiet, days,
-  };
+  return { headline: days === 0 ? 'Today' : days === 1 ? 'Yesterday' : fmtDateShort(last.date, true), sub: `${CHANNEL_ICON[last.channel]} ${subject}`, days };
 }
 
 export interface OpenChip { text: string; tone: 'red' | 'amber' }
@@ -106,28 +101,25 @@ export function openWith(c: Pick<Contact, 'id'>, i: { commitments: Pick<Commitme
 }
 
 export interface ContactFigures { id: number; name: string; company: string; decisionMaker: boolean; last: LastSpoke | undefined }
-export type ContactBucket = 'dm' | 'quiet';
+export type ContactBucket = 'dm';
 
-export function contactBuckets(c: ContactFigures, today: string): ContactBucket[] {
-  const out: ContactBucket[] = [];
-  if (c.decisionMaker) out.push('dm');
-  if (spokeCell(c.last, today).quiet) out.push('quiet');
-  return out;
+export function contactBuckets(c: ContactFigures): ContactBucket[] {
+  return c.decisionMaker ? ['dm'] : [];
 }
 
-/** The strip: people (companies, spoke this month) · decision makers (where) · not spoken in 60 days (longest) · from
- * meetings, not yet a contact (opens the review). Pure. */
-export function contactsStrip(rows: ContactFigures[], today: string, fromMeetings: number): StripPanel[] {
+/** The strip: people (companies, spoke this month) · decision makers (where) · companies with no contact person
+ * (opens Clean-up's "Without contacts") · from meetings, not yet a contact (opens the review). `noPerson` is the
+ * names of the companies with nobody on file. Pure. */
+export function contactsStrip(rows: ContactFigures[], today: string, fromMeetings: number, noPerson: string[] = []): StripPanel[] {
   const companies = new Set(rows.map((r) => r.company).filter(Boolean));
   const month = today.slice(0, 7);
   const spoke = rows.filter((r) => r.last?.date.slice(0, 7) === month).length;
   const dms = rows.filter((r) => r.decisionMaker);
   const dmCompanies = [...new Set(dms.map((r) => r.company).filter(Boolean))];
-  const quiet = rows.map((r) => ({ r, cell: spokeCell(r.last, today) })).filter((x) => x.cell.quiet).sort((a, b) => (b.cell.days ?? 0) - (a.cell.days ?? 0));
   return [
     { key: 'all', total: true, n: plural(rows.length, 'person', 'people'), count: rows.length, label: `across ${plural(companies.size, 'company', 'companies')}`, lead: 'spoke this month', detail: String(spoke), tone: 'coral' },
     { key: 'dm', n: String(dms.length), count: dms.length, label: dms.length === 1 ? 'decision maker' : 'decision makers', lead: 'at', detail: dmCompanies.slice(0, 3).join(', ') + (dmCompanies.length > 3 ? ` +${dmCompanies.length - 3}` : ''), tone: 'navy' },
-    { key: 'quiet', n: String(quiet.length), count: quiet.length, label: `not spoken in ${CONTACT_QUIET_DAYS} days`, lead: 'longest', detail: quiet[0] ? `${quiet[0].r.name} · ${plural(quiet[0].cell.days!, 'day')}` : '', tone: 'amber' },
+    { key: 'noperson', n: String(noPerson.length), count: noPerson.length, label: noPerson.length === 1 ? 'company with no contact person' : 'companies with no contact person', lead: '', detail: noPerson.slice(0, 2).join(', ') + (noPerson.length > 2 ? ` +${noPerson.length - 2}` : ''), tone: 'amber', action: "openCleanup('company-contacts')" },
     { key: 'meetings', n: String(fromMeetings), count: fromMeetings, label: 'from meetings, not yet a contact', lead: 'from', detail: 'Outlook invites · Review', tone: 'blue', action: 'openPeopleFromMeetings()' },
   ];
 }

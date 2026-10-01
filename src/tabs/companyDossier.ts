@@ -44,9 +44,11 @@ export function renderDossierState(key: Key): void {
     ? ` <button class="co-stand-dormant" onclick="openCleanup(${queues.length === 1 && queues[0] ? `'${queues[0]}'` : ''})">${dormant.length} dormant — review in Clean-up</button>`
     : '';
   const r = companyRecords(input);
+  const meets = companyContact(input, r);
   const stand: StandInput = {
     today: input.today, clientAgreements: r.clientAgreements, proposals: r.proposals, opportunities: r.opportunities, commitments: r.commitments,
-    relationship: relationshipStatus(r).label, lastContact: companyContact(input, r).lastContact, threads: threads.filter((t) => !t.dormant).length,
+    relationship: relationshipStatus(r).label, lastMeeting: meets.lastMeeting?.meetingDate?.slice(0, 10) ?? null, nextMeeting: meets.next?.meetingDate?.slice(0, 10) ?? null,
+    threads: threads.filter((t) => !t.dormant).length,
   };
   const card = (c: BriefClause) => {
     const label = STAND_LABEL[c.key];

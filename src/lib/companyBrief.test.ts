@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildCompanyState, clauseText, companyContact, lastContactByPerson, liveThreads, meetingBrief, orderPeople, DORMANT_DAYS, NEGLECT_DAYS, type CompanyBriefInput } from './companyBrief';
+import { buildCompanyState, clauseText, companyContact, lastContactByPerson, liveThreads, meetingBrief, orderPeople, DORMANT_DAYS, type CompanyBriefInput } from './companyBrief';
 import type { Agreement, Commitment, Contact, EmailRecord, Meeting, Opportunity, Project, Proposal, Todo } from './types';
 
 const today = '2026-09-21';
@@ -113,18 +113,16 @@ describe('buildCompanyState', () => {
     expect(clauseText(inflight)).toMatch(/; and 2 more\.$/);
   });
 
-  it(`an active client with no meeting or email for over ${NEGLECT_DAYS} days is flagged; within it, not`, () => {
-    const quiet = buildCompanyState(input({ agreements: [agr({})], meetings: [meeting(1, '2026-07-01')] })).find((c) => c.key === 'rhythm')!;
-    expect(quiet.tone).toBe('amber');
-    expect(clauseText(quiet)).toMatch(/^No meeting or email for 82 days\./);
+  it('meetings are plain facts: no client is flagged for a lack of contact, however long it has been', () => {
+    const long = buildCompanyState(input({ agreements: [agr({})], meetings: [meeting(1, '2026-07-01')] })).find((c) => c.key === 'rhythm')!;
+    expect(long.tone).toBeNull();
+    expect(clauseText(long)).toBe('Last meeting 1 Jul 2026, Meeting 1.');
+    // An email since changes nothing here: the clause is about meetings.
     const email = { id: 9, subject: 'Headcount', senderEmail: 'dana@contoso.test', receivedAt: '2026-09-01T09:00:00Z', companyId: 1, companyName: CO.name } as EmailRecord;
-    const recent = buildCompanyState(input({ agreements: [agr({})], meetings: [meeting(1, '2026-07-01')], emails: [email] })).find((c) => c.key === 'rhythm')!;
-    expect(recent.tone).toBeNull();
-    expect(clauseText(recent)).toBe('Last meeting 1 Jul 2026, Meeting 1; last email 1 Sept 2026.');
-    // A prospect is never "neglected".
-    expect(buildCompanyState(input({ meetings: [meeting(1, '2026-01-01')] })).find((c) => c.key === 'rhythm')!.tone).toBeNull();
-    // A client with nothing on record at all.
-    expect(clauseText(buildCompanyState(input({ agreements: [agr({})] })).find((c) => c.key === 'rhythm')!)).toBe('No meeting or email on record.');
+    expect(clauseText(buildCompanyState(input({ agreements: [agr({})], meetings: [meeting(1, '2026-07-01')], emails: [email] })).find((c) => c.key === 'rhythm')!)).toBe('Last meeting 1 Jul 2026, Meeting 1.');
+    // A client with nothing on record at all: nothing is said about it.
+    expect(buildCompanyState(input({ agreements: [agr({})] })).find((c) => c.key === 'rhythm')).toBeUndefined();
+    expect(buildCompanyState(input({ agreements: [agr({})] })).some((c) => /no meeting|no contact|quiet/i.test(clauseText(c)))).toBe(false);
   });
 
   it('pinned notes: newest first, three at most, then "+N pinned"', () => {

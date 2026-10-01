@@ -73,7 +73,7 @@ const SAMPLE: AppData = {
     { id: 3, clientName: 'Northwind Trading', companyId: 2, name: 'Lina Saleh', role: 'HR director', email: 'lina@northwind.test', phone: null, whatsapp: null, service: null, lists: [], isDecisionMaker: true },
     { id: 4, clientName: 'Globex', companyId: 3, name: 'Mariam Khalil', role: 'General manager', email: 'mariam@globex.test', phone: null, whatsapp: null, service: null, lists: [], isDecisionMaker: true },
     { id: 5, clientName: 'Red Sea Global', companyId: 4, name: 'Faisal Alami', role: 'People operations', email: 'faisal@redsea.test', phone: null, whatsapp: null, service: null, lists: [], isDecisionMaker: true },
-    // Last heard from in July: Contacts shows her gone quiet.
+    // Last heard from in July: Contacts says so as a plain date (nobody is flagged for a lack of contact).
     { id: 6, clientName: 'Elite HR', companyId: 5, name: 'Sara Al-Otaibi', role: 'HR director', email: 'sara@elitehr.test', phone: '+966 55 000 0000', whatsapp: null, service: null, lists: [] },
   ],
   agreements: [
@@ -87,7 +87,7 @@ const SAMPLE: AppData = {
         { id: 12, serviceId: 17, serviceName: 'PRO', description: 'Up to 25 employees', billing: 'monthly', quantity: 1, unitPrice: 6000, commission: false, sortOrder: 1 },
       ],
     },
-    // A client whose notice window opens this week, and one gone quiet (no meeting or email on record).
+    // A client whose notice window opens this week, and one with no meeting or email on record.
     {
       id: 2, agrRef: 'GLX_BS_001_0126', client: 'Globex', companyId: 3, type: 'Company maintenance', status: 'Signed', preparedBy: 'Hassan Balaghi', datePrepared: '2026-01-02', dateSentToClient: '2026-01-03', dateClientSigned: '2026-01-05', dateMenaSigned: '2026-01-05', dateFiled: '2026-01-06',
       monthlyFee: 4000, contractMonths: 12, proposalId: null, hubspot: null, docLink: null, actionDate: null, remarks: null, createdAt: '2026-01-02', businessEntityId: 1, currency: 'SAR', startDate: '2026-01-06', endDate: '2026-12-31', serviceStatus: 'Active', autoRenew: false, noticeDays: 90, preparedById: 1,
@@ -256,7 +256,7 @@ let meetingsStore: Meeting[] = [
     discussion: '- Headcount goes from 4 to **3** people\n- Omar wants the GOSI report monthly\n- [ ] Check the October payroll calendar', decisions: '- Price on three people from November\n- Monthly GOSI report from us',
     nextMeeting: '2026-10-13', inviteText: '________________________________\nMicrosoft Teams meeting\nJoin: https://teams.microsoft.com/l/meetup-join/demo\nMeeting ID: 000 000 000\n________________________________' },
   mockMeeting(3, 'Intro call — Northwind', '2026-09-16', [{ email: 'lina@northwind.test', name: 'Lina Saleh' }]),
-  // A client last seen a month ago: Companies shows it gone quiet.
+  // A client last seen a month ago: Companies shows the date, plainly.
   { ...mockMeeting(40, 'Payroll review — Elite HR', '2026-08-31', []), companyName: 'Elite HR', companyId: 5 },
   ...todaysMockMeetings(),
 ];

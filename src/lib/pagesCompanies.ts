@@ -1,17 +1,20 @@
 // Companies in My Day's language (1.59 "pages"): what each client is worth a
 // month, how much of its agreement has run and when notice opens, what is in
-// flight with it, and who has gone quiet. Pure: tabs/companies.ts draws it.
+// flight with it, and which agreements are to decide soon. Nothing here flags
+// a company for a lack of contact (owner, 1-Oct-2026: no contact for a long
+// time is not a problem to raise). Pure: tabs/companies.ts draws it.
 
 import type { Agreement } from './types';
 import { daysBetween } from './pipeline';
 import { agreementRenewal } from './myday';
+import { decideBy, serviceLive } from './agreementTerms';
 import { fmtDateShort, fmtDateWeekday } from './dates';
 import { moneyTotal, plural, type StripPanel, type Tone } from './pageKit';
 import type { MoneyByCurrency } from './commercial';
 import { fmtMoneyByCurrency } from './commercial';
 
-/** A client gone quiet: no meeting, email or call for this long (as on My Day). */
-export const QUIET_AFTER_DAYS = 30;
+/** The strip counts the agreements whose last day to decide falls within this many days. */
+export const DECIDE_WITHIN_DAYS = 90;
 /** The runway bar turns amber when the notice window opens within this many days. */
 export const NOTICE_SOON_DAYS = 30;
 
@@ -38,12 +41,18 @@ export function runwayNote(r: Runway): string {
   return `${d} · ${r.notice.open ? 'notice open since' : 'notice opens'} ${fmtDateShort(r.notice.date)}`;
 }
 
-/** No contact for a month or more, for a client or a company in discussion; null otherwise. Pure. */
-export function goneQuiet(relationship: string, lastContact: string | null, today: string): number | null {
-  if (relationship !== 'Active client' && relationship !== 'In discussion') return null;
-  if (!lastContact) return null;
-  const gap = daysBetween(lastContact, today) ?? 0;
-  return gap >= QUIET_AFTER_DAYS ? gap : null;
+type Deciding = Pick<Agreement, 'status' | 'serviceStatus' | 'endDate' | 'noticeDays' | 'renewalType' | 'renewalDecision'>;
+
+/** The decide-by dates of a company's agreements that are still to decide within 90 days: served and invoiced, the
+ * term still running, no decision recorded. A date already passed (while the term runs) counts, and comes first. Pure. */
+export function decideDates(agreements: Deciding[], today: string): string[] {
+  const out: string[] = [];
+  for (const a of agreements) {
+    if (a.renewalDecision || !serviceLive(a) || !a.endDate || a.endDate.slice(0, 10) < today) continue;
+    const by = decideBy(a, today);
+    if (by && by.days <= DECIDE_WITHIN_DAYS) out.push(by.date);
+  }
+  return out.sort();
 }
 
 export interface FlightInput {
@@ -79,28 +88,29 @@ export interface CompanyFigures {
   /** Monthly value of its open proposals. */
   proposed: MoneyByCurrency;
   firstMet: string | null;
-  quietDays: number | null;
+  /** Decide-by dates of its agreements to decide within 90 days (decideDates). */
+  decide: string[];
 }
 
-export type CompanyBucket = 'client' | 'discussion' | 'prospect' | 'quiet';
+export type CompanyBucket = 'client' | 'discussion' | 'prospect';
 
-export function companyBuckets(c: Pick<CompanyFigures, 'relationship' | 'quietDays'>): CompanyBucket[] {
+export function companyBuckets(c: Pick<CompanyFigures, 'relationship'>): CompanyBucket[] {
   const out: CompanyBucket[] = [];
   if (c.relationship === 'Active client') out.push('client');
   if (c.relationship === 'In discussion') out.push('discussion');
   if (c.relationship === 'Prospect') out.push('prospect');
-  if (c.quietDays != null) out.push('quiet');
   return out;
 }
 
 const addAll = (into: MoneyByCurrency, m: MoneyByCurrency) => { for (const [k, v] of Object.entries(m)) into[k] = (into[k] || 0) + v; };
 
-/** The strip: monthly from active clients (next renewal) · in discussion (worth in proposals) · prospects (first met) · gone quiet. Pure. */
-export function companiesStrip(rows: CompanyFigures[]): StripPanel[] {
+/** The strip: monthly from active clients (next renewal) · in discussion (worth in proposals) · prospects (first met) ·
+ * agreements to decide in 90 days (the soonest date and its client; it opens Agreements, and says 0 when there are none). Pure. */
+export function companiesStrip(rows: CompanyFigures[], today?: string): StripPanel[] {
   const clients = rows.filter((r) => r.relationship === 'Active client');
   const discussion = rows.filter((r) => r.relationship === 'In discussion');
   const prospects = rows.filter((r) => r.relationship === 'Prospect');
-  const quiet = rows.filter((r) => r.quietDays != null).sort((a, b) => (b.quietDays ?? 0) - (a.quietDays ?? 0));
+  const decide = rows.flatMap((r) => r.decide.map((date) => ({ date, name: r.name }))).sort((a, b) => a.date.localeCompare(b.date) || a.name.localeCompare(b.name));
   const mrr: MoneyByCurrency = {}; clients.forEach((r) => addAll(mrr, r.mrr));
   const proposed: MoneyByCurrency = {}; discussion.forEach((r) => addAll(proposed, r.proposed));
   const next = clients.filter((r) => r.renewal).sort((a, b) => a.renewal!.localeCompare(b.renewal!))[0];
@@ -109,6 +119,6 @@ export function companiesStrip(rows: CompanyFigures[]): StripPanel[] {
     { key: 'all', total: true, n: Object.keys(mrr).length ? fmtMoneyByCurrency(mrr) : moneyTotal([]), count: clients.length, label: `a month from ${plural(clients.length, 'active client')}`, lead: next ? 'next renewal' : '', detail: next ? `${fmtDateShort(next.renewal, true)} · ${next.name}` : '', tone: 'coral' },
     { key: 'discussion', n: String(discussion.length), count: discussion.length, label: 'in discussion', lead: 'worth', detail: Object.keys(proposed).length ? `${fmtMoneyByCurrency(proposed)} /mo in proposals` : 'no priced proposal yet', tone: 'amber' },
     { key: 'prospect', n: String(prospects.length), count: prospects.length, label: prospects.length === 1 ? 'prospect' : 'prospects', lead: met ? 'first met' : '', detail: met ? `${fmtDateShort(met.firstMet, true)} · ${met.name}` : '', tone: 'blue' },
-    { key: 'quiet', n: String(quiet.length), count: quiet.length, label: 'gone quiet', lead: 'no contact', detail: quiet[0] ? `${plural(quiet[0].quietDays!, 'day')} · ${quiet[0].name}` : '', tone: 'amber' },
+    { key: 'decide', n: String(decide.length), count: decide.length, label: `to decide in ${DECIDE_WITHIN_DAYS} days`, lead: decide[0] ? (today && decide[0].date < today ? 'was due' : 'soonest') : '', detail: decide[0] ? `${fmtDateShort(decide[0].date, true)} · ${decide[0].name}` : '', tone: decide.length ? 'amber' : 'grey', action: "navToModule('agreements')", keepZero: true },
   ];
 }
