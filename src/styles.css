@@ -4145,3 +4145,41 @@ a.btn-primary,a.btn-secondary{text-decoration:none}
 .mono.t-sub{color:var(--sub);font-size:12px}
 .rk-ev.at-end > span{left:auto;right:-6px;transform:none}
 .rk-ev.at-start > span{left:-6px;transform:none}
+
+/* Opportunity: the prompt when there is no next step, files as cover cards. */
+.rk-nextstep{position:relative;border-radius:13px;padding:16px 18px 16px 22px;background:var(--amber-bg);box-shadow:inset 0 0 0 1px var(--amber-border);overflow:hidden}
+.rk-nextstep::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--amber)}
+.rk-nextstep > b{display:block;font:600 17px/1.25 var(--font-display);color:var(--navy)}
+.rk-nextstep > p{margin:4px 0 12px;color:var(--sub);font-size:var(--type-secondary)}
+.rk-nextstep-inp{display:flex;gap:8px}
+.rk-nextstep-inp input{flex:1;min-width:0;height:32px;background:var(--surface)}
+.rk-suggest{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.rk-sug{font:inherit;font-size:12px;padding:4px 11px;border-radius:18px;background:var(--surface);border:1px solid var(--border);color:var(--text);cursor:pointer;transition:transform var(--dur-fast) var(--ease-out),border-color var(--dur-fast) var(--ease-out),color var(--dur-fast) var(--ease-out)}
+.rk-sug:hover{border-color:var(--blue);color:var(--blue)}
+.rk-sug:active{transform:scale(.98)}
+.rk-sug.is-lost{color:var(--red)}
+.rk-sug.is-lost:hover{border-color:var(--red);color:var(--red)}
+#od-next-set .rec-notes{margin-top:0}
+.rk-sh-btn{margin-left:auto}
+.rk-files{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.rk-file{position:relative;border-radius:9px;overflow:hidden;border:1px solid var(--hairline);background:var(--surface);box-shadow:var(--shadow-xs);cursor:pointer;transition:box-shadow var(--dur-fast) var(--ease-out),transform var(--dur-fast) var(--ease-out)}
+.rk-file:hover{box-shadow:var(--shadow-md)}
+.rk-file:active{transform:scale(.99)}
+.rk-file:focus-visible{outline:none;box-shadow:var(--shadow-focus)}
+.rk-cover{position:relative;height:84px;padding:12px;background:linear-gradient(135deg,var(--tile-3),var(--tile-1));color:var(--on-tile)}
+.rk-cover .bars{width:20px}
+.rk-cover b{position:absolute;left:12px;right:12px;bottom:10px;font:600 13px/1.2 var(--font-display);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rk-cover.is-sheet{background:linear-gradient(135deg,var(--tile-5),color-mix(in srgb,var(--tile-5) 72%,var(--tile-3)))}
+.rk-cover.is-doc{background:linear-gradient(135deg,var(--tile-6),color-mix(in srgb,var(--tile-6) 60%,var(--tile-3)))}
+.rk-file-ft{padding:8px 10px;font-size:var(--type-meta)}
+.rk-file-ft div{font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rk-file-ft span{font:500 10.5px var(--font-mono);color:var(--muted)}
+.rk-file-reveal{position:absolute;top:6px;right:6px;opacity:0;color:var(--on-tile)}
+.rk-file:hover .rk-file-reveal,.rk-file-reveal:focus-visible{opacity:1}
+.od-at dd > div + div{margin-top:4px}
+.od-at .rlink{color:var(--blue);text-decoration-color:transparent}
+.od-at .rlink:hover{text-decoration-color:currentColor}
+.od-people .rk-person .rec-icon-btn{margin-left:auto;visibility:hidden}
+.od-people .rk-person:hover .rec-icon-btn,.od-people .rk-person .rec-icon-btn:focus-visible{visibility:visible}
+.od-people .rec-add-select{margin-top:8px;width:100%}
+@media (max-width:1280px){.rk-files{grid-template-columns:repeat(2,minmax(0,1fr))}}

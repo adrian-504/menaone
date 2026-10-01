@@ -254,7 +254,7 @@ const mockOpp = (id: number, name: string, stage: string, value: number | null, 
 });
 let opportunitiesStore: Opportunity[] = [
   mockOpp(1, 'Acme — recruitment for Riyadh site', 'Proposal', 42000, '2026-07-01', { nextAction: 'Chase the signed proposal', expectedCloseDate: '2026-09-30', probability: 60, proposalId: 2 }),
-  mockOpp(2, 'Acme — GOSI audit', 'Discovery', 15000, '2026-06-10'),
+  mockOpp(2, 'Acme — GOSI audit', 'Discovery', 15000, '2026-06-10', { probability: 20 }),
   // The full chain: opportunity → proposal 1 → agreement 1 → project 1.
   mockOpp(3, 'Acme — payroll outsourcing', 'Won', 108000, '2026-01-02', { winLossReason: 'Referral / existing relationship', proposalId: 1, projectId: 1 }),
   mockOpp(4, 'Acme — mobilization', 'Lost', 60000, '2026-04-01', { winLossReason: 'Price too high' }),

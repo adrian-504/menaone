@@ -1114,34 +1114,45 @@
 
   <div id="opp-detail" class="proj-detail record-page">
     <header class="rec-header">
-      <div class="rec-avatar rec-avatar-icon"><span data-icon="briefcase" data-icon-size="24"></span></div>
+      <div class="rec-avatar" id="od-avatar"></div>
       <div class="rec-head-main">
         <div class="rec-eyebrow">Opportunity</div>
         <h1 class="rec-title" id="od-name"></h1>
         <div class="rec-badges" id="od-badges"></div>
+        <div class="rec-figures" id="od-figures" hidden></div>
       </div>
       <div class="rec-actions" id="od-actions"></div>
     </header>
+    <!-- The story: its own stages, the current one in coral with its days. -->
+    <div class="rk-story" id="od-stages" aria-label="Stages"></div>
     <div class="thread-host" id="od-thread" hidden></div>
-    <div class="rec-layout">
+    <div class="ctd-grid rk-grid">
+    <aside class="rk-side">
+      <section class="rk-panel">
+        <div class="rec-section-hd"><h2 class="rk-panel-h">Details</h2><div class="rec-section-actions" id="od-props-act"></div></div>
+        <dl class="rec-props" id="od-props"></dl>
+        <dl class="rec-props"><dt>Waiting on</dt><dd id="od-waiting"></dd></dl>
+      </section>
+      <section class="rk-panel" id="od-at" hidden></section>
+      <section class="rk-panel od-people" id="od-contacts"></section>
+    </aside>
     <div class="rec-main rec-stack" id="od-main">
-      <section class="sec rec-section" id="od-next"><div class="rec-section-hd"><h2>Next action</h2></div><div id="od-next-task"></div><textarea id="od-next-action" class="rec-notes" placeholder="What happens next?" oninput="autoSaveOpportunityField('nextAction',this.value)"></textarea></section>
-      <section class="sec rec-section od-desc" id="od-desc-sec"><div class="rec-section-hd"><h2>Description</h2></div><div id="od-desc-view"></div><textarea id="od-description" class="rec-notes" placeholder="What is this opportunity about?" hidden oninput="autoSaveOpportunityField('description',this.value)" onblur="endOpportunityDescription()" onkeydown="if(event.key==='Escape')this.blur()"></textarea></section>
+      <section class="rk-sec" id="od-next">
+        <div class="rk-nextstep" id="od-next-prompt" hidden></div>
+        <div id="od-next-set">
+          <div class="rk-sh"><h2 class="hd-major">Next step</h2></div>
+          <div id="od-next-task"></div>
+          <textarea id="od-next-action" class="rec-notes" placeholder="What happens next?" oninput="autoSaveOpportunityField('nextAction',this.value)"></textarea>
+        </div>
+      </section>
+      <section class="rk-sec" id="od-files"></section>
       <div class="sec rec-section" id="od-activity"></div>
       <div class="sec rec-section" id="od-tasks"></div>
       <div class="sec rec-section" id="od-meetings"></div>
       <section class="sec rec-section" id="od-commitments" hidden></section>
-      <div class="sec rec-section" id="od-contacts"></div>
       <div class="sec rec-section" id="od-notes"></div>
-      <section class="sec rec-section" id="od-files"></section>
+      <section class="sec rec-section od-desc" id="od-desc-sec"><div class="rec-section-hd"><h2>Description</h2></div><div id="od-desc-view"></div><textarea id="od-description" class="rec-notes" placeholder="What is this opportunity about?" hidden oninput="autoSaveOpportunityField('description',this.value)" onblur="endOpportunityDescription()" onkeydown="if(event.key==='Escape')this.blur()"></textarea></section>
     </div>
-    <aside class="rec-side">
-      <section class="sec rec-side-card">
-        <div class="rec-section-hd"><h2>Details</h2><div class="rec-section-actions" id="od-props-act"></div></div>
-        <dl class="rec-props" id="od-props"></dl>
-        <dl class="rec-props"><dt>Waiting on</dt><dd id="od-waiting"></dd></dl>
-      </section>
-    </aside>
     </div>
   </div>
 </div>

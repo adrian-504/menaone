@@ -2,7 +2,7 @@
 // stage stepper (proposals, opportunities, an agreement's signatures) and the
 // proposal's header figures. Pure: the record tabs draw what these return.
 
-import type { Agreement, Opportunity, Proposal } from './types';
+import type { Agreement, Opportunity, Proposal, StageVisit } from './types';
 import { PS, PROPOSAL_STAGES, currencyOf, fmtMoney, isLost, isWithdrawn, lineTotals, proposalSentDate, stageIndex } from './commercial';
 import { daysBetween } from './pipeline';
 import { revisionOf } from './revisions';
@@ -53,13 +53,20 @@ export function proposalStepper(p: Proposal, today: string): Stepper {
   return { steps, currentNote: days != null && days >= 0 && steps.some((s) => s.state === 'current') ? plural(days, 'day') : null };
 }
 
-/** An opportunity's own stages, the current one with its days; Lost and On Hold end the line. Pure. */
-export function opportunityStepper(o: Pick<Opportunity, 'stage' | 'status'>, daysInStage: number | null): Stepper {
+/** An opportunity's own stages, the current one with its days and "since" date; a stage it passed through carries the
+ * day it entered (from the stage history); Won to come is "→ agreement"; Lost and On Hold end the line. Pure. */
+export function opportunityStepper(o: Pick<Opportunity, 'stage' | 'status'>, daysInStage: number | null, visits: StageVisit[] = []): Stepper {
   const line = OPPORTUNITY_STAGES.filter((s) => s !== 'Lost' && s !== 'On Hold') as readonly string[];
   const at = line.indexOf(o.stage);
   const off = at === -1;
-  const steps: StoryStep[] = line.map((s, i) => ({ label: s, sub: '', state: off ? 'todo' : i < at ? 'done' : i === at ? (s === 'Won' ? 'done' : 'current') : 'todo' }));
-  if (off) steps.push({ label: o.stage, sub: '', state: o.stage === 'On Hold' ? 'current' : 'ended' });
+  const entered = (s: string) => visits.filter((v) => v.stage === s).map((v) => v.enteredAt.slice(0, 10)).sort().pop() || '';
+  const steps: StoryStep[] = line.map((s, i) => {
+    const state: StoryStep['state'] = off ? (entered(s) ? 'done' : 'todo') : i < at ? 'done' : i === at ? (s === 'Won' ? 'done' : 'current') : 'todo';
+    const on = entered(s);
+    const sub = state === 'current' && on ? `since ${fmtDateShort(on, true)}` : state === 'done' && on ? fmtDateShort(on, true) : s === 'Won' && state === 'todo' ? '→ agreement' : '';
+    return { label: s, sub, state };
+  });
+  if (off) steps.push({ label: o.stage, sub: entered(o.stage) ? `since ${fmtDateShort(entered(o.stage), true)}` : '', state: o.stage === 'On Hold' ? 'current' : 'ended' });
   return { steps, currentNote: daysInStage != null && steps.some((s) => s.state === 'current') ? plural(daysInStage, 'day') : null };
 }
 
@@ -74,10 +81,11 @@ export function signatureStepper(a: Pick<Agreement, 'datePrepared' | 'dateSentTo
  * one and a dashed coral connector after it carrying its days. */
 export function stepperHtml(s: Stepper, opts: { tone?: 'blue' | 'green'; compact?: boolean } = {}): string {
   const n = s.steps.length;
-  return `<ol class="rk-stepper${opts.tone === 'green' ? ' t-green' : ''}${opts.compact || n > 7 ? ' is-compact' : ''}">${s.steps.map((st, i) => {
+  const compact = !!opts.compact || n > 7;
+  return `<ol class="rk-stepper${opts.tone === 'green' ? ' t-green' : ''}${compact ? ' is-compact' : ''}">${s.steps.map((st, i) => {
     const mark = st.state === 'done' ? '✓' : st.state === 'ended' ? '×' : String(i + 1).padStart(2, '0');
     const line = i < n - 1 ? `<span class="rk-sline is-${st.state === 'done' ? 'done' : st.state === 'current' ? 'cur' : 'todo'}">${st.state === 'current' && s.currentNote ? `<span>${escHtml(s.currentNote)}</span>` : ''}</span>` : '';
-    return `<li class="rk-sp is-${st.state}"${st.state === 'current' ? ' aria-current="step"' : ''}><i aria-hidden="true">${mark}</i><span class="rk-sp-t"><b>${escHtml(st.label)}</b>${st.sub ? `<span>${escHtml(st.sub)}</span>` : ''}</span></li>${line}`;
+    return `<li class="rk-sp is-${st.state}"${st.state === 'current' ? ' aria-current="step"' : ''}${compact && st.state === 'todo' ? ` data-tip="${escHtml(st.label)}"` : ''}><i aria-hidden="true">${mark}</i><span class="rk-sp-t"><b>${escHtml(st.label)}</b>${st.sub ? `<span>${escHtml(st.sub)}</span>` : ''}</span></li>${line}`;
   }).join('')}</ol>`;
 }
 
