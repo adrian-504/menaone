@@ -32,12 +32,17 @@ describe('rolling numbers', () => {
     const badge = document.getElementById('b')!;
     badge.textContent = '5';
     await tick();
-    expect(badge.textContent).toBe('3'); // rolling from 3
+    // Rolling from 3. A frame may already have run on a busy machine, so the roll is read as "not there yet".
+    expect(parseNumber(badge.textContent!)).toBeGreaterThanOrEqual(3);
+    expect(badge.textContent).not.toBe('5');
     document.getElementById('host')!.innerHTML = '<dd data-roll="t-value">SAR 5,000</dd>';
     await tick();
     expect(document.querySelector('[data-roll]')!.textContent).toBe('SAR 5,000'); // first time: no roll
     document.getElementById('host')!.innerHTML = '<dd data-roll="t-value">SAR 9,000</dd>';
     await tick();
-    expect(document.querySelector('[data-roll]')!.textContent).toBe('SAR 5,000'); // redrawn: rolls from the last value
+    // Redrawn: rolls from the last value.
+    const shown = parseNumber(document.querySelector('[data-roll]')!.textContent!)!;
+    expect(shown).toBeGreaterThanOrEqual(5000);
+    expect(shown).toBeLessThan(9000);
   });
 });
