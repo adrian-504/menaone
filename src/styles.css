@@ -3512,7 +3512,10 @@ button.pk-st:focus-visible{outline:none;box-shadow:var(--shadow-focus)}
 .pk-group.is-archived{opacity:.75}
 .pk-list{container-type:inline-size}
 .pq-row.pk-row{display:grid;grid-template-columns:36px minmax(0,1fr) 200px 112px 104px 236px 28px;gap:16px;align-items:center;padding:12px 8px;border-radius:0;border-bottom:1px solid var(--hairline);box-shadow:none;transition:background-color var(--dur-fast) var(--ease-out)}
-#tab-followup .pq-row.pk-row{grid-template-columns:36px minmax(0,1fr) 180px 112px 110px 300px 28px}
+/* Follow-up (1.64): the contact trail in the middle of the row, so a row is about 70 px, not 125. */
+#tab-followup .pq-row.pk-row{grid-template-columns:36px minmax(0,1fr) minmax(200px,270px) 112px 110px 300px 28px}
+.pk-mid{min-width:0;padding:0 26px}
+.pk-mid .pk-trail{max-width:none;margin:6px 0 0}
 .pq-row.pk-row:hover{background:var(--hover)}
 .pq-row.pk-row:active{background:var(--surface-pressed)}
 .pq-row.pk-row:focus-visible{outline:none;box-shadow:var(--shadow-focus)}
@@ -3552,6 +3555,11 @@ button.pk-st:focus-visible{outline:none;box-shadow:var(--shadow-focus)}
   .pq-row.pk-row,#tab-followup .pq-row.pk-row{grid-template-columns:36px minmax(0,1fr) 104px 96px 28px;gap:6px 14px}
   .pk-who{display:none}
   .pk-row .pk-acts{grid-column:2 / 5;grid-row:2;justify-content:flex-start}
+  /* Follow-up: the trail goes under the meta line at half its height, without its dates. */
+  .pk-row .pk-mid{grid-column:2 / 5;grid-row:2;padding:0 6px}
+  .pk-mid .pk-trail{height:14px;max-width:520px;margin:0}
+  .pk-mid .pk-pt span{display:none}
+  .pk-row.has-mid .pk-acts{grid-row:3}
   .pk-row .pk-more{grid-column:5;grid-row:1}
 }
 @container (max-width:620px){
