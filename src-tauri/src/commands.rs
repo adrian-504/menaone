@@ -209,7 +209,8 @@ fn read_agreements(conn: &Connection) -> rusqlite::Result<Vec<Agreement>> {
         "SELECT id, agr_ref, client, type, status, prepared_by, date_prepared, date_sent_to_client,
                 date_client_signed, date_mena_signed, date_filed, monthly_fee, contract_months,
                 proposal_id, hubspot, doc_link, action_date, remarks, created_at, company_id,
-                business_entity_id, currency, start_date, end_date, service_status, auto_renew, notice_days, prepared_by_id
+                business_entity_id, currency, start_date, end_date, service_status, auto_renew, notice_days, prepared_by_id,
+                renewal_decision, renewal_decided_at, renewed_from
          FROM agreements ORDER BY id",
     )?;
     let rows = stmt.query_map([], |r| {
@@ -242,6 +243,9 @@ fn read_agreements(conn: &Connection) -> rusqlite::Result<Vec<Agreement>> {
             auto_renew: r.get::<_, i64>(25)? != 0,
             notice_days: r.get(26)?,
             prepared_by_id: r.get(27)?,
+            renewal_decision: r.get(28)?,
+            renewal_decided_at: r.get(29)?,
+            renewed_from: r.get(30)?,
             lines: Vec::new(),
         })
     })?;
@@ -458,8 +462,9 @@ pub fn write_agreements(conn: &mut Connection, items: &[Agreement]) -> rusqlite:
             "INSERT INTO agreements (id, agr_ref, client, type, status, prepared_by, date_prepared,
                 date_sent_to_client, date_client_signed, date_mena_signed, date_filed, monthly_fee,
                 contract_months, proposal_id, hubspot, doc_link, action_date, remarks, created_at, company_id,
-                business_entity_id, currency, start_date, end_date, service_status, auto_renew, notice_days, prepared_by_id)
-             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,?22,?23,?24,?25,?26,?27,?28)",
+                business_entity_id, currency, start_date, end_date, service_status, auto_renew, notice_days, prepared_by_id,
+                renewal_decision, renewal_decided_at, renewed_from)
+             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,?22,?23,?24,?25,?26,?27,?28,?29,?30,?31)",
         )?;
         for a in items {
             let company_id = crate::opportunities::resolve_company(&tx, a.client.as_deref())?;
@@ -469,7 +474,7 @@ pub fn write_agreements(conn: &mut Connection, items: &[Agreement]) -> rusqlite:
                 a.monthly_fee, a.contract_months, a.proposal_id, a.hubspot, a.doc_link, a.action_date,
                 a.remarks, a.created_at, company_id,
                 a.business_entity_id, a.currency, a.start_date, a.end_date, a.service_status, a.auto_renew as i64,
-                a.notice_days, a.prepared_by_id,
+                a.notice_days, a.prepared_by_id, a.renewal_decision, a.renewal_decided_at, a.renewed_from,
             ])?;
         }
     }
@@ -653,6 +658,7 @@ const AGREEMENT_COLS: &[&str] = &[
     "date_client_signed", "date_mena_signed", "date_filed", "monthly_fee", "contract_months", "proposal_id",
     "hubspot", "doc_link", "action_date", "remarks", "created_at", "company_id",
     "business_entity_id", "currency", "start_date", "end_date", "service_status", "auto_renew", "notice_days", "prepared_by_id",
+    "renewal_decision", "renewal_decided_at", "renewed_from",
 ];
 const NOTE_COLS: &[&str] = &["id", "title", "content", "folder", "client_name", "tags_json", "pinned", "created_at", "updated_at"];
 
@@ -772,7 +778,7 @@ pub fn upsert_agreement_rows_in(tx: &Connection, items: &[Agreement]) -> rusqlit
             a.monthly_fee, a.contract_months, a.proposal_id, a.hubspot, a.doc_link, a.action_date,
             a.remarks, a.created_at, company_id,
             a.business_entity_id, a.currency, a.start_date, a.end_date, a.service_status, a.auto_renew as i64,
-            a.notice_days, a.prepared_by_id,
+            a.notice_days, a.prepared_by_id, a.renewal_decision, a.renewal_decided_at, a.renewed_from,
         ])?;
         crate::commercial::save_lines(tx, "agreement_lines", "agreement_id", a.id, &a.lines)?;
         crate::commercial::apply_derived_agreement_totals(tx, a.id, &a.lines)?;

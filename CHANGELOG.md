@@ -3,6 +3,10 @@
 One entry per install, newest first: the version, the day it was installed, and in two lines what changed.
 Settings → Data shows the last five. `scripts/release-check.mjs` refuses a build whose version has no entry here.
 
+## 1.61 — 2026-10-01
+The seven record pages share one layout: a header with the figures that matter, then the record's story — a company's standing, a proposal's or opportunity's stages, a contact's trail, a project's milestone track, an agreement's term, a meeting's numbered notes.
+An opportunity with no next step asks for one and suggests what usually comes next; a project lists tasks under their milestones; an agreement's renewal is three choices (renew as is, renew with changes, let it end), each undoable.
+
 ## 1.60 — 2026-10-01
 Contacts, Agreements, Clean-up and Services join the new look: Contacts is one list with when you last spoke and what's open with each person; Agreements is a year view with each term, its notice window and the next decision.
 Clean-up shows one record at a time with its facts and the most likely choice highlighted (1–4 to decide, S to skip); Services shows a card per category with prices and who's using each service.

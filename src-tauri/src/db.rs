@@ -727,7 +727,21 @@ const CODE_MIGRATIONS: &[(i64, fn(&Connection) -> rusqlite::Result<()>)] = &[
     (42, crate::touches::migrate_touches),
     // Template emails on the company page (owner, 29-Sep): seven templates and a placeholder signature.
     (43, crate::email_templates::migrate_email_templates),
+    // Agreement renewal (records, 1.61): what was decided — renew as it is, renew with changes, let it end —
+    // when, and on a drafted renewal the agreement it renews.
+    (44, migrate_agreement_renewal),
 ];
+
+/// Three nullable columns on `agreements`; nothing existing is rewritten. Safe to run again
+/// (an older backup restored over this schema re-runs it).
+fn migrate_agreement_renewal(conn: &Connection) -> rusqlite::Result<()> {
+    for (column, kind) in [("renewal_decision", "TEXT"), ("renewal_decided_at", "TEXT"), ("renewed_from", "INTEGER")] {
+        if !column_exists(conn, "agreements", column)? {
+            conn.execute(&format!("ALTER TABLE agreements ADD COLUMN {column} {kind}"), [])?;
+        }
+    }
+    Ok(())
+}
 
 /// Old Workforce category label → the name the proposal templates now use.
 pub const WORKFORCE_CATEGORY_RENAMES: &[(&str, &str)] = &[

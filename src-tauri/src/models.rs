@@ -300,6 +300,15 @@ pub struct Agreement {
     pub notice_days: Option<i64>,
     #[serde(default)]
     pub prepared_by_id: Option<i64>,
+    /// What was decided about the renewal (migration 44): renew | changes | end. None = undecided.
+    #[serde(default)]
+    pub renewal_decision: Option<String>,
+    /// The day that was decided (YYYY-MM-DD).
+    #[serde(default)]
+    pub renewal_decided_at: Option<String>,
+    /// On a drafted renewal: the agreement it renews.
+    #[serde(default)]
+    pub renewed_from: Option<i64>,
     #[serde(default)]
     pub lines: Vec<CommercialLine>,
 }
