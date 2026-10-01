@@ -1,4 +1,5 @@
 import { rangeIds } from '../lib/bulkProposals';
+import { keepPlace } from '../lib/keepPlace';
 import { requestGroupIds, requestSiblings } from '../lib/proposalGroups';
 import { proposalBulkActions } from '../core/proposalBulk';
 import { pricingShape } from '../lib/pricingShape';
@@ -63,7 +64,12 @@ export function dbGetFiltered(withBucket = true): Proposal[] {
 
 const currentStatusFilter = () => (document.getElementById('db-status') as HTMLSelectElement | null)?.value || '';
 
+/** Redrawn in place: the page keeps its scroll position and the focus stays on the row acted on. */
 export function renderDB(): void {
+  keepPlace(drawDB);
+}
+
+function drawDB(): void {
   renderProposalViews();
   // The pipeline strip: on the All view, from what the filters leave (before a panel narrows it).
   const strip = document.getElementById('db-strip');

@@ -1,4 +1,5 @@
 import { rangeIds } from '../lib/bulkProposals';
+import { keepPlace } from '../lib/keepPlace';
 import { requestGroupIds, requestSiblings } from '../lib/proposalGroups';
 import { proposalBulkActions } from '../core/proposalBulk';
 import { renderBulkBar, hideBulkBar } from '../lib/bulkBar';
@@ -61,7 +62,12 @@ const reviewerName = (p?: Proposal) => teamMember(p?.reviewerId)?.name || defaul
 /** The latest proposal deck on file (its version), for "deck V1 in folder". */
 const latestDeck = (p: Proposal) => Math.max(0, ...(p.documents || []).filter((d) => d.kind === 'proposal').map((d) => d.version ?? 1)) || null;
 
+/** Redrawn in place: the page keeps its scroll position and the focus stays on the row acted on. */
 export function renderPending(): void {
+  keepPlace(drawPending);
+}
+
+function drawPending(): void {
   (window as any).renderProposalViews?.();
   const search = ((document.getElementById('wq-search') as HTMLInputElement | null)?.value || '').toLowerCase().trim();
   const sort = (document.getElementById('wq-sort') as HTMLSelectElement | null)?.value || 'age';

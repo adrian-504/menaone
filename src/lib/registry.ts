@@ -9,6 +9,8 @@
 // the active tab + all badges on every mutation is cheap at this data scale and
 // removes that whole bug class.
 
+import { keepPlace } from './keepPlace';
+
 type RenderFn = () => void;
 
 const tabRenderers = new Map<string, RenderFn>();
@@ -42,9 +44,11 @@ export function refreshBadges(): void {
   for (const fn of badgeUpdaters) fn();
 }
 
+/** After a change: the badges and the active tab, redrawn in place — the page keeps its scroll position and the
+ * keyboard stays on the row acted on (lib/keepPlace.ts). */
 export function refreshAll(): void {
   refreshBadges();
-  renderActiveTab();
+  keepPlace(renderActiveTab, { settle: () => `${currentTabId}|${location.hash}|${document.querySelector('.record-page.open')?.id ?? ''}` });
 }
 
 // Companies tab renders a derived, cross-entity view (proposals + contacts +

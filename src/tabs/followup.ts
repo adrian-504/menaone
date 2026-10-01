@@ -1,4 +1,5 @@
 import { createListNav } from '../lib/listNav';
+import { keepPlace } from '../lib/keepPlace';
 import { PS, proposalSentDate } from '../lib/commercial';
 import { S } from '../lib/state';
 import { emptyState } from '../lib/ui';
@@ -49,7 +50,12 @@ function rowFor(p: Proposal): FollowRow | null {
   return followRow(p, { today: today(), touch: proposalLastTouch(p), followUps: followUpCount(p, S.touches), touches: S.touches, shape: pricingShape(p.lines, cardFor) });
 }
 
+/** Redrawn in place: the page keeps its scroll position and the focus stays on the row acted on. */
 export function renderFollowup(): void {
+  keepPlace(drawFollowup);
+}
+
+function drawFollowup(): void {
   (window as any).renderProposalViews?.();
   const el = document.getElementById('fu-list');
   if (!el) return;

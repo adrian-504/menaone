@@ -56,6 +56,9 @@ function renderMenuItems(items: ContextMenuItem[]): string {
     .join('');
 }
 
+/** What opened the menu: the focus returns to it when the menu closes. */
+let menuOpener: HTMLElement | null = null;
+
 /** Reusable right-click menu, built on the same `positionFloatingPopup`
  * viewport-clamping primitive Notes' slash-menu already uses — a context
  * menu is just that popover anchored to the click point instead of a caret.
@@ -92,6 +95,7 @@ expose('showContextMenu', showContextMenu);
  * other mechanic (Escape/outside-click/scroll dismissal, item activation)
  * for free since it's the exact same DOM element and listeners. */
 export function showMenuAt(anchorEl: HTMLElement, items: ContextMenuItem[]): void {
+  menuOpener = anchorEl;
   items = arrange(items);
   activeMenuItems = items;
   const menu = document.getElementById('ctx-menu') as HTMLElement;
@@ -104,7 +108,12 @@ export function showMenuAt(anchorEl: HTMLElement, items: ContextMenuItem[]): voi
 expose('showMenuAt', showMenuAt);
 
 export function closeContextMenu(): void {
-  document.getElementById('ctx-menu')?.classList.remove('open');
+  const menu = document.getElementById('ctx-menu');
+  // The focus goes back to what opened the menu, so it is never left on a hidden item (and a row action's redraw
+  // can keep it on the row: lib/keepPlace.ts).
+  if (menu?.contains(document.activeElement)) { if (menuOpener?.isConnected) menuOpener.focus({ preventScroll: true }); else (document.activeElement as HTMLElement | null)?.blur(); }
+  menuOpener = null;
+  menu?.classList.remove('open');
   activeMenuItems = [];
 }
 expose('closeContextMenu', closeContextMenu);
