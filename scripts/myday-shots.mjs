@@ -4,14 +4,13 @@
 // 1,080 × 940 on the dev preview's sample data. The page's clock is fixed so
 // the band's time-of-day scrim can be seen.
 // `FOCUS_URL=http://localhost:1420/ OUT=/tmp/shots node scripts/brand-shots.mjs`
-import { spawn } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { cachePath, launchChrome, sleep } from './lib/chrome.mjs';
 
 const URL = process.env.FOCUS_URL || 'http://localhost:1420/';
 const CHROME = process.env.CHROME || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
-const OUT = process.env.OUT || join(tmpdir(), 'brand-shots');
+const OUT = process.env.OUT || cachePath('shots', 'myday-shots');
 const THEME = process.env.THEME || 'light';
 
 // [name, clock (local), set-up]
@@ -20,18 +19,7 @@ const SHOTS = [
   ['myday-1405-attention', '2026-09-30T14:05:00', "switchTab('myday'), setTimeout(() => document.getElementById('myday-attention-sec').scrollIntoView({ block: 'start' }), 400)"],
 ];
 
-const port = 9700 + Math.floor(Math.random() * 100);
-const chrome = spawn(CHROME, ['--headless=new', `--remote-debugging-port=${port}`, `--user-data-dir=${mkdtempSync(join(tmpdir(), 'brand-'))}`, '--hide-scrollbars', 'about:blank'], { stdio: 'ignore' });
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-let target;
-for (let i = 0; i < 60 && !target; i++) { await sleep(200); try { target = (await (await fetch(`http://127.0.0.1:${port}/json`)).json()).find((t) => t.type === 'page'); } catch {} }
-if (!target) { console.error('Chrome did not start'); process.exit(2); }
-const ws = new WebSocket(target.webSocketDebuggerUrl);
-await new Promise((r) => ws.addEventListener('open', r));
-let id = 0; const pending = new Map();
-ws.addEventListener('message', (e) => { const m = JSON.parse(e.data); if (m.id && pending.has(m.id)) { pending.get(m.id)(m); pending.delete(m.id); } });
-const send = (method, params = {}) => new Promise((r) => { const i = ++id; pending.set(i, r); ws.send(JSON.stringify({ id: i, method, params })); });
-const evalJs = async (expr) => (await send('Runtime.evaluate', { expression: expr, awaitPromise: true, returnByValue: true })).result?.result?.value;
+const { send, evalJs, close } = await launchChrome('myday-shots', { port: 9700 + Math.floor(Math.random() * 90) });
 
 mkdirSync(OUT, { recursive: true });
 await send('Page.enable');
@@ -59,5 +47,4 @@ for (const tint of ['blue']) {
     console.log(file);
   }
 }
-ws.close();
-chrome.kill();
+await close();

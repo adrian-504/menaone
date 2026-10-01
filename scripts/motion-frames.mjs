@@ -5,11 +5,10 @@
 // checked by eye. Runs against the dev preview (sample data only) in headless
 // Chrome and writes docs/motion/<name>-<ms>.png.
 // `FOCUS_URL=http://localhost:1420/ node scripts/motion-frames.mjs`
-import { spawn } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { cachePath, launchChrome, sleep } from './lib/chrome.mjs';
 
 const URL = process.env.FOCUS_URL || 'http://localhost:1420/';
 const CHROME = process.env.CHROME || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
@@ -30,18 +29,7 @@ const SHOTS = [
   ['sidebar-collapse', "switchTab('myday')", 'toggleSidebar()', { x: 0, y: 0, width: 720, height: 420 }],
 ];
 
-const port = 9800 + Math.floor(Math.random() * 100);
-const chrome = spawn(CHROME, ['--headless=new', `--remote-debugging-port=${port}`, `--user-data-dir=${mkdtempSync(join(tmpdir(), 'motion-'))}`, '--hide-scrollbars', 'about:blank'], { stdio: 'ignore' });
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-let target;
-for (let i = 0; i < 60 && !target; i++) { await sleep(200); try { target = (await (await fetch(`http://127.0.0.1:${port}/json`)).json()).find((t) => t.type === 'page'); } catch {} }
-if (!target) { console.error('Chrome did not start'); process.exit(2); }
-const ws = new WebSocket(target.webSocketDebuggerUrl);
-await new Promise((r) => ws.addEventListener('open', r));
-let id = 0; const pending = new Map();
-ws.addEventListener('message', (e) => { const m = JSON.parse(e.data); if (m.id && pending.has(m.id)) { pending.get(m.id)(m); pending.delete(m.id); } });
-const send = (method, params = {}) => new Promise((r) => { const i = ++id; pending.set(i, r); ws.send(JSON.stringify({ id: i, method, params })); });
-const evalJs = async (expr) => (await send('Runtime.evaluate', { expression: expr, awaitPromise: true, returnByValue: true })).result?.result?.value;
+const { send, evalJs, close } = await launchChrome('motion-frames', { port: 9800 + Math.floor(Math.random() * 90) });
 
 mkdirSync(OUT, { recursive: true });
 await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
@@ -66,4 +54,4 @@ for (const [name, setup, action, clip, wait = 0] of SHOTS) {
   await send('Animation.setPlaybackRate', { playbackRate: 1 });
   console.log(`✓ ${name}: ${TIMES.join(' / ')} ms`);
 }
-ws.close(); chrome.kill();
+await close();
