@@ -332,25 +332,30 @@ const msFilesStore: { id: number; path: string; name: string; itemType: string }
 // reads the actual Finder-synced folder instead. Names deliberately include
 // an exact match, a fuzzy/containment match, and a no-match case against the
 // mock "Acme Holdings" company, mirroring the roadmap's own Globex/Contoso example.
-const mockOneDriveTree: Record<string, { path: string; name: string; isFolder: boolean }[]> = {
-  '/mock/OneDrive-Business': [
-    { path: '/mock/OneDrive-Business/Proposals', name: 'Proposals', isFolder: true },
-  ],
-  '/mock/OneDrive-Business/Proposals': [
-    { path: '/mock/OneDrive-Business/Proposals/Acme Holdings', name: 'Acme Holdings', isFolder: true },
-    { path: '/mock/OneDrive-Business/Proposals/Acme', name: 'Acme', isFolder: true },
-    { path: '/mock/OneDrive-Business/Proposals/Unknown Client', name: 'Unknown Client', isFolder: true },
-  ],
-  '/mock/OneDrive-Business/Proposals/Acme Holdings': [
-    { path: '/mock/OneDrive-Business/Proposals/Acme Holdings/Retainer Agreement.docx', name: 'Retainer Agreement.docx', isFolder: false },
-    { path: '/mock/OneDrive-Business/Proposals/Acme Holdings/Acme Holdings_Payroll Proposal_10.01.2026_V1.pptx', name: 'Acme Holdings_Payroll Proposal_10.01.2026_V1.pptx', isFolder: false },
-    { path: '/mock/OneDrive-Business/Proposals/Acme Holdings/Signed agreement.pdf', name: 'Signed agreement.pdf', isFolder: false },
-    { path: '/mock/OneDrive-Business/Proposals/Acme Holdings/Fee model.xlsx', name: 'Fee model.xlsx', isFolder: false },
-    { path: '/mock/OneDrive-Business/Proposals/Acme Holdings/Logo.png', name: 'Logo.png', isFolder: false },
-    { path: '/mock/OneDrive-Business/Proposals/Acme Holdings/Correspondence', name: 'Correspondence', isFolder: true },
-  ],
-  '/mock/OneDrive-Business/Proposals/Acme': [],
-  '/mock/OneDrive-Business/Proposals/Unknown Client': [],
+// The mock OneDrive (1.63): the proposals folder with seven client folders — five matched to companies, two not —
+// and a few files in each, so Files shows folder tiles, file cards and the matching banner.
+const OD = '/Users/demo/Library/CloudStorage/OneDrive-MENABIG';
+const PR = `${OD}/MENA BD 2026/Proposals`;
+type MockFile = { path: string; name: string; isFolder: boolean; modifiedAt?: string };
+const mockFiles = (dir: string, names: [string, string][]): MockFile[] => names.map(([name, modifiedAt]) => ({ path: `${dir}/${name}`, name, isFolder: !/\.[a-z0-9]+$/i.test(name), modifiedAt: `${modifiedAt}T09:00:00Z` }));
+const mockOneDriveTree: Record<string, MockFile[]> = {
+  [OD]: mockFiles(OD, [['MENA BD 2026', '2026-10-01']]),
+  [`${OD}/MENA BD 2026`]: mockFiles(`${OD}/MENA BD 2026`, [['Proposals', '2026-10-01']]),
+  [PR]: mockFiles(PR, [['Acme Holdings', '2026-10-01'], ['Northwind Trading', '2026-09-02'], ['Globex', '2026-09-22'], ['Red Sea Global', '2026-09-26'], ['Elite HR', '2026-09-27'], ['Al Faisal Group', '2026-08-12'], ['Old pitches', '2025-11-03']]),
+  [`${PR}/Acme Holdings`]: mockFiles(`${PR}/Acme Holdings`, [['Correspondence', '2026-09-12'], ['Acme Holdings_Payroll Proposal_10.01.2026_V1.pptx', '2026-01-10'], ['Acme_Recruitment_12.09.2026.pptx', '2026-09-12'], ['Retainer Agreement.docx', '2026-01-20'], ['Signed agreement.pdf', '2026-01-22'], ['Fee model.xlsx', '2026-09-05'], ['GOSI registrations.xlsx', '2026-09-20'], ['Onboarding checklist.pdf', '2026-09-02'], ['Logo.png', '2026-01-05'], ['Headcount October.xlsx', '2026-10-01']]),
+  [`${PR}/Acme Holdings/Correspondence`]: [],
+  [`${PR}/Northwind Trading`]: mockFiles(`${PR}/Northwind Trading`, [['Northwind Trading_Payroll Proposal_02.09.2026_V1.pptx', '2026-09-02'], ['Commercials.xlsx', '2026-09-01'], ['Company profile.pdf', '2026-08-28'], ['NDA.docx', '2026-08-20']]),
+  [`${PR}/Globex`]: mockFiles(`${PR}/Globex`, [['GLX_BS_renewal_draft.docx', '2026-09-30'], ['Globex_Business setup Proposal_22.09.2026_V2.pptx', '2026-09-22'], ['Licence.pdf', '2026-02-11']]),
+  [`${PR}/Red Sea Global`]: mockFiles(`${PR}/Red Sea Global`, [['Red Sea Global_EOR Proposal_26.09.2026_V1.pptx', '2026-09-26'], ['Rate card.xlsx', '2026-09-24']]),
+  [`${PR}/Elite HR`]: mockFiles(`${PR}/Elite HR`, [['Elite HR_Recruitment Proposal_27.09.2026_V1.pptx', '2026-09-27']]),
+  [`${PR}/Al Faisal Group`]: mockFiles(`${PR}/Al Faisal Group`, [['Intro deck.pptx', '2026-08-12'], ['Notes.docx', '2026-08-10']]),
+  [`${PR}/Old pitches`]: mockFiles(`${PR}/Old pitches`, [['Pitch 2025 A.pptx', '2025-11-03'], ['Pitch 2025 B.pptx', '2025-10-20'], ['Pitch 2025 C.pptx', '2025-09-14'], ['Pricing 2025.xlsx', '2025-09-10'], ['Terms.pdf', '2025-08-30'], ['Brochure.pdf', '2025-08-01']]),
+};
+/** What the mock's folder listing says of an item: a file's size, a folder's file and folder counts. */
+const mockListed = (i: MockFile) => {
+  const inside = i.isFolder ? mockOneDriveTree[i.path] || [] : [];
+  return { path: i.path, name: i.name, isFolder: i.isFolder, size: i.isFolder ? null : 2048, modifiedAt: i.modifiedAt ?? '2026-09-01T00:00:00Z', exists: true,
+    fileCount: i.isFolder ? inside.filter((x) => !x.isFolder).length : null, folderCount: i.isFolder ? inside.filter((x) => x.isFolder).length : null };
 };
 
 const NOW = Date.now();
@@ -435,6 +440,15 @@ const generatedDecks: { proposalId: number; fileName: string; version: number }[
 const attachmentDataStore = new Map<number, string>();
 const appMetaStore = new Map<string, string>();
 let entityLinksStore: EntityLink[] = [];
+// 1.63: five client folders already matched to their companies, and the files last opened.
+['Acme Holdings', 'Northwind Trading', 'Globex', 'Red Sea Global', 'Elite HR'].forEach((name, i) => {
+  msFilesStore.push({ id: ++nextMsFileId, path: `${PR}/${name}`, name, itemType: 'folder' });
+  entityLinksStore.push({ fromType: 'msfile', fromId: nextMsFileId, toType: 'company', toId: i + 1 } as EntityLink);
+});
+appMetaStore.set('msfiles_recent', JSON.stringify([
+  `${PR}/Northwind Trading/Northwind Trading_Payroll Proposal_02.09.2026_V1.pptx`, `${PR}/Acme Holdings/Acme_Recruitment_12.09.2026.pptx`, `${PR}/Acme Holdings/GOSI registrations.xlsx`,
+  `${PR}/Acme Holdings/Onboarding checklist.pdf`, `${PR}/Globex/GLX_BS_renewal_draft.docx`,
+].map((path) => ({ path, name: path.split('/').pop(), isFolder: false }))));
 
 let proposalTemplatesStore: any[] = [];
 const MOCK_INSPECTION: any = {
@@ -885,10 +899,10 @@ export async function installDevMockIfNeeded(): Promise<void> {
           return null;
         }
         case 'files_list_roots':
-          return [{ path: '/mock/OneDrive-Business', name: 'Business', isFolder: true, size: null, modifiedAt: null, exists: true }];
+          return [{ path: OD, name: 'MENA BIG', isFolder: true, size: null, modifiedAt: null, exists: true }];
         case 'files_list_folder': {
           const path = (_payload as any)?.path as string;
-          return (mockOneDriveTree[path] || []).map((i) => ({ ...i, size: i.isFolder ? null : 2048, modifiedAt: '2026-09-01T00:00:00Z', exists: true }));
+          return (mockOneDriveTree[path] || []).map(mockListed).sort((a, b) => Number(b.isFolder) - Number(a.isFolder) || a.name.localeCompare(b.name));
         }
         // My Day's own photos (Settings → Appearance): none in the preview; adding one works only in the app.
         case 'activity_log':
@@ -943,8 +957,8 @@ export async function installDevMockIfNeeded(): Promise<void> {
           // filesystem stat) — msFilesStore only has entries for items that were
           // actually linked, so a pinned-but-never-linked folder would otherwise
           // wrongly fall back to isFolder:false.
-          const treeItems = [
-            { path: '/mock/OneDrive-Business', name: 'Business', isFolder: true },
+          const treeItems: MockFile[] = [
+            { path: OD, name: 'MENA BIG', isFolder: true },
             ...Object.values(mockOneDriveTree).flat(),
           ];
           return paths.map((p) => {
@@ -954,7 +968,7 @@ export async function installDevMockIfNeeded(): Promise<void> {
               path: p,
               name: known?.name || f?.name || p.split('/').pop() || p,
               isFolder: known ? known.isFolder : f?.itemType === 'folder',
-              size: null, modifiedAt: null, exists: true,
+              size: null, modifiedAt: known?.modifiedAt ?? null, exists: true,
             };
           });
         }

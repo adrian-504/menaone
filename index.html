@@ -687,29 +687,31 @@
 </div>
 
 <!-- FILES TAB -->
-<div id="tab-files" class="tab">
-  <div class="page-header">
-    <div>
-      <div class="page-title">Files</div>
-      <div class="page-subtitle">Your OneDrive, synced to this Mac. Files open in their own apps, right where they live.</div>
-    </div>
-    <div class="page-header-actions"><button class="loc-nav rec-more" onclick="pageMoreMenu(event, 'files')" data-tip="More" aria-label="More"><span data-icon="more" data-icon-size="16"></span></button></div>
-  </div>
-  <div class="fx">
-    <nav class="fx-places" id="msf-places" aria-label="Places"></nav>
-    <section class="fx-main">
+<div id="tab-files" class="tab ws-tab">
+  <div class="ws fx-ws">
+    <aside class="ws-side" id="msf-places" aria-label="Places"></aside>
+    <section class="ws-main" aria-label="Files">
+      <header class="ws-head">
+        <div class="ws-head-text">
+          <h1 class="ws-title">Files</h1>
+          <span class="bars lg" aria-hidden="true"><i></i><i></i><i></i></span>
+          <div class="ws-subtitle">Your OneDrive, synced to this Mac. Files open in their own apps, right where they live.</div>
+        </div>
+        <div class="ws-head-actions">
+          <div class="seg-btns" id="msf-layout-btns" role="tablist" aria-label="Layout">
+            <button class="seg-btn" data-layout="icons" onclick="msFilesLayout('icons')">Grid</button>
+            <button class="seg-btn" data-layout="list" onclick="msFilesLayout('list')">List</button>
+          </div>
+          <button class="loc-nav rec-more" onclick="pageMoreMenu(event, 'files')" data-tip="More" aria-label="More"><span data-icon="more" data-icon-size="16"></span></button>
+        </div>
+      </header>
       <div class="fx-toolbar">
         <button class="loc-nav" id="msf-back-btn" onclick="msFilesGoBack()" data-tip="Up one folder" data-shortcut="files-up" aria-label="Up one folder"><span data-icon="chevronLeft" data-icon-size="15"></span></button>
-        <div class="fx-folder-title" id="msf-folder-title"></div>
-        <input type="text" class="f-search fx-search" id="msf-search" placeholder="Search" oninput="msFilesSearchChanged()" aria-label="Search this folder">
+        <div class="fx-path" id="msf-breadcrumb"></div>
+        <input type="text" class="f-search fx-search" id="msf-search" placeholder="Search files… ⌘F" oninput="msFilesSearchChanged()" aria-label="Search this folder">
         <button class="btn-secondary btn-sm fx-sort" onclick="msFilesSortMenu(event)" data-tip="Sort by">Sort: <span id="msf-sort-label">Name</span></button>
-        <div class="seg-btns" id="msf-layout-btns">
-          <button class="seg-btn" data-layout="list" onclick="msFilesLayout('list')">List</button>
-          <button class="seg-btn" data-layout="icons" onclick="msFilesLayout('icons')">Icons</button>
-        </div>
       </div>
-      <div class="fx-path" id="msf-breadcrumb"></div>
-      <div class="fx-body" id="msf-body"></div>
+      <div class="ws-scroll fx-body" id="msf-body" tabindex="-1"></div>
     </section>
     <aside class="fx-info" id="msf-info" hidden aria-label="Info"></aside>
   </div>

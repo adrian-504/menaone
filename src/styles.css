@@ -4672,3 +4672,68 @@ a.rk-snote:hover{text-decoration-color:currentColor}
   .inbox-item{grid-template-columns:32px minmax(0,1fr)}
   .inbox-item-actions{grid-column:2;justify-content:flex-start;flex-wrap:wrap}
 }
+
+/* ── Chrome (1.63): Files, Settings, the New menu, create dialogs, ⌘K, menus, toasts, confirms ── */
+/* Files: the shared rail, the page head, folders as tiles, files as cards with a cover by type */
+.fx-ws{align-items:stretch}
+.fx-rail-hd{cursor:default;margin-top:10px}
+.fx-rail-hd:first-child{margin-top:0}
+.fx-toolbar{gap:10px;margin:8px 36px 8px;padding:0;border:none;background:none}
+.fx-path{flex:1;min-width:0;padding:0;border:none}
+.fx-crumb{font-size:var(--type-body);padding:3px 6px}
+.fx-crumb.current{color:var(--navy)}
+.fx-search{width:240px}
+.fx-body{min-height:0}
+.fx-main{background:none;border:none;border-radius:0;box-shadow:none;overflow:visible}
+.fx-banner{margin:6px 0 4px;padding:14px 18px;border-radius:13px;background:var(--blue-50);gap:14px}
+.fx-banner strong{font:600 14px/1.3 var(--font-display);color:var(--navy)}
+.fx-banner-ic{flex:none;width:24px;height:24px;border-radius:6px;display:grid;place-items:center;background:var(--blue);color:var(--on-accent)}
+.fx-sh{margin:22px 0 12px}
+.fx-folders{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
+.fx-folder{position:relative;display:flex;align-items:center;gap:14px;min-width:0;padding:14px 16px;border:1px solid var(--hairline);border-radius:13px;background:var(--surface);box-shadow:var(--shadow-xs);cursor:default;user-select:none;outline:none;transition:box-shadow var(--dur-fast) var(--ease-out),border-color var(--dur-fast) var(--ease-out)}
+.fx-folder:hover,.fx-card:hover{box-shadow:var(--shadow-sm);border-color:var(--border2)}
+.fx-folder:active,.fx-card:active{box-shadow:var(--shadow-xs)}
+.fx-folder.sel,.fx-card.sel{border-color:var(--blue);box-shadow:0 0 0 2px var(--blue-100)}
+.fx-folder.is-missing,.fx-card.is-missing{opacity:.55}
+.fx-fglyph{position:relative;flex:none;width:48px;height:36px;margin-top:6px;border-radius:0 6px 6px 6px;display:grid;place-items:center;background:var(--c);color:var(--on-tile);font-size:12px;font-weight:600}
+.fx-fglyph::before{content:"";position:absolute;left:0;top:-6px;width:20px;height:7px;border-radius:6px 6px 0 0;background:var(--c)}
+.fx-fglyph.is-unmatched{--c:var(--border2);color:var(--surface)}
+.fx-fglyph.is-plain{--c:var(--blue-100);color:var(--blue)}
+.fx-folder-t{display:flex;flex-direction:column;gap:1px;min-width:0}
+.fx-folder-t b{font-size:14px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fx-folder-t > span{font-size:var(--type-secondary);color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fx-folder-t .fx-match{display:inline-flex;align-items:center;gap:5px;margin-top:2px;font:500 11px var(--font-mono);color:var(--amber-deep)}
+.fx-folder-t .fx-match.is-on{color:var(--green)}
+.fx-match-btn{font:inherit;border:none;background:none;padding:0;color:inherit;font-weight:600;text-decoration:underline;text-underline-offset:2px;cursor:pointer;border-radius:6px}
+.fx-match-btn:hover{color:var(--amber)}
+.fx-match-btn:active{opacity:.7}
+.fx-match-btn:focus-visible{outline:none;box-shadow:var(--shadow-focus)}
+.fx-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px}
+.fx-card{position:relative;min-width:0;border:1px solid var(--hairline);border-radius:13px;overflow:hidden;background:var(--surface);box-shadow:var(--shadow-xs);cursor:default;user-select:none;outline:none;transition:box-shadow var(--dur-fast) var(--ease-out),border-color var(--dur-fast) var(--ease-out)}
+.fx-card.is-recent{cursor:pointer}
+.fx-card:focus-visible{border-color:var(--blue);box-shadow:var(--shadow-focus)}
+.fx-cover{position:relative;height:92px;padding:10px 12px;display:flex;align-items:flex-end;color:var(--on-tile);background:var(--tile-6)}
+.fx-cover.k-deck{background:linear-gradient(135deg,var(--tile-3) 0%,var(--tile-1) 100%)}
+.fx-cover.k-sheet{background:linear-gradient(135deg,var(--tile-5) 0%,color-mix(in srgb,var(--tile-5) 70%,var(--tile-3)) 100%)}
+.fx-cover.k-pdf{background:linear-gradient(135deg,var(--tile-4) 0%,color-mix(in srgb,var(--tile-4) 70%,var(--tile-3)) 100%)}
+.fx-cover.k-doc{background:linear-gradient(135deg,var(--tile-2) 0%,var(--tile-1) 100%)}
+.fx-cover .bars{position:absolute;left:12px;top:12px;width:20px}
+.fx-cover em{position:absolute;right:10px;top:10px;padding:1px 6px;border-radius:6px;background:color-mix(in srgb,var(--on-tile) 20%,transparent);font:600 10px var(--font-mono);font-style:normal}
+.fx-cover > span:last-child{font:600 12.5px/1.2 var(--font-display);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fx-card-n{padding:10px 12px 0;font-size:12.5px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fx-card-m{display:flex;align-items:center;gap:7px;min-height:18px;padding:6px 12px 12px;font:500 11.5px var(--font-mono);color:var(--sub)}
+.fx-card-m .pk-tile.mini{width:18px;height:18px;font-size:8px}
+.fx-ic{flex:none;width:22px;height:22px;border-radius:6px;display:inline-grid;place-items:center;background:var(--tile-6);color:var(--on-tile)}
+.fx-ic.lg{width:56px;height:56px;border-radius:13px}
+.fx-ic.k-deck{background:var(--tile-3)}.fx-ic.k-sheet{background:var(--tile-5)}.fx-ic.k-pdf{background:var(--tile-4)}.fx-ic.k-doc{background:var(--tile-2)}
+.fx-tr.sel .fx-ic{color:var(--on-tile)}
+.fx-table{padding:4px 0}
+.fx-table .pk-tile.mini{width:18px;height:18px;font-size:8px}
+.fx-count{padding:8px 4px;border-top:none}
+.fx-drop{margin-top:18px;padding:16px;border:1.5px dashed var(--blue-100);border-radius:13px;text-align:center;font-size:var(--type-secondary);color:var(--sub)}
+.fx-drop b{color:var(--blue);font-weight:600}
+.fx-ws .fx-info{position:static;top:auto;width:280px;padding:22px 18px;border:none;border-left:1px solid var(--border);border-radius:0;box-shadow:none;overflow-y:auto}
+.fx-ws .fx-info[hidden]{display:none}
+.ws-head-actions{flex:none}
+.ws-head-text{min-width:0}
+.ws-head-actions .seg-btns{flex:none;white-space:nowrap}
