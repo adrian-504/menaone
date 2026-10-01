@@ -2624,6 +2624,10 @@
 </div>
 
 <div class="ctx-menu" id="ctx-menu" onclick="event.stopPropagation()" oncontextmenu="event.preventDefault();event.stopPropagation()"></div>
+<div class="newmenu" id="new-menu" role="dialog" aria-label="New" onclick="event.stopPropagation()">
+  <div class="newmenu-list" id="new-menu-list" role="listbox" aria-label="What to create"></div>
+  <div class="newmenu-ft"><span>↑↓ to move</span><span>↵ to create</span><input type="text" id="new-menu-filter" class="newmenu-filter" placeholder="type to filter" aria-label="Filter" autocomplete="off" spellcheck="false" oninput="newMenuFilter(this.value)" onkeydown="newMenuKey(event)"></div>
+</div>
 
   </body>
 </html>

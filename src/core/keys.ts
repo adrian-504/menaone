@@ -99,7 +99,7 @@ export function duplicateCombos(list: readonly KeyBinding[] = bindings): string[
 }
 
 export function dialogOpen(): boolean {
-  return !!S.commandPaletteOpen || !!document.querySelector('.modal-ov.open, #ctx-menu.open');
+  return !!S.commandPaletteOpen || !!document.querySelector('.modal-ov.open, #ctx-menu.open, #new-menu.open');
 }
 
 export function typingIn(t: EventTarget | null): boolean {

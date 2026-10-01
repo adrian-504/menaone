@@ -29,6 +29,8 @@ const SHOTS = [
   ['settings-templates', CLOCK, "navToModule('settings'), setSettingsPane('templates')"],
   ['settings-connections', CLOCK, "navToModule('settings'), setSettingsPane('connections')"],
   ['settings-data', CLOCK, "navToModule('settings'), setSettingsPane('data')"],
+  ['newmenu', CLOCK, "switchTab('myday'), document.getElementById('sb-new-btn').click()"],
+  ['newmenu-filter', CLOCK, "switchTab('myday'), document.getElementById('sb-new-btn').click(), (() => { const f = document.getElementById('new-menu-filter'); f.value = 'pro'; f.dispatchEvent(new Event('input', { bubbles: true })); })()"],
 ].filter(([n]) => !process.env.ONLY || process.env.ONLY.split(',').includes(n));
 
 const port = 9700 + Math.floor(Math.random() * 100);

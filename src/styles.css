@@ -4787,3 +4787,23 @@ a.rk-snote:hover{text-decoration-color:currentColor}
 .data-change-v{font:500 11.5px var(--font-mono)}
 @media (max-width:1280px){.settings-layout{grid-template-columns:230px minmax(0,1fr);gap:24px}}
 @media (max-width:900px){.settings-layout{grid-template-columns:1fr}}
+/* The New menu: grouped, with a tile and a helper per kind, shortcuts from the key registry, type to filter */
+.newmenu{position:fixed;z-index:2500;width:330px;max-height:min(640px,calc(100vh - 24px));display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--border);border-radius:13px;box-shadow:var(--shadow-md);opacity:0;pointer-events:none;transition:opacity var(--dur-fast) var(--ease-in)}
+.newmenu.open{opacity:1;pointer-events:auto;animation:menu-in var(--dur-base) var(--ease-out)}
+.newmenu-list{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:6px}
+.newmenu-hd{padding:12px 10px 5px;font:600 10px var(--font-text);letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.newmenu-hd:first-child{padding-top:8px}
+.newmenu-item{font:inherit;display:flex;align-items:center;gap:12px;width:100%;padding:7px 10px;border:none;border-radius:9px;background:none;text-align:left;color:var(--text);cursor:pointer;transition:background-color var(--dur-fast) var(--ease-out)}
+.newmenu-item.is-sel{background:var(--blue-50)}
+.newmenu-item:active{background:var(--blue-100)}
+.newmenu-item:focus-visible{outline:none;box-shadow:var(--shadow-focus)}
+.newmenu-tile{flex:none;width:28px;height:28px;border-radius:6px;display:grid;place-items:center;background:color-mix(in srgb,var(--c) 13%,transparent);color:var(--c)}
+.newmenu-t{flex:1;min-width:0;display:flex;flex-direction:column}
+.newmenu-t b{font-size:13.5px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.newmenu-t span{font-size:11.5px;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.newmenu-item kbd{flex:none;font:500 11px var(--font-mono);color:var(--muted)}
+.newmenu-none{padding:18px 10px;font-size:var(--type-secondary);color:var(--muted)}
+.newmenu-ft{display:flex;align-items:center;gap:12px;padding:9px 14px;border-top:1px solid var(--hairline);font:500 11px var(--font-mono);color:var(--muted);white-space:nowrap}
+.newmenu-filter{font:inherit;flex:1;min-width:0;height:18px;padding:0;border:none;outline:none;background:none;color:var(--text)}
+.newmenu-filter::placeholder{color:var(--muted)}
+.newmenu .newmenu-ft input.newmenu-filter{border:none;border-radius:0;box-shadow:none;background:none;padding:0}

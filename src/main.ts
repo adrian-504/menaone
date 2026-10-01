@@ -46,6 +46,7 @@ import { startRollingNumbers } from './lib/rollNumber';
 import './core/router';
 import './lib/links';
 import './core/commandPalette';
+import './core/newMenu';
 import { backfillMilestoneDates, registerPopulateAllSelects } from './core/proposals';
 import './core/backup';
 import './core/pageMore';
