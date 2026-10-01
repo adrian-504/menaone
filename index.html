@@ -1085,36 +1085,34 @@
 
 <!-- OPPORTUNITIES TAB -->
 <div id="tab-opportunities" class="tab">
-  <div id="opp-list-view">
-    <div class="page-header">
-      <div>
-        <div class="page-title">Opportunities</div>
-        <div class="page-subtitle">The pipeline from first contact to signed proposal — before a Proposal exists.</div>
-      </div>
+  <div id="opp-list-view" class="pk-page">
+    <div class="page-header pk-head">
+      <div class="pk-head-t"><div class="page-title">Opportunities</div><span class="bars lg" aria-hidden="true"><i></i><i></i><i></i></span><div class="page-subtitle">The pipeline before a proposal exists.</div></div>
       <div class="page-header-actions">
+        <div class="seg-btns pk-seg" id="opp-view-btns">
+          <button class="seg-btn active" id="opp-view-board" onclick="setOpportunityView('board')">Board</button>
+          <button class="seg-btn" id="opp-view-list" onclick="setOpportunityView('list')">List</button>
+        </div>
         <button class="btn-primary" onclick="openOpportunityModal(null)"><span data-icon="plus" data-icon-size="14"></span> New opportunity</button>
       </div>
     </div>
-    <div class="toolbar">
-      <input type="text" class="f-search" id="opp-search" placeholder="Search opportunities…" oninput="opportunitySearchChanged()">
-      <select class="ssel" id="opp-stage-filter" onchange="opportunityFilterChanged()">
-        <option value="">All Stages</option>
+    <div id="opp-strip"></div>
+    <div class="pk-tools">
+      <input type="text" class="f-search pk-search" id="opp-search" placeholder="Search opportunities…" oninput="opportunitySearchChanged()">
+      <select class="fsel" id="opp-stage-filter" onchange="opportunityFilterChanged()" aria-label="Stage">
+        <option value="">All stages</option>
         <option>Lead</option><option>Qualified</option><option>Discovery</option><option>Meeting</option>
         <option>Solution Design</option><option>Proposal</option><option>Negotiation</option>
         <option>Verbal Commitment</option><option>Won</option><option>Lost</option><option>On Hold</option>
       </select>
-      <select class="ssel" id="opp-owner-filter" onchange="opportunityFilterChanged()" aria-label="Owner"><option value="">All owners</option></select>
-      <span class="rcnt" id="opp-cnt">0 opportunities</span>
-      <div class="seg-btns" id="opp-view-btns">
-        <button class="seg-btn active" id="opp-view-board" onclick="setOpportunityView('board')">Board</button>
-        <button class="seg-btn" id="opp-view-list" onclick="setOpportunityView('list')">List</button>
-      </div>
+      <select class="fsel" id="opp-owner-filter" onchange="opportunityFilterChanged()" aria-label="Owner"><option value="">All owners</option></select>
+      <span class="pk-order" id="opp-cnt">0 opportunities</span>
     </div>
     <div id="opp-board"></div>
-    <div id="opp-list-table-wrap" class="tbl-wrap" style="display:none">
+    <div id="opp-list-table-wrap" class="tbl-wrap pk-table" style="display:none">
       <table>
         <thead><tr>
-          <th>Name</th><th>Company</th><th>Stage</th><th>Value</th><th>Probability</th><th>Expected Close</th><th>Owner</th>
+          <th class="pk-td-co">Opportunity</th><th>Stage</th><th class="num">Value</th><th class="num">Probability</th><th>Close</th><th>Owner</th>
         </tr></thead>
         <tbody id="opp-tbody"></tbody>
       </table>

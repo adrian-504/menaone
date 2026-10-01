@@ -10,7 +10,12 @@ import { arrive } from '../lib/motion';
 import { foldMoreDetails } from '../lib/moreDetails';
 import { statusBadge } from '../lib/statusTone';
 import { addMoney, fmtMoneyByCurrency, currentUser, matchesOwnerFilter, ownerFilterOptions, type MoneyByCurrency } from '../lib/commercial';
-import { opportunityHealth } from '../lib/pipeline';
+import { opportunityHealth, type OpportunityHealth } from '../lib/pipeline';
+import { bucketOf, clearBucket, moneyTotal, registerStrip, stripHtml, tileHtml, toneVar } from '../lib/pageKit';
+import { oppBuckets, oppFlags, oppNext, oppStageTone, oppStrip, oppSubline, type OppBucket } from '../lib/pagesOpportunities';
+import { stageOfProposal, stageSince } from '../lib/pagesProposals';
+import { teamMember, defaultReviewer } from '../lib/commercial';
+import { fmtDateShort } from '../lib/dates';
 import { hasOpenWork } from '../lib/myday';
 import { stampWaiting, waitingFromCommitments, type WaitingOn } from '../lib/commitments';
 import { renderCommitmentSection } from './commitments';
@@ -93,7 +98,13 @@ export function opportunitySearchChanged(): void { debouncedOppSearch(); }
 expose('opportunitySearchChanged', opportunitySearchChanged);
 
 function renderOpportunitiesList(): void {
-  const filtered = computeFilteredOpportunities();
+  const all = computeFilteredOpportunities();
+  const t = today();
+  const strip = document.getElementById('opp-strip');
+  if (bucketOf('opportunities') && !all.some((o) => oppBuckets(o, oppInfo(o).health, t, oppInfo(o).stageEnteredAt).includes(bucketOf('opportunities') as OppBucket))) clearBucket('opportunities');
+  if (strip) strip.innerHTML = all.length ? stripHtml('opportunities', oppStrip(all, oppInfo, t)) : '';
+  const bucket = bucketOf('opportunities') as OppBucket | null;
+  const filtered = bucket ? all.filter((o) => oppBuckets(o, oppInfo(o).health, t, oppInfo(o).stageEnteredAt).includes(bucket)) : all;
   const cnt = document.getElementById('opp-cnt');
   if (cnt) cnt.textContent = `${filtered.length} opportunit${filtered.length === 1 ? 'y' : 'ies'}`;
   document.getElementById('opp-view-board')?.classList.toggle('active', S.opportunityView === 'board');
@@ -104,21 +115,20 @@ function renderOpportunitiesList(): void {
   if (listEl) listEl.style.display = S.opportunityView === 'list' ? '' : 'none';
   if (S.opportunityView === 'board') renderOpportunityBoard(filtered); else renderOpportunityListTable(filtered);
 }
+registerStrip('opportunities', () => renderOpportunitiesList());
 
 // ── Board (kanban) ─────────────────────────────────────────────────
 
-// Indicators none of the board/list/detail views had before — derived from
-// data already loaded client-side (Opportunity.updatedAt as the "last
-// activity" proxy, no extra fetch needed for these three; "days in stage"
-// needs the activity log and is computed separately, see
-// renderOpportunityActivity below, since only the detail page has that
-// fetched already).
-const STALLED_DAYS = 14;
-const APPROACHING_CLOSE_DAYS = 7;
-/** Health chips from real activity (pipeline facts), not the last edit. */
+/** Health from real activity (pipeline facts), not the last edit, and when it entered its stage. */
+function oppInfo(o: Opportunity): { health: OpportunityHealth; stageEnteredAt: string | null } {
+  const fact = S.pipelineFacts.find((f) => f.opportunityId === o.id);
+  return { health: opportunityHealth(o, fact, today(), { openWork: hasOpenWork(o, S) }), stageEnteredAt: fact?.stageEnteredAt ?? null };
+}
+
+/** The record page's health badges (the board and list use the plain-word flags below). */
 function indicatorChips(o: Opportunity): string {
   if (o.status !== 'Open') return '';
-  const h = opportunityHealth(o, S.pipelineFacts.find((f) => f.opportunityId === o.id), today(), { openWork: hasOpenWork(o, S) });
+  const h = oppInfo(o).health;
   const d = h.waiting?.days;
   return [
     h.waiting?.on === 'them' ? `<span class="rec-badge tone-${d != null && d > 14 ? 'red' : 'amber'}" title="${escHtml(o.waitingNote || 'Waiting on the client')}">Waiting on client${d != null ? ` · ${d}d` : ''}</span>` : '',
@@ -130,18 +140,45 @@ function indicatorChips(o: Opportunity): string {
   ].filter(Boolean).join('');
 }
 
+function flagsHtml(o: Opportunity): string {
+  const flags = oppFlags(o, oppInfo(o).health);
+  return flags.length ? `<div class="pk-flags">${flags.map((f) => `<span class="pk-flag t-${f.tone}">${escHtml(f.text)}</span>`).join('')}</div>` : '';
+}
+
+function nextOf(o: Opportunity) {
+  const p = o.proposalId != null ? S.proposals.find((x) => x.id === o.proposalId) : undefined;
+  const reviewer = p ? teamMember(p.reviewerId)?.name || defaultReviewer()?.name : undefined;
+  const a = p && o.stage === 'Won' ? S.agreements.find((x) => x.proposalId === p.id) : undefined;
+  return oppNext(o, today(), {
+    proposal: p ? { id: p.id, stage: stageOfProposal(p), since: stageSince(p), reviewer } : null,
+    agreement: a ? { id: a.id, ref: a.agrRef, endDate: a.endDate ?? null } : null,
+  });
+}
+
+/** The money as the column shows it: "15,000" with the currency in mono, or a mixed total. */
+function sumHtml(items: Opportunity[]): string {
+  const curs = new Set(items.map((o) => (o.currency || 'SAR').toUpperCase()));
+  if (curs.size > 1) return escHtml(moneyTotal(items.map((o) => ({ amount: o.estimatedValue, currency: o.currency }))));
+  const total = items.reduce((n, o) => n + (o.estimatedValue || 0), 0);
+  return `${total.toLocaleString('en-US')}<span>${escHtml([...curs][0] || 'SAR')}</span>`;
+}
+
 function oppCardHtml(o: Opportunity): string {
-  const value = o.estimatedValue ? `${o.currency || 'SAR'} ${Number(o.estimatedValue).toLocaleString()}` : '';
-  const flags = indicatorChips(o);
-  return `<div class="board-card" data-opp-id="${o.id}" data-drag-kind="opportunity" data-drag-id="${o.id}" onclick="openOpportunityDetail(${o.id})" oncontextmenu="opportunityContextMenu(event,${o.id})">
-    <div class="board-card-title">${escHtml(o.name)}</div>
-    <div class="board-card-meta">
-      ${o.companyName ? companyLink(o.companyId, o.companyName, { chip: true }) : ''}
-      ${value ? `<span class="board-card-value">${value}</span>` : ''}
-      ${o.probability != null ? `<span class="board-card-sub">${o.probability}%</span>` : ''}
-    </div>
-    ${o.expectedCloseDate || o.owner ? `<div class="board-card-foot">${[o.expectedCloseDate ? `Close ${fmtDate(o.expectedCloseDate)}` : '', o.owner ? escHtml(o.owner) : ''].filter(Boolean).join(' · ')}</div>` : ''}
-    ${flags ? `<div class="board-card-flags">${flags}</div>` : ''}
+  const won = o.stage === 'Won', lost = o.stage === 'Lost';
+  const value = o.estimatedValue != null ? `${(o.currency || 'SAR').toUpperCase()} ${Number(o.estimatedValue).toLocaleString('en-US')}` : 'No value yet';
+  const prob = won ? 'signed' : lost ? 'lost' : o.probability != null ? `${o.probability}%` : '';
+  const bar = lost ? '' : `<div class="pk-prob${won ? ' is-won' : ''}"><i style="width:${won ? 100 : Math.max(0, Math.min(100, o.probability ?? 0))}%"></i></div>`;
+  const n = nextOf(o);
+  const next = n.kind === 'none' ? ''
+    : n.kind === 'reason' ? `<div class="pk-next">${escHtml(n.text)}</div>`
+    : n.kind === 'add' ? `<div class="pk-next">→ <button class="rlink" onclick="event.stopPropagation();openOpportunityDetail(${o.id})">Add a next step</button></div>`
+    : n.kind === 'proposal' ? `<div class="pk-next">→ <button class="rlink" onclick="event.stopPropagation();openRecord('proposal', ${n.id})">${escHtml(n.text)}</button></div>`
+    : n.kind === 'agreement' ? `<div class="pk-next">→ <button class="rlink" onclick="event.stopPropagation();openRecord('agreement', ${n.id})">${escHtml(n.text)}</button></div>`
+    : `<div class="pk-next">→ ${escHtml(n.text)}</div>`;
+  return `<div class="board-card pk-card${lost ? ' is-lost' : ''}" data-opp-id="${o.id}" data-drag-kind="opportunity" data-drag-id="${o.id}" onclick="openOpportunityDetail(${o.id})" oncontextmenu="opportunityContextMenu(event,${o.id})">
+    <div class="pk-card-top">${tileHtml(o.companyName || o.name, 'pk-tile xs')}<div class="pk-card-tt"><div class="pk-card-t">${escHtml(o.name)}</div><div class="pk-card-c">${escHtml(oppSubline(o, oppInfo(o).stageEnteredAt))}</div></div></div>
+    <div class="pk-card-money${o.estimatedValue == null ? ' is-none' : ''}"><b>${escHtml(value)}</b><span>${escHtml(prob)}</span></div>
+    ${bar}${flagsHtml(o)}${next}
   </div>`;
 }
 
@@ -154,25 +191,24 @@ function renderOpportunityBoard(filtered: Opportunity[]): void {
   // still be dropped into.
   const hideEmpty = !showAllStages && filtered.length > 0;
   let hidden = 0;
+  let firstShown = true;
   const columns = OPPORTUNITY_STAGES.map((stage) => {
     const items = filtered.filter((o) => o.stage === stage);
-    const totals: MoneyByCurrency = {};
-    items.forEach((o) => addMoney(totals, (o.currency || 'SAR').toUpperCase(), o.estimatedValue || null));
     const empty = hideEmpty && items.length === 0;
     if (empty) hidden += 1;
-    return `<div class="board-column${empty ? ' stage-hidden' : ''}" data-stage="${stage}" data-drop="opp-stage" data-drop-value="${stage}">
-      <div class="board-column-hd">${stage}<span class="board-column-count">${items.length}</span></div>
-      ${Object.keys(totals).length ? `<div class="board-column-total">${fmtMoneyByCurrency(totals)}</div>` : ''}
-      ${items.length === 0 ? `<div class="board-empty">No opportunities</div>` : items.map(oppCardHtml).join('')}
+    const ghost = !empty && firstShown ? '<button type="button" class="pk-ghost" onclick="openOpportunityModal(null)">+ Add opportunity</button>' : '';
+    if (!empty) firstShown = false;
+    return `<div class="board-column pk-col${empty ? ' stage-hidden' : ''}${stage === 'Lost' ? ' is-lost' : ''}" style="--c:var(--${toneVar(oppStageTone(stage))})" data-stage="${stage}" data-drop="opp-stage" data-drop-value="${stage}">
+      <div class="pk-col-hd"><div class="pk-col-t"><h3>${escHtml(stage)}</h3><span>${items.length}</span></div><div class="pk-col-sum">${items.length ? sumHtml(items) : '—'}</div></div>
+      ${items.length === 0 ? '<div class="board-empty">No opportunities</div>' : items.map(oppCardHtml).join('')}${ghost}
     </div>`;
   }).join('');
   const bar = hidden || showAllStages
-    ? `<div class="board-stages-bar">
-        <span>${hidden ? `${hidden} empty stage${hidden === 1 ? '' : 's'} hidden` : 'All stages shown'}</span>
-        <button type="button" class="board-stages-btn" onclick="toggleAllStages()">${showAllStages ? 'Hide empty stages' : 'Show all stages'}</button>
+    ? `<div class="pk-stages-bar">
+        <span>${hidden ? `${hidden} empty stage${hidden === 1 ? '' : 's'} hidden` : 'All stages shown'}</span> · <button type="button" class="rlink" onclick="toggleAllStages()">${showAllStages ? 'Hide empty stages' : 'Show all stages'}</button>
       </div>`
     : '';
-  el.innerHTML = bar + `<div class="board-columns opp-board">` + columns + `</div>`;
+  el.innerHTML = `<div class="board-columns opp-board pk-board">` + columns + `</div>` + bar;
 }
 
 /** Empty stages are hidden by default; this shows them for the rest of the session. */
@@ -254,19 +290,17 @@ expose('opportunityContextMenu', opportunityContextMenu);
 function renderOpportunityListTable(filtered: Opportunity[]): void {
   const tbody = document.getElementById('opp-tbody');
   if (!tbody) return;
-  if (filtered.length === 0) { tbody.innerHTML = `<tr><td colspan="7" class="empty">No opportunities match these filters — try adjusting or clearing them.</td></tr>`; return; }
+  if (filtered.length === 0) { tbody.innerHTML = `<tr><td colspan="6" class="empty">No opportunities match these filters — try adjusting or clearing them.</td></tr>`; return; }
   tbody.innerHTML = filtered.map((o) => {
-    const stageOpts = OPPORTUNITY_STAGES.map((s) => `<option value="${s}" ${o.stage === s ? 'selected' : ''}>${s}</option>`).join('');
-    const value = o.estimatedValue ? `${o.currency || 'SAR'} ${Number(o.estimatedValue).toLocaleString()}` : '—';
-    const flags = indicatorChips(o);
-    return `<tr class="rec-tr" data-opp-id="${o.id}" onclick="openOpportunityDetail(${o.id})" oncontextmenu="opportunityContextMenu(event,${o.id})">
-      <td class="strong">${escHtml(o.name)}${flags ? `<div class="board-card-flags">${flags}</div>` : ''}</td>
-      <td>${o.companyName ? companyLink(o.companyId, o.companyName) : '—'}</td>
-      <td onclick="event.stopPropagation()"><select class="ssel" onchange="updateOpportunityStage(${o.id},this.value)">${stageOpts}</select></td>
-      <td class="td-fee">${value}</td>
-      <td>${o.probability != null ? `${o.probability}%` : '—'}</td>
-      <td class="td-d">${o.expectedCloseDate ? fmtDate(o.expectedCloseDate) : '—'}</td>
-      <td class="muted">${escHtml(o.owner || '—')}</td>
+    const value = o.estimatedValue != null ? Number(o.estimatedValue).toLocaleString('en-US') : '—';
+    const cur = (o.currency || 'SAR').toUpperCase();
+    return `<tr class="rec-tr${o.stage === 'Lost' ? ' archived-row' : ''}" data-opp-id="${o.id}" onclick="openOpportunityDetail(${o.id})" oncontextmenu="opportunityContextMenu(event,${o.id})">
+      <td class="pk-td-co"><div class="pk-co">${tileHtml(o.companyName || o.name, 'pk-tile sm')}<div class="pk-co-t"><b>${escHtml(o.name)}</b><div class="pk-co-sub">${o.companyName ? escHtml(o.companyName) : 'No company'}</div></div></div>${flagsHtml(o)}</td>
+      <td><span class="pk-stage t-${oppStageTone(o.stage)}"><i></i>${escHtml(o.stage)}</span></td>
+      <td class="num"><span class="pk-mrr${o.estimatedValue == null ? ' is-none' : ''}">${value}</span>${o.estimatedValue != null && cur !== 'SAR' ? ` <span class="mono t-sub">${escHtml(cur)}</span>` : ''}</td>
+      <td class="num mono t-sub">${o.probability != null ? `${o.probability}%` : '—'}</td>
+      <td class="mono t-sub">${o.expectedCloseDate ? escHtml(fmtDateShort(o.expectedCloseDate, true)) : '—'}</td>
+      <td class="mono t-sub">${escHtml(o.owner || '—')}</td>
     </tr>`;
   }).join('');
 }
