@@ -1,0 +1,62 @@
+// Changing several proposals at once (owner, 1-Oct-2026: "i sent 3 proposals
+// with different services to a client. Then he signs all 3, i want to be able
+// to select all 3 and set them together"). What a status change sets on a
+// proposal — the same fields whether it is done one at a time or in a batch —
+// which statuses ask for one date for the batch, and the rows a shift-click
+// selects. Pure.
+
+import type { Proposal, ProposalRevision } from './types';
+import { PS } from './commercial';
+import { applyRevisionSent } from './revisions';
+
+/** The statuses a batch can be moved to. Lost has its own action (it needs a reason). */
+export const BULK_STATUSES: string[] = [PS.REQUEST, PS.DRAFTING, PS.REVIEW, PS.SENT, PS.CLIENT_SIGNED, PS.WON, PS.WITHDRAWN];
+/** On Pending the moves that make sense there. */
+export const PENDING_BULK_STATUSES: string[] = [PS.REVIEW, PS.SENT];
+
+/** Moving to one of these asks once for the day it happened: the day sent, or the day signed. */
+export const statusNeedsDate = (status: string): boolean => status === PS.SENT || status === PS.CLIENT_SIGNED || status === PS.WON;
+
+/** What the date is, for the question: "the day they were sent" / "signed". */
+export const statusDateLabel = (status: string, n: number): string =>
+  `The day ${n === 1 ? 'it was' : 'they were'} ${status === PS.SENT ? 'sent to the client' : status === PS.CLIENT_SIGNED ? 'signed by the client' : 'signed by both parties'}`;
+
+export interface StatusChange { revisionSent: ProposalRevision | null }
+
+/** Moves one proposal to a status on a given day and sets what that status sets: review asked (reviewer, pending,
+ * requested on), the day sent (the first send stays; an open revision is sent), the day signed. With `explicit` the
+ * day was chosen by hand — a batch date, a back-dated signature — and replaces a signature date already there;
+ * otherwise (the day is simply today) existing dates are kept. Signed by both leaves the service not started. Pure. */
+export function applyStatus(p: Proposal, status: string, date: string, o: { defaultReviewerId?: number | null; explicit?: boolean } = {}): StatusChange {
+  if (p.status === status) return { revisionSent: null };
+  p.status = status;
+  if (status === PS.REVIEW) {
+    if (!p.dateSentToHassan) p.dateSentToHassan = date;
+    if (p.reviewerId == null) p.reviewerId = o.defaultReviewerId ?? null;
+    p.reviewStatus = 'pending';
+    p.reviewRequestedAt = date;
+    p.reviewedAt = null;
+    p.reviewNote = null;
+  }
+  // Sending a revision: that revision and the latest send are that day; the first send stays.
+  const revisionSent = status === PS.SENT ? applyRevisionSent(p, date) : null;
+  if (status === PS.SENT && !p.dateSentToClient) { p.dateSentToClient = date; if (!p.sentDate) p.sentDate = date; }
+  if (status === PS.CLIENT_SIGNED && (o.explicit || !p.dateSigned)) p.dateSigned = date;
+  if (status === PS.WON) {
+    if (!p.dateSigned) p.dateSigned = date;
+    if (o.explicit || !p.dblSignedDate) p.dblSignedDate = date;
+  }
+  return { revisionSent };
+}
+
+/** The rows a shift-click selects: from the last one ticked to this one, in the order the list shows them. */
+export function rangeIds(order: number[], from: number, to: number): number[] {
+  const a = order.indexOf(from), b = order.indexOf(to);
+  if (a === -1 || b === -1) return b === -1 ? [] : [to];
+  return order.slice(Math.min(a, b), Math.max(a, b) + 1);
+}
+
+/** The pre-fill for "Service started" on a batch: the latest signature date among them, else today. */
+export function batchStartDate(picked: Pick<Proposal, 'dblSignedDate' | 'dateSigned'>[], today: string): string {
+  return picked.map((p) => (p.dblSignedDate || p.dateSigned || '').slice(0, 10)).filter(Boolean).sort().pop() || today;
+}

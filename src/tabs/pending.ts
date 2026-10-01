@@ -1,3 +1,7 @@
+import { rangeIds } from '../lib/bulkProposals';
+import { requestGroupIds, requestSiblings } from '../lib/proposalGroups';
+import { proposalBulkActions } from '../core/proposalBulk';
+import { renderBulkBar, hideBulkBar } from '../lib/bulkBar';
 import { createListNav } from '../lib/listNav';
 import { S } from '../lib/state';
 import { emptyState } from '../lib/ui';
@@ -97,7 +101,7 @@ export function renderPending(): void {
       if (!n) return '';
       const g = PENDING_GROUP[b];
       const body = runs.map((r) => (r.group ? `<div class="pq-together">Requested together · ${escHtml(fmtDate(r.items.map((p) => p.dateAdded || '').sort().pop() || r.date))}</div>` : '')
-        + r.items.map((p) => queueRowHtml(rowOf.get(p.id)!, { primary: p.id === primaryId, who: whoOf(p, b === 'review') })).join('')).join('');
+        + r.items.map((p) => queueRowHtml(rowOf.get(p.id)!, { primary: p.id === primaryId, who: whoOf(p, b === 'review'), selected: pqSelected.has(p.id) })).join('')).join('');
       return `<section class="pk-group">${groupHeadHtml({ tone: g.tone, name: g.name(reviewer), count: n, note: g.note })}<div class="pk-list">${body}</div></section>`;
     }).join('');
   }
@@ -112,10 +116,60 @@ export function renderPending(): void {
         </div>`).join('')}</div></section>`
       : `<div class="soft-note">No archived pending proposals.</div>`;
   }
+  // A proposal that left the page (sent, lost, archived) leaves the selection too.
+  const shown = new Set(pqShownIds());
+  for (const id of [...pqSelected]) if (!shown.has(id)) pqSelected.delete(id);
+  paintPqSelection();
 }
 registerTabRenderer('pending', () => { renderPending(); });
 registerStrip('pending', () => renderPending());
 expose('renderPending', renderPending);
+
+// ── Selection and bulk actions (the same bar as Proposals, with the moves that make sense before sending) ──
+
+const pqSelected = new Set<number>();
+let pqLastTicked: number | null = null;
+const pqShownIds = (): number[] => [...document.querySelectorAll<HTMLElement>('#wq-content .pk-row[data-row-id]')].filter((el) => !!el.querySelector('.pk-chk')).map((el) => Number(el.dataset.rowId));
+
+function paintPqSelection(): void {
+  document.getElementById('wq-content')?.classList.toggle('has-selection', pqSelected.size > 0);
+  document.querySelectorAll<HTMLElement>('#wq-content .pk-row[data-row-id]').forEach((el) => {
+    const on = pqSelected.has(Number(el.dataset.rowId));
+    el.classList.toggle('is-selected', on);
+    const box = el.querySelector<HTMLInputElement>('.pk-chk input'); if (box) box.checked = on;
+  });
+  if (S.currentTab !== 'pending') { hideBulkBar('pq-bulk'); return; }
+  renderBulkBar('pq-bulk', pqSelected.size, ['proposal', 'proposals'], proposalBulkActions(() => [...pqSelected], () => { pqSelected.clear(); pqLastTicked = null; }, 'pending'),
+    'pqClearSelection()', () => S.currentTab === 'pending' && S.currentProposalId == null);
+}
+
+/** A click on a row's checkbox: with Shift, every row from the last one ticked to this one takes this one's state. */
+export function pqCheckClick(e: MouseEvent, id: number): void {
+  e.stopPropagation();
+  const on = (e.currentTarget as HTMLInputElement).checked;
+  const ids = e.shiftKey && pqLastTicked != null && pqLastTicked !== id ? rangeIds(pqShownIds(), pqLastTicked, id) : [id];
+  for (const x of ids) { if (on) pqSelected.add(x); else pqSelected.delete(x); }
+  pqLastTicked = id;
+  paintPqSelection();
+}
+expose('pqCheckClick', pqCheckClick);
+
+export function pqClearSelection(): void {
+  pqSelected.clear();
+  pqLastTicked = null;
+  paintPqSelection();
+}
+expose('pqClearSelection', pqClearSelection);
+
+/** "Select the N sent with this": the proposals requested together with it that are on this page. */
+function pqSelectGroup(id: number): void {
+  const p = S.proposals.find((x) => x.id === id);
+  if (!p) return;
+  const shown = new Set(pqShownIds());
+  requestGroupIds(p, S.proposals).filter((x) => shown.has(x)).forEach((x) => pqSelected.add(x));
+  pqLastTicked = id;
+  paintPqSelection();
+}
 expose('stripPick', stripPick);
 
 /** New proposal is the page's blue button unless a row's next step holds it. */
@@ -134,15 +188,15 @@ export function whoOf(p: Proposal, reviewer = false): string {
 }
 
 /** One queue row (Pending, Follow-up): tile, client — service and SL#, one meta line, who, value, age, actions and "…". */
-export function queueRowHtml(r: QueueRow, o: { primary: boolean; who: string; below?: string }): string {
+export function queueRowHtml(r: QueueRow, o: { primary: boolean; who: string; below?: string; /** Pending: the row can be ticked (its checkbox sits over the tile). */ selected?: boolean }): string {
   const meta = r.meta.map((m) => (m.chip ? `<span class="pk-chip t-${m.tone || 'amber'}">${escHtml(m.text)}</span>` : m.tone ? `<span class="t-${m.tone}">${escHtml(m.text)}</span>` : escHtml(m.text))).join('<span class="pk-sep">·</span>');
   const acts = r.actions.map((a, i) => {
     const blue = o.primary && i === r.actions.length - 1;
     const chevron = a.kind === 'followed_up' ? ` ${icon('chevronDown', 11)}` : '';
     return `<button class="${blue ? 'btn-primary' : 'btn-secondary'} btn-sm" onclick="event.stopPropagation();queueAct(event, ${r.id}, '${a.kind}')"${a.kind === 'followed_up' ? ' aria-haspopup="menu"' : ''}>${escHtml(a.label)}${chevron}</button>`;
   }).join('');
-  return `<div class="pq-row pk-row${o.below ? ' has-below' : ''}" data-row-id="${r.id}" onclick="if(!event.target.closest('a,button'))openRecord('proposal', ${r.id})" oncontextmenu="pqMenu(event, ${r.id})">
-    ${tileHtml(r.client)}
+  return `<div class="pq-row pk-row${o.below ? ' has-below' : ''}${o.selected ? ' is-selected' : ''}" data-row-id="${r.id}" onclick="if(!event.target.closest('a,button,input,label'))openRecord('proposal', ${r.id})" oncontextmenu="pqMenu(event, ${r.id})">
+    ${o.selected != null ? `<label class="pk-chk"><input type="checkbox" ${o.selected ? 'checked' : ''} onclick="pqCheckClick(event, ${r.id})" aria-label="Select SL# ${r.id}"></label>` : ''}${tileHtml(r.client)}
     <div class="pk-main">
       <div class="pk-title">${companyLink(r.companyId, r.client)}<span class="pk-svc">— ${escHtml(r.service)}</span><span class="pk-sl">SL# ${r.id}</span></div>
       <div class="pk-meta">${meta}</div>${o.below || ''}
@@ -179,6 +233,9 @@ export function pqMenu(e: MouseEvent, id: number): void {
   const snooze = (days: number) => ({ label: `Snooze ${days} days`, iconName: 'clock', run: () => snoozeProposal(id, days) });
   showContextMenu(e, [
     { label: 'Open', iconName: 'edit', run: () => (window as any).openRecord('proposal', id) },
+    // On Pending (where rows can be ticked): the whole set requested together, in one go.
+    ...(pqShownIds().includes(id) && requestSiblings(p, S.proposals).some((x) => pqShownIds().includes(x.id))
+      ? [{ label: `Select the ${requestSiblings(p, S.proposals).filter((x) => pqShownIds().includes(x.id)).length} sent with this`, iconName: 'check', run: () => pqSelectGroup(id) }] : []),
     { label: `Notes${(p.notes || []).length ? ` (${p.notes.length})` : ''}`, iconName: 'note', run: () => openNotesModal(id) },
     ...(p.status === PS.SENT || p.status === PS.CLIENT_SIGNED ? [
       { label: 'Client asked for changes…', iconName: 'edit', run: () => openRevisionDialog(id) },

@@ -1,3 +1,4 @@
+import { applyStatus } from '../lib/bulkProposals';
 import { collapseRow, collapseRows } from '../lib/motion';
 import { backInDays, lastTouch, FOLLOW_UP_AFTER_DAYS, WAIT_LONGER_DAYS, type LastTouch } from '../lib/followup';
 import { ownDomains } from '../lib/clientMatch';
@@ -168,21 +169,8 @@ registerBadgeUpdater(updateBadge);
 export function updateStatus(id: number, newStatus: string): void {
   const p = S.proposals.find((x) => x.id === id);
   if (!p || p.status === newStatus) return;
-  p.status = newStatus;
-  const td = today();
-  if (newStatus === PS.REVIEW) {
-    if (!p.dateSentToHassan) p.dateSentToHassan = td;
-    if (p.reviewerId == null) p.reviewerId = defaultReviewer()?.id ?? null;
-    p.reviewStatus = 'pending';
-    p.reviewRequestedAt = td;
-    p.reviewedAt = null;
-    p.reviewNote = null;
-  }
-  // Sending a revision: that revision and the latest send are today; the first send stays.
-  const revisionSent = newStatus === PS.SENT ? applyRevisionSent(p, td) : null;
-  if (newStatus === PS.SENT && !p.dateSentToClient) { p.dateSentToClient = td; if (!p.sentDate) p.sentDate = td; }
-  if ((newStatus === PS.CLIENT_SIGNED || newStatus === PS.WON) && !p.dateSigned) p.dateSigned = td;
-  if (newStatus === PS.WON && !p.dblSignedDate) p.dblSignedDate = td;
+  // What the status sets (review asked, the day sent, the day signed) is one rule, shared with the batch change.
+  const { revisionSent } = applyStatus(p, newStatus, today(), { defaultReviewerId: defaultReviewer()?.id ?? null });
   persistProposals();
   updateBadge();
   refreshAll();

@@ -4437,3 +4437,12 @@ a.rk-snote:hover{text-decoration-color:currentColor}
 .rk-with .rlink:hover{text-decoration-color:currentColor}
 .pk-val.is-shape span{font-size:var(--type-secondary);color:var(--sub);white-space:normal;text-align:right}
 .pk-mrr.is-shape{font:400 12px var(--font-text);color:var(--sub);white-space:normal}
+
+/* Pending: a row can be ticked. The checkbox sits over the client tile, on hover and once anything is ticked. */
+.pq-row{position:relative}
+.pk-chk{position:absolute;left:6px;top:50%;width:36px;height:36px;margin-top:-18px;border-radius:9px;display:grid;place-items:center;background:var(--surface);box-shadow:inset 0 0 0 1px var(--hairline);cursor:pointer;opacity:0;transition:opacity var(--dur-fast) var(--ease-out);z-index:1}
+.pq-row.has-below .pk-chk{top:9px;margin-top:0}
+.pk-chk input{margin:0;cursor:pointer}
+.pk-chk:active{box-shadow:inset 0 0 0 1px var(--hairline),inset 0 0 0 999px var(--surface-pressed)}
+.pq-row:hover .pk-chk,.pk-chk:focus-within,.has-selection .pk-chk{opacity:1}
+.pq-row.is-selected{background:var(--blue-50)}
