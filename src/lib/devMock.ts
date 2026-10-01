@@ -51,19 +51,21 @@ const SAMPLE: AppData = {
       documents: [],
     },
     // My Day 1.57 (Proposals in play): a request with a promise, one without, a revision the client asked for, an offer about to expire.
-    { id: 5, client: 'Northwind Trading', companyId: 2, type: 'GM Representative', status: 'Proposal Request Received', sentDate: null, dateAdded: '2026-09-24', promisedBy: '2026-10-02', monthlyFee: 6500, contractMonths: 12, dateSentToHassan: null, dateSentToClient: null, dblSignedDate: null, kickoffDate: null, finance: null, hubspot: null, owner: 'Ahmad', remarks: null, winLossReason: null, docLink: null, archived: false, archivedAt: null, snoozedUntil: null, dateSigned: null, notes: [], businessEntityId: 1, currency: 'SAR', documents: [],
+    { id: 5, primaryContactId: 3, client: 'Northwind Trading', companyId: 2, type: 'GM Representative', status: 'Proposal Request Received', sentDate: null, dateAdded: '2026-09-24', promisedBy: '2026-10-02', monthlyFee: 6500, contractMonths: 12, dateSentToHassan: null, dateSentToClient: null, dblSignedDate: null, kickoffDate: null, finance: null, hubspot: null, owner: 'Ahmad', remarks: null, winLossReason: null, docLink: null, archived: false, archivedAt: null, snoozedUntil: null, dateSigned: null, notes: [], businessEntityId: 1, currency: 'SAR', documents: [],
       lines: [{ id: 50, serviceId: null, serviceName: 'GM Representative', description: null, billing: 'monthly', quantity: 1, unitPrice: 6500, commission: false, sortOrder: 0 }] },
     { id: 6, client: 'Elite HR', companyId: 5, type: 'Recruitment', status: 'Proposal Request Received', sentDate: null, dateAdded: '2026-09-27', monthlyFee: null, contractMonths: null, dateSentToHassan: null, dateSentToClient: null, dblSignedDate: null, kickoffDate: null, finance: null, hubspot: null, owner: 'Ahmad', remarks: null, winLossReason: null, docLink: null, archived: false, archivedAt: null, snoozedUntil: null, dateSigned: null, notes: [], businessEntityId: 1, currency: 'SAR', documents: [], lines: [] },
-    { id: 7, client: 'Globex', companyId: 3, type: 'Business setup', status: 'Drafting', sentDate: '2026-09-22', dateAdded: '2026-09-10', monthlyFee: 4000, contractMonths: 12, dateSentToHassan: '2026-09-18', dateSentToClient: '2026-09-22', revision: 2, dblSignedDate: null, kickoffDate: null, finance: null, hubspot: null, owner: 'Ahmad', remarks: null, winLossReason: null, docLink: null, archived: false, archivedAt: null, snoozedUntil: null, dateSigned: null, notes: [], businessEntityId: 1, currency: 'SAR', documents: [],
+    { id: 7, primaryContactId: 4, client: 'Globex', companyId: 3, type: 'Business setup', status: 'Drafting', sentDate: '2026-09-22', dateAdded: '2026-09-10', monthlyFee: 4000, contractMonths: 12, dateSentToHassan: '2026-09-18', dateSentToClient: '2026-09-22', revision: 2, dblSignedDate: null, kickoffDate: null, finance: null, hubspot: null, owner: 'Ahmad', remarks: null, winLossReason: null, docLink: null, archived: false, archivedAt: null, snoozedUntil: null, dateSigned: null, notes: [], businessEntityId: 1, currency: 'SAR', documents: [],
       revisions: [{ id: 70, number: 2, requestedAt: '2026-09-26', requestedByContactId: null, reason: 'Two people instead of three', linesBeforeJson: '[]', sentAt: null }], lines: [] },
-    { id: 8, client: 'Red Sea Global', companyId: 4, type: 'EOR', status: 'Sent to Client', sentDate: '2026-09-26', dateAdded: '2026-09-20', monthlyFee: 12000, contractMonths: 12, dateSentToHassan: '2026-09-24', dateSentToClient: '2026-09-26', validUntil: '2026-10-05', dblSignedDate: null, kickoffDate: null, finance: null, hubspot: null, owner: 'Ahmad', remarks: null, winLossReason: null, docLink: null, archived: false, archivedAt: null, snoozedUntil: null, dateSigned: null, notes: [], businessEntityId: 1, currency: 'SAR', documents: [], lines: [] },
+    { id: 8, primaryContactId: 5, client: 'Red Sea Global', companyId: 4, type: 'EOR', status: 'Sent to Client', sentDate: '2026-09-26', dateAdded: '2026-09-20', monthlyFee: 12000, contractMonths: 12, dateSentToHassan: '2026-09-24', dateSentToClient: '2026-09-26', validUntil: '2026-10-05', dblSignedDate: null, kickoffDate: null, finance: null, hubspot: null, owner: 'Ahmad', remarks: null, winLossReason: null, docLink: null, archived: false, archivedAt: null, snoozedUntil: null, dateSigned: null, notes: [], businessEntityId: 1, currency: 'SAR', documents: [], lines: [] },
   ],
   contacts: [
     { id: 1, clientName: 'Acme Holdings', companyId: 1, name: 'Jane Doe', role: 'CEO', email: 'jane@acme.test', phone: null, whatsapp: null, service: null, lists: [], isDecisionMaker: true },
     { id: 2, clientName: 'Acme Holdings', companyId: 1, name: 'Omar Haddad', role: 'Finance manager', email: 'omar@acme.test', phone: null, whatsapp: null, service: null, lists: [] },
     { id: 3, clientName: 'Northwind Trading', companyId: 2, name: 'Lina Saleh', role: 'HR director', email: 'lina@northwind.test', phone: null, whatsapp: null, service: null, lists: [], isDecisionMaker: true },
     { id: 4, clientName: 'Globex', companyId: 3, name: 'Mariam Khalil', role: 'General manager', email: 'mariam@globex.test', phone: null, whatsapp: null, service: null, lists: [], isDecisionMaker: true },
-    { id: 5, clientName: 'Red Sea Global', companyId: 4, name: 'Faisal Alami', role: 'People operations', email: 'faisal@redsea.test', phone: null, whatsapp: null, service: null, lists: [] },
+    { id: 5, clientName: 'Red Sea Global', companyId: 4, name: 'Faisal Alami', role: 'People operations', email: 'faisal@redsea.test', phone: null, whatsapp: null, service: null, lists: [], isDecisionMaker: true },
+    // Last heard from in July: Contacts shows her gone quiet.
+    { id: 6, clientName: 'Elite HR', companyId: 5, name: 'Sara Al-Otaibi', role: 'HR director', email: 'sara@elitehr.test', phone: '+966 55 000 0000', whatsapp: null, service: null, lists: [] },
   ],
   agreements: [
     {
@@ -177,13 +179,16 @@ let emailTemplatesStore: EmailTemplate[] = [
 ].map(([name, subject, body], i) => ({ id: i + 1, name, subject, body, sortOrder: i + 1, updatedAt: '2026-09-29T00:00:00Z' }));
 let touchesStore: Touch[] = [
   { id: 1, companyId: null, proposalId: 3, kind: 'email_out', direction: 'out', at: '2026-09-15', subject: 'Re: Payroll proposal', contactId: null, source: 'manual', sourceId: null, createdAt: '2026-09-15T09:00:00Z' },
+  { id: 6, companyId: 5, proposalId: null, kind: 'email_in', direction: 'in', at: '2026-07-19', subject: 'Payroll cut-off dates', contactId: 6, source: 'manual', sourceId: null, createdAt: '2026-07-19T09:00:00Z' },
+  { id: 7, companyId: 4, proposalId: 8, kind: 'email_out', direction: 'out', at: '2026-09-26', subject: 'EOR proposal sent', contactId: 5, source: 'manual', sourceId: null, createdAt: '2026-09-26T09:00:00Z' },
+  { id: 8, companyId: 3, proposalId: 7, kind: 'email_in', direction: 'in', at: '2026-09-22', subject: 'Revision 2 request', contactId: 4, source: 'manual', sourceId: null, createdAt: '2026-09-22T09:00:00Z' },
   // The old mobilization proposal: four follow-ups, never an answer (Follow-up offers "mark lost?").
   { id: 2, companyId: null, proposalId: 4, kind: 'email_out', direction: 'out', at: '2025-05-02', subject: 'Mobilization proposal', contactId: 1, source: 'manual', sourceId: null, createdAt: '2025-05-02T09:00:00Z' },
   { id: 3, companyId: null, proposalId: 4, kind: 'call', direction: 'out', at: '2025-06-20', subject: null, contactId: 1, source: 'manual', sourceId: null, createdAt: '2025-06-20T09:00:00Z' },
   { id: 4, companyId: null, proposalId: 4, kind: 'email_out', direction: 'out', at: '2025-08-03', subject: 'Mobilization proposal', contactId: 1, source: 'manual', sourceId: null, createdAt: '2025-08-03T09:00:00Z' },
   { id: 5, companyId: null, proposalId: 4, kind: 'email_out', direction: 'out', at: '2026-09-28', subject: 'Still of interest?', contactId: 1, source: 'manual', sourceId: null, createdAt: '2026-09-28T09:00:00Z' },
 ];
-let nextTouchId = 5;
+let nextTouchId = 8;
 let meetingsStore: Meeting[] = [
   { ...mockMeeting(1, 'Acme — payroll kickoff', '2026-08-20', [{ email: 'jane@acme.test', name: 'Jane Doe' }]), companyName: 'Acme Holdings', companyId: 1, followUp: 'Send the onboarding checklist\nConfirm GOSI access', decisions: 'Start payroll from October' },
   { ...mockMeeting(2, 'Monthly check-in', '2026-09-15', [{ email: 'jane@acme.test', name: 'Jane Doe' }, { email: 'omar@acme.test', name: 'Omar Haddad' }]), companyName: 'Acme Holdings', companyId: 1, opportunityId: 1,

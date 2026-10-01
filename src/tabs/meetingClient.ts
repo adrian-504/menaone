@@ -458,3 +458,4 @@ export async function updatePeopleBanner(): Promise<void> {
   renderIcons(el);
 }
 expose('updatePeopleBanner', updatePeopleBanner);
+expose('peopleFromMeetingsCount', peopleFromMeetingsCount);

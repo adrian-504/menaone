@@ -1430,29 +1430,28 @@
 
 <!-- CONTACTS -->
 <div id="tab-contacts" class="tab">
-<div id="ct-list-view">
-  <div class="page-header">
-    <div>
-      <div class="page-title">Contacts</div>
-      <div class="page-subtitle">Everyone you work with, across every company.</div>
-    </div>
+<div id="ct-list-view" class="pk-page">
+  <div class="page-header pk-head">
+    <div class="pk-head-t"><div class="page-title">Contacts</div><span class="bars lg" aria-hidden="true"><i></i><i></i><i></i></span><div class="page-subtitle">Everyone you work with, and when you last spoke.</div></div>
     <div class="page-header-actions">
       <button class="btn-primary" onclick="openContactModal()"><span data-icon="plus" data-icon-size="14"></span> New contact</button>
       <button class="loc-nav rec-more" onclick="pageMoreMenu(event, 'contacts')" data-tip="More" aria-label="More"><span data-icon="more" data-icon-size="16"></span></button>
     </div>
   </div>
-  <div class="ct-people-banner" id="ct-people-banner" hidden></div>
+  <div id="ct-strip"></div>
   <div class="ct-people-banner" id="ct-email-banner" hidden></div>
+  <div class="pk-tools">
   <div class="fbar">
-    <input type="text" class="f-search" id="ct-search" placeholder="Search name, company, email, role, service…" oninput="filterSoon('renderContacts')">
-    <select class="fsel" id="ct-client" onchange="renderContacts()"><option value="">All Clients</option></select>
-    <select class="fsel" id="ct-list-filter" onchange="renderContacts()"><option value="">All lists</option></select>
-    <select class="fsel" id="ct-type-filter" onchange="renderContacts()" title="Contacts at companies that were offered or are on retainer for this service"><option value="">All services</option></select>
+    <input type="text" class="f-search pk-search" id="ct-search" placeholder="Search name, company, email, role…" oninput="filterSoon('renderContacts')">
+    <select class="fsel" id="ct-client" onchange="renderContacts()" aria-label="Company"><option value="">All companies</option></select>
+    <select class="fsel" id="ct-list-filter" onchange="renderContacts()" aria-label="List"><option value="">All lists</option></select>
+    <select class="fsel" id="ct-type-filter" onchange="renderContacts()" aria-label="Service" data-tip="Contacts at companies that were offered or are on retainer for this service"><option value="">All services</option></select>
     <span class="rcnt" id="ct-cnt">0 contacts</span>
     <button class="rlink" onclick="openContactColumns(event)" data-tip="Choose columns">Columns</button>
   </div>
+  </div>
   <div class="list-bar" id="ct-lists-bar" aria-label="Lists"></div>
-  <div class="tbl-wrap">
+  <div class="tbl-wrap pk-table" id="ct-table">
     <table class="tbl-lists"><thead id="ct-thead"></thead><tbody id="ct-tbody"></tbody></table>
   </div>
 </div>

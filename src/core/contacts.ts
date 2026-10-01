@@ -4,10 +4,13 @@ import { foldMoreDetails } from '../lib/moreDetails';
 import { companyLink, recordLink } from '../lib/links';
 import { registerDragSource, registerDropTarget } from '../lib/dnd';
 import { toast } from '../lib/ui';
-import { escHtml, nextCtId, getClients, expose, showConfirm, companyRef, inCompany, sameCompany, type CompanyRef } from '../lib/utils';
+import { escHtml, nextCtId, getClients, expose, showConfirm, companyRef, inCompany, sameCompany, strColor, today, type CompanyRef } from '../lib/utils';
 import { icon } from '../lib/icons';
 import { persistContacts, persistContactLists } from '../lib/persist';
-import { registerTabRenderer, refreshCompanyViewIfOpen } from '../lib/registry';
+import { registerTabRenderer, refreshCompanyViewIfOpen, getActiveTabId } from '../lib/registry';
+import { bucketOf, clearBucket, registerStrip, stripHtml, tileHtml } from '../lib/pageKit';
+import { contactBuckets, contactsStrip, lastSpokeByContact, openWith, spokeCell, type ContactBucket, type ContactFigures, type OpenChip, type SpokeCell } from '../lib/pagesContacts';
+import { initialsOf } from '../lib/appearance';
 import { renderBulkBar } from '../lib/bulkBar';
 import { showContextMenu, showMenuAt } from '../lib/contextMenu';
 import { shownColumns, sortState, setSort, sortRows, headerCells, openColumnPicker, agoLabel, type Column, type SortState } from '../lib/tableColumns';
@@ -408,37 +411,60 @@ expose('companyListContactsMenu', companyListContactsMenu);
 
 // ── Rows and columns ──
 
-interface CtRow { c: Contact; relationship: { label: string; tone: string } | null; industry: string; services: string[]; lastTouch: string | null }
+interface CtRow { c: Contact; relationship: { label: string; tone: string } | null; industry: string; services: string[]; lastTouch: string | null; spoke: SpokeCell; open: OpenChip[] }
 
 const muted = '<span class="t-muted">—</span>';
 const copyBtn = (v: string, what: string) => `<button class="rec-icon-btn ct-copy" onclick="copyText('${escHtml(v).replace(/'/g, '&#39;')}','${what} copied')" data-tip="Copy ${what.toLowerCase()}" aria-label="Copy ${what.toLowerCase()}">${icon('copy', 12)}</button>`;
 
+/** A person's round avatar in the brand tile colours (round = people; companies are square). */
+export function personAvatar(name: string, cls = 'pk-pav'): string {
+  return `<span class="${cls}" style="background:${strColor(name || '?')}" aria-hidden="true">${escHtml(initialsOf(name) || '·')}</span>`;
+}
+
 const CONTACT_COLUMNS: Column<CtRow>[] = [
-  { key: 'name', label: 'Name', shown: true, fixed: true, sort: (r) => (r.c.name || '').toLowerCase(),
-    cell: (r) => `<div class="tbl-primary">${recordLink('contact', r.c.id, r.c.name || 'Unnamed')}</div>${r.c.role ? `<div class="tbl-secondary">${escHtml(r.c.role)}</div>` : ''}` },
+  { key: 'name', label: 'Person', shown: true, fixed: true, sort: (r) => (r.c.name || '').toLowerCase(), className: 'pk-td-co',
+    cell: (r) => `<div class="pk-co">${personAvatar(r.c.name || '')}<div class="pk-co-t">${recordLink('contact', r.c.id, r.c.name || 'Unnamed')}${r.c.role ? `<div class="pk-co-sub">${escHtml(r.c.role)}</div>` : ''}</div></div>` },
   { key: 'company', label: 'Company', shown: true, sort: (r) => (r.c.clientName || '').toLowerCase(),
-    cell: (r) => (r.c.clientName ? `<div class="tbl-primary fw-500">${companyLink(r.c.companyId, r.c.clientName)}</div>${r.relationship ? `<div class="tbl-secondary tone-text-${r.relationship.tone}">${escHtml(r.relationship.label)}</div>` : ''}` : muted) },
+    cell: (r) => (r.c.clientName ? `<span class="pk-mini-co">${tileHtml(r.c.clientName, 'pk-tile mini')}${companyLink(r.c.companyId, r.c.clientName)}</span>` : muted) },
+  { key: 'dm', label: 'Role', shown: true, sort: (r) => (r.c.isDecisionMaker ? 0 : 1),
+    cell: (r) => (r.c.isDecisionMaker ? '<span class="pk-stage t-navy">Decision maker</span>' : muted) },
+  { key: 'touch', label: 'Last contact', shown: true, sort: (r) => r.lastTouch, descFirst: true,
+    cell: (r) => `<div class="pk-lc${r.spoke.quiet ? ' is-quiet' : ''}"><b>${escHtml(r.spoke.headline)}</b><span>${escHtml(r.spoke.sub)}</span></div>` },
+  { key: 'open', label: 'Open with them', shown: true, sort: (r) => r.open.length, descFirst: true, className: 'pk-narrow-hide',
+    cell: (r) => (r.open.length ? `<div class="pk-owes">${r.open.map((o) => `<span class="t-${o.tone}">${escHtml(o.text)}</span>`).join('')}</div>` : '') },
   { key: 'email', label: 'Email', shown: true, sort: (r) => (r.c.email || '').toLowerCase(),
-    cell: (r) => (r.c.email ? `<a href="mailto:${escHtml(r.c.email)}" class="ct-mail-link">${escHtml(r.c.email)}</a>${copyBtn(r.c.email, 'Email')}` : '<span class="t-amber">No email</span>') },
-  { key: 'services', label: 'Services', shown: true, sort: (r) => r.services.join(', '),
-    cell: (r) => (r.services.length ? `<div class="co-type-chips">${r.services.slice(0, 3).map((s) => `<span class="chip chip-quiet">${escHtml(s)}</span>`).join('')}${r.services.length > 3 ? `<span class="chip chip-quiet" title="${escHtml(r.services.slice(3).join(', '))}">+${r.services.length - 3}</span>` : ''}</div>` : muted) },
-  { key: 'lists', label: 'Lists', shown: true, sort: (r) => (r.c.lists || []).join(', '),
+    cell: (r) => (r.c.email ? `<a href="mailto:${escHtml(r.c.email)}" class="ct-mail-link mono">${escHtml(r.c.email)}</a>${copyBtn(r.c.email, 'Email')}` : '<span class="t-amber">No email</span>') },
+  { key: 'services', label: 'Services', shown: false, sort: (r) => r.services.join(', '),
+    cell: (r) => (r.services.length ? `<div class="pk-svcs">${r.services.slice(0, 3).map((s) => `<span class="pk-svc-pill">${escHtml(s)}</span>`).join('')}${r.services.length > 3 ? `<span class="pk-svc-pill" data-tip="${escHtml(r.services.slice(3).join(', '))}">+${r.services.length - 3}</span>` : ''}</div>` : muted) },
+  { key: 'lists', label: 'Lists', shown: false, sort: (r) => (r.c.lists || []).join(', '),
     cell: (r) => (r.c.lists || []).map((l) => `<span class="ct-list-tag">${escHtml(l)}</span>`).join(' ') || muted },
-  { key: 'touch', label: 'Last in touch', shown: true, sort: (r) => r.lastTouch, descFirst: true, cell: (r) => agoLabel(r.lastTouch) },
   { key: 'phone', label: 'Phone', shown: false, sort: (r) => r.c.phone || r.c.whatsapp || '',
     cell: (r) => (r.c.phone ? `${escHtml(r.c.phone)}${copyBtn(r.c.phone, 'Phone')}` : r.c.whatsapp ? `${escHtml(r.c.whatsapp)} <span class="t-muted">WhatsApp</span>` : muted) },
   { key: 'industry', label: 'Industry', shown: false, sort: (r) => r.industry, cell: (r) => escHtml(r.industry) || muted },
-  { key: 'actions', label: '', shown: true, fixed: true, className: 'nowrap row-actions',
-    cell: (r) => {
-      const wa = (r.c.whatsapp || r.c.phone || '').replace(/[^0-9]/g, '');
-      return [
-        r.c.phone ? `<button class="rec-icon-btn" onclick="openExternalUrl('tel:${escHtml(r.c.phone.replace(/[^+0-9]/g, ''))}')" data-tip="Call" aria-label="Call">☎</button>` : '',
-        wa ? `<a href="https://wa.me/${wa}" target="_blank" class="rec-icon-btn ct-wa-link" title="WhatsApp" aria-label="WhatsApp">WA</a>` : '',
-        `<button class="rec-icon-btn" onclick="openAssignListModal(${r.c.id})" data-tip="Add to lists" aria-label="Add to lists">${icon('tag', 13)}</button>`,
-        `<button class="rec-icon-btn danger" onclick="deleteContactWithUndo(${r.c.id})" data-tip="Delete" aria-label="Delete">${icon('trash', 13)}</button>`,
-      ].join('');
-    } },
+  // One action: Email. Call, WhatsApp, lists and delete are in "…" (and the right-click menu).
+  { key: 'actions', label: '', shown: true, fixed: true, className: 'num pk-td-act',
+    cell: (r) => `${r.c.email ? `<a class="rlink pk-act" href="mailto:${escHtml(r.c.email)}" onclick="event.stopPropagation()">Email</a>` : ''}<button class="rec-icon-btn row-more" onclick="event.stopPropagation();contactRowMenu(event, ${r.c.id})" data-tip="More" aria-label="More for ${escHtml(r.c.name || 'this contact')}">${icon('more', 14)}</button>` },
 ];
+
+/** A contact row's other actions. */
+export function contactRowMenu(e: MouseEvent, id: number): void {
+  const c = S.contacts.find((x) => x.id === id);
+  if (!c) return;
+  const w = window as any;
+  const wa = (c.whatsapp || c.phone || '').replace(/[^0-9]/g, '');
+  const items = [
+    { label: 'Open', iconName: 'people', run: () => w.openRecord('contact', id) },
+    ...(c.email ? [{ label: 'Copy email', iconName: 'copy', run: () => w.copyText(c.email, 'Email copied') }] : []),
+    ...(c.phone ? [{ label: `Call ${c.phone}`, iconName: 'bolt', run: () => w.openExternalUrl(`tel:${c.phone!.replace(/[^+0-9]/g, '')}`) }] : []),
+    ...(wa ? [{ label: 'WhatsApp', iconName: 'link', run: () => w.openExternalUrl(`https://wa.me/${wa}`) }] : []),
+    { label: 'Add to lists…', iconName: 'tag', run: () => openAssignListModal(id) },
+    { label: '', run: () => {}, separator: true },
+    { label: 'Delete', iconName: 'trash', danger: true, run: () => w.deleteContactWithUndo(id) },
+  ];
+  if (e.type === 'contextmenu') showContextMenu(e, items);
+  else showMenuAt(e.currentTarget as HTMLElement, items);
+}
+expose('contactRowMenu', contactRowMenu);
 
 const CONTACT_SORT_DEFAULT: SortState = { key: 'name', dir: 'asc' };
 
@@ -479,9 +505,19 @@ export function renderContacts(): void {
   populateCtTypeFilter();
   const filters = readContactFilters();
   renderListsBar(filters);
-  void (window as any).updatePeopleBanner?.();
   void (window as any).updateEmailPeopleBanner?.();
-  const data = contactsMatching(filters);
+  const matching = contactsMatching(filters);
+  const t = today();
+  const spoke = lastSpokeByContact(S.contacts, { meetings: S.meetings, emails: S.emails, touches: S.touches, today: t });
+  const figures = (c: Contact): ContactFigures => ({ id: c.id, name: c.name || 'Unnamed', company: c.clientName || '', decisionMaker: !!c.isDecisionMaker, last: spoke.get(c.id) });
+  // The strip sums what the filters leave; a panel narrows the list (the last one opens the review instead).
+  if (bucketOf('contacts') && !matching.some((c) => contactBuckets(figures(c), t).includes(bucketOf('contacts') as ContactBucket))) clearBucket('contacts');
+  const strip = document.getElementById('ct-strip');
+  if (strip) strip.innerHTML = matching.length ? stripHtml('contacts', contactsStrip(matching.map(figures), t, fromMeetings)) : '';
+  const peopleCount = (window as any).peopleFromMeetingsCount as undefined | (() => Promise<number>);
+  if (peopleCount) void peopleCount().then((n) => { if (n !== fromMeetings) { fromMeetings = n; if (getActiveTabId() === 'contacts') renderContacts(); } }).catch(() => {});
+  const bucket = bucketOf('contacts') as ContactBucket | null;
+  const data = bucket ? matching.filter((c) => contactBuckets(figures(c), t).includes(bucket)) : matching;
   const cntEl = document.getElementById('ct-cnt'); if (cntEl) cntEl.textContent = `${data.length} contact${data.length !== 1 ? 's' : ''}`;
   const tbody = document.getElementById('ct-tbody');
   if (!tbody) return;
@@ -507,17 +543,22 @@ export function renderContacts(): void {
       info = { relationship: name && w.companyRelationship ? w.companyRelationship(name) : null, industry: co?.industries.join(', ') || '' };
       companyInfo.set(key, info);
     }
-    return { c, ...info, services: (c.service || '').split(',').map((s) => s.trim()).filter(Boolean), lastTouch: touches.get((c.email || '').trim().toLowerCase()) || null };
+    const last = spoke.get(c.id);
+    return { c, ...info, services: (c.service || '').split(',').map((s) => s.trim()).filter(Boolean), lastTouch: last?.date || touches.get((c.email || '').trim().toLowerCase()) || null,
+      spoke: spokeCell(last, t), open: openWith(c, { commitments: S.commitments, proposals: S.proposals, today: t }) };
   });
   tbody.innerHTML = sortRows(rows, CONTACT_COLUMNS, sort).map((r) => {
     const isSel = S.selectedContactIds.has(r.c.id);
-    return `<tr class="ct-row${isSel ? ' ct-sel-row' : ''}" data-contact-id="${r.c.id}" data-drag-kind="contact" data-drag-id="${r.c.id}" onclick="if(!event.target.closest('a,button,input'))openRecord('contact', ${r.c.id})">
+    return `<tr class="ct-row${isSel ? ' ct-sel-row is-selected' : ''}" data-contact-id="${r.c.id}" data-drag-kind="contact" data-drag-id="${r.c.id}" onclick="if(!event.target.closest('a,button,input'))openRecord('contact', ${r.c.id})" oncontextmenu="contactRowMenu(event, ${r.c.id})">
       <td class="td-chk"><input type="checkbox" class="ct-chk" ${isSel ? 'checked' : ''} onchange="toggleContactSelect(${r.c.id},this.checked)" aria-label="Select"></td>
       ${columns.map((col) => `<td class="${col.className || ''}">${col.cell(r)}</td>`).join('')}
     </tr>`;
   }).join('');
   updateCtSelectAll();
 }
+/** People in Outlook meeting invites who aren't contacts yet (the strip's last panel); refreshed after each render. */
+let fromMeetings = 0;
+registerStrip('contacts', () => renderContacts());
 registerTabRenderer('contacts', () => {
   if (S.currentContactId != null && document.getElementById('ct-detail')?.classList.contains('open')) (window as any).renderContactPage?.();
   else renderContacts();
@@ -526,7 +567,9 @@ expose('renderContacts', renderContacts);
 
 export function toggleContactSelect(id: number, checked: boolean): void {
   if (checked) S.selectedContactIds.add(id); else S.selectedContactIds.delete(id);
-  document.querySelector(`#ct-tbody tr[data-contact-id="${id}"]`)?.classList.toggle('ct-sel-row', checked);
+  const row = document.querySelector(`#ct-tbody tr[data-contact-id="${id}"]`);
+  row?.classList.toggle('ct-sel-row', checked);
+  row?.classList.toggle('is-selected', checked);
   updateCtSelectAll();
   updateCtBulkBar();
 }

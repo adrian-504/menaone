@@ -3803,3 +3803,34 @@ a.btn-primary,a.btn-secondary{text-decoration:none}
   /* Opportunities board: three columns and a peek of the next, so it shows there is more to the right. */
   .opp-board.pk-board .pk-col{flex:0 0 232px;min-width:232px}
 }
+
+/* ═══════════════ Pages, second wave (1.60 "pages-2") ═══════════════
+   Contacts, Agreements, Clean-up and Services join the 1.59 kit. */
+/* Contacts: people are round; companies stay square. */
+.pk-pav{flex:none;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;color:var(--on-tile);font-size:12px;font-weight:600}
+.pk-tile.mini{width:20px;height:20px;border-radius:6px;font-size:8.5px}
+.pk-mini-co{display:inline-flex;align-items:center;gap:8px;min-width:0}
+.pk-mini-co .rlink{color:var(--text);font-weight:500;text-decoration-color:transparent}
+.pk-mini-co .rlink:hover{text-decoration-color:currentColor}
+.pk-stage.t-navy{background:var(--tile-3);color:var(--on-tile)}
+.pk-lc{display:flex;flex-direction:column;min-width:0}
+.pk-lc b{font:600 15px var(--font-display);color:var(--sub);white-space:nowrap}
+.pk-lc span{font-size:var(--type-meta);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px}
+.pk-lc.is-quiet b{color:var(--amber)}
+.pk-owes{display:flex;gap:6px;flex-wrap:wrap}
+.pk-owes span{font-size:var(--type-meta);padding:2px 7px;border-radius:6px;white-space:nowrap}
+.pk-owes .t-red{background:var(--red-bg);color:var(--red)}
+.pk-owes .t-amber{background:var(--amber-bg);color:var(--amber)}
+#ct-table .pk-td-co{width:24%;min-width:190px}
+#ct-table .ct-mail-link{color:var(--sub);text-decoration:none}
+#ct-table .ct-mail-link:hover{color:var(--blue)}
+#ct-table .ct-copy{opacity:0;transition:opacity var(--dur-fast) var(--ease-out)}
+#ct-table tr:hover .ct-copy,#ct-table .ct-copy:focus-visible{opacity:1}
+#ct-table a.pk-act{text-decoration:none;color:var(--blue);font-weight:500;font-size:var(--type-secondary)}
+#ct-table a.pk-act:hover{text-decoration:underline}
+#ct-table .pk-co-t .rlink{font-weight:600;color:var(--text);text-decoration-color:transparent}
+@media (max-width:1280px){#ct-table .pk-narrow-hide{display:none}}
+#ct-table .ct-row td{vertical-align:middle}
+#ct-table td:has(> .ct-mail-link){white-space:nowrap}
+@media (max-width:1280px){#ct-table th,#ct-table td{padding-left:6px;padding-right:6px}#ct-table .ct-copy{display:none}}
+@media (max-width:1280px){#ct-table .pk-td-co{min-width:168px}#ct-table .pk-lc span{max-width:150px}#ct-table .pk-stage{padding:3px 7px}}

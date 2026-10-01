@@ -147,7 +147,7 @@ function populateAllSelects(): void {
   const ctSel = document.getElementById('ct-client') as HTMLSelectElement | null;
   if (ctSel) {
     const cur = ctSel.value;
-    ctSel.innerHTML = `<option value="">All Clients</option>` + getClients().map((c) => `<option value="${escHtml(c)}">${escHtml(c)}</option>`).join('');
+    ctSel.innerHTML = `<option value="">All companies</option>` + getClients().map((c) => `<option value="${escHtml(c)}">${escHtml(c)}</option>`).join('');
     ctSel.value = cur;
   }
   const stSel = document.getElementById('status-modal-sel') as HTMLSelectElement | null;

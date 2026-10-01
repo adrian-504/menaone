@@ -26,6 +26,11 @@ const SHOTS = [
   ['companies-grid', CLOCK, "navToModule('companies'), setCoListView('grid')"],
   ['meetings', CLOCK, "navToModule('meetings')"],
   ['projects', CLOCK, "navToModule('projects')"],
+  // 1.60 "pages-2"
+  ['contacts', CLOCK, "navToModule('contacts')"],
+  ['agreements', CLOCK, "navToModule('agreements')"],
+  ['cleanup', CLOCK, "navToModule('cleanup')"],
+  ['services', CLOCK, "navToModule('pricing')"],
 ].filter(([n]) => !process.env.ONLY || process.env.ONLY.split(',').includes(n));
 
 const port = 9700 + Math.floor(Math.random() * 100);
