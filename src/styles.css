@@ -80,7 +80,7 @@ body{font-family:var(--font-text);font-variant-numeric:tabular-nums;background:v
   --green:#1E7D4E;--green-bg:#E6F2EC;--green-border:#B9D9C8;
   --red:#C0392B;--red-bg:#FBEAE7;--red-border:#F0C3BB;
   --amber:#B8791A;--amber-bg:#FBF0DD;--amber-border:#EDD3A6;
-  --amber-deep:#A86A10;
+  --amber-deep:#9A600C;
   --info:#1163AE;--info-bg:#EEF4FA;
   /* Navy-tinted, never black. A thing gets an edge (hairline + --shadow-sm);
      a section of a page does not (docs/ux-conventions.md, "Brand"). */
@@ -4446,3 +4446,9 @@ a.rk-snote:hover{text-decoration-color:currentColor}
 .pk-chk:active{box-shadow:inset 0 0 0 1px var(--hairline),inset 0 0 0 999px var(--surface-pressed)}
 .pq-row:hover .pk-chk,.pk-chk:focus-within,.has-selection .pk-chk{opacity:1}
 .pq-row.is-selected{background:var(--blue-50)}
+
+/* Amber as text (1.59 audit): small amber text on a tinted panel or an amber chip uses --amber-deep, which clears
+   4.5:1 in the light theme (#9A600C); amber edges, dots, ticks and bars keep --amber. Dark is unchanged. */
+.pk-st-d{color:var(--ct,var(--c))}
+.pk-chip.t-amber,.pk-stage.t-amber,.pk-flag.t-amber,.pk-owes .t-amber,.rk-row-s.t-amber,.rk-cnt.t-amber,.rk-snote.t-amber,.rk-lane-nl,.rk-fee-total em,.pk-lane-lbl{color:var(--amber-deep)}
+.pk-stage.t-amber i{background:var(--amber)}

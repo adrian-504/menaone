@@ -68,7 +68,8 @@ export function stripHtml(page: string, panels: StripPanel[], opts: { flex?: (p:
   if (!shown.length) return '';
   const active = bucketOf(page);
   const cells = shown.map((p) => {
-    const style = `--c:var(--${toneVar(p.tone)})${opts.flex ? `;flex:${opts.flex(p)}` : ''}`;
+    // The edge keeps the tone's colour; an amber detail line is text on a tinted panel, so it takes the deeper amber.
+    const style = `--c:var(--${toneVar(p.tone)})${p.tone === 'amber' ? ';--ct:var(--amber-deep)' : ''}${opts.flex ? `;flex:${opts.flex(p)}` : ''}`;
     const detail = p.detail ? `<div class="pk-st-d">${p.lead ? `<span>${escHtml(p.lead)}</span>` : ''}${escHtml(p.detail)}</div>` : '';
     if (p.total) {
       return `<div class="pk-st is-total" style="${style}"><div class="pk-st-n" data-roll="strip-${page}-${p.key}">${escHtml(p.n)}</div><div class="pk-st-l">${escHtml(p.label)}</div>${detail}</div>`;
