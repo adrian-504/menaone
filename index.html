@@ -1398,12 +1398,9 @@
 </div>
 
 <!-- FOLLOW-UP -->
-<div id="tab-followup" class="tab">
-  <div class="page-header">
-    <div>
-      <div class="page-title">Proposals</div>
-      <div class="page-subtitle">Sent to a client, and no contact for over 10 days — log your follow-up, or mark them won or lost.</div>
-    </div>
+<div id="tab-followup" class="tab pk-page">
+  <div class="page-header pk-head">
+    <div class="pk-head-t"><div class="page-title">Follow-up</div><span class="bars lg" aria-hidden="true"><i></i><i></i><i></i></span><div class="page-subtitle">Sent to clients. Due a follow-up after 10 days without contact.</div></div>
     <div class="page-header-actions"><select class="fsel period-sel" onchange="setGlobalPeriod(this.value)" title="Period" aria-label="Period">
       <option value="all">All time</option>
       <option value="2026" class="opt-year">2026</option>
@@ -1430,7 +1427,12 @@
       <button class="btn-secondary btn-sm" id="fu-toggle-archived" onclick="toggleFuArchived()">Show archived</button>
     </div>
   </div>
-  <nav class="pr-views" data-pr-views aria-label="Proposal views"></nav>
+  <div class="pk-tools">
+    <nav class="pr-views" data-pr-views aria-label="Proposal views"></nav>
+    <input type="text" class="f-search pk-search" id="fu-search" placeholder="Search client, service, SL#…" oninput="filterSoon('renderFollowup')" aria-label="Search proposals with clients">
+    <span class="pk-order">Longest without contact first</span>
+  </div>
+  <div id="fu-strip"></div>
   <div id="fu-list"></div>
 </div>
 

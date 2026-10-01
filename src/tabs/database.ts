@@ -5,7 +5,8 @@ import { fmtDate, escHtml, expose, debounce, statusDot } from '../lib/utils';
 import { icon } from '../lib/icons';
 import { showContextMenu, showMenuAt } from '../lib/contextMenu';
 import { emptyState } from '../lib/ui';
-import { needsFollowUp, getFollowups } from '../core/proposals';
+import { needsFollowUp } from '../core/proposals';
+import { withClients } from './followup';
 import { PS, proposalSentDate, isInPreparation, isWon, isLost, lineTotals, fmtMoney, currencyOf, ownerName, entityById, teamMember } from '../lib/commercial';
 import { applyFilters } from '../lib/filters';
 import { registerTabRenderer, getActiveTabId } from '../lib/registry';
@@ -134,7 +135,8 @@ export function renderProposalViews(): void {
   const counts: Record<ProposalView, number> = {
     all: S.proposals.filter((p) => !p.archived).length,
     pending: S.proposals.filter((p) => !p.archived && isInPreparation(p)).length,
-    followup: getFollowups().length,
+    // With clients: every sent proposal (the sidebar badge stays the ones due).
+    followup: withClients().length,
     won: S.proposals.filter((p) => !p.archived && isWon(p)).length,
     lost: S.proposals.filter((p) => !p.archived && isLost(p)).length,
   };

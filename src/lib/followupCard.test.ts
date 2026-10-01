@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// A Follow-up row carries one action: Log follow-up (Won and Lost are in "…").
+// A Follow-up row (1.59): its next steps, the age without contact and the trail; Won and Lost are in "…".
 import { describe, expect, it } from 'vitest';
 
 import { S } from './state';
@@ -14,16 +14,16 @@ const sent = (over: Partial<Proposal> = {}): Proposal => ({ id: 9, client: 'Cont
 const html = (s: string) => { const el = document.createElement('div'); el.innerHTML = s; return el; };
 
 describe('fuCard', () => {
-  it('an active row has Client asked for changes and Followed up ▾ (Log a note… is in that menu), plus "…"', () => {
-    S.emails = []; S.meetings = []; S.touches = [];
+  it('a row overdue for contact has Client asked for changes and Followed up ▾, plus "…"', () => {
+    S.emails = []; S.meetings = []; S.touches = []; S.contacts = []; S.companies = [];
     const el = html(fuCard(sent(), false));
-    const buttons = [...el.querySelectorAll('.btn-secondary')];
+    const buttons = [...el.querySelectorAll('.pk-acts button')];
     expect(buttons.map((b) => b.textContent!.trim())).toEqual(['Client asked for changes', 'Followed up']);
     expect(buttons.every((b) => b.classList.contains('btn-sm'))).toBe(true);
-    expect(buttons[0].getAttribute('onclick')).toContain('openRevisionDialog(');
-    expect(buttons[1].getAttribute('onclick')).toContain('followUpMenu(event');
-    expect(el.querySelector('.rec-icon-btn')?.getAttribute('aria-label')).toBe('More');
-    expect(el.querySelector('.pq-won, .pq-lost')).toBeNull();
+    expect(buttons[0].getAttribute('onclick')).toContain("queueAct(event, 9, 'changes')");
+    expect(buttons[1].getAttribute('onclick')).toContain("queueAct(event, 9, 'followed_up')");
+    expect(buttons[1].getAttribute('aria-haspopup')).toBe('menu');
+    expect(el.querySelector('.pk-more')?.getAttribute('aria-label')).toBe('More');
   });
 
   it('an archived row has only Unarchive', () => {
@@ -31,10 +31,11 @@ describe('fuCard', () => {
     expect([...el.querySelectorAll('.btn-secondary')].map((b) => b.textContent!.trim())).toEqual(['Unarchive']);
   });
 
-  it('shows days since the last contact and what it was', () => {
-    S.emails = []; S.meetings = [];
+  it('shows the send, the days without contact and the trail', () => {
+    S.emails = []; S.meetings = []; S.touches = [];
     const el = html(fuCard(sent(), false));
-    expect(el.querySelector('.pq-meta')!.textContent).toMatch(/^Sent .*·\s*you logged a note/);
-    expect(el.querySelector('.pq-age')!.getAttribute('title')).toMatch(/since the last contact$/);
+    expect(el.querySelector('.pk-meta')!.textContent).toMatch(/^Sent 2 Sept/);
+    expect(el.querySelector('.pk-age span')!.textContent).toBe('without contact');
+    expect(el.querySelector('.pk-trail .pk-pt.is-sent')).not.toBeNull();
   });
 });
