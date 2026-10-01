@@ -65,8 +65,9 @@ function savedFlash(): void {
   if (el) { el.textContent = 'Saved'; window.setTimeout(() => { if (el.textContent === 'Saved') el.textContent = ''; }, 1500); }
 }
 
+/** Saves an edit. The stored monthly fee is left alone here: only an edit to the lines that changes what they add
+ * up to moves it (renderLines). */
 function commit(a: Agreement, rerender = true): void {
-  syncAgreementTotals(a);
   persistAgreements();
   savedFlash();
   agrBadge();
@@ -309,6 +310,7 @@ function renderTerm(a: Agreement): void {
 
 // The services table reads; Edit opens the line editor.
 let linesEditing = false;
+let linesMonthly: number | null = null;
 
 export function toggleAgreementLines(): void {
   linesEditing = !linesEditing;
@@ -320,6 +322,8 @@ function renderLines(a: Agreement): void {
   const count = document.getElementById('agd-lines-count'); if (count) count.textContent = (a.lines || []).length ? String(a.lines!.length) : '';
   const act = document.getElementById('agd-lines-act');
   const editing = linesEditing || !(a.lines || []).length;
+  // What the lines add up to as drawn: an edit that changes it moves the stored fee, any other leaves the fee alone.
+  linesMonthly = lineTotals(a.lines, a.contractMonths).monthly;
   if (act) act.innerHTML = (a.lines || []).length ? `<button class="rlink" onclick="toggleAgreementLines()" aria-pressed="${linesEditing}">${linesEditing ? 'Done' : 'Edit services'}</button>` : '';
   renderLinesEditor(`agreement:${a.id}`, 'agd-lines', {
     lines: () => a.lines || [],
@@ -328,6 +332,8 @@ function renderLines(a: Agreement): void {
     contractMonths: () => a.contractMonths,
     editable: editing,
     onChange: () => {
+      syncAgreementTotals(a, linesMonthly);
+      linesMonthly = lineTotals(a.lines, a.contractMonths).monthly;
       commit(a, false);
       // The header's money follows the lines.
       paintFigures('agd-figures', agreementHeaderFigures(a, today()));

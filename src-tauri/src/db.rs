@@ -727,20 +727,65 @@ const CODE_MIGRATIONS: &[(i64, fn(&Connection) -> rusqlite::Result<()>)] = &[
     (42, crate::touches::migrate_touches),
     // Template emails on the company page (owner, 29-Sep): seven templates and a placeholder signature.
     (43, crate::email_templates::migrate_email_templates),
-    // Agreement renewal (records, 1.61): what was decided — renew as it is, renew with changes, let it end —
-    // when, and on a drafted renewal the agreement it renews.
-    (44, migrate_agreement_renewal),
+    // Agreement terms and the proposal's last step (records, 1.61): what was decided about a renewal, how the term
+    // renews, how far the signatures got, and the day a signed proposal's service started.
+    (44, migrate_agreement_terms),
 ];
 
-/// Three nullable columns on `agreements`; nothing existing is rewritten. Safe to run again
-/// (an older backup restored over this schema re-runs it).
-fn migrate_agreement_renewal(conn: &Connection) -> rusqlite::Result<()> {
-    for (column, kind) in [("renewal_decision", "TEXT"), ("renewal_decided_at", "TEXT"), ("renewed_from", "INTEGER")] {
-        if !column_exists(conn, "agreements", column)? {
-            conn.execute(&format!("ALTER TABLE agreements ADD COLUMN {column} {kind}"), [])?;
+/// Columns migration 44 adds. All nullable: NULL means "not recorded" (or, for `service_started_at`, "not started").
+const MIGRATION_44_COLUMNS: &[(&str, &str, &str)] = &[
+    ("agreements", "renewal_decision", "TEXT"),
+    ("agreements", "renewal_decided_at", "TEXT"),
+    ("agreements", "renewed_from", "INTEGER"),
+    ("agreements", "renewal_type", "TEXT"),
+    ("agreements", "signature_status", "TEXT"),
+    ("proposals", "service_started_at", "TEXT"),
+];
+
+/// Adds the columns (only the missing ones, so an older backup restored over this schema can run it again) and
+/// fills three of them from what is already recorded; nothing existing is rewritten.
+fn migrate_agreement_terms(conn: &Connection) -> rusqlite::Result<()> {
+    for (table, column, kind) in MIGRATION_44_COLUMNS {
+        if !column_exists(conn, table, column)? {
+            conn.execute(&format!("ALTER TABLE {table} ADD COLUMN {column} {kind}"), [])?;
         }
     }
+    let filled = backfill_agreement_terms(conn)?;
+    log::info!("migration 44: renewal_type {} · signature_status {} · service_started_at {}", filled.0, filled.1, filled.2);
     Ok(())
+}
+
+/// The backfills of migration 44, each only where the column is still empty. Returns the rows filled per column:
+/// (renewal_type, signature_status, service_started_at).
+pub fn backfill_agreement_terms(conn: &Connection) -> rusqlite::Result<(usize, usize, usize)> {
+    // Auto-renew was the one renewal fact recorded so far.
+    let renewal = conn.execute("UPDATE agreements SET renewal_type = 'auto' WHERE renewal_type IS NULL AND auto_renew = 1", [])?;
+    // The two signature dates say how far the signatures got; with neither, it stays not recorded.
+    let signature = conn.execute(
+        "UPDATE agreements SET signature_status = CASE
+             WHEN ifnull(date_client_signed, '') <> '' AND ifnull(date_mena_signed, '') <> '' THEN 'signed_both'
+             WHEN ifnull(date_client_signed, '') <> '' THEN 'client_signed'
+             ELSE 'mena_signed' END
+         WHERE signature_status IS NULL AND (ifnull(date_client_signed, '') <> '' OR ifnull(date_mena_signed, '') <> '')",
+        [],
+    )?;
+    // Proposals already signed by both count as started (owner, 1-Oct-2026: no backlog to go through): on the
+    // day they were signed; else the kickoff, the day they were sent, the day they were added; else — a signed
+    // proposal with no date of its own — the day its agreement starts or was prepared, and failing all of that, today.
+    let statuses = crate::commercial::AGREEMENT_QUALIFYING_STATUSES.iter().map(|s| format!("'{}'", s.replace('\'', "''"))).collect::<Vec<_>>().join(", ");
+    let started = conn.execute(
+        &format!(
+            "UPDATE proposals SET service_started_at = coalesce(
+                 nullif(dbl_signed_date, ''), nullif(date_signed, ''), nullif(kickoff_date, ''),
+                 nullif(date_sent_to_client, ''), nullif(sent_date, ''), nullif(date_added, ''),
+                 (SELECT min(coalesce(nullif(a.start_date, ''), nullif(a.date_prepared, ''), nullif(substr(a.created_at, 1, 10), '')))
+                    FROM agreements a WHERE a.proposal_id = proposals.id),
+                 date('now', 'localtime'))
+             WHERE service_started_at IS NULL AND status IN ({statuses})"
+        ),
+        [],
+    )?;
+    Ok((renewal, signature, started))
 }
 
 /// Old Workforce category label → the name the proposal templates now use.

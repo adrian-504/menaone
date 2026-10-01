@@ -85,9 +85,14 @@ export function syncProposalTotals(p: Proposal): void {
   p.oneTimeFee = t.oneTime;
 }
 
-export function syncAgreementTotals(a: Agreement): void {
+/** After the lines were edited: the stored monthly fee follows them only when what they add up to changed
+ * (`before` is that total before the edit). A stored fee is the billed figure; renaming a line, or any save that
+ * leaves the lines alone, leaves it as it is. Same rule as commercial.rs::apply_derived_agreement_totals. */
+export function syncAgreementTotals(a: Agreement, before: number | null | undefined): void {
   if (!a.lines || a.lines.length === 0) return;
-  a.monthlyFee = lineTotals(a.lines, a.contractMonths).monthly;
+  const now = lineTotals(a.lines, a.contractMonths).monthly;
+  const same = now == null || before == null ? now == null && before == null : Math.abs(now - before) < 0.005;
+  if (!same) a.monthlyFee = now;
 }
 
 // Ids handed out but not saved yet (lines on a new proposal that's still
@@ -176,9 +181,10 @@ export function missingRates(m: MoneyByCurrency, rates: Record<string, number> =
 
 // ── Agreements, active clients, MRR ────────────────────────────────────────
 
+/** What an agreement bills a month: the stored fee (the billed figure) when there is one, else what its lines add up to. */
 export function agreementMonthly(a: Agreement): number | null {
-  if (a.lines && a.lines.length) return lineTotals(a.lines, a.contractMonths).monthly;
-  return a.monthlyFee ?? null;
+  if (a.monthlyFee != null) return a.monthlyFee;
+  return a.lines && a.lines.length ? lineTotals(a.lines, a.contractMonths).monthly : null;
 }
 
 /** An agreement whose service is running today. */
