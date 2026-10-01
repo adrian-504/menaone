@@ -12,17 +12,17 @@ import { fmtDateFromIso } from './dates';
 
 export type CleanupAction =
   | 'lost' | 'withdrawn' | 'won' | 'keep' | 'snooze_followup'
-  | 'approve' | 'changes' | 'back_to_drafting'
+  | 'approve' | 'changes' | 'back_to_drafting' | 'nudge'
   | 'agreement_active' | 'agreement_not_started' | 'agreement_ended'
   | 'opportunity_details' | 'opportunity_lost'
-  | 'set_industry' | 'set_owner'
+  | 'set_industry' | 'set_owner' | 'add_contact'
   | 'task_done' | 'task_someday' | 'task_date' | 'task_delete'
   | 'commitment_edit';
 
 export type QueueId =
   | 'stale-sent' | 'client-signed' | 'long-review' | 'stale-drafting'
   | 'kickoff-passed' | 'ended-still-active'
-  | 'opportunity-incomplete' | 'company-industry' | 'company-owner' | 'old-tasks' | 'commitment-company';
+  | 'opportunity-incomplete' | 'company-industry' | 'company-owner' | 'company-contacts' | 'old-tasks' | 'commitment-company';
 
 export interface CleanupItem {
   /** Unique across queues; used for "keep for now". */
@@ -36,9 +36,15 @@ export interface CleanupItem {
   age: number;
 }
 
+export type CleanupGroup = 'Proposals' | 'Pipeline' | 'Companies' | 'Agreements and tasks';
+/** The order the groups (and so the queues) are worked through. */
+export const GROUP_ORDER: CleanupGroup[] = ['Proposals', 'Pipeline', 'Companies', 'Agreements and tasks'];
+/** Within a group, the order of its queues. */
+export const QUEUE_ORDER: QueueId[] = ['stale-sent', 'long-review', 'client-signed', 'stale-drafting', 'opportunity-incomplete', 'commitment-company', 'company-owner', 'company-industry', 'company-contacts', 'ended-still-active', 'kickoff-passed', 'old-tasks'];
+
 export interface CleanupQueue {
   id: QueueId;
-  group: 'Proposals' | 'Agreements' | 'Pipeline' | 'Companies' | 'Tasks';
+  group: CleanupGroup;
   title: string;
   /** What's wrong, in one sentence. */
   why: string;
@@ -136,13 +142,13 @@ export function buildCleanupQueues(i: CleanupInput): CleanupQueue[] {
   });
   queues.push({
     id: 'long-review', group: 'Proposals', title: 'Stuck in internal review',
-    why: `In review for over ${LONG_REVIEW_DAYS} days with no outcome recorded. Record what the reviewer decided.`,
-    actions: ['approve', 'changes', 'withdrawn', 'lost'], bulk: ['approve', 'withdrawn'],
+    why: `In review for over ${LONG_REVIEW_DAYS} days with no outcome recorded. Nudge the reviewer, or record what was decided.`,
+    actions: ['nudge', 'approve', 'changes', 'withdrawn'], bulk: ['approve', 'withdrawn'],
     items: live.filter((p) => p.status === PS.REVIEW && p.reviewStatus !== 'approved' && (daysBetween(p.reviewRequestedAt || p.dateSentToHassan, i.today) ?? 0) > LONG_REVIEW_DAYS)
       .map((p) => proposalItem(p, p.reviewRequestedAt || p.dateSentToHassan, i.today, 'Sent for review')),
   });
   queues.push({
-    id: 'stale-drafting', group: 'Proposals', title: 'Requests and drafts going nowhere',
+    id: 'stale-drafting', group: 'Proposals', title: 'Requests going nowhere',
     why: `Requested or in drafting for over ${STALE_DRAFT_DAYS} days.`,
     actions: ['keep', 'withdrawn', 'lost'], bulk: ['withdrawn', 'keep'],
     items: live.filter((p) => (p.status === PS.REQUEST || p.status === PS.DRAFTING) && (daysBetween(draftingSince(p), i.today) ?? 0) > STALE_DRAFT_DAYS)
@@ -154,14 +160,14 @@ export function buildCleanupQueues(i: CleanupInput): CleanupQueue[] {
     subtitle: [a.agrRef, a.type].filter(Boolean).join(' · ') || 'Agreement', facts: [['Monthly fee', money(a.monthlyFee, a.currency)], ...facts], age,
   });
   queues.push({
-    id: 'kickoff-passed', group: 'Agreements', title: 'Kickoff date has passed',
+    id: 'kickoff-passed', group: 'Agreements and tasks', title: 'Kickoff date has passed',
     why: 'The service is still "Kickoff scheduled" but the start date is behind us. Mark it active so it counts towards MRR, or reset it.',
     actions: ['agreement_active', 'agreement_not_started', 'agreement_ended'], bulk: ['agreement_active'],
     items: i.agreements.filter((a) => a.status !== 'Canceled' && a.serviceStatus === 'Kickoff scheduled' && a.startDate && a.startDate < i.today)
       .map((a) => agreementItem(a, [['Start date', `${fmt(a.startDate)} (${ago(daysBetween(a.startDate, i.today))})`]], daysBetween(a.startDate, i.today) ?? 0)),
   });
   queues.push({
-    id: 'ended-still-active', group: 'Agreements', title: 'Ended but still active',
+    id: 'ended-still-active', group: 'Agreements and tasks', title: 'Ended but still active',
     why: 'The end date passed over a week ago and the service is still marked active, so it still counts towards MRR.',
     actions: ['agreement_ended', 'keep'], bulk: ['agreement_ended'],
     items: i.agreements.filter((a) => a.status !== 'Canceled' && a.serviceStatus === 'Active' && a.endDate && (daysBetween(a.endDate, i.today) ?? 0) > 7)
@@ -189,20 +195,28 @@ export function buildCleanupQueues(i: CleanupInput): CleanupQueue[] {
     subtitle: [c.city, c.country].filter(Boolean).join(', ') || c.website || 'Company', facts, age: 0,
   });
   queues.push({
-    id: 'company-industry', group: 'Companies', title: 'Companies without an industry',
+    id: 'company-industry', group: 'Companies', title: 'Without an industry',
     why: 'Industry drives the company filters and the win/loss reports by industry.',
     actions: ['set_industry', 'keep'], bulk: ['set_industry'],
     items: active.filter((c) => !i.companiesWithIndustry.has(c.id)).map((c) => companyItem(c, [['Website', c.website || '—'], ['Description', c.description?.slice(0, 160) || '—']])),
   });
   queues.push({
-    id: 'company-owner', group: 'Companies', title: 'Companies without an owner',
+    id: 'company-owner', group: 'Companies', title: 'Without an owner',
     why: 'Who looks after the relationship. Needed once colleagues use MENA One, and for reports by owner.',
     actions: ['set_owner', 'keep'], bulk: ['set_owner'],
     items: active.filter((c) => !(c.owner || '').trim()).map((c) => companyItem(c, [['Industry', i.companiesWithIndustry.has(c.id) ? 'Set' : '—'], ['Website', c.website || '—']])),
   });
+  // The check that was a chip on Companies (1.59 moved the data-quality checks here). Only when contacts are known.
+  const withPeople = new Set((i.contacts || []).map((p) => p.companyId).filter((x): x is number => x != null));
+  queues.push({
+    id: 'company-contacts', group: 'Companies', title: 'Without contacts',
+    why: 'Nobody to write to or call. Add the person you deal with, so emails, meetings and promises have someone to hang on.',
+    actions: ['add_contact', 'keep'], bulk: ['keep'],
+    items: i.contacts ? active.filter((c) => !withPeople.has(c.id)).map((c) => companyItem(c, [['Industry', i.companiesWithIndustry.has(c.id) ? 'Set' : '—'], ['Website', c.website || '—']])) : [],
+  });
 
   queues.push({
-    id: 'old-tasks', group: 'Tasks', title: 'Old open tasks',
+    id: 'old-tasks', group: 'Agreements and tasks', title: 'Old open tasks',
     why: `Open for over ${OLD_TASK_DAYS} days with no date, or overdue by more than 30 days. Finish them, park them in Someday, or give them a date.`,
     actions: ['task_done', 'task_date', 'task_someday', 'task_delete'], bulk: ['task_done', 'task_someday', 'task_delete'],
     items: i.todos.filter((t) => t.status !== 'Done' && !t.parentId && !t.someday && (
@@ -230,6 +244,7 @@ export function buildCleanupQueues(i: CleanupInput): CleanupQueue[] {
   for (const q of queues) {
     q.items = q.items.filter((x) => !kept(`${q.id}|${x.key}`)).sort((a, b) => b.age - a.age || a.title.localeCompare(b.title));
   }
+  queues.sort((a, b) => QUEUE_ORDER.indexOf(a.id) - QUEUE_ORDER.indexOf(b.id));
   return queues;
 }
 

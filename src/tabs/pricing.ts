@@ -1,11 +1,11 @@
 import type { PricingService } from '../lib/constants';
 import { S } from '../lib/state';
 import { emptyState, toast } from '../lib/ui';
-import { escHtml, expose, showConfirm, showTextPrompt } from '../lib/utils';
+import { escHtml, expose, showConfirm, showTextPrompt, today } from '../lib/utils';
+import { CATALOG_FIRST, catalogGroups, categoryTile, servicesLabel } from '../lib/pagesServices';
 import { registerTabRenderer } from '../lib/registry';
 import { saveService, saveRateCard, getCommercialSetup, mergeServices, serviceUsage } from '../lib/db';
 import { AGR_TYPES } from '../lib/constants';
-import { priceRange, fmtMoney } from '../lib/commercial';
 import { renderIcons } from '../core/chrome';
 import { pendingDecisions, decisionSummary } from '../lib/serviceCatalog';
 import { renderTemplatesView } from './templates';
@@ -104,63 +104,43 @@ function usage(service: Service): number {
   return S.proposals.filter((p) => (p.lines || []).some((l) => l.serviceId === service.id || l.serviceName === service.name)).length;
 }
 
-/** How a service is priced, in the words the catalogue can actually justify. */
-function pricingShape(s: Service): string {
-  const card = S.rateCards.find((r) => r.id === s.rateCardId);
-  const p: any = card?.pricing;
-  if (p?.percent) return 'percentage of the annual package';
-  if (p?.hasTranches) return 'by employee band';
-  if (p?.hasPackages) return 'monthly packages';
-  if (p?.perCountry) return 'per country';
-  if (s.billing === 'one_time') return 'one-time';
-  return 'flat retainer';
-}
+/** Show every category card (the first six show by default). */
+let showAllCategories = false;
+/** The catalogue clean-up list under its banner. */
+let reviewOpen = false;
 
-/** The price shown on a catalogue row, with what it is per. */
-function catalogPrice(s: Service): string {
-  const card = S.rateCards.find((r) => r.id === s.rateCardId);
-  const pct = (card?.pricing as any)?.percent;
-  if (pct) return `<span class="svc-price">${pct.standard}%<small>of annual package</small></span>`;
-  const range = priceRange(s);
-  const value = range
-    ? (range.min === range.max ? fmtMoney(range.min) : `SAR ${range.min.toLocaleString()}–${range.max.toLocaleString()}`)
-    : s.defaultPrice != null ? fmtMoney(s.defaultPrice) : '';
-  if (!value) return '';
-  return `<span class="svc-price">${value}<small>${s.billing === 'one_time' ? 'one time' : 'per month'}</small></span>`;
-}
+export function toggleCatalogCategories(): void { showAllCategories = !showAllCategories; renderPricingTab(); }
+expose('toggleCatalogCategories', toggleCatalogCategories);
+export function toggleCatalogReview(): void { reviewOpen = !reviewOpen; renderPricingTab(); }
+expose('toggleCatalogReview', toggleCatalogReview);
 
 function renderCatalog(search: string, cat: string): string {
   const showInactive = (document.getElementById('svc-show-inactive') as HTMLInputElement | null)?.checked || false;
   const services = S.services.filter((s) => (showInactive || s.active) && (!cat || s.category === cat) && (!search || `${s.name} ${s.category || ''} ${s.agreementType || ''}`.toLowerCase().includes(search)));
   const review = renderCatalogueReview();
   if (!services.length) return review + emptyState({ icon: 'search', title: 'No services match', body: 'Try a different search or category.', compact: true });
-  const groups = new Map<string, Service[]>();
-  for (const s of services) {
-    const c = s.category || 'Other';
-    if (!groups.has(c)) groups.set(c, []);
-    groups.get(c)!.push(s);
-  }
-  // Each category folds to one line; searching or filtering opens them.
-  const open = !!search || !!cat;
-  return review + [...groups.entries()].map(([category, list]) => `<details class="sec svc-group"${open ? ' open' : ''}>
-    <summary class="rec-section-hd"><h2>${escHtml(category)}</h2><span class="rec-count">${list.length}</span><span class="svc-group-names">${escHtml(list.slice(0, 4).map((x) => x.name).join(' · '))}${list.length > 4 ? ' …' : ''}</span></summary>
-    <div class="svc-colhd"><span>Service</span><span>Price</span><span>On proposals</span><span></span></div>
-    <div class="rec-list">${list.map((s) => {
-      const used = usage(s);
-      const mergedTarget = s.mergedInto != null ? S.services.find((x) => x.id === s.mergedInto) : undefined;
-      return `<div class="svc-row${s.active ? '' : ' is-unavailable'}" tabindex="0" role="button" onclick="openServiceEditor(${s.id})" onkeydown="if(event.key==='Enter'&&event.target===this)openServiceEditor(${s.id})">
-        <div class="svc-row-main">
-          <div class="svc-row-title">${escHtml(s.name)}${mergedTarget ? ` <span class="rec-badge">Merged into ${escHtml(mergedTarget.name)}</span>` : s.active ? '' : ' <span class="rec-badge">Retired</span>'}</div>
-          <div class="svc-row-sub">${[s.agreementType ? `${s.agreementType} agreement` : 'No agreement type', pricingShape(s)].map(escHtml).join(' · ')}</div>
-        </div>
-        <div class="svc-row-price">${catalogPrice(s)}</div>
-        <div class="svc-row-use">${used || '<span class="t-muted">0</span>'}</div>
-        <div class="svc-row-actions">
-          <button class="btn-ghost btn-sm" onclick="event.stopPropagation();openServiceMerge(${s.id})" data-tip="Merge this service into another">Merge…</button>
-        </div>
-      </div>`;
-    }).join('')}</div>
-  </details>`).join('');
+  const groups = catalogGroups({ services, rateCards: S.rateCards, agreements: S.agreements, proposals: S.proposals, today: today() });
+  // Searching or filtering shows every match; otherwise the six most used, the rest behind one line.
+  const all = showAllCategories || !!search || !!cat || groups.length <= CATALOG_FIRST;
+  const shown = all ? groups : groups.slice(0, CATALOG_FIRST);
+  const rest = all ? [] : groups.slice(CATALOG_FIRST);
+  const allCategories = S.services.map((x) => x.category || 'Other');
+  const cards = shown.map((g) => `<section class="pk-cat" style="--c:var(--tile-${categoryTile(g.category, allCategories)})">
+      <div class="pk-cat-hd"><span class="pk-cat-ic" aria-hidden="true">${g.no}</span><div class="pk-cat-tt"><h3>${escHtml(g.category)}</h3><div class="pk-cat-s">${escHtml(servicesLabel(g.services.length))}</div></div>
+        <div class="pk-cat-cl${g.activeClients ? '' : ' is-none'}"><b>${g.activeClients}</b><span>${escHtml(g.caption)}</span></div></div>
+      <div class="pk-svl">${g.services.map((sv) => {
+        const merged = sv.mergedInto != null ? S.services.find((x) => x.id === sv.mergedInto) : undefined;
+        return `<div class="svc-row pk-svr${sv.active ? '' : ' is-unavailable'}" tabindex="0" role="button" onclick="openServiceEditor(${sv.id})" onkeydown="if(event.key==='Enter'&&event.target===this)openServiceEditor(${sv.id})">
+          <span class="pk-svr-n">${escHtml(sv.name)}${sv.clients ? `<span class="pk-svr-u">● ${sv.clients} ${sv.clients === 1 ? 'client' : 'clients'}</span>` : ''}${merged ? ` <span class="pk-chip t-grey">Merged into ${escHtml(merged.name)}</span>` : sv.active ? '' : ' <span class="pk-chip t-grey">Retired</span>'}</span>
+          <span class="pk-svr-p">${escHtml(sv.price || '—')}</span>
+          <button class="rlink pk-svr-merge" onclick="event.stopPropagation();openServiceMerge(${sv.id})" data-tip="Merge this service into another">Merge…</button>
+        </div>`;
+      }).join('')}</div>
+    </section>`).join('');
+  const more = rest.length
+    ? `<div class="pk-cat-more">+ ${escHtml(rest.slice(0, 4).map((g) => g.category).join(' · '))}${rest.length > 4 ? ' …' : ''} — <button class="rlink" onclick="toggleCatalogCategories()">show all ${groups.length} categories</button></div>`
+    : showAllCategories && groups.length > CATALOG_FIRST && !search && !cat ? `<div class="pk-cat-more"><button class="rlink" onclick="toggleCatalogCategories()">Show the six most used</button></div>` : '';
+  return review + `<div class="pk-cats">${cards}</div>${more}`;
 }
 
 /**
@@ -171,8 +151,7 @@ function renderCatalog(search: string, cat: string): string {
 function renderCatalogueReview(): string {
   const pending = pendingDecisions(S.services);
   if (!pending.length) return '';
-  return `<details class="sec svc-review">
-    <summary class="rec-section-hd"><h2>Catalogue clean-up</h2><span class="rec-count">${pending.length}</span><span class="svc-group-names">Renames and merges agreed on 16 September, waiting for you</span></summary>
+  const list = reviewOpen ? `<div class="sec svc-review pk-review">
     <p class="svc-review-lede">From the service session on 16 September. Each one is applied only when you say so; old names are kept so proposals already sent still read the same.</p>
     <div class="rec-list">${pending.map((d, i) => `<div class="svc-review-row">
       <div class="svc-row-main">
@@ -185,7 +164,8 @@ function renderCatalogueReview(): string {
           : `<button class="btn-sm btn-secondary" onclick="applyCatalogueDecision(${i})">${d.action === 'rename' ? 'Rename' : 'Merge'}</button>`}
       </div>
     </div>`).join('')}</div>
-  </details>`;
+  </div>` : '';
+  return `<div class="pk-banner"><span class="bars" aria-hidden="true"><i></i><i></i><i></i></span><div class="pk-banner-t"><b>Catalogue clean-up · ${pending.length} ${pending.length === 1 ? 'change' : 'changes'} waiting</b><span>Renames and merges agreed on 16 September, ready to apply.</span></div><button class="btn-secondary btn-sm" onclick="toggleCatalogReview()" aria-expanded="${reviewOpen}">${reviewOpen ? 'Hide changes' : 'Review changes'}</button></div>${list}`;
 }
 
 /** Applies one decision after the owner confirms what it will touch. */

@@ -1318,6 +1318,8 @@ pub fn get_app_meta(state: State<DbState>, key: String) -> CmdResult<Option<Stri
 /// src/lib/appMetaKeys.test.ts fails if the interface writes one that isn't.
 pub const UI_META_KEYS: &[&str] = &[
     "cleanup_kept",
+    // Clean-up: records cleared per month, for the strip's "cleared this month" (1.60).
+    "cleanup_cleared",
     "company_domains",
     "company_records_open",
     "dismissed_domains",

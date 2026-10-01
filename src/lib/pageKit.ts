@@ -10,7 +10,7 @@ import { initialsOf } from './appearance';
 import { addMoney, fmtMoneyByCurrency, REPORTING_CURRENCY, type MoneyByCurrency } from './commercial';
 
 /** Colour by role (docs/ux-conventions.md, "Brand"). */
-export type Tone = 'coral' | 'coral-text' | 'blue' | 'amber' | 'red' | 'green' | 'grey';
+export type Tone = 'coral' | 'coral-text' | 'blue' | 'amber' | 'red' | 'green' | 'grey' | 'navy';
 
 export interface StripPanel {
   /** The bucket a click filters the list to. */
@@ -26,6 +26,8 @@ export interface StripPanel {
   tone: Tone;
   /** The navy panel: the page's total. It isn't a filter. */
   total?: boolean;
+  /** A panel that opens something instead of filtering (a JS call, e.g. "openPeopleFromMeetings()"). */
+  action?: string;
 }
 
 /** The panels worth showing: the total always, the others when they hold something. Pure. */
@@ -75,7 +77,9 @@ export function stripHtml(page: string, panels: StripPanel[], opts: { flex?: (p:
     const body = opts.pipe
       ? `<span class="pk-st-n" data-roll="strip-${page}-${p.key}">${escHtml(p.n)}</span><div class="pk-st-l">${escHtml(p.label)}</div>${detail}`
       : `<div class="pk-st-top"><span class="pk-st-n" data-roll="strip-${page}-${p.key}">${escHtml(p.n)}</span><span class="pk-st-l">${escHtml(p.label)}</span></div>${detail}`;
-    return `<button type="button" class="pk-st${on ? ' is-on' : ''}" style="${style}" aria-pressed="${on}" onclick="stripPick('${page}','${p.key}')">${body}</button>`;
+    return p.action
+      ? `<button type="button" class="pk-st" style="${style}" onclick="${escHtml(p.action)}">${body}</button>`
+      : `<button type="button" class="pk-st${on ? ' is-on' : ''}" style="${style}" aria-pressed="${on}" onclick="stripPick('${page}','${p.key}')">${body}</button>`;
   }).join(opts.pipe ? '<span class="pk-arrow" aria-hidden="true">›</span>' : '');
   return `<div class="pk-strip${opts.pipe ? ' is-pipe' : ''}${opts.flex ? ' is-flex' : ''}" style="--cols:${shown.length}">${cells}</div>`;
 }

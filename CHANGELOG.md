@@ -3,6 +3,10 @@
 One entry per install, newest first: the version, the day it was installed, and in two lines what changed.
 Settings → Data shows the last five. `scripts/release-check.mjs` refuses a build whose version has no entry here.
 
+## 1.60 — 2026-10-01
+Contacts, Agreements, Clean-up and Services join the new look: Contacts is one list with when you last spoke and what's open with each person; Agreements is a year view with each term, its notice window and the next decision.
+Clean-up shows one record at a time with its facts and the most likely choice highlighted (1–4 to decide, S to skip); Services shows a card per category with prices and who's using each service.
+
 ## 1.59 — 2026-10-01
 The list pages now look like My Day: Pending, Follow-up, Proposals, Opportunities, Companies, Meetings and Projects each open with a strip that sums the page up (click a panel to filter), client tiles, and money and ages in large type.
 Follow-up lists every proposal with a client and shows a contact trail per row; Companies shows monthly value and the agreement's runway; Meetings has date medallions and a now-line; Projects are milestone tracks.

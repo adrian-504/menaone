@@ -14,6 +14,8 @@ import { createAgreementsFromProposals, pendingAgreementsFromProposals, type Pen
 import { registerBadgeUpdater, registerTabRenderer, refreshCompanyViewIfOpen, getActiveTabId, refreshAll } from '../lib/registry';
 import { saveCsv } from '../lib/files';
 import { toast } from '../lib/ui';
+import { bucketOf, clearBucket, registerStrip, stripHtml, tileHtml, valueHtml } from '../lib/pageKit';
+import { agreementAxis, agreementBuckets, agreementLane, agreementsStrip, axisPos, nextDecision, type AgreementBucket } from '../lib/pagesAgreements';
 import { attachCompanySelector } from '../lib/companySelector';
 import type { Agreement } from '../lib/types';
 
@@ -104,7 +106,7 @@ export function renderAgreements(): void {
   const service = (document.getElementById('agr-service') as HTMLSelectElement | null)?.value || '';
   const type = (document.getElementById('agr-type') as HTMLSelectElement).value;
   const prep = (document.getElementById('agr-prep') as HTMLSelectElement).value;
-  const data = S.agreements.filter((a) => {
+  const filtered = S.agreements.filter((a) => {
     if (S.globalPeriod !== 'all') {
       const ad = a.startDate || a.actionDate || a.createdAt;
       if (!matchesPeriod(ad)) return false;
@@ -118,46 +120,50 @@ export function renderAgreements(): void {
       if (!hay.includes(search)) return false;
     }
     return true;
-  }).sort((a, b) => (b.startDate || b.createdAt || '').localeCompare(a.startDate || a.createdAt || '') || b.id - a.id);
-  const cntEl = document.getElementById('agr-cnt'); if (cntEl) cntEl.textContent = `${data.length} agreement${data.length !== 1 ? 's' : ''}`;
-
-  const mrr = activeMrr(data);
-  const ending = renewalsDue(60).filter((a) => data.includes(a)).length;
-  const summaryDefs = [
-    { lbl: 'In preparation', val: data.filter((a) => ['In Preparation', 'Client Review'].includes(a.status || '')).length },
-    { lbl: 'Awaiting signature', val: data.filter((a) => ['Client Signature', 'MENA Signature'].includes(a.status || '')).length, signal: 'warning' as const },
-    { lbl: 'Signed', val: data.filter((a) => a.status === 'Signed').length, signal: 'positive' as const },
-    { lbl: 'Active services', val: data.filter((a) => isAgreementActive(a)).length, signal: 'positive' as const },
-    { lbl: 'Active MRR', val: Object.keys(mrr).length ? fmtMoneyByCurrency(mrr) : '—' },
-    { lbl: 'Ending within 60 days', val: ending, signal: ending ? ('warning' as const) : undefined },
-  ];
-  const summaryEl = document.getElementById('agr-summary');
-  // The tiles didn't filter anything, so they're gone (Focus); the list and its filters say it.
-  if (summaryEl) { summaryEl.innerHTML = ''; summaryEl.hidden = true; }
-  void summaryDefs; void kpiCard;
-
-  const tbody = document.getElementById('agr-tbody');
-  if (!tbody) return;
-  if (data.length === 0) { tbody.innerHTML = `<tr><td colspan="9">${emptyState({ icon: 'document', title: 'No agreements match these filters', compact: true })}</td></tr>`; return; }
+  });
   const todayIso = today();
-  tbody.innerHTML = data.map((a) => {
-    const sc = AGR_ST[a.status || ''] || { c: 'var(--muted)' };
+  // The strip sums what the filters leave; a panel narrows the lanes.
+  if (bucketOf('agreements') && !filtered.some((a) => agreementBuckets(a, todayIso).includes(bucketOf('agreements') as AgreementBucket))) clearBucket('agreements');
+  const strip = document.getElementById('agr-strip');
+  if (strip) strip.innerHTML = filtered.length ? stripHtml('agreements', agreementsStrip(filtered, todayIso)) : '';
+  const bucket = bucketOf('agreements') as AgreementBucket | null;
+  // Sorted by the next decision: the soonest notice or end first.
+  const data = (bucket ? filtered.filter((a) => agreementBuckets(a, todayIso).includes(bucket)) : filtered)
+    .sort((a, b) => nextDecision(a, todayIso).on.localeCompare(nextDecision(b, todayIso).on) || (a.client || '').localeCompare(b.client || '') || a.id - b.id);
+  const cntEl = document.getElementById('agr-cnt'); if (cntEl) cntEl.textContent = `${data.length} agreement${data.length !== 1 ? 's' : ''} · by next decision`;
+
+  const host = document.getElementById('agr-gantt');
+  if (!host) return;
+  if (data.length === 0) { host.innerHTML = emptyState({ icon: 'document', title: 'No agreements match these filters', compact: true }); return; }
+  const axis = agreementAxis(data, todayIso);
+  const todayPos = axisPos(axis, todayIso);
+  const rows = data.map((a) => {
     const services = a.lines?.length ? [...new Set(a.lines.map((l) => l.serviceName))] : (a.type ? [a.type] : []);
     const monthly = agreementMonthly(a);
-    const endSoon = a.endDate && a.serviceStatus === 'Active' && a.endDate >= todayIso && (daysUntil(a.endDate) ?? 999) <= 60;
-    return `<tr class="rec-tr" data-agreement-id="${a.id}" onclick="if(!event.target.closest('a,button,select,input'))openRecord('agreement', ${a.id})" oncontextmenu="agreementRowMenu(event, ${a.id})">
-      <td class="agr-ref">${escHtml(a.agrRef || '—')}${a.proposalId ? `<div class="agr-prop-ref">SL# ${a.proposalId}</div>` : ''}</td>
-      <td class="td-c strong" title="${escHtml(a.client)}">${companyLink(a.companyId, a.client)}</td>
-      <td class="db-services">${services.map((sv) => `<span class="chip">${escHtml(sv)}</span>`).join(' ') || '—'}</td>
-      <td class="td-status">${statusDot(sc, a.status || 'Not set')}<button class="rec-icon-btn row-more" onclick="agreementRowMenu(event, ${a.id})" data-tip="Change status…" aria-label="Change status of ${escHtml(a.agrRef || 'this agreement')}">${icon('more', 14)}</button></td>
-      <td>${a.serviceStatus ? statusBadge('service', a.serviceStatus) : '<span class="t-muted">—</span>'}</td>
-      <td class="t-sub">${escHtml(preparedByName(a) || '—')}</td>
-      <td class="td-d">${fmtDate(a.startDate)}</td>
-      <td class="td-d">${a.endDate ? `<span class="${endSoon ? 'tone-amber fw-600' : ''}">${fmtDate(a.endDate)}</span>` : '—'}</td>
-      <td class="num">${monthly ? fmtMoney(monthly, currencyOf(a)) : '—'}</td>
-    </tr>`;
+    const d = nextDecision(a, todayIso);
+    const lane = agreementLane(a, axis, todayIso);
+    const active = isAgreementActive(a, todayIso);
+    const bar = lane.term
+      ? `<span class="pk-lane-bar${lane.outline ? ' is-outline' : ''}" style="left:${lane.term.left}%;width:${lane.term.width}%"></span>
+         ${lane.elapsed && !lane.outline ? `<span class="pk-lane-ran" style="left:${lane.elapsed.left}%;width:${lane.elapsed.width}%"></span>` : ''}
+         ${lane.notice && !lane.outline ? `<span class="pk-lane-notice" style="left:${lane.notice.left}%;width:${lane.notice.width}%"></span><span class="pk-lane-lbl" style="left:${lane.notice.left}%">${escHtml(lane.notice.label)}</span>` : ''}
+         ${lane.end ? `<span class="pk-lane-end" style="left:${lane.end.pos}%">${escHtml(lane.end.label)}</span>` : ''}`
+      : '<span class="pk-lane-none">No start and end dates yet</span>';
+    return `<div class="pk-grow" data-agreement-id="${a.id}" tabindex="0" onclick="if(!event.target.closest('a,button'))openRecord('agreement', ${a.id})" onkeydown="if(event.key==='Enter'&&event.target===this)this.click()" oncontextmenu="agreementRowMenu(event, ${a.id})">
+      <div class="pk-grow-who">${tileHtml(a.client || a.agrRef || '?')}<div class="pk-main">
+        <div class="pk-title">${companyLink(a.companyId, a.client)}<span class="pk-sl">${escHtml(a.agrRef || '')}</span></div>
+        <div class="pk-grow-meta">${services.map((sv) => `<span class="pk-svc-pill${active ? ' is-on' : ''}">${escHtml(sv)}</span>`).join('')}${a.proposalId ? `<span class="pk-grow-from">from SL# ${a.proposalId}</span>` : ''}</div>
+        <div class="pk-grow-decide"><span class="pk-stage t-${d.tone}"><i></i>${escHtml(d.text)}</span><button class="rlink pk-act" onclick="event.stopPropagation();openRecord('agreement', ${a.id})">${escHtml(d.actionLabel)}</button><button class="rec-icon-btn row-more" onclick="agreementRowMenu(event, ${a.id})" data-tip="Change status…" aria-label="Change status of ${escHtml(a.agrRef || 'this agreement')}">${icon('more', 14)}</button></div>
+      </div></div>
+      <div class="pk-lane"><div class="pk-lane-in"><span class="pk-lane-bg"></span>${bar}</div><span class="pk-lane-today" style="left:${todayPos}%"></span></div>
+      ${valueHtml(monthly ? fmtMoney(monthly, currencyOf(a)) : null, monthly ? `a month${a.contractMonths ? ` · ${a.contractMonths} mo` : ''}` : 'not priced')}
+    </div>`;
   }).join('');
+  host.innerHTML = `<div class="pk-gaxis"><span class="pk-gaxis-l">Agreement</span><div class="pk-months">${axis.ticks.map((t) => `<span${/^(Apr|Oct)/.test(t.label) ? ' class="is-minor"' : ''} style="left:${t.pos}%">${escHtml(t.label)}</span>`).join('')}<span class="pk-months-today" style="left:${todayPos}%">today</span></div><span class="pk-gaxis-l pk-gaxis-r">Monthly</span></div>
+    <div class="pk-grows">${rows}</div>
+    <div class="pk-legend"><span><i class="lg-term"></i>term</span><span><i class="lg-ran"></i>already run</span><span><i class="lg-notice"></i>notice window</span><span><i class="lg-outline"></i>not signed yet</span><span><i class="lg-today"></i>today</span></div>`;
 }
+registerStrip('agreements', () => renderAgreements());
 registerTabRenderer('agreements', () => { populateAgrFilters(); renderAgreements(); });
 expose('renderAgreements', renderAgreements);
 
