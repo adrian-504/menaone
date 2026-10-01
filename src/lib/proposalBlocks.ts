@@ -11,6 +11,8 @@ import type { CommercialLine, Proposal } from './types';
 export interface ProposalBlock {
   lines: CommercialLine[];
   contractMonths: number | null;
+  /** The past proposal this one was started from (1.66, lib/startFrom.ts). */
+  basedOnId?: number | null;
 }
 
 export const emptyBlock = (contractMonths: number | null = null): ProposalBlock => ({ lines: [], contractMonths });
@@ -40,6 +42,7 @@ export function proposalsFromBlocks(shared: SharedProposalFields, blocks: Propos
       type: lines.length ? null : '—',
       lines,
       contractMonths: b.contractMonths,
+      basedOnId: b.basedOnId ?? null,
       requestGroup: group,
       notes: [],
       documents: [],

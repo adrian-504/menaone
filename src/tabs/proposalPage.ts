@@ -45,6 +45,7 @@ import { renderRecordTimeline, renderThreadStrip } from './recordThread';
 import { endPropsEdit, mountPropsList, propsEditButton, propsListHtml, resetPropsLists, type PropField } from '../lib/propsList';
 import { renderIcons } from '../core/chrome';
 import './revisePrices';
+import { basedOnLabel, startFromCopy, startFromMatches, startFromSub, startFromTitle } from '../lib/startFrom';
 import { ST, LEAD_SOURCES } from '../lib/constants';
 import { renderLinesEditor, lineForService } from '../lib/linesEditor';
 import { needsFollowUp, proposalLastTouch, snapshotProposal, changeProposalStatus, contactFirstName, recordReview, undoReview, openRevisionDialog, openWlModal, updateStatus, archiveProposal, unarchiveProposal, snoozeProposal, isSnoozed } from '../core/proposals';
@@ -298,6 +299,7 @@ function duplicateProposal(id: number): void {
     currency: src.currency ?? null,
     businessEntityId: src.businessEntityId ?? null,
     contractMonths: src.contractMonths,
+    basedOnId: src.id,
   });
 }
 
@@ -436,6 +438,8 @@ function renderProps(p: Proposal): void {
     { key: 'kickoffDate', label: 'Kickoff', display: p.kickoffDate && isWon(p) ? date(p.kickoffDate) : '', control: inp('kickoffDate', 'date', p.kickoffDate || '') },
     { key: 'contractMonths', label: 'Term', display: p.contractMonths ? `${p.contractMonths} months` : '', control: sel('contractMonths', p.contractMonths ? String(p.contractMonths) : '', [['', 'Not set'], ...months.map((m) => [String(m), `${m} months`] as [string, string]), ...(p.contractMonths && !months.includes(p.contractMonths) ? [[String(p.contractMonths), `${p.contractMonths} months`] as [string, string]] : [])]) },
     { key: 'validUntil', label: 'Valid until', display: date(p.validUntil), control: inp('validUntil', 'date', p.validUntil || '') },
+    // Where it started (1.66): one line, a link while that proposal is still here.
+    { key: 'basedOnId', label: 'Started from', display: p.basedOnId == null ? '' : S.proposals.some((x) => x.id === p.basedOnId) ? recordLink('proposal', p.basedOnId, basedOnLabel(p.basedOnId, S.proposals)) : txt(basedOnLabel(p.basedOnId, S.proposals)) },
     { key: 'leadSource', label: 'Source', display: txt(p.leadSource), control: sel('leadSource', p.leadSource || '', [['', 'Not set'], ...LEAD_SOURCES.map((x) => [x, x] as [string, string]), ...(p.leadSource && !LEAD_SOURCES.includes(p.leadSource) ? [[p.leadSource, p.leadSource] as [string, string]] : [])]) },
     { key: 'hubspot', label: 'In HubSpot', display: txt(p.hubspot), control: sel('hubspot', p.hubspot || '', [['', 'Not set'], ['Yes', 'Yes'], ['No', 'No']]) },
     { key: 'finance', label: 'Sent to finance', display: txt(p.finance), control: sel('finance', p.finance || '', [['', 'Not set'], ['Yes', 'Yes'], ['No', 'No']]) },
@@ -1016,6 +1020,8 @@ interface BuilderPrefill {
   currency?: string | null;
   businessEntityId?: number | null;
   contractMonths?: number | null;
+  /** The proposal these lines were copied from. */
+  basedOnId?: number | null;
 }
 
 let draftLines: CommercialLine[] = [];
@@ -1041,9 +1047,10 @@ export function openProposalBuilder(prefill: BuilderPrefill = {}): void {
   const form = document.getElementById('prb-form') as HTMLFormElement | null;
   form?.reset();
   draftLines = (prefill.lines || []).map((l, i) => ({ ...l, sortOrder: i }));
-  blocks = [emptyBlock(prefill.contractMonths ?? null)];
+  blocks = [{ ...emptyBlock(prefill.contractMonths ?? null), basedOnId: prefill.basedOnId ?? null }];
   activeBlock = 0;
   builderFolder = null;
+  fromOpen = false;
 
   const entity = entityById(prefill.businessEntityId) || defaultEntity();
   setOptions('prb-entity', S.businessEntities.filter((e) => e.active).map((e) => [String(e.id), `${e.name} (${e.currency})`]), entity ? String(entity.id) : '');
@@ -1195,7 +1202,9 @@ function renderServicePicker(): void {
     ? `<button type="button" class="prb-chip is-added" aria-disabled="true" data-tip="On this proposal · ${escHtml(tip(sv))}"><span class="prb-chip-dot" aria-hidden="true"></span>${escHtml(sv.name)}</button>`
     : `<button type="button" class="prb-chip" onclick="prbAddService(${sv.id})" data-tip="${escHtml(tip(sv))}">${icon('plus', 11)}${escHtml(sv.name)}</button>`;
   const quick = topServices();
-  top.innerHTML = `${quick.map(chip).join('')}<button type="button" class="btn-ghost btn-sm prb-browse" aria-expanded="${browseAll}" onclick="prbBrowseServices()">${browseAll ? 'Hide the list' : 'Browse all services'}</button>`;
+  top.innerHTML = `${quick.map(chip).join('')}<button type="button" class="btn-ghost btn-sm prb-browse" aria-expanded="${browseAll}" onclick="prbBrowseServices()">${browseAll ? 'Hide the list' : 'Browse all services'}</button>
+    <button type="button" class="btn-ghost btn-sm prb-browse" aria-expanded="${fromOpen}" onclick="prbStartFromToggle()" data-tip="Copy the services, prices, term and entity of a proposal already made, for any client">Start from a past proposal</button>`;
+  renderStartFrom();
   el.hidden = !browseAll;
   if (browseAll) {
     const groups = new Map<string, typeof S.services>();
@@ -1208,6 +1217,107 @@ function renderServicePicker(): void {
   }
   renderIcons(top); renderIcons(el);
 }
+
+// "Start from…": a past proposal's lines, term and entity (lib/startFrom.ts). The client and contact stay this form's.
+let fromOpen = false;
+let fromIndex = 0;
+
+const fromMatches = () => startFromMatches(S.proposals, val('prb-from-q'));
+
+function renderStartFrom(): void {
+  const box = document.getElementById('prb-from');
+  if (box) box.hidden = !fromOpen;
+  const line = document.getElementById('prb-from-line');
+  const basedOn = blocks[activeBlock]?.basedOnId ?? null;
+  if (line) {
+    line.hidden = basedOn == null;
+    line.innerHTML = basedOn == null ? '' : `<span>Started from ${escHtml(basedOnLabel(basedOn, S.proposals))}</span><button type="button" class="rlink" onclick="prbStartFromClear()" data-tip="The services stay; the new proposal just won’t say where it started">Clear</button>`;
+  }
+}
+
+function renderFromMenu(): void {
+  const menu = document.getElementById('prb-from-menu');
+  if (!menu) return;
+  const items = fromMatches();
+  menu.hidden = false;
+  document.getElementById('prb-from-q')?.setAttribute('aria-expanded', 'true');
+  menu.innerHTML = items.length ? items.map((p, i) => `<div class="company-selector-row prb-from-row${i === fromIndex ? ' active' : ''}" role="option" aria-selected="${i === fromIndex}" onmousedown="event.preventDefault();prbStartFrom(${p.id})">
+    <span class="company-selector-name">${escHtml(startFromTitle(p))}</span><span class="company-selector-sub">${escHtml(startFromSub(p))}</span></div>`).join('')
+    : `<div class="prb-from-none">No past proposal with services matches “${escHtml(val('prb-from-q'))}”.</div>`;
+}
+
+export function prbStartFromToggle(): void {
+  fromOpen = !fromOpen;
+  setVal('prb-from-q', '');
+  renderServicePicker();
+  if (fromOpen) document.getElementById('prb-from-q')?.focus();
+}
+expose('prbStartFromToggle', prbStartFromToggle);
+
+export function prbFromSearch(): void {
+  fromIndex = 0;
+  renderFromMenu();
+}
+expose('prbFromSearch', prbFromSearch);
+
+export function prbFromClose(): void {
+  const menu = document.getElementById('prb-from-menu'); if (menu) menu.hidden = true;
+  document.getElementById('prb-from-q')?.setAttribute('aria-expanded', 'false');
+}
+expose('prbFromClose', prbFromClose);
+
+export function prbFromKey(e: KeyboardEvent): void {
+  const items = fromMatches();
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    if (!items.length) return;
+    e.preventDefault();
+    fromIndex = (fromIndex + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
+    renderFromMenu();
+  } else if (e.key === 'Enter') {
+    e.preventDefault(); // never submits the form
+    if (items[fromIndex]) prbStartFrom(items[fromIndex].id);
+  } else if (e.key === 'Escape') {
+    e.stopPropagation();
+    fromOpen = false;
+    prbFromClose();
+    renderServicePicker();
+  }
+}
+expose('prbFromKey', prbFromKey);
+
+/** This proposal's services, term and entity become the picked proposal's; Undo puts back what was there. */
+export function prbStartFrom(id: number): void {
+  const src = S.proposals.find((x) => x.id === id);
+  if (!src) return;
+  const before = { lines: draftLines, months: val('prb-months'), entity: val('prb-entity'), currency: val('prb-currency'), basedOnId: blocks[activeBlock]?.basedOnId ?? null };
+  const put = (lines: CommercialLine[], months: string, entity: string, currency: string, basedOnId: number | null) => {
+    draftLines = lines;
+    const sel = document.getElementById('prb-months') as HTMLSelectElement | null;
+    if (sel && months && ![...sel.options].some((o) => o.value === months)) sel.add(new Option(`${months} months`, months));
+    setVal('prb-months', months);
+    if (entity) setVal('prb-entity', entity);
+    if (currency) setVal('prb-currency', currency);
+    blocks[activeBlock] = { lines: draftLines, contractMonths: months ? Number(months) : null, basedOnId };
+    renderServicePicker();
+    prbRefreshLines();
+    renderDefaultsLines();
+    renderBlocks();
+  };
+  const copy = startFromCopy(src, nextLineId());
+  // An entity that is no longer in use is not brought back: the form keeps its own.
+  const entity = S.businessEntities.find((e) => e.id === copy.businessEntityId && e.active);
+  fromOpen = false;
+  prbFromClose();
+  put(copy.lines, copy.contractMonths ? String(copy.contractMonths) : '', entity ? String(entity.id) : '', entity ? copy.currency || entity.currency : '', copy.basedOnId);
+  undoToast(`Started from ${startFromTitle(src)}`, () => put(before.lines, before.months, before.entity, before.currency, before.basedOnId), undefined, undefined, { detail: 'Its services, prices, term and entity. The client and contact are this proposal’s own.' });
+}
+expose('prbStartFrom', prbStartFrom);
+
+export function prbStartFromClear(): void {
+  if (blocks[activeBlock]) blocks[activeBlock].basedOnId = null;
+  renderStartFrom();
+}
+expose('prbStartFromClear', prbStartFromClear);
 
 export function prbBrowseServices(): void {
   browseAll = !browseAll;
@@ -1345,7 +1455,7 @@ expose('prbRefreshLines', prbRefreshLines);
 
 /** The active block, as the form shows it now. */
 function syncActiveBlock(): void {
-  blocks[activeBlock] = { lines: draftLines, contractMonths: val('prb-months') ? Number(val('prb-months')) : null };
+  blocks[activeBlock] = { ...blocks[activeBlock], lines: draftLines, contractMonths: val('prb-months') ? Number(val('prb-months')) : null };
 }
 
 function loadBlock(i: number): void {

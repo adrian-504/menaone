@@ -2802,6 +2802,12 @@ body.brief-open{overflow:hidden}
 .prb-top{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:10px 0 4px}
 .prb-top .prb-chip svg{color:var(--muted)}
 .prb-browse{margin-left:2px}
+.prb-from{position:relative;max-width:480px;margin:8px 0 2px}
+.prb-from[hidden],.prb-from-line[hidden]{display:none}
+.prb-from-row{flex-direction:column;align-items:flex-start;gap:1px}
+.prb-from-none{padding:8px 10px;font-size:var(--type-secondary);color:var(--sub)}
+.prb-from-line{display:flex;align-items:center;gap:10px;margin:8px 0 2px;font-size:var(--type-secondary);color:var(--sub)}
+.prb-from-line .rlink{font:inherit;background:none;border:none;padding:0;color:var(--accent);cursor:pointer}
 .prb-service-picker{margin-top:10px}
 #prb-lines:not(:empty){margin-top:12px}
 .prb-defaults{display:flex;align-items:center;gap:10px;color:var(--sub);font-size:var(--type-body);margin:2px 0 10px}

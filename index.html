@@ -1942,6 +1942,12 @@
           <div class="prb-service-menu" id="prb-service-menu" role="listbox" hidden></div>
         </div>
         <div class="prb-top" id="prb-top"></div>
+        <!-- Start from a past proposal (1.66): its lines, term and entity; never its client or contact. -->
+        <div class="prb-from" id="prb-from" hidden>
+          <input class="finp" id="prb-from-q" placeholder="Search past proposals by client or service…" role="combobox" aria-expanded="false" aria-controls="prb-from-menu" aria-autocomplete="list" oninput="prbFromSearch()" onfocus="prbFromSearch()" onkeydown="prbFromKey(event)" onblur="window.setTimeout(prbFromClose, 150)">
+          <div class="prb-service-menu" id="prb-from-menu" role="listbox" hidden></div>
+        </div>
+        <div class="prb-from-line" id="prb-from-line" hidden></div>
         <div class="prb-service-picker" id="prb-service-picker" hidden></div>
         <div id="prb-lines"></div>
         <div class="prb-blocks" id="prb-blocks-after" data-sort="prb-block-order" data-drop-value="after" data-sort-shift></div>
