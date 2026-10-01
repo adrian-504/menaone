@@ -1,7 +1,7 @@
 // Changing several proposals at once: what a status sets, the one date for the batch, shift-click ranges.
 import { describe, expect, it } from 'vitest';
 
-import { applyStatus, batchStartDate, BULK_STATUSES, rangeIds, statusDateLabel, statusNeedsDate, unreviewedNote } from './bulkProposals';
+import { applyStatus, batchStartDate, BULK_STATUSES, rangeIds, statusDateLabel, statusNeedsDate, unreviewedNote, defaultSender, sentByOther } from './bulkProposals';
 import { PS } from './commercial';
 import type { Proposal } from './types';
 
@@ -89,5 +89,36 @@ describe('selecting', () => {
   it('"Service started" for a batch is pre-filled with the latest signature date, else today', () => {
     expect(batchStartDate([{ dblSignedDate: '2026-09-22', dateSigned: '2026-09-20' }, { dblSignedDate: null, dateSigned: '2026-09-25' }], '2026-10-01')).toBe('2026-09-25');
     expect(batchStartDate([{ dblSignedDate: null, dateSigned: null }], '2026-10-01')).toBe('2026-10-01');
+  });
+});
+
+describe('who sent it (1.65)', () => {
+  const P = (over: Partial<Proposal>) => ({ id: 1, status: 'In Internal Review', ownerId: 1, revisions: [], ...over }) as unknown as Proposal;
+  it('marking as sent records who sent it when it was asked, and leaves it alone otherwise', () => {
+    const p = P({});
+    applyStatus(p, 'Sent to Client', '2026-10-01', { sentById: 2 });
+    expect([p.status, p.dateSentToClient, p.sentById]).toEqual(['Sent to Client', '2026-10-01', 2]);
+    const q = P({ sentById: 2 });
+    applyStatus(q, 'Sent to Client', '2026-10-01');
+    expect(q.sentById).toBe(2);
+    const r = P({});
+    applyStatus(r, 'Sent to Client', '2026-10-01', { sentById: null });
+    expect(r.sentById).toBeNull();
+    // Another status never sets it.
+    const s = P({ status: 'Drafting' });
+    applyStatus(s, 'In Internal Review', '2026-10-01', { sentById: 2 });
+    expect(s.sentById).toBeUndefined();
+  });
+  it('"sent by" is said only when it was not the owner', () => {
+    const name = (id: number) => ({ 1: 'Ahmad', 2: 'Hassan' } as Record<number, string>)[id] ?? null;
+    expect(sentByOther({ sentById: 2, ownerId: 1 }, name)).toBe('Hassan');
+    expect(sentByOther({ sentById: 1, ownerId: 1 }, name)).toBeNull();
+    expect(sentByOther({ sentById: null, ownerId: 1 }, name)).toBeNull();
+    expect(sentByOther({ ownerId: 1 }, name)).toBeNull();
+  });
+  it('the pre-pick for a batch: their owner when they share one, else the current user', () => {
+    expect(defaultSender([{ ownerId: 2 }, { ownerId: 2 }], 1)).toBe(2);
+    expect(defaultSender([{ ownerId: 2 }, { ownerId: 3 }], 1)).toBe(1);
+    expect(defaultSender([{ ownerId: null }], null)).toBeNull();
   });
 });

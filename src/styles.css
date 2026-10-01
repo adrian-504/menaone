@@ -1396,6 +1396,25 @@ body.dnd-active .board-column.drop-target{background:var(--accent-bg)!important}
 .notes-side-meetings{margin-top:8px}
 /* A revision's "was …" under a changed service. */
 /* The proposal page's follow-up log: one muted line per contact, hairline above. */
+/* 1.65: After the yes — a checklist in the proposal's right column. */
+.pr-yes-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.pr-yes-list li{display:flex;align-items:center;gap:8px;min-height:26px;font-size:var(--type-secondary);color:var(--sub)}
+.pr-yes-list li > i{flex:none;width:16px;height:16px;border-radius:50%;display:grid;place-items:center;box-shadow:inset 0 0 0 1.5px var(--border);color:var(--on-tile)}
+.pr-yes-list li.is-done > i{background:var(--green);box-shadow:none}
+.pr-yes-list li.is-done .pr-yes-l{color:var(--text)}
+.pr-yes-l{flex:1;min-width:0}
+.pr-yes-d{flex:none;font:500 11.5px var(--font-mono);color:var(--sub)}
+.pr-yes-m{flex:none;font-size:var(--type-meta);font-weight:500;color:var(--blue)}
+/* 1.65: an entry's optional details, and Edit on a logged entry. */
+.entry-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.entry-seg{display:flex}
+.entry-seg .seg-btn{flex:1;justify-content:center}
+.entry-also{margin-top:4px}
+.entry-delete{margin-right:auto}
+.pr-contact-list li{display:flex;align-items:baseline;gap:10px}
+.pr-contact-list li > span{min-width:0}
+.pr-contact-edit{flex:none;font-size:var(--type-meta);opacity:0}
+.pr-contact-list li:hover .pr-contact-edit,.pr-contact-edit:focus-visible{opacity:1}
 .pr-contact-list{list-style:none;margin:0;padding:8px 0 0;border-top:1px solid var(--hairline);color:var(--muted);font-size:var(--type-secondary);display:flex;flex-direction:column;gap:4px}
 .pr-contact-all{display:inline-block;margin-top:6px;font-size:var(--type-secondary)}
 .le-was{color:var(--muted);font-size:var(--type-secondary)}
@@ -3035,6 +3054,8 @@ body.dnd-active .drop-target{transition:background-color var(--dur-fast) var(--e
 /* 6. Undo: one at a time, bottom-left, 7 s; ⌘Z runs it. */
 .undo-stack{position:fixed;left:20px;bottom:20px;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none}
 body:not(:has(#sidebar.collapsed)) .undo-stack{left:250px}
+/* The cards sit above a selection bar, never over it. */
+body:has(.bulk-bar.open) .undo-stack{bottom:76px}
 .toast-undo .toast-action kbd{font:inherit;font-size:11px;opacity:.6;margin-left:4px}
 /* 7. Travelling focus: a keyboard move slides a focus ring to the new row (lib/motion.ts keyTravel). */
 .key-hl{position:absolute;top:0;left:0;z-index:2;pointer-events:none;opacity:0;border-radius:9px;box-shadow:inset 0 0 0 2px var(--accent-border);transition:transform var(--dur-fast) var(--ease-out),opacity var(--dur-fast) var(--ease-out)}
@@ -3511,6 +3532,27 @@ button.pk-st:focus-visible{outline:none;box-shadow:var(--shadow-focus)}
 .pk-group.is-archived{opacity:.75}
 .pk-list{container-type:inline-size}
 .pq-row.pk-row{display:grid;grid-template-columns:36px minmax(0,1fr) 200px 112px 104px 236px 28px;gap:16px;align-items:center;padding:12px 8px;border-radius:0;border-bottom:1px solid var(--hairline);box-shadow:none;transition:background-color var(--dur-fast) var(--ease-out)}
+/* Follow-up by request (1.65): a chip per service, the client's last word on a second line, and the request's
+   proposals under the row when it is opened. */
+.fr-row.pq-row.pk-row{padding-top:8px;padding-bottom:8px}
+.fr-row .pk-meta{line-height:1.35}
+.fr-chips{display:inline-flex;gap:6px;margin-left:10px;min-width:0;overflow:hidden}
+.fr-chip{flex:none;padding:1px 8px;border-radius:18px;background:var(--surface-2);font-size:11.5px;font-weight:500;color:var(--sub);white-space:nowrap}
+.fr-count{font:inherit;flex:none;display:inline-flex;align-items:center;gap:3px;margin-left:8px;padding:2px 6px;border:none;border-radius:6px;background:none;font-size:11.5px;font-weight:500;color:var(--blue);cursor:pointer}
+.fr-count:hover{background:var(--blue-50)}
+.fr-count:active{background:var(--surface-pressed)}
+.fr-count:focus-visible{outline:none;box-shadow:var(--shadow-focus)}
+.pk-meta.fr-word{margin-top:1px;color:var(--muted)}
+.fr-lines{min-width:0}
+.fr-row.is-open{border-bottom-color:transparent}
+.fr-members{margin:0 8px 8px 60px;padding:2px 0 8px;border-bottom:1px solid var(--hairline)}
+.fr-member{display:grid;grid-template-columns:minmax(0,240px) 64px 120px minmax(0,1fr) auto;gap:12px;align-items:center;min-height:30px;padding:0 10px;border-radius:6px;font-size:var(--type-secondary);color:var(--sub);cursor:pointer}
+.fr-member:hover{background:var(--panel-bg)}
+.fr-member:active{background:var(--surface-pressed)}
+.fr-member:focus-visible{outline:none;box-shadow:var(--shadow-focus)}
+.fr-member-t{font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fr-member-v{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pk-acts .btn-secondary.is-danger{color:var(--red)}
 /* Follow-up (1.64): the contact trail in the middle of the row, so a row is about 70 px, not 125. */
 #tab-followup .pq-row.pk-row{grid-template-columns:36px minmax(0,1fr) minmax(200px,270px) 112px 110px 300px 28px}
 .pk-mid{min-width:0;padding:0 26px}
@@ -3554,8 +3596,11 @@ button.pk-st:focus-visible{outline:none;box-shadow:var(--shadow-focus)}
   .pq-row.pk-row,#tab-followup .pq-row.pk-row{grid-template-columns:36px minmax(0,1fr) 104px 96px 28px;gap:6px 14px}
   .pk-who{display:none}
   .pk-row .pk-acts{grid-column:2 / 5;grid-row:2;justify-content:flex-start}
-  /* Follow-up: three lines — title, meta, then the trail (half its height, without its dates) with the buttons at
-     its right. The value and age columns size to fit the buttons under them. */
+  /* Follow-up: three lines — title, meta with the client's last word on the same line, then the trail (half its
+     height, without its dates) with the buttons at its right. The value and age columns size to fit the buttons. */
+  .fr-lines{display:flex;gap:6px;white-space:nowrap;overflow:hidden}
+  .fr-lines .pk-meta{flex:0 1 auto;min-width:0;margin-top:2px}
+  .fr-lines .fr-word::before{content:"· "}
   #tab-followup .pq-row.pk-row.has-mid{grid-template-columns:36px minmax(0,1fr) auto auto 28px}
   .pk-row .pk-mid{grid-column:2;grid-row:2;align-self:center;padding:0 6px}
   .pk-mid .pk-trail{height:14px;max-width:520px;margin:0}
@@ -3573,6 +3618,8 @@ button.pk-st:focus-visible{outline:none;box-shadow:var(--shadow-focus)}
   .pk-row.has-mid .pk-acts{grid-column:2 / 4;grid-row:3;justify-content:flex-start}
 }
 @media (max-width:1280px){.pk-st-d{white-space:normal}}
+/* Follow-up's strip has five panels; under 1,280 "not yet due" goes, so the total's figure is never clipped. */
+@media (max-width:1280px){#fu-strip .pk-strip[style*="--cols:5"]{grid-template-columns:1.1fr repeat(3,1fr)}#fu-strip .pk-strip[style*="--cols:5"] .pk-st[data-key="waiting"]{display:none}}
 
 /* The contact trail (Follow-up): sent, each touch, today, the offer expiry. */
 .pk-trail{position:relative;height:30px;max-width:520px;margin:8px 6px 0 4px}

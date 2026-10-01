@@ -1,23 +1,25 @@
 import { proposalCascade } from '../lib/chromeKit';
 import { nudgeTip } from '../lib/pagesQueues';
-import { applyStatus } from '../lib/bulkProposals';
+import { applyStatus, defaultSender } from '../lib/bulkProposals';
 import { collapseRow, collapseRows } from '../lib/motion';
 import { backInDays, lastTouch, FOLLOW_UP_AFTER_DAYS, WAIT_LONGER_DAYS, type LastTouch } from '../lib/followup';
 import { ownDomains } from '../lib/clientMatch';
 import { S } from '../lib/state';
 import { STATUSES, WIN_REASONS, LOSS_REASONS } from '../lib/constants';
-import { today, fmtDate, daysSince, daysUntil, escHtml, expose, showTextPrompt, showConfirm, localIsoDate } from '../lib/utils';
+import { today, fmtDate, daysSince, daysUntil, escHtml, expose, showTextPrompt, showConfirm, showDateChoicePrompt, localIsoDate } from '../lib/utils';
 import { matchesProposalPeriod } from '../lib/period';
 import { persistProposals, saved } from '../lib/persist';
 import { registerBadgeUpdater, refreshAll, getActiveTabId, renderTab } from '../lib/registry';
 import { toast, undoToast } from '../lib/ui';
-import { optimistic } from '../lib/optimistic';
 import { draftAgreementsFromProposals } from './agreements';
-import { PS, stageIndex, isLost, isWithdrawn, defaultReviewer, teamMember, renewalsDue, activeMrr, pipelineMonthly, fmtMoneyByCurrency } from '../lib/commercial';
+import { PS, stageIndex, isLost, isWithdrawn, defaultReviewer, teamMember, activeTeam, renewalsDue, activeMrr, pipelineMonthly, fmtMoneyByCurrency } from '../lib/commercial';
 import { applyRevisionRequest, applyRevisionSent } from '../lib/revisions';
-import { activityForget, activityLog, activityRemove, touchesAdd, touchesDelete } from '../lib/db';
+import { activityForget, activityLog, activityRemove } from '../lib/db';
 import { showMenuAt, type ContextMenuItem } from '../lib/contextMenu';
-import type { Proposal, Touch, TouchKind } from '../lib/types';
+import type { Proposal, TouchKind } from '../lib/types';
+import { logEntry, withSentWith } from './followLog';
+import { buildRequest, requestKey, sentWith, type RequestBucket } from '../lib/followRequests';
+import { fmtDateShort } from '../lib/dates';
 
 // ═══════════════ PERSISTENCE / LOAD ═══════════════
 
@@ -51,43 +53,22 @@ export function proposalLastTouch(p: Proposal): LastTouch | null {
 
 // ═══════════════ FOLLOW-UP TOUCHES ═══════════════
 
-const TOUCH_WORD: Record<TouchKind, string> = { email_out: 'email', email_in: 'email', call: 'call', whatsapp: 'WhatsApp', meeting: 'meeting' };
-
-/** One click from Follow-up or the proposal page: an email, call, WhatsApp or
- * meeting with the client today, ours or theirs, with the primary contact.
- * No dialog; the toast offers Undo. */
+/** One click from Follow-up or the proposal page: an email, call, WhatsApp or meeting with the client today, ours or
+ * theirs. No dialog; the toast offers Undo. It is written on the proposal and on the others sent with it (the same
+ * request), as one entry (core/followLog.ts). */
 export async function logTouch(proposalId: number, kind: TouchKind, direction: 'out' | 'in' = 'out'): Promise<void> {
-  const p = S.proposals.find((x) => x.id === proposalId);
-  if (!p) return;
-  const draft = { proposalId, companyId: p.companyId ?? null, kind, direction, at: today(), contactId: p.primaryContactId ?? null };
-  // Shown at once with a stand-in id; the saved row replaces it (delight 2: optimistic).
-  const temp = { ...draft, id: -Date.now(), subject: null, source: 'manual', sourceId: null, createdAt: new Date().toISOString() } as unknown as Touch;
-  const redraw = () => { updateBadge(); refreshAll(); if (S.currentProposalId === proposalId) (window as any).renderProposalPage?.(); };
-  const t = await optimistic({
-    apply: () => { S.touches = [...S.touches, temp]; redraw(); },
-    commit: () => touchesAdd(draft),
-    revert: () => { S.touches = S.touches.filter((x) => x.id !== temp.id); redraw(); },
-  });
-  if (!t) return;
-  S.touches = [...S.touches.filter((x) => x.id !== temp.id && x.id !== t.id), t];
-  redraw();
-  const what = direction === 'in' ? `client replied by ${TOUCH_WORD[kind]} today` : `${TOUCH_WORD[kind]} today`;
-  undoToast(`Logged: ${what}`, () => { void undoTouch(t.id); });
+  await logEntry({ ids: withSentWith(proposalId), kind, direction });
+  updateBadge();
 }
 expose('logTouch', logTouch);
 
-async function undoTouch(id: number): Promise<void> {
-  await touchesDelete(id);
-  S.touches = S.touches.filter((t) => t.id !== id);
-  updateBadge();
-  refreshAll();
-  (window as any).renderProposalPage?.();
-}
-
-/** "Followed up ▾": what we did, and below, how the client replied. */
-export function followUpMenu(e: MouseEvent, proposalId: number): void {
+/** "Followed up ▾": what we did, and below, how the client replied — one click each. "Add details…" is for the
+ * rest (another day, who did it, what was said, "will revert after"): optional, never asked for. `target` is one
+ * proposal (the others sent with it are included) or the proposals themselves. */
+export function followUpMenu(e: MouseEvent, target: number | number[]): void {
   e.stopPropagation();
-  const log = (kind: TouchKind, direction: 'out' | 'in' = 'out') => () => { void logTouch(proposalId, kind, direction); };
+  const ids = Array.isArray(target) ? target : withSentWith(target);
+  const log = (kind: TouchKind, direction: 'out' | 'in' = 'out') => () => { void logEntry({ ids, kind, direction }).then(() => updateBadge()); };
   const items: ContextMenuItem[] = [
     { label: 'Followed up', heading: true, run: () => {} },
     { label: 'Email', run: log('email_out') },
@@ -100,18 +81,24 @@ export function followUpMenu(e: MouseEvent, proposalId: number): void {
     { label: 'Call', run: log('call', 'in') },
     { label: 'WhatsApp', run: log('whatsapp', 'in') },
     { label: '', run: () => {}, separator: true },
-    // What the client said, in words: the proposal's follow-up note.
-    { label: 'Log a note…', iconName: 'note', run: () => openNotesModal(proposalId, 'followup') },
+    // The optional details: another day, who did it, what was said, "will revert after".
+    { label: 'Add details…', iconName: 'edit', run: () => (window as any).openEntryDialog?.(ids) },
   ];
   showMenuAt(e.currentTarget as HTMLElement, items);
 }
 expose('followUpMenu', followUpMenu);
 
-/** Sent to the client, and nothing with them for over 10 days. */
+/** Where a sent proposal's request sits on Follow-up (lib/followRequests.ts): to decide, due a follow-up, or
+ * waiting. Null when it is not with the client. One rule for the page, the badge, the proposal's header and lists. */
+export function followBucketOf(p: Proposal): RequestBucket | null {
+  if (p.archived || p.status !== PS.SENT) return null;
+  return buildRequest([p, ...sentWith(p, S.proposals)], { today: today(), emails: S.emails, meetings: S.meetings, ownDomains: ownDomains(), touches: S.touches, contactName: contactFirstName }).bucket;
+}
+
+/** Due a follow-up: over ten days since the last contact, and the last word was ours. Not while the client's reply
+ * stands, they said they will revert, a meeting is booked, or the request is up for a decision. */
 export function needsFollowUp(p: Proposal): boolean {
-  if (p.archived || p.status !== PS.SENT) return false;
-  const t = proposalLastTouch(p);
-  return !!t && t.days > FOLLOW_UP_AFTER_DAYS;
+  return followBucketOf(p) === 'due';
 }
 
 /** Sent proposals put aside until a date — including ones just logged, whose
@@ -134,7 +121,10 @@ export function updateBadge(): void {
   const fu = getFollowups();
   const el = document.getElementById('fu-badge');
   const al = document.getElementById('fu-alert');
-  if (el) { el.textContent = String(fu.length); el.style.display = fu.length > 0 ? '' : 'none'; }
+  // The sidebar counts what Follow-up asks for: the requests due a follow-up and the ones to decide (a request of
+  // three proposals is one).
+  const asking = new Set(S.proposals.filter((p) => !isSnoozed(p) && matchesProposalPeriod(p) && ['due', 'decide'].includes(followBucketOf(p) ?? '')).map(requestKey)).size;
+  if (el) { el.textContent = String(asking); el.style.display = asking > 0 ? '' : 'none'; }
   if (al) {
     if (fu.length > 0) {
       al.style.display = '';
@@ -168,11 +158,11 @@ registerBadgeUpdater(updateBadge);
 
 /** Records a status change with the dates and review state that go with it.
  * No questions asked — use changeProposalStatus from the UI. */
-export function updateStatus(id: number, newStatus: string): void {
+export function updateStatus(id: number, newStatus: string, o: { date?: string; sentById?: number | null } = {}): void {
   const p = S.proposals.find((x) => x.id === id);
   if (!p || p.status === newStatus) return;
   // What the status sets (review asked, the day sent, the day signed) is one rule, shared with the batch change.
-  const { revisionSent } = applyStatus(p, newStatus, today(), { defaultReviewerId: defaultReviewer()?.id ?? null });
+  const { revisionSent } = applyStatus(p, newStatus, o.date || today(), { defaultReviewerId: defaultReviewer()?.id ?? null, explicit: !!o.date, sentById: o.sentById });
   persistProposals();
   updateBadge();
   refreshAll();
@@ -197,8 +187,41 @@ export async function changeProposalStatus(id: number, newStatus: string): Promi
     const ok = await showConfirm(`${reviewer} hasn't approved this proposal in MENA One yet. Every proposal is reviewed before it goes to the client.\n\nMark it as sent anyway?`, { title: 'Not reviewed yet', confirmLabel: 'Mark as sent' });
     if (!ok) return false;
   }
+  // Marking one proposal sent is one click: today, sent by its owner. The toast undoes it, and "Change day or sender"
+  // opens the one question for the rest (owner, 1-Oct-2026: the common case is one click, details are optional).
+  if (newStatus === PS.SENT) {
+    const restore = snapshotProposal(p);
+    updateStatus(id, newStatus, { sentById: p.ownerId ?? null });
+    const undo = () => { restore(); if (S.currentProposalId === id) (window as any).renderProposalPage?.(); };
+    undoToast(`${p.client}: marked as sent today`, undo, undefined, { label: 'Change day or sender', run: () => { void changeSent(id, restore); } });
+    return true;
+  }
   updateStatus(id, newStatus);
   return true;
+}
+
+/** "Change day or sender" on a proposal just marked sent: the one question (the day, and who sent it), then the
+ * send is redone with the answer. Cancelled, it stays as it was marked. */
+async function changeSent(id: number, restore: () => void): Promise<void> {
+  const p = S.proposals.find((x) => x.id === id);
+  if (!p) return;
+  const sent = await askSent({ title: `${p.client} — sent to the client`, label: `The day ${p.type || 'it'} was sent`, confirmLabel: 'Save' }, [p]);
+  if (!sent) return;
+  restore();
+  updateStatus(id, PS.SENT, sent);
+  if (S.currentProposalId === id) (window as any).renderProposalPage?.();
+  undoToast(`${p.client}: sent ${fmtDateShort(sent.date, true)}`, () => { restore(); if (S.currentProposalId === id) (window as any).renderProposalPage?.(); });
+}
+
+/** "The day it was sent" and "Sent by" in one question, for one proposal or a batch. Null when cancelled. */
+export async function askSent(q: { title: string; label: string; confirmLabel: string; note?: string | null }, picked: Pick<Proposal, 'ownerId'>[]): Promise<{ date: string; sentById: number | null } | null> {
+  const team = activeTeam();
+  const pick = defaultSender(picked, S.currentUserId);
+  const answer = await showDateChoicePrompt({
+    ...q, defaultValue: today(),
+    choice: { label: 'Sent by', options: [{ value: '', label: 'Not recorded' }, ...team.map((m) => ({ value: String(m.id), label: m.name }))], value: pick != null && team.some((m) => m.id === pick) ? String(pick) : '' },
+  });
+  return answer ? { date: answer.date, sentById: answer.choice ? Number(answer.choice) : null } : null;
 }
 expose('changeProposalStatus', changeProposalStatus);
 
@@ -501,8 +524,14 @@ export interface OutcomeDialog {
   subtitle: string;
   withDate: boolean;
   date?: string | null;
+  /** What the date is ("Date signed by both parties" unless said). */
+  dateLabel?: string;
+  /** A loss may say who it was lost to. */
+  withLostTo?: boolean;
+  /** The reason picked when it opens ("Client unresponsive" from Follow-up's Decide). */
+  reason?: string;
   /** Reason is required for a loss. */
-  onConfirm: (result: { reason: string; note: string; date: string }) => void;
+  onConfirm: (result: { reason: string; note: string; date: string; lostTo: string }) => void;
 }
 
 let outcome: OutcomeDialog | null = null;
@@ -515,8 +544,11 @@ export function openOutcomeDialog(dialog: OutcomeDialog): void {
   const clientEl = document.getElementById('wl-client'); if (clientEl) clientEl.textContent = dialog.subtitle;
   const lblEl = document.getElementById('wl-reason-lbl'); if (lblEl) lblEl.textContent = isWon ? 'Why did we win it?' : 'Why was it lost?';
   const reasons = isWon ? WIN_REASONS : LOSS_REASONS;
-  const reasonSel = document.getElementById('wl-reason'); if (reasonSel) reasonSel.innerHTML = `<option value="">Choose a reason…</option>` + reasons.map((r) => `<option value="${escHtml(r)}">${escHtml(r)}</option>`).join('');
+  const reasonSel = document.getElementById('wl-reason'); if (reasonSel) reasonSel.innerHTML = `<option value="">Choose a reason…</option>` + reasons.map((r) => `<option value="${escHtml(r)}"${r === dialog.reason ? ' selected' : ''}>${escHtml(r)}</option>`).join('');
   const dateWrap = document.getElementById('wl-date-grp'); if (dateWrap) dateWrap.hidden = !dialog.withDate;
+  const dateLbl = document.getElementById('wl-date-lbl'); if (dateLbl) dateLbl.textContent = dialog.dateLabel || 'Date signed by both parties';
+  const lostToWrap = document.getElementById('wl-lostto-grp'); if (lostToWrap) lostToWrap.hidden = !dialog.withLostTo;
+  const lostToEl = document.getElementById('wl-lostto') as HTMLInputElement | null; if (lostToEl) lostToEl.value = '';
   const dateEl = document.getElementById('wl-date') as HTMLInputElement | null; if (dateEl) dateEl.value = dialog.date || today();
   const btn = document.getElementById('wl-confirm-btn') as HTMLButtonElement | null;
   if (btn) { btn.textContent = isWon ? 'Mark as won' : 'Mark as lost'; btn.classList.toggle('btn-danger', !isWon); }
@@ -525,36 +557,65 @@ export function openOutcomeDialog(dialog: OutcomeDialog): void {
   reasonSel?.focus();
 }
 
-export function openWlModal(id: number, mode: 'won' | 'lost'): void {
+/** What a loss sets on a proposal: the status, the reason, the day it was lost (back-datable), who it was lost to
+ * when known, and its "[LOST: …]" note on that day. A snooze or "keep" on it ends. */
+export function applyLost(p: Proposal, r: { reason: string; note?: string; date: string; lostTo?: string }): void {
+  p.status = PS.LOST;
+  p.winLossReason = r.reason || null;
+  p.lostAt = r.date;
+  p.lostTo = r.lostTo?.trim() || null;
+  p.snoozedUntil = null;
+  p.keepReason = null;
+  p.keepUntil = null;
+  p.notes = [...(p.notes || []), { id: Date.now() + p.id, date: r.date, text: `[LOST${r.reason ? `: ${r.reason}` : ''}]${r.note ? ` ${r.note}` : ''}` }];
+}
+
+/** Signed by both, or lost. A loss asks for the reason, the day (today unless back-dated) and, optionally, who it
+ * was lost to. `ids` closes several proposals as lost together (a request from Follow-up), with one undo. */
+export function openWlModal(id: number, mode: 'won' | 'lost', o: { ids?: number[]; reason?: string } = {}): void {
   const p = S.proposals.find((x) => x.id === id);
   if (!p) return;
   const isWon = mode === 'won';
+  const ids = !isWon && o.ids?.length ? o.ids : [id];
+  const many = S.proposals.filter((x) => ids.includes(x.id));
   openOutcomeDialog({
     mode,
-    title: isWon ? 'Signed by both parties' : 'Mark as lost',
-    subtitle: `${p.client} — ${p.type || 'Proposal'}`,
-    withDate: isWon,
-    date: p.dblSignedDate,
-    onConfirm: ({ reason, note, date }) => {
-      if (isWon) {
-        p.dblSignedDate = date;
-        if (!p.dateSigned) p.dateSigned = date;
+    title: isWon ? 'Signed by both parties' : many.length > 1 ? `Close ${many.length} proposals as lost` : 'Mark as lost',
+    subtitle: many.length > 1
+      ? (new Set(many.map((x) => x.client)).size > 1 ? `${many.length} proposals for ${new Set(many.map((x) => x.client)).size} clients` : `${p.client} — ${many.map((x) => x.type || 'Proposal').join(', ')}`)
+      : `${p.client} — ${p.type || 'Proposal'}`,
+    withDate: true,
+    date: isWon ? p.dblSignedDate : today(),
+    dateLabel: isWon ? undefined : 'The day it was lost',
+    withLostTo: !isWon,
+    reason: o.reason,
+    onConfirm: ({ reason, note, date, lostTo }) => {
+      if (!isWon) {
+        const before = many.map((x) => [x, structuredClone(x)] as const);
+        many.forEach((x) => applyLost(x, { reason, note, date, lostTo }));
+        persistProposals();
+        updateBadge();
+        refreshAll();
+        if (S.currentProposalId != null && ids.includes(S.currentProposalId)) (window as any).renderProposalPage?.();
+        undoToast(many.length > 1 ? `Marked lost: ${many.length} proposals` : 'Marked as lost', () => {
+          for (const [x, copy] of before) { for (const k of Object.keys(x)) if (!(k in copy)) delete (x as unknown as Record<string, unknown>)[k]; Object.assign(x, copy); }
+          persistProposals(); updateBadge(); refreshAll(); (window as any).renderProposalPage?.();
+        });
+        return;
       }
-      p.status = isWon ? PS.WON : PS.LOST;
+      p.dblSignedDate = date;
+      if (!p.dateSigned) p.dateSigned = date;
+      p.status = PS.WON;
       p.winLossReason = reason || null;
       p.snoozedUntil = null;
       if (note || reason) {
         if (!p.notes) p.notes = [];
-        p.notes.push({ id: Date.now(), date: today(), text: `[${isWon ? 'WON' : 'LOST'}${reason ? `: ${reason}` : ''}]${note ? ` ${note}` : ''}` });
+        p.notes.push({ id: Date.now(), date: today(), text: `[WON${reason ? `: ${reason}` : ''}]${note ? ` ${note}` : ''}` });
       }
       persistProposals();
       updateBadge();
       refreshAll();
-      toast(isWon ? 'Marked as won' : 'Marked as lost', {
-        tone: isWon ? 'success' : 'neutral',
-        detail: isWon ? 'No agreement was created.' : undefined,
-        action: isWon ? { label: 'Draft agreement', run: () => { void draftAgreementsFromProposals(); } } : undefined,
-      });
+      toast('Marked as won', { tone: 'success', detail: 'No agreement was created.', action: { label: 'Draft agreement', run: () => { void draftAgreementsFromProposals(); } } });
     },
   });
 }
@@ -573,9 +634,10 @@ export function confirmWinLoss(): void {
   if (outcome.mode === 'lost' && !reason) { toast('Choose why it was lost', { tone: 'error' }); reasonSel?.focus(); return; }
   const note = ((document.getElementById('wl-note') as HTMLTextAreaElement | null)?.value || '').trim();
   const date = (document.getElementById('wl-date') as HTMLInputElement | null)?.value || today();
+  const lostTo = outcome.withLostTo ? ((document.getElementById('wl-lostto') as HTMLInputElement | null)?.value || '').trim() : '';
   const current = outcome;
   closeWlModal();
-  current.onConfirm({ reason, note, date });
+  current.onConfirm({ reason, note, date, lostTo });
 }
 expose('confirmWinLoss', confirmWinLoss);
 

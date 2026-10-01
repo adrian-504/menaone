@@ -5,14 +5,13 @@
 // at 1 Oct 2026 14:05. SIZE=1680x1020 (default) or 1080x940, THEME=dark,
 // ONLY=pending to take one.
 // `FOCUS_URL=http://localhost:1420/ OUT=/tmp/shots node scripts/pages-shots.mjs`
-import { spawn } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { cachePath, launchChrome, sleep } from './lib/chrome.mjs';
 
 const URL = process.env.FOCUS_URL || 'http://localhost:1420/';
 const CHROME = process.env.CHROME || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
-const OUT = process.env.OUT || join(tmpdir(), 'pages-shots');
+const OUT = process.env.OUT || cachePath('shots', 'pages-shots');
 const THEME = process.env.THEME || 'light';
 
 // [name, clock (local), set-up]
@@ -20,6 +19,9 @@ const CLOCK = '2026-10-01T14:05:00';
 const SHOTS = [
   ['pending', CLOCK, "navToModule('pending')"],
   ['followup', CLOCK, "navToModule('followup')"],
+  ['followup-open', CLOCK, "navToModule('followup'), new Promise(r => setTimeout(r, 300)).then(() => fuToggle(10))"],
+  ['followup-ticked', CLOCK, "navToModule('followup'), new Promise(r => setTimeout(r, 300)).then(() => [...document.querySelectorAll('#fu-list .fr-row .pk-chk input')].slice(1, 3).forEach((b) => b.click()))"],
+  ['followup-details', CLOCK, "navToModule('followup'), new Promise(r => setTimeout(r, 300)).then(() => { openEntryDialog([10]); entryDirection('in'); })"],
   ['proposals', CLOCK, "navToModule('database')"],
   ['opportunities', CLOCK, "navToModule('opportunities')"],
   ['companies', CLOCK, "navToModule('companies'), setCoListView('list')"],
@@ -36,18 +38,7 @@ const SHOTS = [
   ['services-templates', CLOCK, "navToModule('pricing'), setServicesView('templates')"],
 ].filter(([n]) => !process.env.ONLY || process.env.ONLY.split(',').includes(n));
 
-const port = 9700 + Math.floor(Math.random() * 100);
-const chrome = spawn(CHROME, ['--headless=new', `--remote-debugging-port=${port}`, `--user-data-dir=${mkdtempSync(join(tmpdir(), 'pages-'))}`, '--hide-scrollbars', 'about:blank'], { stdio: 'ignore' });
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-let target;
-for (let i = 0; i < 60 && !target; i++) { await sleep(200); try { target = (await (await fetch(`http://127.0.0.1:${port}/json`)).json()).find((t) => t.type === 'page'); } catch {} }
-if (!target) { console.error('Chrome did not start'); process.exit(2); }
-const ws = new WebSocket(target.webSocketDebuggerUrl);
-await new Promise((r) => ws.addEventListener('open', r));
-let id = 0; const pending = new Map();
-ws.addEventListener('message', (e) => { const m = JSON.parse(e.data); if (m.id && pending.has(m.id)) { pending.get(m.id)(m); pending.delete(m.id); } });
-const send = (method, params = {}) => new Promise((r) => { const i = ++id; pending.set(i, r); ws.send(JSON.stringify({ id: i, method, params })); });
-const evalJs = async (expr) => (await send('Runtime.evaluate', { expression: expr, awaitPromise: true, returnByValue: true })).result?.result?.value;
+const { send, evalJs, close } = await launchChrome('pages-shots', { port: 9700 + Math.floor(Math.random() * 90) });
 
 mkdirSync(OUT, { recursive: true });
 await send('Page.enable');
@@ -75,5 +66,4 @@ for (const tint of ['blue']) {
     console.log(file);
   }
 }
-ws.close();
-chrome.kill();
+await close();

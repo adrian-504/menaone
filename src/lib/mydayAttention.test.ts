@@ -1,7 +1,7 @@
 // Needs your attention, 1.64 (owner, 1-Oct-2026): what only you can move
 // today, in a fixed order, never a client listed for a lack of contact.
 import { describe, it, expect } from 'vitest';
-import { AFTER_SIGNED_DAYS, TIER, buildAttention, buildTimeline, inRail, shownAttentionKeys, type MyDayInput } from './myday';
+import { AFTER_SIGNED_DAYS, NO_AGREEMENT_WITHIN_DAYS, TIER, buildAttention, buildTimeline, inRail, shownAttentionKeys, type MyDayInput } from './myday';
 import { buildInPlay } from './mydayFocus';
 import type { Agreement, Commitment, Meeting, Opportunity, Proposal, Todo } from './types';
 
@@ -157,9 +157,25 @@ describe('needs your attention: length', () => {
   });
 
   it('signed proposals with no agreement fold into one row once there are more than two', () => {
-    const won = [1, 2, 3, 4, 5, 6, 7, 8, 9].map((id) => proposal({ id, client: `Co ${id}`, status: 'Signed by Both Parties', dblSignedDate: '2026-08-01', serviceStartedAt: '2026-08-02' }));
+    const won = [1, 2, 3, 4, 5, 6, 7, 8, 9].map((id) => proposal({ id, client: `Co ${id}`, status: 'Signed by Both Parties', dblSignedDate: '2026-09-01', serviceStartedAt: '2026-09-02' }));
     const items = buildAttention(input({ proposals: won }));
     expect(items.map((x) => [x.key, x.title])).toEqual([['group:no-agreement', '9 signed proposals with no agreement yet']]);
+  });
+
+  it('"no agreement yet" is never a permanent row: only for proposals signed in the last 60 days', () => {
+    const signed = (dbl: string, over: Partial<Proposal> = {}) => keys(input({ proposals: [proposal({ id: 1, status: 'Signed by Both Parties', dblSignedDate: dbl, serviceStartedAt: dbl, ...over })] }));
+    expect(NO_AGREEMENT_WITHIN_DAYS).toBe(60);
+    expect(signed('2026-08-02')).toEqual(['proposal:1:no-agreement']); // 60 days ago
+    expect(signed('2026-08-01')).toEqual([]); // 61 days ago
+    expect(signed('2025-11-01')).toEqual([]);
+    // A service that never started is still raised, however long ago it was signed.
+    expect(signed('2025-11-01', { serviceStartedAt: null })).toEqual(['proposal:1:not-started']);
+  });
+
+  it('flagged emails: one that is due is raised; a count of those with no date is not', () => {
+    const mail = (id: number, due: string | null) => ({ id, subject: `Mail ${id}`, senderEmail: 'omar@acme.test', senderName: 'Omar', receivedAt: '2026-09-28T09:00:00Z', flagStatus: 'flagged', flagDueAt: due, companyId: null, companyName: null }) as never;
+    expect(keys(input({ emails: [mail(1, `${TODAY}T09:00:00`), mail(2, null), mail(3, null)] }))).toEqual(['email:1:due']);
+    expect(keys(input({ emails: [mail(2, null), mail(3, null)] }))).toEqual([]);
   });
 
   it('seven rows show; the rest wait behind "N more"; a folded row counts as one', () => {

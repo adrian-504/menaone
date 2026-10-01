@@ -63,6 +63,18 @@ export interface Proposal {
   lastSentAt?: string | null;
   /** The day the service started, once signed by both (migration 44). Null = not started yet. */
   serviceStartedAt?: string | null;
+  /** Who sent it to the client (1.65). Not set reads as the owner. */
+  sentById?: number | null;
+  /** The day the client said yes, before any signature (1.65). */
+  acceptedAt?: string | null;
+  /** The day the engagement letter went out (1.65). */
+  engagementLetterSentAt?: string | null;
+  /** The day it was lost, back-datable (1.65); the reason is `winLossReason`. */
+  lostAt?: string | null;
+  lostTo?: string | null;
+  /** Follow-up's "Keep with a reason" (1.65): why, and the day it may be asked about again. */
+  keepReason?: string | null;
+  keepUntil?: string | null;
   revisions?: ProposalRevision[];
 }
 
@@ -83,6 +95,14 @@ export interface Touch {
   source: 'manual' | 'outlook';
   sourceId: string | null;
   createdAt: string;
+  /** Who did it (1.65). Not set: not recorded — a one-click "Followed up" says only the day. */
+  byMemberId?: number | null;
+  /** One optional line for what was said. */
+  note?: string | null;
+  /** Shared by the rows written as one entry across several proposals: it is edited and deleted as one. */
+  batchId?: string | null;
+  /** On a client's reply: "will revert after" this day. The proposal is not due a follow-up until then. */
+  revertAfter?: string | null;
 }
 
 /** Backups, the database check and install backups, for Settings → Data (housekeeping.rs). */

@@ -3,6 +3,10 @@
 One entry per install, newest first: the version, the day it was installed, and in two lines what changed.
 Settings → Data shows the last five. `scripts/release-check.mjs` refuses a build whose version has no entry here.
 
+## 1.65 — 2026-10-01
+Follow-up is by client and request: several proposals sent together are one row with the client's last word, who followed up last and how; a client's reply stops the clock; a Decide group asks to close, keep or snooze what has had no word for 60 days; several requests can be ticked and logged at once.
+"Followed up" is still one click, with optional details (day, who, channel, a line) you can edit later; Mark as sent asks who sent it; marking lost takes its day and who it was lost to; a proposal shows an "After the yes" checklist; Follow-up's menu copies a status list for Hassan.
+
 ## 1.64 — 2026-10-01
 Your notes on 1.63: My Day always shows the proposals with Hassan, and Needs your attention lists only what you can move today, in a fixed order, seven rows at most; nothing anywhere flags a client or a person for a lack of contact (Companies counts agreements to decide instead, Contacts the companies with no contact person).
 Tasks' groups sit on faint bands, Projects are compact cards (five on a screen), Meetings has a Past meetings header, Contacts has a Position column, Follow-up rows are half as tall, Generate proposal leads a proposal with no deck, a row action keeps your place on the page, and every notice is the same card as an undo.

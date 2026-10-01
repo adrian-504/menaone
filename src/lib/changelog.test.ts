@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import changelogMd from '../../CHANGELOG.md?raw';
 import packageJson from '../../package.json?raw';
 import { parseChangelog, shortVersion, versionLine } from './changelog';
-import { checkRelease } from '../../scripts/release-check.mjs';
+import { checkRelease, checkScripts } from '../../scripts/release-check.mjs';
 import { buildAttention, type MyDayInput } from './myday';
 
 const MD = `# MENA One — changes
@@ -60,5 +60,25 @@ describe('My Day and the database check', () => {
     const rows = buildAttention(input({ integrityFailed: true, inboxCount: 2 }));
     expect(rows[0]).toMatchObject({ key: 'db:integrity', tone: 'red', title: 'Database check failed — back up and tell Ahmad' });
     expect(buildAttention(input({ integrityFailed: false })).some((r) => r.key === 'db:integrity')).toBe(false);
+  });
+});
+
+describe('scripts launch Chrome one way (1-Oct-2026: profiles left in the temp folder filled the disk)', () => {
+  it('fails any script that makes its own Chrome profile or temp folder', () => {
+    const errors = checkScripts([
+      ['scripts/lib/chrome.mjs', "const args = ['--user-data-dir=' + profile]"],
+      ['scripts/pages-shots.mjs', "import { launchChrome } from './lib/chrome.mjs';"],
+      ['scripts/bad-shots.mjs', "spawn(CHROME, ['--user-data-dir=' + mkdtempSync(join(tmpdir(), 'bad-'))])"],
+    ]);
+    expect(errors).toHaveLength(2);
+    expect(errors[0]).toContain('scripts/bad-shots.mjs uses "user-data-dir"');
+    expect(errors[1]).toContain('scripts/bad-shots.mjs uses "mkdtemp"');
+  });
+  it('passes the scripts in the repo', () => {
+    const found = import.meta.glob('../../scripts/**/*.{mjs,js,ts,sh,py}', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
+    const files = Object.entries(found).map(([p, text]): [string, string] => [p.replace('../../', ''), text]);
+    expect(files.length).toBeGreaterThan(10);
+    expect(files.some(([p]) => p === 'scripts/lib/chrome.mjs')).toBe(true);
+    expect(checkScripts(files)).toEqual([]);
   });
 });

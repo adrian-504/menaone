@@ -37,7 +37,7 @@ export interface StatusChange { revisionSent: ProposalRevision | null }
  * requested on), the day sent (the first send stays; an open revision is sent), the day signed. With `explicit` the
  * day was chosen by hand — a batch date, a back-dated signature — and replaces a signature date already there;
  * otherwise (the day is simply today) existing dates are kept. Signed by both leaves the service not started. Pure. */
-export function applyStatus(p: Proposal, status: string, date: string, o: { defaultReviewerId?: number | null; explicit?: boolean } = {}): StatusChange {
+export function applyStatus(p: Proposal, status: string, date: string, o: { defaultReviewerId?: number | null; explicit?: boolean; /** Who sent it (1.65), when the status is Sent and it was asked. */ sentById?: number | null } = {}): StatusChange {
   if (p.status === status) return { revisionSent: null };
   p.status = status;
   if (status === PS.REVIEW) {
@@ -51,6 +51,7 @@ export function applyStatus(p: Proposal, status: string, date: string, o: { defa
   // Sending a revision: that revision and the latest send are that day; the first send stays.
   const revisionSent = status === PS.SENT ? applyRevisionSent(p, date) : null;
   if (status === PS.SENT && !p.dateSentToClient) { p.dateSentToClient = date; if (!p.sentDate) p.sentDate = date; }
+  if (status === PS.SENT && o.sentById !== undefined) p.sentById = o.sentById;
   if (status === PS.CLIENT_SIGNED && (o.explicit || !p.dateSigned)) p.dateSigned = date;
   if (status === PS.WON) {
     if (!p.dateSigned) p.dateSigned = date;
@@ -69,4 +70,17 @@ export function rangeIds(order: number[], from: number, to: number): number[] {
 /** The pre-fill for "Service started" on a batch: the latest signature date among them, else today. */
 export function batchStartDate(picked: Pick<Proposal, 'dblSignedDate' | 'dateSigned'>[], today: string): string {
   return picked.map((p) => (p.dblSignedDate || p.dateSigned || '').slice(0, 10)).filter(Boolean).sort().pop() || today;
+}
+
+/** Who sent a proposal, when it was not its owner: the name to show ("sent by Hassan"). Null when the owner sent it
+ * or nobody was recorded. Pure. */
+export function sentByOther(p: Pick<Proposal, 'sentById' | 'ownerId'>, memberName: (id: number) => string | null): string | null {
+  if (p.sentById == null || p.sentById === p.ownerId) return null;
+  return memberName(p.sentById);
+}
+
+/** The pre-pick for "Sent by" on a batch: their owner when they share one, else the current user, else nobody. */
+export function defaultSender(picked: Pick<Proposal, 'ownerId'>[], currentUserId: number | null): number | null {
+  const owners = [...new Set(picked.map((p) => p.ownerId ?? null))];
+  return owners.length === 1 && owners[0] != null ? owners[0] : currentUserId;
 }

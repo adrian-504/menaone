@@ -730,7 +730,41 @@ const CODE_MIGRATIONS: &[(i64, fn(&Connection) -> rusqlite::Result<()>)] = &[
     // Agreement terms and the proposal's last step (records, 1.61): what was decided about a renewal, how the term
     // renews, how far the signatures got, and the day a signed proposal's service started.
     (44, migrate_agreement_terms),
+    // Following up and closing (followup, 1.65): who followed up, what was said, one entry across several proposals,
+    // "will revert after"; on proposals who sent it, accepted, engagement letter, the lost date and to whom, and
+    // Follow-up's "keep, with a reason".
+    (45, migrate_follow_up_entries),
 ];
+
+/// Columns migration 45 adds. All nullable, nothing is backfilled: NULL means "not recorded" (a one-click
+/// "Followed up" still writes none of them; `sent_by_id` NULL reads as the owner).
+pub const MIGRATION_45_COLUMNS: &[(&str, &str, &str)] = &[
+    ("touches", "by_member_id", "INTEGER REFERENCES team_members(id) ON DELETE SET NULL"),
+    ("touches", "note", "TEXT"),
+    ("touches", "batch_id", "TEXT"),
+    ("touches", "revert_after", "TEXT"),
+    ("proposals", "sent_by_id", "INTEGER REFERENCES team_members(id) ON DELETE SET NULL"),
+    ("proposals", "accepted_at", "TEXT"),
+    ("proposals", "engagement_letter_sent_at", "TEXT"),
+    ("proposals", "lost_at", "TEXT"),
+    ("proposals", "lost_to", "TEXT"),
+    ("proposals", "keep_reason", "TEXT"),
+    ("proposals", "keep_until", "TEXT"),
+];
+
+/// Adds the columns (only the missing ones, so an older backup restored over this schema can run it again).
+/// No existing row is touched.
+fn migrate_follow_up_entries(conn: &Connection) -> rusqlite::Result<()> {
+    let mut added = 0;
+    for (table, column, kind) in MIGRATION_45_COLUMNS {
+        if !column_exists(conn, table, column)? {
+            conn.execute(&format!("ALTER TABLE {table} ADD COLUMN {column} {kind}"), [])?;
+            added += 1;
+        }
+    }
+    log::info!("migration 45: {added} columns added (touches: who, note, batch, revert after; proposals: sent by, accepted, engagement letter, lost date and to, keep)");
+    Ok(())
+}
 
 /// Columns migration 44 adds. All nullable: NULL means "not recorded" (or, for `service_started_at`, "not started").
 const MIGRATION_44_COLUMNS: &[(&str, &str, &str)] = &[

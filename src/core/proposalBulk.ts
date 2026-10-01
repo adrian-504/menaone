@@ -15,7 +15,7 @@ import { undoToast, toast } from '../lib/ui';
 import { showDatePrompt, today } from '../lib/utils';
 import type { BulkAction } from '../lib/bulkBar';
 import { applyStatus, batchStartDate, BULK_STATUSES, PENDING_BULK_STATUSES, statusDateLabel, statusNeedsDate, unreviewedNote } from '../lib/bulkProposals';
-import { updateBadge } from './proposals';
+import { applyLost, askSent, updateBadge } from './proposals';
 import type { Proposal } from '../lib/types';
 
 const STATUS_DONE: Record<string, string> = { [PS.SENT]: 'sent', [PS.CLIENT_SIGNED]: 'signed', [PS.WON]: 'signed' };
@@ -50,15 +50,25 @@ export async function bulkStatus(ids: number[], status: string, clear?: () => vo
   const moving = S.proposals.filter((p) => ids.includes(p.id) && p.status !== status);
   if (!moving.length) { toast(`Already ${status}`); return; }
   let date = today();
+  let sentById: number | null | undefined;
   const dated = statusNeedsDate(status);
   if (dated) {
-    const picked = await showDatePrompt({ title: `${status} · ${plural(moving.length, 'proposal')}`, label: statusDateLabel(status, moving.length), note: unreviewedNote(moving, status), defaultValue: date, confirmLabel: moving.length === 1 ? `Mark ${STATUS_DONE[status]}` : `Mark ${moving.length} ${STATUS_DONE[status]}` });
-    if (!picked) return;
-    date = picked;
+    const q = { title: `${status} · ${plural(moving.length, 'proposal')}`, label: statusDateLabel(status, moving.length), note: unreviewedNote(moving, status), defaultValue: date, confirmLabel: moving.length === 1 ? `Mark ${STATUS_DONE[status]}` : `Mark ${moving.length} ${STATUS_DONE[status]}` };
+    if (status === PS.SENT) {
+      // Sent: the one day, and who sent them (their owner unless said).
+      const sent = await askSent(q, moving);
+      if (!sent) return;
+      date = sent.date;
+      sentById = sent.sentById;
+    } else {
+      const picked = await showDatePrompt(q);
+      if (!picked) return;
+      date = picked;
+    }
   }
   const reviewer = defaultReviewer()?.id ?? null;
   const movedIds = moving.map((p) => p.id);
-  bulkApply(movedIds, dated ? `${status} on ${fmtDateShort(date, true)}` : `Moved to ${status}`, (p) => { applyStatus(p, status, date, { defaultReviewerId: reviewer, explicit: dated }); }, {
+  bulkApply(movedIds, dated ? `${status} on ${fmtDateShort(date, true)}` : `Moved to ${status}`, (p) => { applyStatus(p, status, date, { defaultReviewerId: reviewer, explicit: dated, sentById }); }, {
     clear,
     also: status === PS.WON ? { label: 'Mark service started', run: () => { void bulkServiceStarted(movedIds); } } : undefined,
   });
@@ -75,10 +85,8 @@ export async function bulkServiceStarted(ids: number[], clear?: () => void): Pro
 
 /** The bar's actions. `scope: 'pending'` keeps the moves that make sense before a proposal has gone out. */
 export function proposalBulkActions(ids: () => number[], clear: () => void, scope: 'all' | 'pending' = 'all'): BulkAction[] {
-  const lost: BulkAction = { label: 'Mark lost', danger: true, choices: () => LOSS_REASONS.map((r) => ({ label: r, run: () => { bulkApply(ids(), 'Marked lost', (p) => {
-    p.status = PS.LOST; p.winLossReason = r; p.snoozedUntil = null;
-    p.notes = [...(p.notes || []), { id: Date.now() + p.id, date: today(), text: `[LOST: ${r}]` }];
-  }, { clear }); } })) };
+  // A batch is lost today for the reason picked (the single dialog takes another day and "lost to").
+  const lost: BulkAction = { label: 'Mark lost', danger: true, choices: () => LOSS_REASONS.map((r) => ({ label: r, run: () => { bulkApply(ids(), 'Marked lost', (p) => { applyLost(p, { reason: r, date: today() }); }, { clear }); } })) };
   const owner: BulkAction = { label: 'Owner', choices: () => activeTeam().map((t) => ({ label: t.name, run: () => { bulkApply(ids(), `Owner set to ${t.name}`, (p) => { p.ownerId = t.id; p.owner = t.name; }, { clear }); } })) };
   if (scope === 'pending') {
     return [

@@ -25,6 +25,9 @@ import { latestRevision, lineWasNote, parseSnapshot, removedServices, revisionFa
 import { companyFromForm, contextFromOpportunity } from '../lib/workGraph';
 import { S } from '../lib/state';
 import { touchDoing, touchesOf } from '../lib/followup';
+import { entryLine } from '../lib/followRequests';
+import { PAPERWORK_PENDING, afterYes, paperworkPending, showsAfterYes, type YesKey } from '../lib/afterYes';
+import { sentByOther } from '../lib/bulkProposals';
 import { escHtml, expose, fmtDate, today, nextId, nextCtId, showConfirm, showTextPrompt, showDatePrompt, debounce, strColor, fmtDateShort } from '../lib/utils';
 import { icon } from '../lib/icons';
 import { companyLink, recordLink } from '../lib/links';
@@ -130,12 +133,14 @@ export function renderProposalPage(): void {
   const siblings = requestSiblings(p, S.proposals);
   const cells = tableCells(p, { today: t, reviewer: teamMember(p.reviewerId)?.name || defaultReviewer()?.name || 'the reviewer', due });
   const contact = p.primaryContactId != null ? S.contacts.find((c) => c.id === p.primaryContactId)?.name : null;
+  // Who sent it, said only when it was not its owner.
+  const sender = proposalSentDate(p) ? sentByOther(p, (id) => (teamMember(id)?.name || '').trim().split(/\s+/)[0] || null) : null;
   if (badges) badges.innerHTML = [
-    `<span class="pk-stage t-${cells.chip.tone}"><i></i>${escHtml(p.status === PS.SENT ? 'With the client' : cells.chip.text)}</span>`,
+    `<span class="pk-stage t-${cells.chip.tone}"><i></i>${escHtml(paperworkPending(p) ? PAPERWORK_PENDING : p.status === PS.SENT ? 'With the client' : cells.chip.text)}</span>`,
     due ? '<span class="pk-chip is-text t-amber">Follow-up due</span>' : '',
     p.archived ? '<span class="pk-chip t-grey">Archived</span>' : '',
     isSnoozed(p) ? `<span class="pk-chip t-amber">Snoozed until ${fmtDate(p.snoozedUntil)}</span>` : '',
-    `<span class="rec-meta">${escHtml([entity?.name, currencyOf(p), owner ? `owner ${owner}` : '', contact ? `contact ${contact}` : ''].filter(Boolean).join(' · '))}</span>`,
+    `<span class="rec-meta">${escHtml([entity?.name, currencyOf(p), owner ? `owner ${owner}` : '', sender ? `sent by ${sender}` : '', contact ? `contact ${contact}` : ''].filter(Boolean).join(' · '))}</span>`,
     promisedByFact(p),
     revisionFact(p) ? `<span class="rec-meta">${escHtml(revisionFact(p)!)}</span>` : '',
     siblings.length ? `<span class="rec-meta rk-with">sent with ${siblings.map((x) => recordLink('proposal', x.id, `${x.type || 'Proposal'} · SL# ${x.id}`)).join(', ')}</span>` : '',
@@ -148,6 +153,7 @@ export function renderProposalPage(): void {
   renderToolbar(p);
   renderProps(p);
   renderReview(p);
+  renderAfterYes(p);
   renderContact(p);
   renderCommercials(p);
   void renderDocuments(p);
@@ -507,9 +513,14 @@ export function renderContact(p: Proposal): void {
   if (el.hidden) { el.innerHTML = ''; return; }
   const touches = touchesOf(p, S.touches).slice().sort((a, b) => b.at.localeCompare(a.at) || b.id - a.id);
   const shown = contactAll === p.id ? touches : touches.slice(0, 5);
+  const names = { memberName: (id: number) => (teamMember(id)?.name || '').trim().split(/\s+/)[0] || null, me: S.currentUserId };
   const rows = shown.map((t) => {
     const who = t.contactId != null ? contactFirstName(t.contactId) : null;
-    return `<li>${[fmtDate(t.at.slice(0, 10)), touchDoing(t, who), t.subject || ''].filter(Boolean).map(escHtml).join(' · ')}</li>`;
+    // Who followed up when it was someone else, what was said, when they will revert (1.65); an entry logged by
+    // hand can be changed or deleted afterwards.
+    const line = entryLine({ direction: t.direction, byMemberId: t.byMemberId ?? null, note: t.note ?? null, revertAfter: t.revertAfter ?? null }, touchDoing(t, who), names);
+    const edit = t.source === 'manual' && t.id > 0 ? `<button class="rlink pr-contact-edit" onclick="openEntryDialog([${p.id}], ${t.id})" aria-label="Edit the entry of ${escHtml(fmtDate(t.at.slice(0, 10)))}">Edit</button>` : '';
+    return `<li><span>${[fmtDate(t.at.slice(0, 10)), line, t.subject || ''].filter(Boolean).map(escHtml).join(' · ')}</span>${edit}</li>`;
   }).join('');
   // When a follow-up is due the two actions are in the header; otherwise they stay here.
   const acts = needsFollowUp(p) ? '' : `<div class="rec-section-actions"><button class="btn-secondary btn-sm" onclick="openRevisionDialog(${p.id})" data-tip="Record what the client wants changed; the proposal goes back to drafting as a revision">Client asked for changes</button><button class="btn-secondary btn-sm" onclick="followUpMenu(event, ${p.id})" data-tip="Log an email, call, WhatsApp or meeting in one click" aria-haspopup="menu">Followed up ${icon('chevronDown', 11)}</button></div>`;
@@ -524,6 +535,62 @@ export function proposalContactAll(id: number): void {
   if (p) renderContact(p);
 }
 expose('proposalContactAll', proposalContactAll);
+
+// ── After the yes: the steps between the client's yes and the service running ──
+
+function renderAfterYes(p: Proposal): void {
+  const el = document.getElementById('prd-yes');
+  if (!el) return;
+  el.hidden = !showsAfterYes(p);
+  if (el.hidden) { el.innerHTML = ''; return; }
+  const rows = afterYes(p, S.agreements).map((x) => {
+    // A recorded day of the two facts kept here can be changed; the others are changed where they are set.
+    const own = x.key === 'accepted' || x.key === 'letter';
+    const when = x.date
+      ? (own ? `<button class="rlink pr-yes-d" onclick="proposalYesDate('${x.key}')" data-tip="Change the day">${escHtml(fmtDateShort(x.date, true))}</button>` : `<span class="pr-yes-d">${escHtml(fmtDateShort(x.date, true))}</span>`)
+      : x.agreementId != null ? `<button class="rlink pr-yes-d" onclick="openRecord('agreement', ${x.agreementId})">Open</button>`
+      : x.mark ? `<button class="rlink pr-yes-m" onclick="proposalMarkYes(event, '${x.key}')">${x.mark}</button>`
+      : x.done ? '<span class="pr-yes-d">yes</span>' : '';
+    // Done with a day of its own still to give (a signature implied the yes): the day can be added.
+    const add = x.done && !x.date && x.mark && own ? `<button class="rlink pr-yes-m" onclick="proposalYesDate('${x.key}')">Add the day</button>` : '';
+    return `<li class="${x.done ? 'is-done' : ''}"><i aria-hidden="true">${x.done ? icon('check', 11) : ''}</i><span class="pr-yes-l">${escHtml(x.label)}</span>${x.done && !x.date && own ? add : when}</li>`;
+  }).join('');
+  el.innerHTML = `<div class="rec-section-hd"><h2 class="rk-panel-h">After the yes</h2></div><ul class="pr-yes-list">${rows}</ul>`;
+}
+
+/** One click on a step that is not done: the two facts kept here take today (the toast undoes it); the others go
+ * through what already records them — the signature, the agreement, the service start. */
+export function proposalMarkYes(e: MouseEvent, key: YesKey): void {
+  e.stopPropagation();
+  const p = currentProposal();
+  if (!p) return;
+  if (key === 'accepted' || key === 'letter') {
+    const restore = snapshotProposal(p);
+    if (key === 'accepted') p.acceptedAt = today(); else p.engagementLetterSentAt = today();
+    commit(p);
+    undoToast(key === 'accepted' ? `${p.client}: accepted today` : `${p.client}: engagement letter sent today`, restore);
+    return;
+  }
+  if (key === 'client_signed') { void proposalStep(PS.CLIENT_SIGNED); return; }
+  if (key === 'both_signed') { openWlModal(p.id, 'won'); return; }
+  if (key === 'agreement') { void (window as any).draftAgreementsFromProposals?.(); return; }
+  if (key === 'started') void proposalMarkServiceStarted();
+}
+expose('proposalMarkYes', proposalMarkYes);
+
+/** The day the client accepted, or the engagement letter went out: set or changed, back-datable. */
+export async function proposalYesDate(key: 'accepted' | 'letter'): Promise<void> {
+  const p = currentProposal();
+  if (!p) return;
+  const cur = key === 'accepted' ? p.acceptedAt : p.engagementLetterSentAt;
+  const date = await showDatePrompt({ title: key === 'accepted' ? 'Accepted' : 'Engagement letter sent', label: `${p.client} — ${key === 'accepted' ? 'the day the client said yes' : 'the day the engagement letter went out'}`, defaultValue: (cur || today()).slice(0, 10), confirmLabel: 'Save' });
+  if (!date) return;
+  const restore = snapshotProposal(p);
+  if (key === 'accepted') p.acceptedAt = date; else p.engagementLetterSentAt = date;
+  commit(p);
+  undoToast(`${p.client}: ${key === 'accepted' ? 'accepted' : 'engagement letter sent'} ${fmtDateShort(date)}`, restore);
+}
+expose('proposalYesDate', proposalYesDate);
 
 // ── Internal review ──
 

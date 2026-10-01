@@ -82,7 +82,7 @@ export function stripHtml(page: string, panels: StripPanel[], opts: { flex?: (p:
       : `<div class="pk-st-top"><span class="pk-st-n" data-roll="strip-${page}-${p.key}">${escHtml(p.n)}</span><span class="pk-st-l">${escHtml(p.label)}</span></div>${detail}`;
     return p.action
       ? `<button type="button" class="pk-st" style="${style}" onclick="${escHtml(p.action)}">${body}</button>`
-      : `<button type="button" class="pk-st${on ? ' is-on' : ''}" style="${style}" aria-pressed="${on}" onclick="stripPick('${page}','${p.key}')">${body}</button>`;
+      : `<button type="button" class="pk-st${on ? ' is-on' : ''}" data-key="${p.key}" style="${style}" aria-pressed="${on}" onclick="stripPick('${page}','${p.key}')">${body}</button>`;
   }).join(opts.pipe ? '<span class="pk-arrow" aria-hidden="true">›</span>' : '');
   return `<div class="pk-strip${opts.pipe ? ' is-pipe' : ''}${opts.flex ? ' is-flex' : ''}" style="--cols:${shown.length}">${cells}</div>`;
 }

@@ -55,3 +55,6 @@ MENA_BIG_Tracker_24*.html
 
 # Phone API skeleton build output
 mobile-api/target
+
+# Scripts' working files: headless Chrome profiles, screenshots, the focus-check build (scripts/lib/chrome.mjs)
+.cache

@@ -1401,12 +1401,13 @@
       <option value="2023-Q4"> 2023 Q4 — Oct–Dec</option>
     </select>
       <button class="btn-secondary btn-sm" id="fu-toggle-archived" onclick="toggleFuArchived()">Show archived</button>
+      <button class="loc-nav rec-more" onclick="fuPageMenu(event)" data-tip="More" aria-label="More"><span data-icon="more" data-icon-size="16"></span></button>
     </div>
   </div>
   <div class="pk-tools">
     <nav class="pr-views" data-pr-views aria-label="Proposal views"></nav>
     <input type="text" class="f-search pk-search" id="fu-search" placeholder="Search client, service, SL#…" oninput="filterSoon('renderFollowup')" aria-label="Search proposals with clients">
-    <span class="pk-order">Longest without contact first</span>
+    <span class="pk-order">Oldest request first, by client</span>
   </div>
   <div id="fu-strip"></div>
   <div id="fu-list"></div>
@@ -1860,6 +1861,7 @@
   <div class="ctd-grid pr-grid rk-grid">
     <aside class="rk-side">
       <section class="rk-panel pr-review" id="prd-review"></section>
+      <section class="rk-panel pr-yes" id="prd-yes" hidden></section>
       <section class="rk-panel ctd-props-card">
         <div class="rec-section-hd"><h2 class="rk-panel-h">Details</h2><span class="rec-save-state" id="prd-save-state"></span><div class="rec-section-actions" id="prd-props-act"></div></div>
         <dl class="rec-props pr-props" id="prd-props"></dl>
@@ -2246,17 +2248,63 @@
   </div>
 </div>
 
+<!-- A follow-up entry's optional details (1.65): never asked for; "Followed up" itself is one click. -->
+<div class="modal-ov" id="modal-entry" onclick="if(event.target===this)closeEntryDialog()">
+  <div class="modal modal-sm">
+    <div class="modal-hd"><div class="modal-title" id="entry-title">Follow-up details</div><button class="modal-close" onclick="closeEntryDialog()">×</button></div>
+    <div class="modal-sub" id="entry-sub"></div>
+    <div class="fgrp">
+      <div class="seg-btns entry-seg" id="entry-direction" role="radiogroup" aria-label="Who reached out">
+        <button type="button" class="seg-btn" role="radio" data-direction="out" onclick="entryDirection('out')">We followed up</button>
+        <button type="button" class="seg-btn" role="radio" data-direction="in" onclick="entryDirection('in')">Client replied</button>
+      </div>
+    </div>
+    <div class="entry-row">
+      <div class="fgrp">
+        <label class="flbl" for="entry-channel">How</label>
+        <select class="finp" id="entry-channel"></select>
+      </div>
+      <div class="fgrp">
+        <label class="flbl" for="entry-date">When</label>
+        <input type="date" class="finp" id="entry-date">
+      </div>
+    </div>
+    <div class="fgrp" id="entry-who-grp">
+      <label class="flbl" for="entry-who">Who followed up</label>
+      <select class="finp" id="entry-who"></select>
+    </div>
+    <div class="fgrp">
+      <label class="flbl" for="entry-note" id="entry-note-lbl">What was said (optional)</label>
+      <input type="text" class="finp" id="entry-note" maxlength="200" placeholder="One line">
+    </div>
+    <div class="fgrp" id="entry-revert-grp" hidden>
+      <label class="flbl" for="entry-revert">They will revert after (optional)</label>
+      <input type="date" class="finp" id="entry-revert">
+    </div>
+    <label class="check-label entry-also" id="entry-also-grp" hidden><input type="checkbox" id="entry-also" checked> <span id="entry-also-lbl"></span></label>
+    <div class="fact">
+      <button class="btn-danger entry-delete" id="entry-delete" onclick="deleteEntryFromDialog()" hidden>Delete entry</button>
+      <button class="btn-secondary" onclick="closeEntryDialog()">Cancel</button>
+      <button class="btn-primary" id="entry-save" onclick="saveEntryDialog()">Log it</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-ov" id="modal-wl" onclick="if(event.target===this)closeWlModal()">
   <div class="modal modal-sm">
     <div class="modal-hd"><div class="modal-title" id="wl-title">Close Proposal</div><button class="modal-close" onclick="closeWlModal()">×</button></div>
     <div class="modal-sub" id="wl-client"></div>
     <div class="fgrp" id="wl-date-grp">
-      <label class="flbl" for="wl-date">Date signed by both parties</label>
+      <label class="flbl" id="wl-date-lbl" for="wl-date">Date signed by both parties</label>
       <input type="date" class="finp" id="wl-date">
     </div>
     <div class="fgrp">
       <label class="flbl" id="wl-reason-lbl" for="wl-reason">Reason</label>
       <select class="finp" id="wl-reason"></select>
+    </div>
+    <div class="fgrp" id="wl-lostto-grp" hidden>
+      <label class="flbl" for="wl-lostto">Lost to (optional)</label>
+      <input type="text" class="finp" id="wl-lostto" placeholder="Another provider, in-house, nobody…">
     </div>
     <div class="fgrp">
       <label class="flbl">Additional Notes (optional)</label>
@@ -2548,6 +2596,10 @@
       <label class="flbl prewrap" id="text-prompt-label" style="display:none"></label>
       <input type="text" class="finp" id="text-prompt-input" onkeydown="if(event.key==='Enter'){event.preventDefault();resolveTextPrompt(this.value)}else if(event.key==='Escape'){event.preventDefault();resolveTextPrompt(null)}">
       <div class="prompt-note" id="text-prompt-note" role="status" hidden></div>
+    </div>
+    <div class="fgrp" id="text-prompt-choice-row" hidden>
+      <label class="flbl" id="text-prompt-choice-label" for="text-prompt-choice"></label>
+      <select class="finp" id="text-prompt-choice"></select>
     </div>
     <div class="fact">
       <button class="btn-secondary" onclick="resolveTextPrompt(null)">Cancel</button>

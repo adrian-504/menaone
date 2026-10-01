@@ -30,8 +30,9 @@ export default defineConfig(() => ({
         }
       : undefined,
     watch: {
-      // 3. tell Vite to ignore watching `src-tauri`
-      ignored: ["**/src-tauri/**"],
+      // 3. tell Vite to ignore watching `src-tauri`, and the scripts' working folder (Chrome profiles, screenshots,
+      //    the focus-check build: scripts/lib/chrome.mjs)
+      ignored: ["**/src-tauri/**", "**/.cache/**"],
     },
   },
 }));

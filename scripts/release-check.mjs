@@ -5,7 +5,7 @@
 // files hold them as 1.N.0 (semver, which Tauri needs). Run before every build
 // (package.json "build").
 
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 
@@ -25,6 +25,20 @@ export function checkRelease({ packageVersion, confVersion, changelog }) {
   return errors;
 }
 
+/** Only scripts/lib/chrome.mjs may launch Chrome or make a temp folder: a script that makes its own Chrome profile
+ * leaves 80–180 MB behind on every run (1-Oct-2026: 27 GB in the system temp folder). `files` is [path, text] for
+ * every file under scripts/. Returns the problems, in plain words. */
+export function checkScripts(files) {
+  const errors = [];
+  for (const [path, text] of files) {
+    if (path.endsWith('lib/chrome.mjs') || path.endsWith('release-check.mjs')) continue;
+    for (const word of ['user-data-dir', 'mkdtemp']) {
+      if (text.includes(word)) errors.push(`${path} uses "${word}": launch Chrome through scripts/lib/chrome.mjs, which keeps its profile in .cache and removes it.`);
+    }
+  }
+  return errors;
+}
+
 const isMain = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (isMain) {
   const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -34,6 +48,8 @@ if (isMain) {
     confVersion: JSON.parse(read('src-tauri/tauri.conf.json')).version,
     changelog: read('CHANGELOG.md'),
   });
+  const walk = (dir) => readdirSync(resolve(root, dir), { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(`${dir}/${e.name}`) : [`${dir}/${e.name}`]));
+  errors.push(...checkScripts(walk('scripts').filter((p) => /\.(mjs|js|ts|sh|py)$/.test(p)).map((p) => [p, read(p)])));
   if (errors.length) {
     console.error(`Release check failed:\n- ${errors.join('\n- ')}`);
     process.exit(1);

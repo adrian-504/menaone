@@ -303,6 +303,7 @@ pub fn run() {
             touches::get_touches,
             touches::touches_add,
             touches::touches_for_proposal,
+            touches::touches_update,
             touches::touches_delete,
             email_templates::get_email_templates,
             email_templates::save_email_template,
