@@ -641,6 +641,18 @@ export async function installDevMockIfNeeded(): Promise<void> {
         }
         case 'sync_agreements_from_proposals':
           return [];
+        // "Draft agreement" from one signed proposal: its lines, term, entity and service start (commercial.rs).
+        case 'draft_agreement_for_proposal': {
+          const p = SAMPLE.proposals.find((x) => x.id === (_payload as any)?.proposalId) as any;
+          if (!p || p.status !== 'Signed by Both Parties' || SAMPLE.agreements.some((a: any) => a.proposalId === p.id)) return [];
+          const id = Math.max(0, ...SAMPLE.agreements.map((a: any) => a.id)) + 1;
+          const start = p.serviceStartedAt || p.kickoffDate || null;
+          const agreement = { id, agrRef: `DRAFT_${String(id).padStart(3, '0')}_1026`, client: p.client, companyId: p.companyId ?? null, type: p.type, status: 'In Preparation', preparedBy: '', datePrepared: '', dateSentToClient: '', dateClientSigned: '', dateMenaSigned: '', dateFiled: '',
+            monthlyFee: p.monthlyFee ?? null, contractMonths: p.contractMonths ?? null, proposalId: p.id, hubspot: '', docLink: null, actionDate: p.dblSignedDate || '', remarks: `Auto-created from proposal SL# ${p.id} (${p.type || ''})`, createdAt: new Date().toISOString(),
+            businessEntityId: p.businessEntityId ?? null, currency: p.currency ?? 'SAR', startDate: start, endDate: null, serviceStatus: null, lines: (p.lines || []).map((l: any) => ({ ...l })) };
+          (SAMPLE.agreements as any[]).push(agreement);
+          return [agreement];
+        }
         case 'get_activity': {
           const f = (_payload as any)?.filter ?? {};
           const now = Date.now();

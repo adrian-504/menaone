@@ -885,19 +885,23 @@ pub fn create_agreements_core(conn: &Connection) -> rusqlite::Result<Vec<i64>> {
     create_agreements_for(conn, None)
 }
 
-/// Same, for one proposal only (`only`), or every qualifying one (None).
+/// Same, for one proposal only (`only`), or every qualifying one (None). The agreement takes the proposal's lines as
+/// they are (their options and priced rows with them), its term, entity and currency; it starts the day the
+/// service started when the proposal records one, else on the kickoff date, and ends a term later.
 pub fn create_agreements_for(conn: &Connection, only: Option<i64>) -> rusqlite::Result<Vec<i64>> {
     type Pending = (i64, String, Option<String>, Option<String>, Option<String>, Option<f64>, Option<i64>, Option<String>, Option<String>, Option<i64>, Option<String>, Option<i64>);
+    // An early migration calls this on a database that has no `service_started_at` yet (it arrives with migration 44).
+    let start = if crate::db::column_exists(conn, "proposals", "service_started_at")? { "coalesce(nullif(p.service_started_at, ''), p.kickoff_date)" } else { "p.kickoff_date" };
     let pending: Vec<Pending> = {
-        let mut stmt = conn.prepare(
+        let mut stmt = conn.prepare(&format!(
             "SELECT p.id, p.client, p.type, p.dbl_signed_date, p.sent_date, p.monthly_fee, p.contract_months, p.hubspot,
-                    p.kickoff_date, p.business_entity_id, p.currency, p.company_id
+                    {start}, p.business_entity_id, p.currency, p.company_id
              FROM proposals p
              WHERE p.status IN (SELECT value FROM json_each(?1))
                AND NOT EXISTS (SELECT 1 FROM agreements a WHERE a.proposal_id = p.id)
                AND (?2 IS NULL OR p.id = ?2)
-             ORDER BY p.id",
-        )?;
+             ORDER BY p.id"
+        ))?;
         let statuses = serde_json::to_string(AGREEMENT_QUALIFYING_STATUSES).unwrap_or_else(|_| "[]".into());
         let rows = stmt.query_map(params![statuses, only], |r| {
             Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?, r.get(5)?, r.get(6)?, r.get(7)?, r.get(8)?, r.get(9)?, r.get(10)?, r.get(11)?))

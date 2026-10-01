@@ -573,7 +573,7 @@ export function proposalMarkYes(e: MouseEvent, key: YesKey): void {
   }
   if (key === 'client_signed') { void proposalStep(PS.CLIENT_SIGNED); return; }
   if (key === 'both_signed') { openWlModal(p.id, 'won'); return; }
-  if (key === 'agreement') { void (window as any).draftAgreementsFromProposals?.(); return; }
+  if (key === 'agreement') { void (window as any).draftAgreementFor?.(p.id); return; }
   if (key === 'started') void proposalMarkServiceStarted();
 }
 expose('proposalMarkYes', proposalMarkYes);

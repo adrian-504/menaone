@@ -32,10 +32,12 @@ export function proposalNextStep(p: Pick<Proposal, 'id' | 'status' | 'reviewStat
     };
     case PS.WON: {
       const agr = agreements.find((a) => a.proposalId === p.id);
-      const open = agr ? { label: 'Open agreement', run: `openRecord('agreement', ${agr.id})` } : undefined;
+      // Signed, and the agreement is the next piece of paper: open it, or draft it from this proposal (1.66: its
+      // lines, term, entity and service start go with it).
+      const paper = agr ? { label: 'Open agreement', run: `openRecord('agreement', ${agr.id})` } : { label: 'Draft agreement', run: `draftAgreementFor(${p.id})` };
       // Signed with no start date: the last step is still to take.
-      if (!p.serviceStartedAt) return { primary: { label: 'Mark service started', run: 'proposalMarkServiceStarted()' }, secondary: open };
-      return { primary: open ?? null };
+      if (!p.serviceStartedAt) return { primary: { label: 'Mark service started', run: 'proposalMarkServiceStarted()' }, secondary: paper };
+      return { primary: paper };
     }
     default: return { primary: { label: 'Reopen', run: 'proposalReopenMenu(event)' } };
   }

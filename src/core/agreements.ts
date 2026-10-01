@@ -10,7 +10,7 @@ import { emptyState } from '../lib/ui';
 import { activeMrr, renewalsDue, isAgreementActive, fmtMoneyByCurrency, fmtMoney, currencyOf, agreementMonthly, teamMember, activeTeam, entityById, defaultEntity, contractEndDate } from '../lib/commercial';
 import { matchesPeriod } from '../lib/period';
 import { persistAgreements, proposalsAndAgreementsSaved, markAgreementsSaved } from '../lib/persist';
-import { createAgreementsFromProposals, pendingAgreementsFromProposals, type PendingAgreement } from '../lib/db';
+import { createAgreementsFromProposals, draftAgreementForProposal, pendingAgreementsFromProposals, type PendingAgreement } from '../lib/db';
 import { registerBadgeUpdater, registerTabRenderer, refreshCompanyViewIfOpen, getActiveTabId, refreshAll } from '../lib/registry';
 import { saveCsv } from '../lib/files';
 import { toast } from '../lib/ui';
@@ -89,6 +89,25 @@ export async function draftAgreementsFromProposals(): Promise<void> {
   toast(`Drafted ${created.length} agreement${created.length === 1 ? '' : 's'}`, { detail: 'Each one is In Preparation — check the terms before sending.' });
 }
 expose('draftAgreementsFromProposals', draftAgreementsFromProposals);
+
+/** "Draft agreement" from one signed proposal: an agreement In Preparation with the proposal's lines as they are
+ * (their options and priced rows), its term, entity and currency, starting the day the service started. Never
+ * twice for the same proposal. The proposal's "After the yes" checklist ticks it. */
+export async function draftAgreementFor(proposalId: number): Promise<void> {
+  await proposalsAndAgreementsSaved();
+  try {
+    const created = await draftAgreementForProposal(proposalId);
+    if (!created.length) { toast('Nothing to draft', { detail: 'This proposal already has an agreement, or isn’t signed by both parties.' }); return; }
+    S.agreements.push(...created);
+    markAgreementsSaved(created);
+    refreshAll();
+    if (S.currentProposalId === proposalId) (window as any).renderProposalPage?.();
+    toast(`Drafted ${created[0].agrRef || 'the agreement'}`, { detail: 'In Preparation, with the proposal’s lines, term and entity — check the terms before sending.', action: { label: 'Open', run: () => (window as any).openRecord('agreement', created[0].id) } });
+  } catch (err) {
+    toast('Could not draft the agreement', { tone: 'error', detail: String(err) });
+  }
+}
+expose('draftAgreementFor', (id: number) => { void draftAgreementFor(id); });
 
 export function agrBadge(): void {
   const inProgress = S.agreements.filter((a) => !['Signed', 'Canceled'].includes(a.status || '')).length;

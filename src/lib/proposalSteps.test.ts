@@ -39,12 +39,14 @@ describe('the proposal header step', () => {
     expect(labels(proposalNextStep(p('Sent to Client'), []))).toEqual([null, 'Record signature']);
   });
 
-  it('signed by both: Mark service started until it has a start date, with the agreement beside it; then the agreement', () => {
+  it('signed by both: Mark service started until it has a start date, with the agreement beside it (opened, or drafted); then the agreement', () => {
     const agreements = [{ id: 4, proposalId: 7 }];
     expect(labels(proposalNextStep(p('Signed by Both Parties'), agreements))).toEqual(['Open agreement', 'Mark service started']);
     expect(proposalNextStep(p('Signed by Both Parties'), []).primary).toEqual({ label: 'Mark service started', run: 'proposalMarkServiceStarted()' });
     expect(labels(proposalNextStep(p('Signed by Both Parties', { serviceStartedAt: '2026-10-12' }), agreements))).toEqual([null, 'Open agreement']);
-    expect(labels(proposalNextStep(p('Signed by Both Parties', { serviceStartedAt: '2026-10-12' }), []))).toEqual([null, null]);
+    // With no agreement yet, the agreement is drafted from this proposal (1.66): beside the service start, then on its own.
+    expect(proposalNextStep(p('Signed by Both Parties'), []).secondary).toEqual({ label: 'Draft agreement', run: 'draftAgreementFor(7)' });
+    expect(labels(proposalNextStep(p('Signed by Both Parties', { serviceStartedAt: '2026-10-12' }), []))).toEqual([null, 'Draft agreement']);
   });
 });
 

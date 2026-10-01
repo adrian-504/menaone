@@ -25,6 +25,8 @@ export async function deleteContacts(ids: number[]): Promise<void> { await invok
 export async function upsertAgreements(items: Agreement[]): Promise<RecordCompanyLink[]> { return (await invoke<RecordCompanyLink[] | null>('upsert_agreements', { items })) ?? []; }
 export async function deleteAgreements(ids: number[]): Promise<void> { await invoke('delete_agreements', { ids }); }
 export async function createAgreementsFromProposals(): Promise<Agreement[]> { return invoke<Agreement[]>('sync_agreements_from_proposals'); }
+/** One signed proposal's agreement, drafted from it; empty when it has one already or is not signed by both. */
+export async function draftAgreementForProposal(proposalId: number): Promise<Agreement[]> { return invoke<Agreement[]>('draft_agreement_for_proposal', { proposalId }); }
 export interface PendingAgreement { proposalId: number; client: string; agreementType: string | null }
 /** What drafting from proposals would create, without creating it. */
 export async function pendingAgreementsFromProposals(): Promise<PendingAgreement[]> { return invoke<PendingAgreement[]>('pending_agreements_from_proposals'); }
