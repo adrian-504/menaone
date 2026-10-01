@@ -115,3 +115,10 @@ export function ringDash(pct: number): string {
   const p = Math.max(0, Math.min(100, pct));
   return `${Math.round((p / 100) * RING_C * 10) / 10} ${RING_C}`;
 }
+
+/** The ring: task progress when the project has tasks, else milestones done of total. Pure. */
+export function ringProgress(p: Pick<Project, 'taskCount' | 'computedProgress'>, f: Pick<ProjectFigures, 'done' | 'total'>): { pct: number; of: 'tasks' | 'milestones' | 'none' } {
+  if (p.taskCount > 0) return { pct: Math.round(p.computedProgress), of: 'tasks' };
+  if (f.total > 0) return { pct: Math.round((f.done / f.total) * 100), of: 'milestones' };
+  return { pct: Math.round(p.computedProgress || 0), of: 'none' };
+}

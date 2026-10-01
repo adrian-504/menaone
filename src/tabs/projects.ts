@@ -30,7 +30,7 @@ import { statusTone, toneVar } from '../lib/statusTone';
 import { renderCommitmentSection } from './commitments';
 import { currentUser, matchesOwnerFilter, ownerFilterOptions, isAgreementActive } from '../lib/commercial';
 import { tileHtml } from '../lib/pageKit';
-import { nextMilestoneKey, projectFigures as trackFigures, projectTrack, ringDash } from '../lib/pagesProjects';
+import { nextMilestoneKey, projectFigures as trackFigures, projectTrack, ringDash, ringProgress } from '../lib/pagesProjects';
 import { fmtDateShort } from '../lib/dates';
 
 // Project status dots use the shared tones (statusTone.ts).
@@ -146,8 +146,9 @@ function projectCard(p: Project): string {
   const services = projectServices(p);
   const sub = [internal ? 'Internal' : 'Client', services.slice(0, 3).join(', ')].filter(Boolean).map(escHtml).join(' · ');
   const days = f.daysToTarget;
+  const ring = ringProgress(p, f);
   const figs = `${f.total ? `<div class="pk-fig"><b>${f.done} of ${f.total}</b><span>milestones</span></div>` : ''}${days != null ? `<div class="pk-fig${days < 0 ? ' t-red' : ''}"><b>${Math.abs(days)} ${Math.abs(days) === 1 ? 'day' : 'days'}</b><span>${days < 0 ? 'past' : 'to'} ${escHtml(f.targetLabel)}</span></div>` : ''}
-    <svg class="pk-ring" viewBox="0 0 36 36" role="img" aria-label="${p.computedProgress}% done"><circle cx="18" cy="18" r="15" fill="none" class="pk-ring-bg" stroke-width="4"/>${p.computedProgress > 0 ? `<circle cx="18" cy="18" r="15" fill="none" class="pk-ring-fg" stroke-width="4" stroke-dasharray="${ringDash(p.computedProgress)}" transform="rotate(-90 18 18)" stroke-linecap="round"/>` : ''}<text x="18" y="21.5" text-anchor="middle">${p.computedProgress}%</text></svg>`;
+    <svg class="pk-ring" viewBox="0 0 36 36" role="img" aria-label="${ring.pct}% ${ring.of === 'milestones' ? 'of milestones done' : ring.of === 'tasks' ? 'of tasks done' : 'done'}"><circle cx="18" cy="18" r="15" fill="none" class="pk-ring-bg" stroke-width="4"/>${ring.pct > 0 ? `<circle cx="18" cy="18" r="15" fill="none" class="pk-ring-fg" stroke-width="4" stroke-dasharray="${ringDash(ring.pct)}" transform="rotate(-90 18 18)" stroke-linecap="round"/>` : ''}<text x="18" y="21.5" text-anchor="middle">${ring.pct}%</text></svg>`;
   const trackHtml = track.points.length
     ? `<div class="pk-track"><div class="pk-track-line"></div><div class="pk-track-done" style="width:${track.done}%"></div>${track.today != null ? `<div class="pk-track-today" style="left:${track.today}%"><span>today</span></div>` : ''}
         ${track.points.map((x) => `<div class="pk-ms is-${x.state}" style="left:${x.pos}%"><i></i><b title="${escHtml(x.name)}">${escHtml(x.name)}</b><span>${escHtml(x.dateLabel)}</span></div>`).join('')}</div>`

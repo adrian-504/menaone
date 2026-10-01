@@ -1,7 +1,7 @@
 // Projects in My Day's language (1.59 "pages"): the milestone track's positions, the today marker, what's next, the ring.
 import { describe, expect, it } from 'vitest';
 
-import { nextMilestone, nextMilestoneKey, orderMilestones, projectFigures, projectTrack, ringDash, TRACK_GAP, TRACK_MAX, TRACK_MIN } from './pagesProjects';
+import { nextMilestone, nextMilestoneKey, orderMilestones, projectFigures, projectTrack, ringDash, ringProgress, TRACK_GAP, TRACK_MAX, TRACK_MIN } from './pagesProjects';
 
 const T = '2026-10-01';
 const M = (id: number, name: string, targetDate: string | null, status = 'Not Started') => ({ id, name, targetDate, status, completionDate: null, sortOrder: id });
@@ -54,6 +54,11 @@ describe('figures', () => {
     expect(nextMilestone(acme)?.name).toBe('October payroll run');
     const keys = [nextMilestoneKey(P, acme), nextMilestoneKey({ targetDate: '2026-12-01' }, [M(9, 'Hire', '2026-10-15')]), nextMilestoneKey({ targetDate: '2026-11-01' }, [])];
     expect([...keys].sort()).toEqual([keys[1], keys[0], keys[2]]);
+  });
+  it('the ring follows tasks when there are tasks, else milestones done of total', () => {
+    expect(ringProgress({ taskCount: 4, computedProgress: 25 }, { done: 2, total: 5 })).toEqual({ pct: 25, of: 'tasks' });
+    expect(ringProgress({ taskCount: 0, computedProgress: 0 }, { done: 2, total: 5 })).toEqual({ pct: 40, of: 'milestones' });
+    expect(ringProgress({ taskCount: 0, computedProgress: 0 }, { done: 0, total: 0 })).toEqual({ pct: 0, of: 'none' });
   });
   it('the ring draws the share of a 94.2 circumference', () => {
     expect(ringDash(40)).toBe('37.7 94.2');

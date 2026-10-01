@@ -4,6 +4,7 @@ import { companiesStrip, companyBuckets, goneQuiet, inFlight, runway, runwayNote
 import { companyContact } from '../lib/companyBrief';
 import { needsFollowUp } from '../core/proposals';
 import { PS } from '../lib/commercial';
+import { initialsOf } from '../lib/appearance';
 import { fmtTime } from '../lib/dates';
 import { companyFigures, paintFigures } from '../lib/recordFigures';
 import { arrive } from '../lib/motion';
@@ -764,7 +765,7 @@ function buildCoRow(name: string, byName: Map<string, Company>, listsByName: Map
     lastActivity: lastActivityFor(ref, d),
     lists: listsByName.get(name) || [],
     statusCfg, color: strColor(name),
-    initials: name.split(/\s+/).slice(0, 2).map((w) => w[0] || '').join('').toUpperCase(),
+    initials: initialsOf(name) || '·',
     accent: statusCfg?.ch || statusCfg?.c || 'var(--border)',
     opportunityCount: opps.length,
     projectCount: S.projects.filter((p) => inCompany(ref, p.companyId, p.companyName) && !p.archived).length,
@@ -921,15 +922,9 @@ export function renderCompanyList(): void {
     return;
   }
 
-  grid.innerHTML = rows.map(({ name, d, rel, color, initials, mrrStr, industry, activeServices, otherServices, opportunityCount, projectCount, runway: w, flight, figures, lastContact }) => {
+  grid.innerHTML = rows.map(({ name, d, rel, color, initials, mrrStr, industry, activeServices, otherServices, runway: w, flight, figures, lastContact }) => {
     const escName = escHtml(name).replace(/'/g, "\\'");
     const types = [...activeServices, ...otherServices];
-    // Counts read as one quiet line; a zero is greyed rather than boxed, and
-    // agreements are left off entirely for a company that has none and isn't
-    // a client — a card shouldn't lead with what a company doesn't have.
-    const stat = (n: number, one: string, many: string) =>
-      `<span class="${n === 0 ? 'co-stat zero' : 'co-stat'}"><b>${n}</b> ${n === 1 ? one : many}</span>`;
-    const showAgreements = d.agreements.length > 0 || rel.label === 'Active client';
     // Missing data becomes something to act on, not a blank line.
     const flag = !industry ? 'Needs industry' : d.contacts.length === 0 ? 'Needs contact' : '';
     const record = S.companies.find((c) => c.name === name);
@@ -947,21 +942,12 @@ export function renderCompanyList(): void {
       </div>
       <div class="co-type-chips">${types.slice(0, 2).map((t) => `<span class="chip${activeServices.includes(t) ? ' chip-on' : ''}">${escHtml(t)}</span>`).join('')}${types.length > 2 ? `<span class="chip chip-more">+${types.length - 2}</span>` : ''}</div>
       <div class="pk-cofigs">
-        <div class="pk-cofig"><span class="pk-mrr${mrrStr ? '' : ' is-none'}">${mrrStr ? escHtml(fmtMoneyByCurrency(d.activeMrr)) : '—'}</span><span class="pk-cofig-l">a month</span></div>
+        ${mrrStr ? `<div class="pk-cofig"><span class="pk-mrr">${escHtml(fmtMoneyByCurrency(d.activeMrr))}</span><span class="pk-cofig-l">a month</span></div>` : ''}
         ${w ? `<div class="pk-runway${w.soon ? ' is-soon' : ''}"><b>${escHtml(fmtDate(w.end))}</b> <span>${escHtml(runwayNote(w))}</span><div class="pk-runway-bar"><i style="width:${w.pct}%"></i></div></div>` : ''}
         ${flight.text || flight.urgent ? `<div class="pk-flight">${escHtml(flight.text)}${flight.urgent ? `${flight.text ? ' · ' : ''}<span class="t-${flight.urgent.tone}">${escHtml(flight.urgent.text)}</span>` : ''}</div>` : ''}
         <div class="pk-flight">${figures.quietDays != null ? `<span class="pk-quiet"><i></i>${figures.quietDays} days · gone quiet</span>` : `Last contact ${agoLabel(lastContact)}`}</div>
       </div>
-      <div class="co-footer">
-        <span class="co-stats">
-          ${stat(d.contacts.length, 'contact', 'contacts')}
-          ${stat(d.proposals.length, 'proposal', 'proposals')}
-          ${showAgreements ? stat(d.agreements.length, 'agreement', 'agreements') : ''}
-          ${opportunityCount > 0 ? stat(opportunityCount, 'opportunity', 'opportunities') : ''}
-          ${projectCount > 0 ? stat(projectCount, 'project', 'projects') : ''}
-        </span>
-        <span class="co-state tone-${rel.tone}">${escHtml(rel.label)}${mrrStr ? ` · ${mrrStr}` : ''}</span>
-      </div>
+      <div class="co-footer"><span class="co-state tone-${rel.tone}">${escHtml(rel.label)}</span></div>
     </div>`;
   }).join('');
 

@@ -55,7 +55,7 @@ function quickActions(): Action[] {
     goTo('Notes', 'notes', 'note'),
     goTo('Companies', 'companies', 'building'),
     goTo('Contacts', 'contacts', 'people'),
-    goTo('Follow-Up', 'followup', 'warning'),
+    goTo('Follow-up', 'followup', 'warning'),
     goTo('Proposals', 'database', 'database'),
     goTo('Agreements', 'agreements', 'document'),
     goTo('Services and pricing', 'pricing', 'dollar'),

@@ -2547,7 +2547,7 @@ select.fsel.filtered,.period-sel.filtered{border-color:var(--accent-border);back
 tr:hover .row-actions .rec-icon-btn,.row-actions .rec-icon-btn:focus-visible{opacity:1}
 .rec-icon-btn.danger:hover{background:var(--red-bg);color:var(--red)}
 
-/* Pending and Follow-Up rows */
+/* Pending and Follow-up rows */
 .pq-group{padding:12px 0 14px;margin-bottom:0}
 .pq-group .rec-section-hd{margin-bottom:4px}
 .pq-group .rec-section-hd h2 .status-dot-lbl,.pq-group .rec-section-hd h2 span{font-weight:600}
@@ -3486,7 +3486,7 @@ button.pk-st:focus-visible{outline:none;box-shadow:var(--shadow-focus)}
 .pk-st.is-on{box-shadow:inset 0 0 0 1.5px var(--c),var(--shadow-sm)}
 .pk-st-top{display:flex;align-items:baseline;gap:10px;min-width:0}
 .pk-st-n{font:600 30px/1 var(--font-display);color:var(--navy);white-space:nowrap}
-.pk-st-l{font-size:var(--type-body);font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pk-st-l{font-size:var(--type-body);font-weight:500;color:var(--text);line-height:1.3;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 .pk-st-d{margin-top:8px;font:500 var(--type-meta) var(--font-mono);color:var(--c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pk-st-d span{margin-right:4px;font-family:var(--font-text);font-size:10.5px;color:var(--muted)}
 .pk-st.is-total{background:var(--tile-3);color:var(--on-tile)}
@@ -3786,4 +3786,20 @@ a.btn-primary,a.btn-secondary{text-decoration:none}
   .pk-proj-hd{flex-wrap:wrap}
   .pk-figs{margin-left:54px;gap:20px}
   .pk-ms{width:92px;margin-left:-46px}
+}
+
+/* 1.59 audit: narrow windows. */
+.pk-strip.is-pipe .pk-st-l{display:block}
+/* Proposals: the view tabs line up with the search row when the toolbar wraps. */
+#pr-list-view .pk-tools{align-items:flex-start}
+/* Projects: a milestone's name may take two lines. */
+.pk-track{height:74px}
+.pk-ms b{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-height:1.25}
+@media (max-width:1280px){
+  /* Companies list: no sideways scroll. */
+  #co-list-table th.th-sortable,#co-list-table th,#co-list-table td{padding-left:6px;padding-right:6px}
+  #co-list-table .pk-td-co{min-width:190px}
+  #co-list-table .pk-runway{min-width:108px}
+  /* Opportunities board: three columns and a peek of the next, so it shows there is more to the right. */
+  .opp-board.pk-board .pk-col{flex:0 0 232px;min-width:232px}
 }
