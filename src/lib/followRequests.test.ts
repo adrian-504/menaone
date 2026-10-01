@@ -162,7 +162,8 @@ describe('where a request sits', () => {
 
   it('an offer about to expire is flagged', () => {
     const r = one({ dateSentToClient: '2026-09-26', validUntil: '2026-10-05' });
-    expect([r.expiring, r.validUntil, r.meta[1]]).toEqual([true, '2026-10-05', { text: '◷ offer expires Mon 5 Oct', tone: 'red', chip: true }]);
+    // Flagged for the strip and shown by the trail's red marker; the meta line does not repeat it.
+    expect([r.expiring, r.validUntil, r.meta.map((m) => m.text), r.trail.points.some((p) => p.kind === 'expiry')]).toEqual([true, '2026-10-05', ['Sent 26 Sept'], true]);
     expect(one({ dateSentToClient: '2026-09-26', validUntil: '2026-11-05' }).expiring).toBe(false);
   });
 });

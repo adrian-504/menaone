@@ -347,7 +347,8 @@ export async function mydayAct(key: string): Promise<void> {
   const open = () => { if (a.record) w.openRecord(a.record.kind, a.record.id); };
   switch (a.action.kind) {
     case 'send_to_client':
-      if (a.record && await changeProposalStatus(a.record.id, PS.SENT)) toast(`${a.title} marked as sent to the client`);
+      // The change says so itself, with Undo and "Change day or sender".
+      if (a.record) await changeProposalStatus(a.record.id, PS.SENT);
       renderMyDay();
       return;
     case 'start_drafting':

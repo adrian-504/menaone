@@ -189,8 +189,7 @@ export function requestRowHtml(r: FollowRequest, primary: boolean): string {
       <div class="pk-title">${companyLink(r.companyId, r.client)}<span class="fr-chips">${chips}</span>${many
         ? `<button class="fr-count" onclick="event.stopPropagation();fuToggle(${lead})" aria-expanded="${open}" data-tip="${open ? 'Hide' : 'Show'} its proposals">${r.ids.length} proposals ${icon(open ? 'chevronDown' : 'chevronRight', 11)}</button>`
         : `<span class="pk-sl">SL# ${lead}</span>`}</div>
-      <div class="pk-meta">${bitsHtml(r.meta)}</div>
-      <div class="pk-meta fr-word">${bitsHtml(r.word)}</div>
+      <div class="fr-lines"><div class="pk-meta">${bitsHtml(r.meta)}</div><div class="pk-meta fr-word">${bitsHtml(r.word)}</div></div>
     </div>
     <div class="pk-mid">${trailHtml(r.trail, r.bucket !== 'waiting')}</div>
     ${valueHtml(r.amount, r.amountCaption, r.amountShape)}

@@ -19,6 +19,7 @@ import { showMenuAt, type ContextMenuItem } from '../lib/contextMenu';
 import type { Proposal, TouchKind } from '../lib/types';
 import { logEntry, withSentWith } from './followLog';
 import { buildRequest, requestKey, sentWith, type RequestBucket } from '../lib/followRequests';
+import { fmtDateShort } from '../lib/dates';
 
 // ═══════════════ PERSISTENCE / LOAD ═══════════════
 
@@ -186,15 +187,30 @@ export async function changeProposalStatus(id: number, newStatus: string): Promi
     const ok = await showConfirm(`${reviewer} hasn't approved this proposal in MENA One yet. Every proposal is reviewed before it goes to the client.\n\nMark it as sent anyway?`, { title: 'Not reviewed yet', confirmLabel: 'Mark as sent' });
     if (!ok) return false;
   }
-  // Marking it sent asks the day (today unless back-dated) and who sent it (its owner unless said).
+  // Marking one proposal sent is one click: today, sent by its owner. The toast undoes it, and "Change day or sender"
+  // opens the one question for the rest (owner, 1-Oct-2026: the common case is one click, details are optional).
   if (newStatus === PS.SENT) {
-    const sent = await askSent({ title: `${p.client} — sent to the client`, label: `The day ${p.type || 'it'} was sent`, confirmLabel: 'Mark as sent' }, [p]);
-    if (!sent) return false;
-    updateStatus(id, newStatus, sent);
+    const restore = snapshotProposal(p);
+    updateStatus(id, newStatus, { sentById: p.ownerId ?? null });
+    const undo = () => { restore(); if (S.currentProposalId === id) (window as any).renderProposalPage?.(); };
+    undoToast(`${p.client}: marked as sent today`, undo, undefined, { label: 'Change day or sender', run: () => { void changeSent(id, restore); } });
     return true;
   }
   updateStatus(id, newStatus);
   return true;
+}
+
+/** "Change day or sender" on a proposal just marked sent: the one question (the day, and who sent it), then the
+ * send is redone with the answer. Cancelled, it stays as it was marked. */
+async function changeSent(id: number, restore: () => void): Promise<void> {
+  const p = S.proposals.find((x) => x.id === id);
+  if (!p) return;
+  const sent = await askSent({ title: `${p.client} — sent to the client`, label: `The day ${p.type || 'it'} was sent`, confirmLabel: 'Save' }, [p]);
+  if (!sent) return;
+  restore();
+  updateStatus(id, PS.SENT, sent);
+  if (S.currentProposalId === id) (window as any).renderProposalPage?.();
+  undoToast(`${p.client}: sent ${fmtDateShort(sent.date, true)}`, () => { restore(); if (S.currentProposalId === id) (window as any).renderProposalPage?.(); });
 }
 
 /** "The day it was sent" and "Sent by" in one question, for one proposal or a batch. Null when cancelled. */

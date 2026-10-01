@@ -9,6 +9,7 @@ import { PS, proposalSentDate } from './commercial';
 import { openRevision } from './revisions';
 import { lastTouch, type TouchContext } from './followup';
 import { PAPERWORK_PENDING, paperworkPending } from './afterYes';
+import { requestKey } from './requestKey';
 import { daysBetween } from './pipeline';
 import { agreementRenewal, addDays, personName } from './myday';
 import { fmtDateShort, fmtDateWeekday } from './dates';
@@ -85,6 +86,28 @@ export function playRow(p: Proposal, ctx: TouchContext & { reviewerName?: (p: Pr
   };
 }
 
+/** With clients, a request is one row (1.65): the proposals sent together to a client take one slot, named by their
+ * services, on the longest-waiting one's facts. Its action still reaches all of them (Followed up logs one entry on
+ * the request). Rows of the other stages stay one per proposal. Pure. */
+function byRequest(proposals: Proposal[], rows: PlayRow[]): PlayRow[] {
+  const byId = new Map(proposals.map((p) => [p.id, p]));
+  const out: PlayRow[] = [];
+  const at = new Map<string, number>();
+  for (const r of rows) {
+    const p = byId.get(r.id);
+    if (r.stage !== 'client' || !p || p.status !== PS.SENT) { out.push(r); continue; }
+    const key = requestKey(p);
+    const i = at.get(key);
+    if (i == null) { at.set(key, out.length); out.push({ ...r }); continue; }
+    const head = out[i];
+    const services = `${head.service} + ${r.service}`;
+    // The row speaks for the one that has waited longest; a red one wins.
+    const lead = (r.tone === 'red' && head.tone !== 'red') || (r.tone === head.tone && r.age > head.age) ? r : head;
+    out[i] = { ...lead, id: Math.min(head.id, r.id), service: services };
+  }
+  return out;
+}
+
 /** How many rows each stage may show on My Day: its own share, so a long queue with clients never pushes the
  * proposals to draft or the ones with Hassan off the list. */
 export const STAGE_SHARE: Record<Stage, number> = { draft: 2, hassan: 3, client: 3 };
@@ -92,7 +115,7 @@ export const STAGE_SHARE: Record<Stage, number> = { draft: 2, hassan: 3, client:
 /** The in-play picture: stage counts with their oldest, and each stage's own share of rows (urgent first, then the
  * ones that waited longest within the stage), in stage order. `hidden` is what each stage left out. Pure. */
 export function buildInPlay(proposals: Proposal[], ctx: TouchContext, share: Record<Stage, number> = STAGE_SHARE): InPlay {
-  const all = proposals.map((p) => playRow(p, ctx)).filter((r): r is PlayRow => !!r);
+  const all = byRequest(proposals, proposals.map((p) => playRow(p, ctx)).filter((r): r is PlayRow => !!r));
   const stages = STAGE_ORDER.map((stage) => {
     const mine = all.filter((r) => r.stage === stage);
     return { stage, count: mine.length, oldest: Math.max(0, ...mine.map((r) => r.age)) };

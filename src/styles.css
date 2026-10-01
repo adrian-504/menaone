@@ -3543,6 +3543,7 @@ button.pk-st:focus-visible{outline:none;box-shadow:var(--shadow-focus)}
 .fr-count:active{background:var(--surface-pressed)}
 .fr-count:focus-visible{outline:none;box-shadow:var(--shadow-focus)}
 .pk-meta.fr-word{margin-top:1px;color:var(--muted)}
+.fr-lines{min-width:0}
 .fr-row.is-open{border-bottom-color:transparent}
 .fr-members{margin:0 8px 8px 60px;padding:2px 0 8px;border-bottom:1px solid var(--hairline)}
 .fr-member{display:grid;grid-template-columns:minmax(0,240px) 64px 120px minmax(0,1fr) auto;gap:12px;align-items:center;min-height:30px;padding:0 10px;border-radius:6px;font-size:var(--type-secondary);color:var(--sub);cursor:pointer}
@@ -3595,8 +3596,11 @@ button.pk-st:focus-visible{outline:none;box-shadow:var(--shadow-focus)}
   .pq-row.pk-row,#tab-followup .pq-row.pk-row{grid-template-columns:36px minmax(0,1fr) 104px 96px 28px;gap:6px 14px}
   .pk-who{display:none}
   .pk-row .pk-acts{grid-column:2 / 5;grid-row:2;justify-content:flex-start}
-  /* Follow-up: three lines — title, meta, then the trail (half its height, without its dates) with the buttons at
-     its right. The value and age columns size to fit the buttons under them. */
+  /* Follow-up: three lines — title, meta with the client's last word on the same line, then the trail (half its
+     height, without its dates) with the buttons at its right. The value and age columns size to fit the buttons. */
+  .fr-lines{display:flex;gap:6px;white-space:nowrap;overflow:hidden}
+  .fr-lines .pk-meta{flex:0 1 auto;min-width:0;margin-top:2px}
+  .fr-lines .fr-word::before{content:"· "}
   #tab-followup .pq-row.pk-row.has-mid{grid-template-columns:36px minmax(0,1fr) auto auto 28px}
   .pk-row .pk-mid{grid-column:2;grid-row:2;align-self:center;padding:0 6px}
   .pk-mid .pk-trail{height:14px;max-width:520px;margin:0}
@@ -3614,6 +3618,8 @@ button.pk-st:focus-visible{outline:none;box-shadow:var(--shadow-focus)}
   .pk-row.has-mid .pk-acts{grid-column:2 / 4;grid-row:3;justify-content:flex-start}
 }
 @media (max-width:1280px){.pk-st-d{white-space:normal}}
+/* Follow-up's strip has five panels; under 1,280 "not yet due" goes, so the total's figure is never clipped. */
+@media (max-width:1280px){#fu-strip .pk-strip[style*="--cols:5"]{grid-template-columns:1.1fr repeat(3,1fr)}#fu-strip .pk-strip[style*="--cols:5"] .pk-st[data-key="waiting"]{display:none}}
 
 /* The contact trail (Follow-up): sent, each touch, today, the offer expiry. */
 .pk-trail{position:relative;height:30px;max-width:520px;margin:8px 6px 0 4px}

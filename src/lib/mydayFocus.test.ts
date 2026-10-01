@@ -65,7 +65,7 @@ describe('proposals in play', () => {
 
   it('a long queue with clients never pushes the ones with Hassan off the list', () => {
     const ps = [
-      ...Array.from({ length: 58 }, (_, n) => proposal({ id: n + 1, status: 'Sent to Client', dateSentToClient: '2026-06-01' })),
+      ...Array.from({ length: 58 }, (_, n) => proposal({ id: n + 1, client: `Client ${n + 1}`, companyId: n + 1, status: 'Sent to Client', dateSentToClient: '2026-06-01' })),
       ...[101, 102, 103, 104, 105].map((id, n) => proposal({ id, status: 'In Internal Review', reviewRequestedAt: `2026-09-2${n + 1}` })),
       proposal({ id: 200, status: 'Proposal Request Received', dateAdded: '2026-09-29' }),
     ];
@@ -73,6 +73,23 @@ describe('proposals in play', () => {
     expect(p.rows.map((r) => r.stage)).toEqual(['draft', 'hassan', 'hassan', 'hassan', 'client', 'client', 'client']);
     expect(p.rows.filter((r) => r.stage === 'hassan').map((r) => r.id)).toEqual([101, 102, 103]);
     expect(p.hidden).toEqual({ draft: 0, hassan: 2, client: 55 });
+  });
+
+  it('with clients, the proposals sent together are one row and take one slot', () => {
+    const ps = [
+      proposal({ id: 1, client: 'Red Sea', companyId: 4, type: 'Workforce', status: 'Sent to Client', dateSentToClient: '2026-09-15' }),
+      proposal({ id: 2, client: 'Red Sea', companyId: 4, type: 'Company maintenance', status: 'Sent to Client', dateSentToClient: '2026-09-15' }),
+      proposal({ id: 3, client: 'Red Sea', companyId: 4, type: 'EOR', status: 'Sent to Client', dateSentToClient: '2026-09-15' }),
+      proposal({ id: 4, client: 'Acme', companyId: 1, status: 'Sent to Client', dateSentToClient: '2026-09-20' }),
+      proposal({ id: 5, client: 'Globex', companyId: 3, status: 'Sent to Client', dateSentToClient: '2026-09-22' }),
+      proposal({ id: 6, client: 'Northwind', companyId: 2, status: 'Sent to Client', dateSentToClient: '2026-09-25' }),
+    ];
+    const p = buildInPlay(ps, ctx);
+    expect(p.rows.map((r) => [r.id, r.client, r.service])).toEqual([[1, 'Red Sea', 'Workforce + Company maintenance + EOR'], [4, 'Acme', 'Payroll'], [5, 'Globex', 'Payroll']]);
+    expect(p.stages).toEqual([{ stage: 'client', count: 4, oldest: 15 }]);
+    expect(p.hidden.client).toBe(1);
+    // A proposal the same client was sent on another day is its own request.
+    expect(buildInPlay([...ps.slice(0, 2), proposal({ id: 7, client: 'Red Sea', companyId: 4, type: 'PRO', status: 'Sent to Client', dateSentToClient: '2026-09-28' })], ctx).rows.map((r) => r.service)).toEqual(['Workforce + Company maintenance', 'PRO']);
   });
 
   it('within a stage the urgent come first, then the oldest', () => {

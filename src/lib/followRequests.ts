@@ -28,6 +28,7 @@ import { fmtDateShort, fmtDateWeekday } from './dates';
 import { moneyTotal, plural, type StripPanel } from './pageKit';
 import { contactTrail, expiresIn, followUpDueOn, EXPIRING_DAYS, type MetaBit, type Trail } from './pagesQueues';
 import { PAPERWORK_PENDING, paperworkPending } from './afterYes';
+import { requestKey } from './requestKey';
 
 /** Days since the client's last word (or since sending) before a request is put to a decision. */
 export const DECIDE_DAYS = 60;
@@ -38,20 +39,7 @@ export const KEEP_DAYS = 30;
 
 const day = (s: string | null | undefined) => (s ? s.slice(0, 10) : '');
 
-type KeyProposal = Pick<Proposal, 'id' | 'client' | 'companyId' | 'requestGroup' | 'lastSentAt' | 'dateSentToClient' | 'sentDate'>;
-
-/** What ties proposals into one request: their request group; without one, the client and the day they were sent. */
-export function requestKey(p: KeyProposal): string {
-  if (p.requestGroup) return `g:${p.requestGroup}`;
-  const who = p.companyId != null ? `c${p.companyId}` : `n:${(p.client || '').trim().toLowerCase()}`;
-  return `${who}:${day(proposalSentDate(p)) || 'unsent'}`;
-}
-
-/** The other proposals with the client that were sent with this one (same request), by SL#. */
-export function sentWith<T extends KeyProposal & Pick<Proposal, 'status' | 'archived'>>(p: T, all: T[]): T[] {
-  const key = requestKey(p);
-  return all.filter((x) => x.id !== p.id && !x.archived && x.status === PS.SENT && requestKey(x) === key).sort((a, b) => a.id - b.id);
-}
+export { requestKey, sentWith } from './requestKey';
 
 export type EntryTouch = Pick<Touch, 'id' | 'proposalId' | 'companyId' | 'kind' | 'direction' | 'at' | 'contactId'> & Partial<Pick<Touch, 'byMemberId' | 'note' | 'batchId' | 'revertAfter' | 'source'>>;
 
@@ -218,12 +206,12 @@ export function buildRequest(members: Proposal[], ctx: RequestContext): FollowRe
   const left = expiresIn(validUntil, today);
   const expiring = left != null && left <= EXPIRING_DAYS;
 
-  // The offer's expiry comes right after the send: on a narrow row the end of the line is what gets cut.
+  // An offer about to expire is not said again on the meta line: the trail's red marker carries its date, and the
+  // strip counts it.
   // Sent by someone other than its owner: said on the row (when the proposals of the request agree on who).
   const senders = [...new Set(ps.map((p) => (p.sentById != null && p.sentById !== p.ownerId ? p.sentById : null)))];
   const sentBy = senders.length === 1 && senders[0] != null ? ctx.memberName?.(senders[0]) ?? null : null;
   const meta: MetaBit[] = [{ text: `Sent ${fmtDateShort(sent, true)}${sentBy ? ` by ${sentBy}` : ''}` }];
-  if (expiring) meta.push({ text: `◷ offer expires ${left === 0 ? 'today' : fmtDateWeekday(validUntil!)}`, tone: 'red', chip: true });
   if (followUps) meta.push({ text: plural(followUps, 'follow-up') });
   if (lastBy) meta.push({ text: `last ${lastBy.who ? `by ${lastBy.who}, ` : ''}${lastBy.how} ${fmtDateShort(lastBy.date, true)}` });
 
