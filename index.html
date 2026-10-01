@@ -137,12 +137,17 @@
   </div>
 </div>
 <div class="cmdk-ov" id="cmdk-ov" onclick="if(event.target===this)closeCommandPalette()">
-  <div class="cmdk-box">
+  <div class="cmdk-box" role="dialog" aria-label="Search and commands">
     <div class="cmdk-input-row">
       <span class="icon" data-icon="search"></span>
-      <input class="cmdk-input" id="cmdk-input" placeholder="Search everything, or jump to a page…" autocomplete="off" oninput="onPaletteInput(this.value)">
+      <input class="cmdk-input" id="cmdk-input" placeholder="Search everything, or jump to a page…" autocomplete="off" spellcheck="false" oninput="onPaletteInput(this.value)" aria-label="Search">
+      <span class="cmdk-count" id="cmdk-count"></span>
     </div>
-    <div class="cmdk-list" id="cmdk-list"></div>
+    <div class="cmdk-body">
+      <div class="cmdk-list" id="cmdk-list" role="listbox" aria-label="Results"></div>
+      <aside class="cmdk-preview" id="cmdk-preview" aria-label="Preview"></aside>
+    </div>
+    <div class="cmdk-ft"><span>↑↓ move</span><span>↵ open</span><span>⇥ actions</span><span>⌘1–9 jump to a group</span><span class="cmdk-ft-r">Esc close</span></div>
   </div>
 </div>
 

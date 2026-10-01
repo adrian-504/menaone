@@ -39,6 +39,8 @@ const SHOTS = [
   ['newopportunity', CLOCK, "switchTab('myday'), openOpportunityModal(null)"],
   ['newagreement', CLOCK, "switchTab('myday'), openAgrModal(null)"],
   ['newproject', CLOCK, "switchTab('myday'), openProjectModal(null)"],
+  ['palette', CLOCK, "switchTab('myday'), openCommandPalette(), (() => { const f = document.getElementById('cmdk-input'); f.value = 'acme'; onPaletteInput('acme'); })(), new Promise(r => setTimeout(r, 600))"],
+  ['palette-empty', CLOCK, "switchTab('myday'), openCommandPalette()"],
 ].filter(([n]) => !process.env.ONLY || process.env.ONLY.split(',').includes(n));
 
 const port = 9700 + Math.floor(Math.random() * 100);
