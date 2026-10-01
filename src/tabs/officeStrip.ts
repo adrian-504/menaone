@@ -119,8 +119,8 @@ export async function renderOfficeStripSettings(): Promise<void> {
   await loadSettings();
   const toggle = (id: string, on: boolean) => `<input type="checkbox" class="switch" id="${id}" ${on ? 'checked' : ''} onchange="officeStripSettingChanged()">`;
   el.innerHTML = `<div class="sec settings-card">
-    <div class="settings-card-hd"><span data-icon="clock"></span><div class="card-hd">My Day</div></div>
-    <p class="settings-card-desc">Small extras under the greeting on My Day.</p>
+    <div class="settings-card-hd"><span class="settings-ic" style="--c:var(--blue)" data-icon="sun" data-icon-size="15"></span>
+      <div class="settings-card-t"><div class="card-hd">My Day</div><p class="settings-card-desc">Small extras under the greeting.</p></div></div>
     <div class="rem-rows">
       <label class="rem-row">${toggle('strip-clocks', settings.clocks)}<span class="rem-label"><strong>Office clocks and weather</strong><span>${escHtml(OFFICES.map((o) => o.city).join(', '))}, with working hours and weekends</span></span></label>
       <label class="rem-row">${toggle('strip-holidays', settings.holidays)}<span class="rem-label"><strong>Public holidays this week</strong><span>Saudi Arabia, Lebanon and Spain (Barcelona). Islamic holidays are shown as expected until announced</span></span></label>

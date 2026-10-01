@@ -18,6 +18,8 @@ export async function renderTemplatesSettings(): Promise<void> {
   if (!el) return;
   try { list = await getEmailTemplates(); } catch { list = []; }
   setEmailTemplates(list);
+  // The navigation says "signature" in amber while none is written.
+  (window as any).settingsSignature?.(!(list.find((t) => t.name === SIGNATURE_NAME)?.body || '').trim());
   draw();
 }
 expose('renderTemplatesSettings', renderTemplatesSettings);

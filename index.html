@@ -728,43 +728,39 @@
   <div id="gallery-body"></div>
 </div>
 
-<div id="tab-settings" class="tab">
-  <div class="page-header">
-    <div>
-      <div class="page-title">Settings</div>
-    </div>
+<div id="tab-settings" class="tab pk-page">
+  <div class="page-header pk-head tk-head">
+    <div class="pk-head-t"><div class="page-title">Settings</div><span class="bars lg" aria-hidden="true"><i></i><i></i><i></i></span><div class="page-subtitle" id="settings-subtitle">Your preferences on this Mac.</div></div>
   </div>
   <div class="settings-layout">
-    <nav class="settings-nav" aria-label="Settings sections"><button class="settings-nav-item" data-pane="general" onclick="setSettingsPane('general')"><span data-icon="gear" data-icon-size="15"></span>General</button><button class="settings-nav-item" data-pane="appearance" onclick="setSettingsPane('appearance')"><span data-icon="sun" data-icon-size="15"></span>Appearance</button><button class="settings-nav-item" data-pane="team" onclick="setSettingsPane('team')"><span data-icon="people" data-icon-size="15"></span>Team</button><button class="settings-nav-item" data-pane="business" onclick="setSettingsPane('business')"><span data-icon="dollar" data-icon-size="15"></span>Business</button><button class="settings-nav-item" data-pane="templates" onclick="setSettingsPane('templates')"><span data-icon="mail" data-icon-size="15"></span>Templates</button><button class="settings-nav-item" data-pane="connections" onclick="setSettingsPane('connections')"><span data-icon="link" data-icon-size="15"></span>Connections</button><button class="settings-nav-item" data-pane="data" onclick="setSettingsPane('data')"><span data-icon="archive" data-icon-size="15"></span>Data</button></nav>
+    <nav class="settings-nav" id="settings-nav" aria-label="Settings sections"></nav>
     <div class="settings-panes">
     <section class="settings-pane" data-pane="general" hidden>
       <h2 class="settings-pane-title">General</h2>
+      <p class="settings-pane-desc"></p>
   <div id="reminder-settings-card"></div>
   <div id="office-strip-settings-card"></div>
     </section>
     <section class="settings-pane" data-pane="appearance" hidden>
       <h2 class="settings-pane-title">Appearance</h2>
+      <p class="settings-pane-desc"></p>
   <div class="sec settings-card">
-    <div class="settings-card-hd"><div class="card-hd">Sidebar tint</div></div>
-    <p class="settings-card-desc">The colour of the sidebar and of the panels on each page. Remembered on this computer.</p>
+    <div class="settings-card-hd"><span class="settings-ic" style="--c:var(--coral-text)" data-icon="sun" data-icon-size="15"></span><div class="settings-card-t"><div class="card-hd">Sidebar tint</div><p class="settings-card-desc">The colour of the sidebar and of the panels on each page. Remembered on this computer.</p></div></div>
     <div class="seg-btns" id="tint-picker" role="radiogroup" aria-label="Sidebar tint">
       <button class="seg-btn" data-tint="blue" role="radio" onclick="appearanceSetTint('blue')">Blue</button>
       <button class="seg-btn" data-tint="grey" role="radio" onclick="appearanceSetTint('grey')">Grey</button>
     </div>
   </div>
   <div class="sec settings-card">
-    <div class="settings-card-hd"><div class="card-hd">Sidebar</div></div>
-    <p class="settings-card-desc">Hide the modules you don't use from the sidebar. They still work: search, links from other records and the Navigate menu open them, and while one is open it shows in the sidebar. Remembered on this computer.</p>
+    <div class="settings-card-hd"><span class="settings-ic" style="--c:var(--blue)" data-icon="sidebar" data-icon-size="15"></span><div class="settings-card-t"><div class="card-hd">Sidebar</div><p class="settings-card-desc">Hide the modules you don't use from the sidebar. They still work: search, links from other records and the Navigate menu open them, and while one is open it shows in the sidebar. Remembered on this computer.</p></div></div>
     <div class="sb-switches" id="sidebar-switches"></div>
   </div>
   <div class="sec settings-card">
-    <div class="settings-card-hd"><div class="card-hd">Theme</div></div>
-    <p class="settings-card-desc">Choose how MENA One looks. Your choice is remembered on this computer.</p>
+    <div class="settings-card-hd"><span class="settings-ic" style="--c:var(--sub)" data-icon="moon" data-icon-size="15"></span><div class="settings-card-t"><div class="card-hd">Theme</div><p class="settings-card-desc">Choose how MENA One looks. Your choice is remembered on this computer.</p></div></div>
     <div class="theme-picker" id="theme-picker"></div>
   </div>
   <div class="sec settings-card">
-    <div class="settings-card-hd"><div class="card-hd">My Day photo</div></div>
-    <p class="settings-card-desc">The photograph behind the greeting on My Day: the city you're in (from this Mac's time zone), the MENA office, or your own — with several, a different one each day. Your photos are copied into MENA One, so moving the originals doesn't matter.</p>
+    <div class="settings-card-hd"><span class="settings-ic" style="--c:var(--amber)" data-icon="eye" data-icon-size="15"></span><div class="settings-card-t"><div class="card-hd">My Day photo</div><p class="settings-card-desc">The photograph behind the greeting on My Day: the city you're in (from this Mac's time zone), the MENA office, or your own — with several, a different one each day. Your photos are copied into MENA One, so moving the originals doesn't matter.</p></div></div>
     <div class="appearance-band-row">
       <div class="seg-btns" id="band-picker" role="radiogroup" aria-label="My Day photo">
         <button class="seg-btn" data-band="city" role="radio" onclick="appearanceSetBand('city')">My city</button>
@@ -776,60 +772,43 @@
     </div>
   </div>
   <div class="sec settings-card">
-    <div class="settings-card-hd"><div class="card-hd">Your name</div></div>
-    <p class="settings-card-desc">For the greeting and the sidebar when Microsoft 365 isn't connected (when it is, your account's name is used).</p>
+    <div class="settings-card-hd"><span class="settings-ic" style="--c:var(--green)" data-icon="people" data-icon-size="15"></span><div class="settings-card-t"><div class="card-hd">Your name</div><p class="settings-card-desc">For the greeting and the sidebar when Microsoft 365 isn't connected (when it is, your account's name is used).</p></div></div>
     <input class="finp appearance-name" id="appearance-name" placeholder="e.g. Ahmad Abdallah" onchange="appearanceSetName(this.value)" autocomplete="name">
   </div>
     </section>
     <section class="settings-pane" data-pane="team" hidden>
       <h2 class="settings-pane-title">Team</h2>
+      <p class="settings-pane-desc"></p>
   <div class="sec settings-card">
-    <div class="settings-card-hd">
-      <span data-icon="people"></span>
-      <div class="card-hd">Team</div>
-    </div>
-    <p class="settings-card-desc">The people who own proposals, review them and prepare agreements. Reviewers are offered on every proposal. When MENA One gets sign-in for the team, these become the user accounts.</p>
+    <div class="settings-card-hd"><span class="settings-ic" style="--c:var(--green)" data-icon="people" data-icon-size="15"></span><div class="settings-card-t"><div class="card-hd">Team</div><p class="settings-card-desc">The people who own proposals, review them and prepare agreements. Reviewers are offered on every proposal. When MENA One gets sign-in for the team, these become the user accounts.</p></div></div>
     <div id="team-directory"></div>
   </div>
     </section>
     <section class="settings-pane" data-pane="business" hidden>
       <h2 class="settings-pane-title">Business</h2>
+      <p class="settings-pane-desc"></p>
   <div class="sec settings-card">
-    <div class="settings-card-hd">
-      <span data-icon="dollar"></span>
-      <div class="card-hd">Business entities and currencies</div>
-    </div>
-    <p class="settings-card-desc">Each proposal and agreement belongs to one MENA BIG entity, which sets its default currency. Totals are shown per currency; set a rate to also see everything converted to SAR.</p>
+    <div class="settings-card-hd"><span class="settings-ic" style="--c:var(--amber)" data-icon="dollar" data-icon-size="15"></span><div class="settings-card-t"><div class="card-hd">Business entities and currencies</div><p class="settings-card-desc">Each proposal and agreement belongs to one MENA BIG entity, which sets its default currency. Totals are shown per currency; set a rate to also see everything converted to SAR.</p></div></div>
     <div id="entity-settings"></div>
   </div>
   <div class="sec settings-card">
-    <div class="settings-card-hd">
-      <span data-icon="database"></span>
-      <div class="card-hd">Proposals</div>
-    </div>
-    <p class="settings-card-desc">Where client proposal folders live in OneDrive, and a one-time tidy-up of the old free-text "owner" field.</p>
+    <div class="settings-card-hd"><span class="settings-ic" style="--c:var(--coral-text)" data-icon="database" data-icon-size="15"></span><div class="settings-card-t"><div class="card-hd">Proposals</div><p class="settings-card-desc">Where client proposal folders live in OneDrive, and a one-time tidy-up of the old free-text "owner" field.</p></div></div>
     <div id="proposal-settings"></div>
   </div>
     </section>
     <section class="settings-pane" data-pane="templates" hidden>
       <h2 class="settings-pane-title">Templates</h2>
+      <p class="settings-pane-desc"></p>
   <div class="sec settings-card">
-    <div class="settings-card-hd">
-      <span data-icon="mail"></span>
-      <div class="card-hd">Template emails</div>
-    </div>
-    <p class="settings-card-desc">Offered on every company page, filled in with the company, the contact and its proposal, ready to copy or open in Outlook.</p>
+    <div class="settings-card-hd"><span class="settings-ic" style="--c:var(--blue)" data-icon="mail" data-icon-size="15"></span><div class="settings-card-t"><div class="card-hd">Template emails</div><p class="settings-card-desc">Offered on every company page, filled in with the company, the contact and its proposal, ready to copy or open in Outlook.</p></div></div>
     <div id="templates-settings"></div>
   </div>
     </section>
     <section class="settings-pane" data-pane="connections" hidden>
       <h2 class="settings-pane-title">Connections</h2>
+      <p class="settings-pane-desc"></p>
   <div class="sec settings-card">
-    <div class="settings-card-hd">
-      <span data-icon="building"></span>
-      <div class="card-hd">Microsoft 365</div>
-    </div>
-    <p class="settings-card-desc">Connect Outlook Mail, Calendar and Teams. Outlook stays the source of truth — MENA One only caches what it needs for Action Required, Calendar, and Meetings.</p>
+    <div class="settings-card-hd"><span class="settings-ic" style="--c:var(--blue)" data-icon="building" data-icon-size="15"></span><div class="settings-card-t"><div class="card-hd">Microsoft 365</div><p class="settings-card-desc">Connect Outlook Mail, Calendar and Teams. Outlook stays the source of truth — MENA One only caches what it needs for Action Required, Calendar, and Meetings.</p></div></div>
 
     <div id="ms365-status-row" class="settings-status">
       <span class="status-dot settings-status-dot" id="ms365-status-dot"></span>
@@ -868,35 +847,24 @@
     </details>
   </div>
   <div class="sec settings-card">
-    <div class="settings-card-hd">
-      <span data-icon="folder"></span>
-      <div class="card-hd">Microsoft Files</div>
-    </div>
-    <p class="settings-card-desc">Browses your OneDrive right from this Mac's Finder-synced folders — no separate connection needed. Match a folder of client subfolders (e.g. "Proposals") to your Companies so each Company's linked folder shows up under its own Files tab.</p>
+    <div class="settings-card-hd"><span class="settings-ic" style="--c:var(--amber)" data-icon="folder" data-icon-size="15"></span><div class="settings-card-t"><div class="card-hd">Microsoft Files</div><p class="settings-card-desc">Browses your OneDrive right from this Mac's Finder-synced folders — no separate connection needed. Match a folder of client subfolders (e.g. "Proposals") to your Companies so each Company's linked folder shows up under its own Files tab.</p></div></div>
     <button class="btn-secondary" onclick="switchTab('files');msFilesOpenSetupWizard()">Match folders to companies…</button>
   </div>
     </section>
     <section class="settings-pane" data-pane="data" hidden>
       <h2 class="settings-pane-title">Data</h2>
+      <p class="settings-pane-desc"></p>
       <!-- The version, the backups and the database check (tabs/settingsData.ts). -->
       <div class="data-status" id="data-status"></div>
   <div class="sec settings-card">
-    <div class="settings-card-hd">
-      <span data-icon="building"></span>
-      <div class="card-hd">Company Master Data</div>
-    </div>
-    <p class="settings-card-desc">Links every legacy company name on Proposals, Contacts, Agreements and Projects to a canonical Company record, and moves researched industries onto the new controlled taxonomy. Backs up your database first, never guesses on an ambiguous name (those go to a Needs Review queue on the Companies page instead), and is safe to run more than once — it only processes what's still unlinked.</p>
+    <div class="settings-card-hd"><span class="settings-ic" style="--c:var(--blue)" data-icon="building" data-icon-size="15"></span><div class="settings-card-t"><div class="card-hd">Company Master Data</div><p class="settings-card-desc">Links every legacy company name on Proposals, Contacts, Agreements and Projects to a canonical Company record, and moves researched industries onto the new controlled taxonomy. Backs up your database first, never guesses on an ambiguous name (those go to a Needs Review queue on the Companies page instead), and is safe to run more than once — it only processes what's still unlinked.</p></div></div>
     <div class="btn-row">
       <button class="btn-secondary" onclick="runCompanyMigrationClick()">Run company migration</button>
       <span id="company-migration-status" class="settings-inline-status"></span>
     </div>
   </div>
   <div class="sec settings-card">
-    <div class="settings-card-hd">
-      <span data-icon="archive"></span>
-      <div class="card-hd">Data Backup</div>
-    </div>
-    <p class="settings-card-desc">A backup file is a complete copy of everything in MENA One — companies, opportunities, meetings, projects, proposals, tasks, notes, commitments and settings. Restore reads these files and older .json backups too. The file includes client correspondence (cached Outlook mail and meetings) — keep it in the MENA BIG OneDrive only.</p>
+    <div class="settings-card-hd"><span class="settings-ic" style="--c:var(--sub)" data-icon="archive" data-icon-size="15"></span><div class="settings-card-t"><div class="card-hd">Data Backup</div><p class="settings-card-desc">A backup file is a complete copy of everything in MENA One — companies, opportunities, meetings, projects, proposals, tasks, notes, commitments and settings. Restore reads these files and older .json backups too. The file includes client correspondence (cached Outlook mail and meetings) — keep it in the MENA BIG OneDrive only.</p></div></div>
     <div class="btn-row">
       <button class="btn-secondary" onclick="backupAllData()">Save a backup file…</button>
       <label class="btn-secondary file-btn" title="Restore from a backup file, an older .json backup, or the original tracker's export">

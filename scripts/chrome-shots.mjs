@@ -22,6 +22,13 @@ const SHOTS = [
   ['files', CLOCK, `switchTab('files'), msFilesLayout('icons'), msFilesNavigateToPath('${PR}')`],
   ['files-list', CLOCK, `switchTab('files'), msFilesLayout('list'), msFilesNavigateToPath('${PR}/Acme Holdings')`],
   ['files-folder', CLOCK, `switchTab('files'), msFilesLayout('icons'), msFilesNavigateToPath('${PR}/Acme Holdings').then(() => msFilesSelect('${PR}/Acme Holdings/Fee model.xlsx'))`],
+  ['settings', CLOCK, "navToModule('settings'), setSettingsPane('general')"],
+  ['settings-appearance', CLOCK, "navToModule('settings'), setSettingsPane('appearance')"],
+  ['settings-team', CLOCK, "navToModule('settings'), setSettingsPane('team')"],
+  ['settings-business', CLOCK, "navToModule('settings'), setSettingsPane('business')"],
+  ['settings-templates', CLOCK, "navToModule('settings'), setSettingsPane('templates')"],
+  ['settings-connections', CLOCK, "navToModule('settings'), setSettingsPane('connections')"],
+  ['settings-data', CLOCK, "navToModule('settings'), setSettingsPane('data')"],
 ].filter(([n]) => !process.env.ONLY || process.env.ONLY.split(',').includes(n));
 
 const port = 9700 + Math.floor(Math.random() * 100);
