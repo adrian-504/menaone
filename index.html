@@ -335,25 +335,25 @@
 </div>
 
 <!-- CALENDAR TAB -->
-<div id="tab-calendar" class="tab">
-  <div class="page-header">
-    <div>
-      <div class="page-title">Calendar</div>
-      <div class="page-subtitle">Outlook stays the source of truth — meetings created or edited here sync straight back.</div>
+<div id="tab-calendar" class="tab pk-page">
+  <div class="page-header pk-head tk-head">
+    <div class="pk-head-t"><div class="page-title">Calendar</div><span class="bars lg" aria-hidden="true"><i></i><i></i><i></i></span><div class="page-subtitle">Outlook stays the source of truth; changes here sync back.</div></div>
+    <div class="page-header-actions">
+      <div class="seg-btns" id="cal-view-btns" role="tablist" aria-label="View">
+        <button class="seg-btn cal-vbtn" data-view="day" onclick="setCalendarView('day')">Day</button>
+        <button class="seg-btn cal-vbtn active" data-view="week" onclick="setCalendarView('week')">Week</button>
+        <button class="seg-btn cal-vbtn" data-view="month" onclick="setCalendarView('month')">Month</button>
+      </div>
+      <button class="loc-nav" onclick="calendarNav(-1)" data-tip="Previous" aria-label="Previous"><span data-icon="chevronLeft" data-icon-size="15"></span></button>
+      <button class="btn-secondary btn-sm" onclick="calendarNav(0)">Today</button>
+      <button class="loc-nav" onclick="calendarNav(1)" data-tip="Next" aria-label="Next"><span data-icon="chevronRight" data-icon-size="15"></span></button>
+      <button class="btn-primary" onclick="openOutlookMeetingModal(null)"><span data-icon="plus" data-icon-size="14"></span> New meeting</button>
     </div>
-    <button class="btn-primary" onclick="openOutlookMeetingModal(null)"><span data-icon="plus" data-icon-size="14"></span> New meeting</button>
   </div>
-  <div class="fbar">
-    <div class="seg-btns" id="cal-view-btns">
-      <button class="seg-btn cal-vbtn" data-view="day" onclick="setCalendarView('day')">Day</button>
-      <button class="seg-btn cal-vbtn active" data-view="week" onclick="setCalendarView('week')">Week</button>
-      <button class="seg-btn cal-vbtn" data-view="month" onclick="setCalendarView('month')">Month</button>
-    </div>
-    <button class="loc-nav" onclick="calendarNav(-1)" data-tip="Previous" aria-label="Previous"><span data-icon="chevronLeft" data-icon-size="15"></span></button>
-    <button class="btn-secondary btn-sm" onclick="calendarNav(0)">Today</button>
-    <button class="loc-nav" onclick="calendarNav(1)" data-tip="Next" aria-label="Next"><span data-icon="chevronRight" data-icon-size="15"></span></button>
-    <span class="toolbar-title" id="cal-range-label"></span>
-    <span class="rcnt push-right" id="cal-sync-sub"></span>
+  <div class="cal-line">
+    <b id="cal-range-label"></b>
+    <span class="cal-stats" id="cal-stats"></span>
+    <span class="cal-sync" id="cal-sync-sub"></span>
   </div>
   <div id="cal-root"></div>
 </div>

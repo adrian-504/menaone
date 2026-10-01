@@ -1,9 +1,11 @@
 import { noteSync, OFFLINE_LABEL } from '../lib/offline';
 import { S } from '../lib/state';
 import { toast } from '../lib/ui';
-import { escHtml, expose, today, fmtTime } from '../lib/utils';
+import { escHtml, expose, today, fmtTime, fmtDayLong, strColor } from '../lib/utils';
+import { tileHtml } from '../lib/pageKit';
+import { allDayChips, eventState, nowLine, placeBlocks, rangeLabel, rangeStats, syncedLabel, DAY_START_HOUR, DAY_END_HOUR, HOUR_PX, type AllDayChip } from '../lib/calendarGrid';
 import { attachCompanySelector } from '../lib/companySelector';
-import { registerTabRenderer } from '../lib/registry';
+import { registerTabRenderer, getActiveTabId } from '../lib/registry';
 import {
   ms365Status, ms365SyncCalendar, ms365CreateTeamsMeeting, ms365UpdateOutlookMeeting,
   getMeetings, saveMeeting,
@@ -77,6 +79,7 @@ async function loadAndRenderCalendar(): Promise<void> {
   if (!S.ms365Status) S.ms365Status = await ms365Status();
   const { start, end } = getRange();
   paintRangeLabel(start, end);
+  document.querySelectorAll('.cal-vbtn').forEach((b) => b.classList.toggle('active', (b as HTMLElement).dataset.view === S.calendarView));
 
   if (S.ms365Status.status === 'connected') {
     S.calendarSyncing = true;
@@ -106,40 +109,43 @@ async function loadAndRenderCalendar(): Promise<void> {
   paintCalendar();
 }
 
+/** The line above the grid: the range in Saira, then how many meetings and how long. */
 function paintRangeLabel(start: Date, end: Date): void {
   const el = document.getElementById('cal-range-label');
   if (!el) return;
-  if (S.calendarView === 'month') { el.textContent = `${MONTH_NAMES[anchorDate().getMonth()]} ${anchorDate().getFullYear()}`; return; }
-  if (S.calendarView === 'day') { el.textContent = `${DOW[start.getDay()]}, ${MONTH_NAMES[start.getMonth()]} ${start.getDate()}, ${start.getFullYear()}`; return; }
-  const sameMonth = start.getMonth() === end.getMonth();
-  el.textContent = sameMonth
-    ? `${MONTH_NAMES[start.getMonth()]} ${start.getDate()}–${end.getDate()}, ${end.getFullYear()}`
-    : `${MONTH_NAMES[start.getMonth()]} ${start.getDate()} – ${MONTH_NAMES[end.getMonth()]} ${end.getDate()}, ${end.getFullYear()}`;
+  const stats = document.getElementById('cal-stats');
+  const a = anchorDate();
+  const from = S.calendarView === 'month' ? toIsoDate(new Date(a.getFullYear(), a.getMonth(), 1)) : toIsoDate(start);
+  const to = S.calendarView === 'month' ? toIsoDate(new Date(a.getFullYear(), a.getMonth() + 1, 0)) : toIsoDate(end);
+  el.textContent = S.calendarView === 'month' ? `${MONTH_NAMES[a.getMonth()]} ${a.getFullYear()}` : S.calendarView === 'day' ? fmtDayLong(from, true) : rangeLabel(from, to);
+  if (stats) stats.textContent = rangeStats(S.meetings, from, to);
 }
 
 function paintSyncSub(): void {
   const el = document.getElementById('cal-sync-sub');
   if (!el) return;
-  if (!S.ms365Status || S.ms365Status.status !== 'connected') { el.textContent = 'Not connected to Microsoft 365'; el.classList.remove('c-red'); return; }
-  if (S.calendarSyncing) { el.textContent = 'Syncing…'; el.classList.remove('c-red'); return; }
-  if (S.ms365Offline) { el.textContent = OFFLINE_LABEL; el.classList.remove('c-red'); return; }
-  if (S.calendarSyncError) {
-    el.textContent = `Sync failed — ${S.calendarSyncError}`;
-    el.classList.add('c-red');
-    return;
-  }
-  el.classList.remove('c-red');
-  el.textContent = S.ms365Status.lastSyncAt ? `Synced ${S.ms365Status.lastSyncAt}` : '';
+  const say = (text: string, state: '' | 'ok' | 'bad' = '') => { el.textContent = text; el.classList.toggle('is-ok', state === 'ok'); el.classList.toggle('c-red', state === 'bad'); };
+  if (!S.ms365Status || S.ms365Status.status !== 'connected') return say('Not connected to Microsoft 365');
+  if (S.calendarSyncing) return say('Syncing…');
+  if (S.ms365Offline) return say(OFFLINE_LABEL);
+  if (S.calendarSyncError) return say(`Sync failed — ${S.calendarSyncError}`, 'bad');
+  const label = syncedLabel(S.ms365Status.lastSyncAt, new Date());
+  say(label, label ? 'ok' : '');
 }
 
-function paintCalendar(): void {
+function paintCalendar(keepScroll = false): void {
   const root = document.getElementById('cal-root');
   if (!root) return;
-  if (S.calendarView === 'month') { root.innerHTML = renderMonthGrid(); return; }
   const { start, end } = getRange();
+  paintRangeLabel(start, end);
+  if (S.calendarView === 'month') { root.innerHTML = renderMonthGrid(); return; }
   const days: Date[] = [];
   for (let d = new Date(start); d <= end; d = addDays(d, 1)) days.push(new Date(d));
-  root.innerHTML = days.map(renderDaySection).join('');
+  const was = keepScroll ? document.getElementById('cal-gscroll')?.scrollTop : undefined;
+  root.innerHTML = renderTimeGrid(days);
+  // Opens on the working day: 08:00 at the top (earlier when something starts before it), unless the place is being kept.
+  const scroll = document.getElementById('cal-gscroll');
+  if (scroll) scroll.scrollTop = was ?? Math.max(0, firstHour(days) * HOUR_PX - HOUR_LEAD_PX);
 }
 
 function eventsOnDay(d: Date): Meeting[] {
@@ -152,34 +158,79 @@ function eventsOnDay(d: Date): Meeting[] {
     .sort((a, b) => (a.startAt || a.meetingDate || '').localeCompare(b.startAt || b.meetingDate || ''));
 }
 
-function renderDaySection(d: Date): string {
-  const evts = eventsOnDay(d);
-  const isToday = sameDate(d, new Date());
-  return `<div class="cal-day-section">
-    <div class="cal-day-hd${isToday ? ' today' : ''}">${DOW[d.getDay()]}, ${MONTH_NAMES[d.getMonth()]} ${d.getDate()}${isToday ? ' · Today' : ''}</div>
-    ${evts.length === 0
-      ? `<div class="feed-empty">No meetings.</div>`
-      : evts.map(eventRow).join('')}
+// ── Week and day: a time grid ───────────────────────────────────────────────
+
+/** Colour = client: the client's tile colour; MENA BIG's own for a meeting with no client. */
+const INTERNAL = 'MENA BIG';
+const colourOf = (m: Pick<Meeting, 'companyName'>): string => (m.companyName ? strColor(m.companyName) : 'var(--tile-3)');
+
+const isTimed = (m: Meeting) => !!m.startAt && /T\d/.test(m.startAt);
+
+/** The hour the grid opens on: 08:00, or the hour of the earliest event shown when that is sooner. */
+function firstHour(days: Date[]): number {
+  const earliest = days.flatMap((d) => eventsOnDay(d).filter((m) => isTimed(m) && !m.isCancelled)).map((m) => new Date(m.startAt!).getHours());
+  return Math.min(DAY_START_HOUR, ...earliest);
+}
+
+/** Room above the first hour's line, so its label is not cut. */
+const HOUR_LEAD_PX = 10;
+const CHIPS_SHOWN = 2;
+const chipOpen = (c: AllDayChip): string => (c.kind === 'task' ? `openRecord('task', ${c.id})` : c.kind === 'promise' ? `openCommitmentSource(${c.id})` : c.kind === 'expiry' ? `openRecord('proposal', ${c.id})` : `openRecord('meeting', ${c.id})`);
+const chipHtml = (c: AllDayChip): string => `<button class="cal-chip t-${c.tone}" onclick="${chipOpen(c)}" data-tip="${escHtml(c.text)}"><i aria-hidden="true">${c.glyph}</i><span>${escHtml(c.text)}</span></button>`;
+
+function eventBlock(m: Meeting, b: { top: number; height: number; col: number; cols: number; short: boolean }, now: Date): string {
+  const state = m.isCancelled ? 'past' : eventState(m, now);
+  const time = fmtTime(m.startAt);
+  // Who it is with: the first attendee by name (an address reads as the contact it belongs to, or is left out).
+  const who = (m.attendees || []).filter((x) => x && x !== m.organizer).map((x) => (x.includes('@') ? S.contacts.find((c) => c.email?.toLowerCase() === x.toLowerCase())?.name || '' : x)).find(Boolean) || '';
+  const join = m.isOnlineMeeting && m.onlineMeetingUrl && !m.isCancelled && state !== 'past'
+    ? `<a href="${escHtml(m.onlineMeetingUrl)}" target="_blank" rel="noopener" class="cal-ev-join" onclick="event.stopPropagation()">Join</a>` : '';
+  const where = join || escHtml(m.isOnlineMeeting ? 'Teams' : m.location || '');
+  const sub = [escHtml(time), escHtml(who), where].filter(Boolean).join(' · ');
+  const width = 100 / b.cols;
+  return `<div class="cal-ev${b.short ? ' is-short' : ''}${state === 'past' ? ' is-past' : state === 'now' ? ' is-now' : ''}${m.isCancelled ? ' is-cancelled' : ''}" role="button" tabindex="0" style="--c:${colourOf(m)};top:${b.top}px;height:${b.height}px;left:${(b.col * width).toFixed(2)}%;width:${width.toFixed(2)}%"
+    onclick="openRecord('meeting', ${m.id})" onkeydown="if(event.key==='Enter')this.click()" data-tip="${escHtml(`${m.title} · ${time}${m.endAt ? `–${fmtTime(m.endAt)}` : ''}${m.companyName ? ` · ${m.companyName}` : ''}`)}">
+    <div class="cal-ev-in"><b>${escHtml(m.title)}${m.isCancelled ? ' (cancelled)' : ''}</b><span>${sub}</span></div>
   </div>`;
 }
 
-function eventRow(m: Meeting): string {
-  const timeLabel = m.startAt ? `${fmtTime(m.startAt)}${m.endAt ? ` – ${fmtTime(m.endAt)}` : ''}` : 'All day';
-  const meta = [m.organizer ? `Organizer: ${m.organizer}` : '', m.location || '', m.companyName || ''].filter(Boolean).join(' · ');
-  return `<div class="cal-event-row${m.isCancelled ? ' cancelled' : ''}" onclick="openRecord('meeting', ${m.id})">
-    <div class="cal-event-time">${escHtml(timeLabel)}</div>
-    <div class="cal-event-body">
-      <div class="cal-event-title">${escHtml(m.title)}${m.isCancelled ? ' (Cancelled)' : ''}</div>
-      ${meta ? `<div class="cal-event-meta">${escHtml(meta)}</div>` : ''}
+/** The week (seven columns) or the day (one): an hour gutter, a header per day, the all-day row, and the events as
+ * blocks placed by their start and end. The whole day is there; it opens on 08:00–18:00 and scrolls. */
+function renderTimeGrid(days: Date[]): string {
+  const now = new Date();
+  const isos = days.map(toIsoDate);
+  const line = nowLine(now, isos);
+  const input = { meetings: S.meetings, todos: S.todos, commitments: S.commitments, proposals: S.proposals };
+  const chips = isos.map((d) => allDayChips(d, input));
+  const hasChips = chips.some((c) => c.length);
+  const cls = (d: Date, i: number) => `${line?.index === i ? ' is-today' : ''}${d.getDay() === 0 || d.getDay() === 6 ? ' is-weekend' : ''}`;
+  const head = days.map((d, i) => `<button class="cal-dh${cls(d, i)}" onclick="jumpToDay('${isos[i]}')" aria-label="${escHtml(fmtDayLong(isos[i]))}${line?.index === i ? ', today' : ''}">
+      <b>${d.getDate()}</b><span>${DOW[d.getDay()]}${line?.index === i ? ' · today' : ''}</span></button>`).join('');
+  const allDay = hasChips ? `<div class="cal-gut cal-ad-l">all-day</div>${chips.map((list, i) => `<div class="cal-ad${cls(days[i], i)}">${list.slice(0, CHIPS_SHOWN).map(chipHtml).join('')}${list.length > CHIPS_SHOWN ? `<button class="cal-chip t-grey is-more" onclick="jumpToDay('${isos[i]}')">+${list.length - CHIPS_SHOWN} more</button>` : ''}</div>`).join('')}` : '';
+  const hours = Array.from({ length: 23 }, (_, h) => `<span style="top:${(h + 1) * HOUR_PX}px">${String(h + 1).padStart(2, '0')}:00</span>`).join('');
+  const cols = days.map((d, i) => {
+    const events = eventsOnDay(d).filter(isTimed);
+    const byId = new Map(events.map((m) => [m.id, m]));
+    const blocks = placeBlocks(events, isos[i]).map((b) => eventBlock(byId.get(b.id)!, b, now)).join('');
+    return `<div class="cal-col${cls(d, i)}">${blocks}${line?.index === i ? `<i class="cal-now" style="top:${line.top}px" aria-hidden="true"></i>` : ''}</div>`;
+  }).join('');
+  // Colour = client: the clients with a meeting on screen, then MENA BIG's own when one has no client.
+  const shown = days.flatMap((d) => eventsOnDay(d)).filter((m) => !m.isCancelled);
+  const clients = [...new Set(shown.map((m) => m.companyName).filter((x): x is string => !!x))].sort();
+  const legend = shown.length ? `<div class="cal-legend"><span>Colour = client</span>${clients.map((c) => `<span class="pk-mini-co">${tileHtml(c, 'pk-tile mini')}${escHtml(c)}</span>`).join('')}${shown.some((m) => !m.companyName) ? `<span class="pk-mini-co"><span class="pk-tile mini is-internal" aria-hidden="true">MB</span>Internal</span>` : ''}${hasChips ? '<span class="cal-legend-r">All-day row: tasks, promises, expiries</span>' : ''}</div>` : '';
+  return `<div class="cal-grid${days.length === 1 ? ' is-day' : ''}" style="--days:${days.length};--hours:${DAY_END_HOUR - DAY_START_HOUR}">
+    <div class="cal-ghead"><div class="cal-gut"></div>${head}${allDay}</div>
+    <div class="cal-gscroll" id="cal-gscroll" tabindex="-1">
+      <div class="cal-gbody"><div class="cal-gut cal-hours" aria-hidden="true">${hours}</div>${cols}</div>
     </div>
-    ${m.isOnlineMeeting && m.onlineMeetingUrl && !m.isCancelled ? `<a href="${escHtml(m.onlineMeetingUrl)}" target="_blank" rel="noopener" class="btn-secondary btn-sm" onclick="event.stopPropagation()">${icon('link', 12)} Join Teams</a>` : ''}
-  </div>`;
+  </div>${legend}`;
 }
 
 function renderMonthGrid(): string {
   const { start, end } = getRange();
   const a = anchorDate();
-  const cells: string[] = DOW.map((d) => `<div class="cal-month-dow">${d}</div>`);
+  // The weeks start on Monday, and so does the row of day names.
+  const cells: string[] = [...DOW.slice(1), DOW[0]].map((d) => `<div class="cal-month-dow">${d}</div>`);
   for (let d = new Date(start); d <= end; d = addDays(d, 1)) {
     const evts = eventsOnDay(d);
     const isOtherMonth = d.getMonth() !== a.getMonth();
@@ -187,12 +238,17 @@ function renderMonthGrid(): string {
     const dIso = toIsoDate(d);
     cells.push(`<div class="cal-month-cell${isOtherMonth ? ' other-month' : ''}${isToday ? ' today' : ''}" onclick="jumpToDay('${dIso}')">
       <div class="cal-month-daynum">${d.getDate()}</div>
-      ${evts.slice(0, 3).map((m) => `<div class="cal-month-evt">${escHtml(m.title)}</div>`).join('')}
+      ${evts.slice(0, 3).map((m) => `<div class="cal-month-evt is-client${m.isCancelled ? ' is-cancelled' : ''}" style="--c:${colourOf(m)}">${isTimed(m) ? `<i>${escHtml(fmtTime(m.startAt))}</i>` : ''}${escHtml(m.title)}</div>`).join('')}
       ${evts.length > 3 ? `<div class="cal-month-evt t-muted">+${evts.length - 3} more</div>` : ''}
     </div>`);
   }
   return `<div class="cal-month-grid">${cells.join('')}</div>`;
 }
+
+// The now-line and what counts as over follow the clock while the calendar is open.
+window.setInterval(() => {
+  if (getActiveTabId() === 'calendar' && S.calendarView !== 'month' && document.getElementById('cal-gscroll')) paintCalendar(true);
+}, 60_000);
 
 export function jumpToDay(iso: string): void {
   S.calendarAnchor = iso;
