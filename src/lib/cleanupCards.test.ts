@@ -46,7 +46,7 @@ describe('the card', () => {
     const qs = buildCleanupQueues(base({ proposals: [review, signed, old, fresh] }));
     const input = card({ proposals: [review, signed, old, fresh], reviewerOf: () => 'Hassan Balaghi' });
     const rec = (id: string, n = 0) => { const q = qs.find((x) => x.id === id)!; return cardFor(q, q.items[n], input).recommend; };
-    expect(rec('long-review')).toEqual({ action: 'nudge', hint: 'Remind Hassan first' });
+    expect(rec('long-review')).toEqual({ action: 'nudge', hint: 'Records that you nudged Hassan' });
     expect(qs.find((x) => x.id === 'long-review')!.actions).toEqual(['nudge', 'approve', 'changes', 'withdrawn']);
     expect(rec('client-signed')?.action).toBe('won');
     expect(rec('stale-drafting', 0)?.action).toBe('withdrawn'); // 153 days

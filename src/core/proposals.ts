@@ -1,4 +1,5 @@
 import { proposalCascade } from '../lib/chromeKit';
+import { nudgeTip } from '../lib/pagesQueues';
 import { applyStatus } from '../lib/bulkProposals';
 import { collapseRow, collapseRows } from '../lib/motion';
 import { backInDays, lastTouch, FOLLOW_UP_AFTER_DAYS, WAIT_LONGER_DAYS, type LastTouch } from '../lib/followup';
@@ -600,7 +601,14 @@ function populateAllSelects(): void {
   populateAllSelectsFn();
 }
 
-/** A nudge to the reviewer (My Day, Pending): ours, not contact with the client, so it goes in the activity log, not the touches. */
+/** The Nudge button's tooltip for a proposal: "Records that you nudged Hassan". */
+export function nudgeTipFor(id: number): string {
+  const p = S.proposals.find((x) => x.id === id);
+  return nudgeTip(teamMember(p?.reviewerId)?.name || defaultReviewer()?.name);
+}
+
+/** A nudge to the reviewer (My Day, Pending, Proposals): ours, not contact with the client, so it goes in the activity
+ * log, not the touches. It records the nudge and nothing else: no email is drafted or sent. */
 export async function nudgeReview(id: number): Promise<void> {
   const p = S.proposals.find((x) => x.id === id);
   if (!p) return;

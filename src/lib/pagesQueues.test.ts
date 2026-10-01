@@ -193,3 +193,12 @@ describe('this month', () => {
     expect([r.won.map((p) => p.id), r.lost.map((p) => p.id)]).toEqual([[1], [3]]);
   });
 });
+
+describe('nudge', () => {
+  it('its tooltip says it only records, with the reviewer\'s first name', async () => {
+    const { nudgeTip } = await import('./pagesQueues');
+    expect(nudgeTip('Hassan Balaghi')).toBe('Records that you nudged Hassan');
+    expect(nudgeTip('the reviewer')).toBe('Records that you nudged the reviewer');
+    expect(nudgeTip(null)).toBe('Records that you nudged the reviewer');
+  });
+});

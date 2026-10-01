@@ -21,7 +21,7 @@ import { onChange } from '../lib/changes';
 import { showContextMenu, type ContextMenuItem } from '../lib/contextMenu';
 import { deferWhileHovered, toast, undoToast } from '../lib/ui';
 import { renderIcons } from '../core/chrome';
-import { changeProposalStatus, contactFirstName, nudgeReview, snoozeProposal } from '../core/proposals';
+import { changeProposalStatus, contactFirstName, nudgeReview, nudgeTipFor, snoozeProposal } from '../core/proposals';
 import { addTaskFromText, deleteTodo, openDatePopover, quickAddTokensHtml, setTasksDue, toggleTodoDone } from './todo';
 import { unprocessedInboxItems } from './inbox';
 import { getAppMeta, getIntelligenceItems, getPipelineFacts, ms365GetCachedEmails, setAppMeta } from '../lib/db';
@@ -451,7 +451,7 @@ function playRowHtml(r: PlayRow): string {
   return `<div class="mdy-pr rec-row" tabindex="0" data-proposal-id="${r.id}" onclick="openRecord('proposal', ${r.id})" onkeydown="if(event.key==='Enter'&&event.target===this)this.click()">
     <span class="mdy-pr-tile" style="background:${strColor(r.client)}">${escHtml(initialsOf(r.client))}</span>
     <div class="mdy-pr-main"><div class="mdy-pr-title">${escHtml(r.client)} — ${escHtml(r.service)}</div><div class="mdy-pr-meta">${escHtml(r.meta)}</div></div>
-    <div class="mdy-pr-right"><span class="mdy-age${r.tone ? ` t-${r.tone}` : ''}">${escHtml(r.ageLabel)}</span><button class="rlink mdy-pr-act" onclick="event.stopPropagation();mydayPlay(event, ${r.id}, '${r.action.kind}')">${escHtml(r.action.label)}</button></div>
+    <div class="mdy-pr-right"><span class="mdy-age${r.tone ? ` t-${r.tone}` : ''}">${escHtml(r.ageLabel)}</span><button class="rlink mdy-pr-act" onclick="event.stopPropagation();mydayPlay(event, ${r.id}, '${r.action.kind}')"${r.action.kind === 'nudge' ? ` data-tip="${escHtml(nudgeTipFor(r.id))}"` : ''}>${escHtml(r.action.label)}</button></div>
   </div>`;
 }
 

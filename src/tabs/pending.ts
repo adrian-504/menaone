@@ -11,7 +11,7 @@ import { today, fmtDate, escHtml, expose, showConfirm } from '../lib/utils';
 import { matchesProposalPeriod } from '../lib/period';
 import { registerTabRenderer, registerBadgeUpdater, refreshAll, getActiveTabId } from '../lib/registry';
 import { persistProposals } from '../lib/persist';
-import { changeProposalStatus, snoozeProposal, snoozeCustom, archiveProposal, openNotesModal, openRevisionDialog, openWlModal, nudgeReview, followUpMenu } from '../core/proposals';
+import { changeProposalStatus, snoozeProposal, snoozeCustom, archiveProposal, openNotesModal, openRevisionDialog, openWlModal, nudgeReview, nudgeTipFor, followUpMenu } from '../core/proposals';
 import { showContextMenu, menuHead } from '../lib/contextMenu';
 import { icon } from '../lib/icons';
 import { PS, teamMember, defaultReviewer, ownerName } from '../lib/commercial';
@@ -193,7 +193,7 @@ export function queueRowHtml(r: QueueRow, o: { primary: boolean; who: string; be
   const acts = r.actions.map((a, i) => {
     const blue = o.primary && i === r.actions.length - 1;
     const chevron = a.kind === 'followed_up' ? ` ${icon('chevronDown', 11)}` : '';
-    return `<button class="${blue ? 'btn-primary' : 'btn-secondary'} btn-sm" onclick="event.stopPropagation();queueAct(event, ${r.id}, '${a.kind}')"${a.kind === 'followed_up' ? ' aria-haspopup="menu"' : ''}>${escHtml(a.label)}${chevron}</button>`;
+    return `<button class="${blue ? 'btn-primary' : 'btn-secondary'} btn-sm" onclick="event.stopPropagation();queueAct(event, ${r.id}, '${a.kind}')"${a.kind === 'followed_up' ? ' aria-haspopup="menu"' : ''}${a.kind === 'nudge' ? ` data-tip="${escHtml(nudgeTipFor(r.id))}"` : ''}>${escHtml(a.label)}${chevron}</button>`;
   }).join('');
   return `<div class="pq-row pk-row${o.below ? ' has-below' : ''}${o.selected ? ' is-selected' : ''}" data-row-id="${r.id}" onclick="if(!event.target.closest('a,button,input,label'))openRecord('proposal', ${r.id})" oncontextmenu="pqMenu(event, ${r.id})">
     ${o.selected != null ? `<label class="pk-chk"><input type="checkbox" ${o.selected ? 'checked' : ''} onclick="pqCheckClick(event, ${r.id})" aria-label="Select SL# ${r.id}"></label>` : ''}${tileHtml(r.client)}
