@@ -5,7 +5,7 @@
 
 import { paintFigures } from '../lib/recordFigures';
 import { S } from '../lib/state';
-import { escHtml, expose, fmtDate, today, showConfirm, inCompany, nextAgrId, strColor } from '../lib/utils';
+import { escHtml, expose, fmtDate, today, showConfirm, showDatePrompt, inCompany, nextAgrId, strColor } from '../lib/utils';
 import { icon } from '../lib/icons';
 import { recordHeaderHtml } from '../lib/recordHeader';
 import { companyLink, recordLink } from '../lib/links';
@@ -25,7 +25,7 @@ import { proposalProject } from '../lib/workGraph';
 import { agreementNextStep } from '../lib/recordSteps';
 import type { Agreement, RenewalDecision } from '../lib/types';
 import { agreementHeaderFigures, decisionChip, documentChain, renewalDraft, renewalFor, termLane } from '../lib/recordAgreement';
-import { RENEWAL_TYPES, SIGNATURE_STATUSES, noticeFact, pastTermActive, renewalFact, signatureOf } from '../lib/agreementTerms';
+import { RENEWAL_TYPES, SIGNATURE_STATUSES, noticeFact, pastTermActive, pastTermUnset, renewalFact, signatureOf } from '../lib/agreementTerms';
 import { feeGroups } from '../lib/pricingShape';
 import { signatureStepper, stepperHtml } from '../lib/recordStory';
 import { nextDecision } from '../lib/pagesAgreements';
@@ -92,7 +92,7 @@ export function renderAgreementPage(): void {
   const title = document.getElementById('agd-title');
   if (title) title.innerHTML = `${companyLink(a.companyId, a.client)}<span class="pr-title-services"> — ${escHtml(services)}</span>`;
   paintFigures('agd-figures', agreementHeaderFigures(a, t));
-  const decided = decisionChip(a);
+  const decided = decisionChip(a, t);
   const next = nextDecision(a, t);
   const entity = entityById(a.businessEntityId);
   const preparer = teamMember(a.preparedById)?.name || a.preparedBy;
@@ -182,6 +182,8 @@ expose('agreementStartRenewal', agreementStartRenewal);
 export function agreementRenewalChoose(choice: RenewalDecision): void {
   const a = current();
   if (!a) return;
+  // Past its term, "End it" ends the service on a date it asks for.
+  if (choice === 'end' && !!a.endDate && a.endDate.slice(0, 10) < today()) { void endServiceNow(a); return; }
   if (a.renewalDecision === choice) {
     // Clicking the chosen card again goes to what it made.
     const made = choice === 'renew' ? S.agreements.find((x) => x.renewedFrom === a.id) : undefined;
@@ -211,6 +213,25 @@ export function agreementRenewalChoose(choice: RenewalDecision): void {
   if (choice === 'changes') agreementRenew();
 }
 expose('agreementRenewalChoose', agreementRenewalChoose);
+
+/** "End it" on a past-term agreement: asks when the service ended (today unless said otherwise), then records the
+ * service as ended and the decision with that date. The toast undoes it. */
+async function endServiceNow(a: Agreement): Promise<void> {
+  const t = today();
+  const on = await showDatePrompt({ title: 'End this agreement?', label: 'The service ended on', defaultValue: t, confirmLabel: 'End it' });
+  if (!on) return;
+  const before = { decision: a.renewalDecision ?? null, at: a.renewalDecidedAt ?? null, service: a.serviceStatus ?? null };
+  a.renewalDecision = 'end';
+  a.renewalDecidedAt = on;
+  a.serviceStatus = 'Ended';
+  commit(a);
+  undoToast(`Recorded: the service ended ${fmtDateShort(on, true)}`, () => {
+    a.renewalDecision = before.decision;
+    a.renewalDecidedAt = before.at;
+    a.serviceStatus = before.service;
+    commit(a);
+  });
+}
 
 /** "Change": back to undecided. A renewal already drafted stays; it is its own agreement now. */
 export function agreementRenewalClear(): void {
@@ -324,7 +345,12 @@ function renderTerm(a: Agreement): void {
     { key: 'noticeDays', label: 'Notice', always: true, display: fact(noticeFact(a)), control: () => input('noticeDays', 'number', a.noticeDays != null ? String(a.noticeDays) : '', 'Days (0 = none)') },
     { key: 'signatureStatus', label: 'Signature', always: true, display: fact({ text: signatureOf(a).text, known: signatureOf(a).known }), control: () => select('signatureStatus', [['', 'Not recorded'], ...SIGNATURE_STATUSES], a.signatureStatus || '') },
     { key: 'actionDate', label: 'Next action', display: dateText(a.actionDate), control: () => input('actionDate', 'date', a.actionDate || '') },
-    { key: 'countsAs', label: 'Counts as', display: active ? '<span class="t-positive">Active client · in MRR</span>' : pastTermActive(a, today()) ? '<span class="rec-muted">Past term, still active — not counted in MRR until the term is extended</span>' : '<span class="rec-muted">Not active — set the service to Active once it has started</span>' },
+    // Past term and still invoiced counts; past term with the service not set asks for it; an ended service says when.
+    { key: 'countsAs', label: 'Counts as', display: pastTermActive(a, today()) ? '<span class="t-amber">Past term, still active · counted in MRR · renewal paperwork missing</span>'
+      : active ? '<span class="t-positive">Active client · in MRR</span>'
+      : pastTermUnset(a, today()) ? `<span class="rec-muted">Past term · set the service to Active if it is still being invoiced</span> <button class="rec-add-link" onclick="agreementEditTerm()">Edit</button>`
+      : a.serviceStatus === 'Ended' ? `<span class="rec-muted">Not active · service ended${a.renewalDecision === 'end' && a.renewalDecidedAt ? ` ${escHtml(fmtDate(a.renewalDecidedAt))}` : ''}</span>`
+      : '<span class="rec-muted">Not active — set the service to Active once it has started</span>' },
   ];
   readList('agd-term', 'agd-term-act', fields, again(renderTerm));
 }

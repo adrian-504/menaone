@@ -7,6 +7,7 @@
 // all read these.
 
 import type { Agreement, SignatureStatus } from './types';
+import { endedByDecision, stillInvoiced } from './commercial';
 import { daysBetween } from './pipeline';
 import { fmtDate, fmtDateShort } from './dates';
 import { plural } from './pageKit';
@@ -30,12 +31,22 @@ export const hasTerm = (a: Pick<Agreement, 'endDate' | 'renewalType'>): boolean 
 
 export const termStart = (a: Pick<Agreement, 'startDate' | 'dateClientSigned'>): string | null => iso(a.startDate) || iso(a.dateClientSigned);
 
-/** The service is being delivered: not cancelled, and its service status is Active. */
-export const serviceLive = (a: Live): boolean => a.status !== 'Canceled' && a.serviceStatus === 'Active';
+/** The service is being delivered: not cancelled, and still invoiced (its service status is Active). */
+export const serviceLive = (a: Live): boolean => a.status !== 'Canceled' && stillInvoiced(a);
 
-/** The term's end date has passed and the service is still being delivered: past term, still active — never "expired". */
-export function pastTermActive(a: Live & Pick<Agreement, 'endDate' | 'renewalType'>, today: string): boolean {
-  return termKind(a) === 'fixed' && iso(a.endDate)! < today && serviceLive(a);
+type PastTerm = Live & Pick<Agreement, 'endDate' | 'renewalType' | 'renewalDecision'>;
+const termPassed = (a: Pick<Agreement, 'endDate' | 'renewalType'>, today: string): boolean => termKind(a) === 'fixed' && iso(a.endDate)! < today;
+
+/** The term's end date has passed and the client is still served and invoiced: past term, still active — it counts in
+ * MRR, with the renewal paperwork missing. Never "expired". Not once "Let it end" was recorded. */
+export function pastTermActive(a: PastTerm, today: string): boolean {
+  return termPassed(a, today) && serviceLive(a) && !endedByDecision(a, today);
+}
+
+/** The term's end date has passed and nothing says the client is still invoiced, nor that the service ended: it does
+ * not count, and the page asks for the service to be set. */
+export function pastTermUnset(a: PastTerm, today: string): boolean {
+  return termPassed(a, today) && a.status !== 'Canceled' && !stillInvoiced(a) && a.serviceStatus !== 'Ended' && !endedByDecision(a, today);
 }
 
 export interface DecideBy {

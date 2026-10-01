@@ -162,5 +162,5 @@ export function atCompany(o: Pick<Opportunity, 'id' | 'proposalId'>, i: AtCompan
     if (x.id === o.id || x.archived || x.status !== 'Open' || (x.proposalId != null && taken.has(x.proposalId))) continue;
     open.push({ kind: 'opportunity', id: x.id, text: `${x.name} · ${x.stage.toLowerCase()}` });
   }
-  return { relationship, agreement: ending ? { id: ending.id, text: `ends ${fmtDateShort(ending.endDate, true)}` } : null, open: open.slice(0, 4) };
+  return { relationship, agreement: ending ? { id: ending.id, text: `${ending.endDate! < i.today ? 'past term since' : 'ends'} ${fmtDateShort(ending.endDate, true)}` } : null, open: open.slice(0, 4) };
 }

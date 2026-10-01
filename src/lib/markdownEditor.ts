@@ -158,6 +158,8 @@ function buildDecorations(view: EditorView, resolveWikilink: (t: string) => numb
             if (tm) {
               const checked = view.state.doc.sliceString(tm.from, tm.to).toLowerCase().includes('x');
               marks.push({ from: tm.from, to: tm.to, deco: Decoration.replace({ widget: new CheckboxWidget(checked, tm.from + 1) }) });
+              // A ticked item reads as done: its text is struck through.
+              if (checked && node.to > tm.to) addMark(tm.to, node.to, 'cm-md-task-done');
             }
             break;
           }

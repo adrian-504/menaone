@@ -3,9 +3,13 @@
 One entry per install, newest first: the version, the day it was installed, and in two lines what changed.
 Settings → Data shows the last five. `scripts/release-check.mjs` refuses a build whose version has no entry here.
 
+## 1.62 — 2026-10-01
+Tasks, Notes, Calendar and Inbox join the new look without changing how they work: tinted list rails with a coral marker, client tiles, dates and promises as chips; Tasks shows today's progress, what is overdue and the promises from meetings.
+The calendar's week and day are a time grid — events placed by their start and end and coloured by client, a now-line, and an all-day row for tasks due, promises and offers that expire; the Inbox suggests where each line goes and counts the days it was at zero.
+
 ## 1.61 — 2026-10-01
 The seven record pages share one layout: a header with the figures that matter, then the record's story — a company's standing and services, a proposal's or opportunity's stages, a contact's trail, a project's milestone track, an agreement's term, a meeting's numbered notes.
-Agreements say what is and isn't recorded (two groups, the day to decide, renewal as three undoable choices, a stored fee no save can change); proposals end with "Service started"; and several proposals can be moved to a status together with one date.
+Agreements say what is and isn't recorded (two groups, the day to decide, renewal as three undoable choices, a stored fee no save can change; a client still invoiced past its term counts in MRR); proposals end with "Service started"; and several proposals can be moved to a status together with one date.
 
 ## 1.60 — 2026-10-01
 Contacts, Agreements, Clean-up and Services join the new look: Contacts is one list with when you last spoke and what's open with each person; Agreements is a year view with each term, its notice window and the next decision.

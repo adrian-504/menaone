@@ -335,25 +335,25 @@
 </div>
 
 <!-- CALENDAR TAB -->
-<div id="tab-calendar" class="tab">
-  <div class="page-header">
-    <div>
-      <div class="page-title">Calendar</div>
-      <div class="page-subtitle">Outlook stays the source of truth — meetings created or edited here sync straight back.</div>
+<div id="tab-calendar" class="tab pk-page">
+  <div class="page-header pk-head tk-head">
+    <div class="pk-head-t"><div class="page-title">Calendar</div><span class="bars lg" aria-hidden="true"><i></i><i></i><i></i></span><div class="page-subtitle">Outlook stays the source of truth; changes here sync back.</div></div>
+    <div class="page-header-actions">
+      <div class="seg-btns" id="cal-view-btns" role="tablist" aria-label="View">
+        <button class="seg-btn cal-vbtn" data-view="day" onclick="setCalendarView('day')">Day</button>
+        <button class="seg-btn cal-vbtn active" data-view="week" onclick="setCalendarView('week')">Week</button>
+        <button class="seg-btn cal-vbtn" data-view="month" onclick="setCalendarView('month')">Month</button>
+      </div>
+      <button class="loc-nav" onclick="calendarNav(-1)" data-tip="Previous" aria-label="Previous"><span data-icon="chevronLeft" data-icon-size="15"></span></button>
+      <button class="btn-secondary btn-sm" onclick="calendarNav(0)">Today</button>
+      <button class="loc-nav" onclick="calendarNav(1)" data-tip="Next" aria-label="Next"><span data-icon="chevronRight" data-icon-size="15"></span></button>
+      <button class="btn-primary" onclick="openOutlookMeetingModal(null)"><span data-icon="plus" data-icon-size="14"></span> New meeting</button>
     </div>
-    <button class="btn-primary" onclick="openOutlookMeetingModal(null)"><span data-icon="plus" data-icon-size="14"></span> New meeting</button>
   </div>
-  <div class="fbar">
-    <div class="seg-btns" id="cal-view-btns">
-      <button class="seg-btn cal-vbtn" data-view="day" onclick="setCalendarView('day')">Day</button>
-      <button class="seg-btn cal-vbtn active" data-view="week" onclick="setCalendarView('week')">Week</button>
-      <button class="seg-btn cal-vbtn" data-view="month" onclick="setCalendarView('month')">Month</button>
-    </div>
-    <button class="loc-nav" onclick="calendarNav(-1)" data-tip="Previous" aria-label="Previous"><span data-icon="chevronLeft" data-icon-size="15"></span></button>
-    <button class="btn-secondary btn-sm" onclick="calendarNav(0)">Today</button>
-    <button class="loc-nav" onclick="calendarNav(1)" data-tip="Next" aria-label="Next"><span data-icon="chevronRight" data-icon-size="15"></span></button>
-    <span class="toolbar-title" id="cal-range-label"></span>
-    <span class="rcnt push-right" id="cal-sync-sub"></span>
+  <div class="cal-line">
+    <b id="cal-range-label"></b>
+    <span class="cal-stats" id="cal-stats"></span>
+    <span class="cal-sync" id="cal-sync-sub"></span>
   </div>
   <div id="cal-root"></div>
 </div>
@@ -511,12 +511,10 @@
 </div>
 
 <!-- INBOX TAB -->
-<div id="tab-inbox" class="tab">
-  <div class="page-header">
-    <div>
-      <div class="page-title">Inbox</div>
-      <div class="page-subtitle">Capture anything fast, then decide what it becomes.</div>
-    </div>
+<div id="tab-inbox" class="tab pk-page">
+  <div class="page-header pk-head tk-head">
+    <div class="pk-head-t"><div class="page-title">Inbox</div><span class="bars lg" aria-hidden="true"><i></i><i></i><i></i></span><div class="page-subtitle">Capture anything fast, then decide what it becomes.</div></div>
+    <div class="page-header-actions"><span class="inbox-summary" id="inbox-summary"></span></div>
   </div>
   <form class="task-quickadd inbox-composer" onsubmit="captureInboxItem(event)" autocomplete="off">
     <span class="task-quickadd-plus" data-icon="plus" data-icon-size="14"></span>
@@ -529,6 +527,7 @@
       <button type="button" class="inbox-kind" data-kind="followup" onclick="setInboxKind('followup')">Follow-up</button>
     </div>
   </form>
+  <div class="inbox-hint">Dates, @company and #tags are read as you type · ⌘K from anywhere</div>
   <div class="inbox-list" id="inbox-list"></div>
 </div>
 
@@ -1212,17 +1211,17 @@
     <aside class="ws-side notes-side" aria-label="Note library">
       <div class="ws-side-scroll">
         <div class="ws-side-group">
-          <button class="ws-side-item notes-folder-item active" data-folder="all" data-drop="note-library" data-drop-value="all" onclick="setNoteFolder('all')"><span class="ws-side-icon" data-icon="note" data-icon-size="15"></span><span class="ws-side-label">All Notes</span><span class="ws-side-count" id="nf-all"></span></button>
-          <button class="ws-side-item notes-folder-item" data-folder="pinned" data-drop="note-library" data-drop-value="pinned" onclick="setNoteFolder('pinned')"><span class="ws-side-icon tint-amber" data-icon="pin" data-icon-size="15"></span><span class="ws-side-label">Pinned</span><span class="ws-side-count" id="nf-pinned"></span></button>
-          <button class="ws-side-item notes-folder-item" data-folder="recent" onclick="setNoteFolder('recent')"><span class="ws-side-icon" data-icon="clock" data-icon-size="15"></span><span class="ws-side-label">Recent</span><span class="ws-side-count" id="nf-recent"></span></button>
-          <button class="ws-side-item notes-folder-item" data-folder="client" onclick="setNoteFolder('client')"><span class="ws-side-icon" data-icon="building" data-icon-size="15"></span><span class="ws-side-label">Linked to clients</span><span class="ws-side-count" id="nf-client"></span></button>
+          <button class="ws-side-item notes-folder-item active" data-folder="all" data-drop="note-library" data-drop-value="all" onclick="setNoteFolder('all')"><span class="ws-side-tile" style="--c:var(--blue)" data-icon="note" data-icon-size="13"></span><span class="ws-side-label">All Notes</span><span class="ws-side-count" id="nf-all"></span></button>
+          <button class="ws-side-item notes-folder-item" data-folder="pinned" data-drop="note-library" data-drop-value="pinned" onclick="setNoteFolder('pinned')"><span class="ws-side-tile" style="--c:var(--amber)" data-icon="pin" data-icon-size="13"></span><span class="ws-side-label">Pinned</span><span class="ws-side-count" id="nf-pinned"></span></button>
+          <button class="ws-side-item notes-folder-item" data-folder="recent" onclick="setNoteFolder('recent')"><span class="ws-side-tile" style="--c:var(--sub)" data-icon="clock" data-icon-size="13"></span><span class="ws-side-label">Recent</span><span class="ws-side-count" id="nf-recent"></span></button>
+          <button class="ws-side-item notes-folder-item" data-folder="client" onclick="setNoteFolder('client')"><span class="ws-side-tile" style="--c:var(--green)" data-icon="building" data-icon-size="13"></span><span class="ws-side-label">Linked to clients</span><span class="ws-side-count" id="nf-client"></span></button>
         </div>
         <div class="ws-side-section">
           <div class="ws-side-section-hd notes-section-hd"><span>Folders</span><button class="notes-section-add" onclick="addNoteFolder()" data-tip="New folder" aria-label="New folder"><span data-icon="plus" data-icon-size="12"></span></button></div>
           <div id="notes-folder-items"></div>
         </div>
         <div class="ws-side-group notes-side-meetings">
-          <button class="ws-side-item notes-folder-item" data-folder="meetings" onclick="setNoteFolder('meetings')"><span class="ws-side-icon" data-icon="meeting" data-icon-size="15"></span><span class="ws-side-label">From meetings</span><span class="ws-side-count" id="nf-meetings"></span></button>
+          <button class="ws-side-item notes-folder-item" data-folder="meetings" onclick="setNoteFolder('meetings')"><span class="ws-side-tile" style="--c:var(--coral-text)" data-icon="meeting" data-icon-size="13"></span><span class="ws-side-label">From meetings</span><span class="ws-side-count" id="nf-meetings"></span></button>
         </div>
         <div class="ws-side-section" id="notes-clients-section" hidden>
           <div class="ws-side-section-hd notes-section-hd"><button class="notes-clients-toggle" onclick="toggleNotesClients()" aria-expanded="true"><span class="notes-folder-toggle" id="notes-clients-chevron" data-icon="chevronDown" data-icon-size="11"></span><span>Clients</span></button></div>
@@ -1292,6 +1291,7 @@
       <div class="notes-empty-wrap" id="notes-empty"></div>
       <div class="notes-doc-scroll" id="notes-editor-panel" style="display:none">
         <article class="notes-doc">
+          <div class="notes-eyebrow" id="notes-eyebrow"></div>
           <textarea class="notes-title-input" id="notes-title-inp" rows="1" placeholder="Untitled" oninput="autoSaveNote();autoGrowNoteTitle()" onkeydown="noteTitleKey(event)" aria-label="Title"></textarea>
           <div class="notes-props" id="notes-props"></div>
           <div class="notes-body">
@@ -1327,6 +1327,7 @@
       <header class="ws-head">
         <div class="ws-head-text">
           <h1 class="ws-title" id="tasks-title">Today</h1>
+          <span class="bars lg" aria-hidden="true"><i></i><i></i><i></i></span>
           <div class="ws-subtitle" id="tasks-subtitle"></div>
         </div>
         <div class="ws-head-actions">
@@ -1349,6 +1350,7 @@
         <input type="text" id="quick-task-input" placeholder='New task — try "Call Globex tomorrow 3pm #project !high"' oninput="quickAddPreview()" onkeydown="quickAddKey(event)" aria-label="New task">
         <div class="qa-chips" id="quick-task-preview"></div>
       </form>
+      <div class="task-progress" id="task-progress" hidden></div>
       <div class="ws-scroll" id="todo-list" tabindex="-1"></div>
     </section>
     <aside class="task-detail" id="task-detail" hidden aria-label="Task details"></aside>
@@ -2566,6 +2568,7 @@
     <div class="fgrp">
       <label class="flbl prewrap" id="text-prompt-label" style="display:none"></label>
       <input type="text" class="finp" id="text-prompt-input" onkeydown="if(event.key==='Enter'){event.preventDefault();resolveTextPrompt(this.value)}else if(event.key==='Escape'){event.preventDefault();resolveTextPrompt(null)}">
+      <div class="prompt-note" id="text-prompt-note" role="status" hidden></div>
     </div>
     <div class="fact">
       <button class="btn-secondary" onclick="resolveTextPrompt(null)">Cancel</button>

@@ -1439,10 +1439,6 @@ export function openExternalUrl(url: string): void {
 }
 expose('openExternalUrl', openExternalUrl);
 
-function initials(name: string): string {
-  return name.split(/\s+/).slice(0, 2).map((w) => w[0] || '').join('').toUpperCase() || '?';
-}
-
 /** Call, email, WhatsApp and copy buttons for a contact. */
 export function contactActionButtons(c: Contact, size = 14): string {
   const btn = (iconHtml: string, title: string, js: string) => `<button class="rec-icon-btn" data-tip="${title}" aria-label="${title}" onclick="event.stopPropagation();${js}">${iconHtml}</button>`;
@@ -1475,7 +1471,7 @@ export function renderCoContacts(d: CompanyData): void {
     const lastHtml = lc ? `<span class="co-last">${escHtml(fmtShort(lc.date))}</span>` : '';
     const lastTitle = lc ? `Last contact ${fmtShort(lc.date)} · ${lc.label}` : '';
     return `<div class="rec-row" onclick="openRecord('contact', ${c.id})" data-drag-kind="contact" data-drag-id="${c.id}">
-    <span class="rec-row-avatar" style="background:${strColor(c.name || '?')}">${escHtml(initials(c.name || '?'))}</span>
+    <span class="rec-row-avatar" style="background:${strColor(c.name || '?')}">${escHtml(initialsOf(c.name || '') || '?')}</span>
     <div class="rec-row-main">
       <div class="rec-row-title">${recordLink('contact', c.id, c.name || 'Unnamed contact')}</div>
       ${c.isDecisionMaker ? '<div class="co-dm-line"><span class="chip co-dm">Decision maker</span></div>' : ''}

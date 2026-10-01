@@ -142,6 +142,8 @@ const SAMPLE: AppData = {
     { id: 4, title: 'Draft summary slide', type: 'general', client: null, priority: 'Low', dueDate: '2026-09-14', status: 'Pending', description: null, createdAt: '2026-09-02', completedAt: null, projectId: null, parentId: 2, areaId: null, section: null, sortOrder: 2, recurrenceRule: null, meetingId: null, tags: [] },
     { id: 6, title: 'Send the revised quote for three people', type: 'client', client: 'Acme Holdings', priority: 'Medium', dueDate: '2026-09-19', status: 'Pending', description: 'From meeting: Monthly check-in', createdAt: '2026-09-15', completedAt: null, projectId: null, parentId: null, areaId: null, section: null, sortOrder: 4, recurrenceRule: null, meetingId: 2, companyId: 1, opportunityId: 1, tags: [], owner: 'Ahmad Abdallah' },
     { id: 7, title: 'Share the October headcount', type: 'client', client: 'Acme Holdings', priority: 'Medium', dueDate: null, status: 'Pending', description: 'From meeting: Monthly check-in', createdAt: '2026-09-15', completedAt: null, projectId: null, parentId: null, areaId: null, section: null, sortOrder: 5, recurrenceRule: null, meetingId: 2, tags: [], owner: 'Omar Haddad' },
+    // 1.62: a task due in the week of 1 Oct, for the calendar's all-day row.
+    { id: 24, title: 'Send the September payroll summary', type: 'general', client: null, priority: 'Medium', dueDate: '2026-09-28', status: 'Pending', description: null, createdAt: '2026-09-21', completedAt: null, projectId: null, parentId: null, areaId: null, section: null, sortOrder: 24, recurrenceRule: null, meetingId: null, tags: [] },
     // The retainer project's tasks: each falls under the milestone due on or after it.
     { id: 20, title: 'Collect October headcount from Omar', type: 'client', client: 'Acme Holdings', priority: 'Medium', dueDate: '2026-09-30', status: 'Done', description: null, createdAt: '2026-09-22', completedAt: '2026-09-30', projectId: 1, parentId: null, areaId: null, section: null, sortOrder: 20, recurrenceRule: null, meetingId: null, tags: [], companyId: 1 },
     { id: 21, title: 'Confirm GOSI contribution changes for 2027', type: 'client', client: 'Acme Holdings', priority: 'Medium', dueDate: '2026-10-20', status: 'Pending', description: null, createdAt: '2026-09-22', completedAt: null, projectId: 1, parentId: null, areaId: null, section: null, sortOrder: 21, recurrenceRule: null, meetingId: null, tags: [], companyId: 1 },
@@ -163,7 +165,8 @@ const SAMPLE: AppData = {
     {
       id: 3, title: 'Acme — Payroll Requirements', folder: 'Client Notes/Acme Holdings', clientName: 'Acme Holdings', tags: ['payroll'], pinned: false,
       createdAt: '2026-09-03', updatedAt: '2026-09-03',
-      content: '# Acme — Payroll Requirements\n\nPayroll cycle requirements gathered from Acme finance team.',
+      // 1.62: headings, a ticked and an open item, and a promise line, as the editor draws them.
+      content: 'Payroll cycle requirements gathered from Acme finance: cut-off on the 25th, GOSI registrations, and the October joiners.\n\n## Payroll cycle\n\n- Cut-off on the 25th; salaries paid on the 27th.\n- WPS file submitted by MENA BIG on behalf of Acme.\n- Three new joiners in October, two in Riyadh, one in Jeddah.\n\n## To do\n\n- [x] Collect October headcount from Omar\n- [ ] Confirm GOSI contribution changes for 2027\n- >> Revised quote for three people by Friday',
     },
   ],
   noteFolders: ['Meeting Notes', 'Client Notes', 'Client Notes/Acme Holdings', 'Internal'],
@@ -986,8 +989,17 @@ export async function installDevMockIfNeeded(): Promise<void> {
           const oppId = (_payload as any)?.opportunityId;
           return opportunityActivityStore.filter((a) => a.opportunityId === oppId).slice().reverse();
         }
-        case 'get_inbox_items':
-          return [] as InboxItem[];
+        case 'get_inbox_items': {
+          // 1.62: one of each kind, captured today, yesterday and two days ago.
+          const ago = (hours: number) => new Date(Date.now() - hours * 3600e3).toISOString();
+          const item = (id: number, itemType: InboxItem['itemType'], content: string, hours: number): InboxItem => ({ id, itemType, content, createdAt: ago(hours), processed: false, convertedToType: null, convertedToId: null });
+          return [
+            item(1, 'task', 'Call Lina at Northwind Trading about the GM Representative scope tomorrow 3pm', 4.9),
+            item(2, 'followup', 'Chase Red Sea Global on the EOR offer before it runs out', 5.4),
+            item(3, 'idea', 'Package PRO + payroll for small startups at one monthly price #services', 26),
+            item(4, 'note', 'Jane mentioned the Jeddah office might need two recruiters in Q1 @Acme Holdings', 50),
+          ];
+        }
         case 'add_inbox_item': {
           const p = _payload as any;
           return { id: Math.floor(Math.random() * 100000) + 1, itemType: p?.itemType, content: p?.content, createdAt: new Date().toISOString(), processed: false, convertedToType: null, convertedToId: null } as InboxItem;

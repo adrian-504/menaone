@@ -6,7 +6,7 @@
 // selects. Pure.
 
 import type { Proposal, ProposalRevision } from './types';
-import { PS } from './commercial';
+import { PS, stageIndex } from './commercial';
 import { applyRevisionSent } from './revisions';
 
 /** The statuses a batch can be moved to. Lost has its own action (it needs a reason). */
@@ -20,6 +20,16 @@ export const statusNeedsDate = (status: string): boolean => status === PS.SENT |
 /** What the date is, for the question: "the day they were sent" / "signed". */
 export const statusDateLabel = (status: string, n: number): string =>
   `The day ${n === 1 ? 'it was' : 'they were'} ${status === PS.SENT ? 'sent to the client' : status === PS.CLIENT_SIGNED ? 'signed by the client' : 'signed by both parties'}`;
+
+/** Sending several to the client does not stop to ask about the review; the date question carries one line instead,
+ * when any of them has not been through it: "2 of these haven't been reviewed". Counts the ones not yet sent whose
+ * review is not approved. Null when the status is not Sent, or all were reviewed. Pure. */
+export function unreviewedNote(moving: Pick<Proposal, 'status' | 'reviewStatus'>[], status: string): string | null {
+  if (status !== PS.SENT) return null;
+  const n = moving.filter((p) => stageIndex(p.status) < stageIndex(PS.SENT) && p.reviewStatus !== 'approved').length;
+  if (!n) return null;
+  return moving.length === 1 ? 'This one hasn’t been reviewed' : `${n} of these ${n === 1 ? 'hasn’t' : 'haven’t'} been reviewed`;
+}
 
 export interface StatusChange { revisionSent: ProposalRevision | null }
 

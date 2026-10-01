@@ -187,11 +187,23 @@ export function agreementMonthly(a: Agreement): number | null {
   return a.lines && a.lines.length ? lineTotals(a.lines, a.contractMonths).monthly : null;
 }
 
-/** An agreement whose service is running today. */
+/** Is the client still being invoiced under this agreement? The app holds no billing yet, so the service status
+ * stands in for it: Active means invoiced. When the agreements import brings real billing, it replaces this one
+ * function and everything that counts MRR and active clients follows. */
+export const stillInvoiced = (a: Pick<Agreement, 'serviceStatus'>): boolean => a.serviceStatus === 'Active';
+
+/** "Let it end" was recorded and the end date has passed: the agreement is over. */
+export const endedByDecision = (a: Pick<Agreement, 'renewalDecision' | 'endDate'>, onDate: string): boolean =>
+  a.renewalDecision === 'end' && !!a.endDate && a.endDate.slice(0, 10) < onDate;
+
+/** An agreement that counts as active today (in MRR, and its company as an active client): not cancelled and still
+ * invoiced. Its end date having passed does not end it — a client served past term is live, with the renewal
+ * paperwork missing (owner, 1-Oct-2026). The exits are: cancelled, the service no longer Active, or "Let it end"
+ * recorded and the end date passed. */
 export function isAgreementActive(a: Agreement, onDate: string = localToday()): boolean {
   if (a.status === 'Canceled') return false;
-  if (a.serviceStatus !== 'Active') return false;
-  if (a.endDate && a.endDate < onDate) return false;
+  if (!stillInvoiced(a)) return false;
+  if (endedByDecision(a, onDate)) return false;
   return true;
 }
 
@@ -221,7 +233,7 @@ export function agreementsForCompany(companyId: number | null | undefined, name?
 export function renewalsDue(days = 60): Agreement[] {
   const today = localToday();
   return S.agreements
-    .filter((a) => a.status !== 'Canceled' && a.serviceStatus === 'Active' && a.endDate)
+    .filter((a) => a.status !== 'Canceled' && stillInvoiced(a) && a.endDate)
     .filter((a) => {
       const d = daysBetween(today, a.endDate!);
       return d <= days && d >= -7;

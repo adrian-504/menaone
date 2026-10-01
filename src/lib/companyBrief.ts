@@ -253,8 +253,11 @@ function relationshipClause(i: CompanyBriefInput, r: Records): BriefClause {
     if (ending) {
       links.push({ kind: 'agreement', id: ending.id, label: ending.agrRef || 'The agreement' });
       const { noticeDate, daysToNotice } = agreementRenewal(ending, i.today);
-      text += ` {0} ends ${fmtDate(ending.endDate)}`;
-      if (noticeDate) {
+      // Past its term and still served: it counts, with the renewal paperwork missing.
+      const pastTerm = ending.endDate! < i.today;
+      text += pastTerm ? ` {0} is past its term since ${fmtDate(ending.endDate)}: the renewal paperwork is missing` : ` {0} ends ${fmtDate(ending.endDate)}`;
+      if (pastTerm) tone = 'amber';
+      else if (noticeDate) {
         text += daysToNotice! < 0 ? `; the notice date (${fmtDate(noticeDate)}) has passed` : `; notice due ${fmtDate(noticeDate)}`;
         if (daysToNotice! <= 30) tone = 'amber';
       }

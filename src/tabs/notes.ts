@@ -12,7 +12,9 @@ import { companyLink, recordLink } from '../lib/links';
 import { meetingNotesList, type MeetingNoteRow } from '../lib/meetingNotesList';
 import { clientFolder, clientNotesList, clientsWithNotes, parseClientFolder, SOURCE_LABEL, type CompanyEntry } from '../lib/clientNotes';
 import { allCompanyNoteEntries } from '../lib/db';
-import { today, fmtDate, escHtml, nextNoteId, expose, positionFloatingPopup, showTextPrompt, showConfirm, debounce, inCompany, fmtMonth } from '../lib/utils';
+import { today, fmtDate, fmtDateShort, escHtml, nextNoteId, expose, positionFloatingPopup, showTextPrompt, showConfirm, debounce, inCompany, fmtMonth } from '../lib/utils';
+import { tileHtml } from '../lib/pageKit';
+import { noteExcerpt, noteKind } from '../lib/notesPage';
 import { showContextMenu, showMenuAt, type ContextMenuItem } from '../lib/contextMenu';
 import { persistNotes, persistNoteFolders, persistTodos, saved, saveNotesNow, saveTodosNow } from '../lib/persist';
 import { readCommitmentsFrom } from './commitments';
@@ -213,7 +215,7 @@ function renderNotesSidebar(): void {
   const tagSection = document.getElementById('notes-tags-section');
   if (tagSection) tagSection.hidden = tagCounts.size === 0;
   if (tagEl) {
-    tagEl.innerHTML = [...tagCounts.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([t, c]) => `<button class="ws-side-item notes-folder-item${S.currentNoteFolder === `tag:${t}` ? ' active' : ''}" data-drop="note-library" data-drop-value="tag:${escHtml(t)}" onclick="setNoteFolder('tag:${jsArg(t)}')"><span class="ws-side-icon">${icon('tag', 13)}</span><span class="ws-side-label">${escHtml(t)}</span><span class="ws-side-count">${c}</span></button>`).join('');
+    tagEl.innerHTML = [...tagCounts.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([t, c]) => `<button class="ws-side-item notes-folder-item${S.currentNoteFolder === `tag:${t}` ? ' active' : ''}" data-drop="note-library" data-drop-value="tag:${escHtml(t)}" onclick="setNoteFolder('tag:${jsArg(t)}')"><span class="ws-side-hash" aria-hidden="true">#</span><span class="ws-side-label">${escHtml(t)}</span><span class="ws-side-count">${c}</span></button>`).join('');
   }
 }
 
@@ -245,7 +247,7 @@ function renderClientsGroup(): void {
   el.classList.toggle('is-collapsed', clientsCollapsed);
   el.innerHTML = clients.map((c) => {
     const folder = clientFolder(c.key);
-    return `<button class="ws-side-item notes-folder-item${S.currentNoteFolder === folder ? ' active' : ''}" data-folder="${escHtml(folder)}" onclick="setNoteFolder('${jsArg(folder)}')"><span class="ws-side-icon">${icon('building', 13)}</span><span class="ws-side-label">${escHtml(c.key.name)}</span><span class="ws-side-count">${c.count}</span></button>`;
+    return `<button class="ws-side-item notes-folder-item${S.currentNoteFolder === folder ? ' active' : ''}" data-folder="${escHtml(folder)}" onclick="setNoteFolder('${jsArg(folder)}')">${tileHtml(c.key.name, 'pk-tile mini')}<span class="ws-side-label">${escHtml(c.key.name)}</span><span class="ws-side-count">${c.count}</span></button>`;
   }).join('');
   el.innerHTML = `<div>${el.innerHTML}</div>`;
 }
@@ -263,7 +265,7 @@ function renderClientNotes(folder: string, search: string): void {
   const list = document.getElementById('notes-list');
   const title = document.getElementById('notes-list-title'); if (title) title.textContent = key?.name || 'Client';
   const rows = key ? clientNotesList(key, S.notes, companyEntries, S.meetings, search) : [];
-  const count = document.getElementById('notes-list-count'); if (count) count.textContent = `${rows.length} note${rows.length === 1 ? '' : 's'}`;
+  const count = document.getElementById('notes-list-count'); if (count) { count.textContent = String(rows.length); count.setAttribute('aria-label', `${rows.length} note${rows.length === 1 ? '' : 's'}`); }
   if (!list) return;
   listRowsHtml = '';
   if (!rows.length) {
@@ -273,9 +275,9 @@ function renderClientNotes(folder: string, search: string): void {
   }
   const open = (r: (typeof rows)[number]) => r.source === 'note' ? `openNote(${r.id})` : r.source === 'meeting' ? `openRecord('meeting', ${r.id})` : `companyJump(${key!.id ?? 'null'}, '${jsArg(key!.name)}', 'notes-log')`;
   list.innerHTML = rows.map((r) => `<div class="note-item${r.source === 'note' && r.id === S.currentNoteId ? ' active' : ''}"${r.source === 'note' ? ` data-note-id="${r.id}"` : ''} tabindex="0" onkeydown="if(event.key==='Enter')this.click()" onclick="${open(r)}">
-      <div class="note-item-title">${r.pinned ? `<span class="note-pin">${icon('pin', 11)}</span>` : ''}${escHtml(r.title)}</div>
+      <div class="note-item-title">${r.pinned ? PIN : ''}<span>${escHtml(r.title)}</span></div>
       ${r.excerpt ? `<div class="note-item-preview">${escHtml(r.excerpt)}</div>` : r.source === 'note' ? '<div class="note-item-preview"><span class="note-item-empty">No additional text</span></div>' : ''}
-      <div class="note-item-meta">${r.date ? `<span>${fmtDate(r.date)}</span>` : ''}<span class="note-item-source">${SOURCE_LABEL[r.source]}</span></div>
+      <div class="note-item-meta">${r.date ? `<span class="note-item-date">${fmtDateShort(r.date, true)}</span>` : ''}${r.source === 'meeting' ? MEETING_CHIP : `<span class="note-item-source">${SOURCE_LABEL[r.source]}</span>`}</div>
     </div>`).join('');
 }
 
@@ -301,6 +303,15 @@ function previewText(markdown: string): string {
     .replace(/\s+/g, ' ')
     .trim()
     .slice(0, 160);
+}
+
+/** The amber diamond before a pinned note's title, and the chip on a note written in a meeting. */
+const PIN = '<span class="note-pin" title="Pinned" aria-label="Pinned">◆</span>';
+const MEETING_CHIP = '<span class="note-item-chip">◉ meeting</span>';
+
+/** The notes that meetings point at. */
+function meetingNoteIds(): Set<number> {
+  return new Set(S.meetings.map((m) => m.noteId).filter((id): id is number => id != null));
 }
 
 function folderLabel(folder: string): string {
@@ -342,7 +353,7 @@ export function renderNotesList(): void {
     return (b.updatedAt || '').localeCompare(a.updatedAt || '') || b.id - a.id;
   });
   const title = document.getElementById('notes-list-title'); if (title) title.textContent = folderLabel(folder);
-  const count = document.getElementById('notes-list-count'); if (count) count.textContent = `${filtered.length} note${filtered.length === 1 ? '' : 's'}`;
+  const count = document.getElementById('notes-list-count'); if (count) { count.textContent = String(filtered.length); count.setAttribute('aria-label', `${filtered.length} note${filtered.length === 1 ? '' : 's'}`); }
   const list = document.getElementById('notes-list');
   if (!list) return;
   if (filtered.length === 0) {
@@ -353,15 +364,17 @@ export function renderNotesList(): void {
     renderIcons(list);
     return;
   }
+  const fromMeeting = meetingNoteIds();
   const html = filtered.map((n) => {
-    const preview = previewText(n.content || '');
+    const preview = noteExcerpt(n.content, n.title);
     const meta = [
-      `<span>${fmtDate(n.updatedAt || n.createdAt)}</span>`,
-      n.clientName ? companyLink(n.companyId, n.clientName, { className: 'note-item-client' }) : '',
+      n.clientName ? `<span class="pk-mini-co note-item-co">${tileHtml(n.clientName, 'pk-tile mini')}${companyLink(n.companyId, n.clientName, { className: 'note-item-client' })}</span>` : '',
+      `<span class="note-item-date">${fmtDateShort(n.updatedAt || n.createdAt, true)}</span>`,
+      fromMeeting.has(n.id) ? MEETING_CHIP : '',
       ...(n.tags || []).slice(0, 2).map((t) => `<span class="note-item-tag">#${escHtml(t)}</span>`),
     ].filter(Boolean).join('');
     return `<div class="note-item" data-note-id="${n.id}" data-drag-kind="note" data-drag-id="${n.id}" onclick="openNote(${n.id})" oncontextmenu="noteContextMenu(event,${n.id})">
-      <div class="note-item-title">${n.pinned ? `<span class="note-pin">${icon('pin', 11)}</span>` : ''}${escHtml(n.title || 'Untitled')}</div>
+      <div class="note-item-title">${n.pinned ? PIN : ''}<span>${escHtml(n.title || 'Untitled')}</span></div>
       <div class="note-item-preview">${preview ? escHtml(preview) : '<span class="note-item-empty">No additional text</span>'}</div>
       <div class="note-item-meta">${meta}</div>
     </div>`;
@@ -377,7 +390,7 @@ const monthOf = (iso: string | null) => (iso ? fmtMonth(iso.slice(0, 10)) : 'No 
 function renderMeetingNotes(search: string): void {
   const rows = meetingNotesList(S.meetings, search);
   const title = document.getElementById('notes-list-title'); if (title) title.textContent = folderLabel('meetings');
-  const count = document.getElementById('notes-list-count'); if (count) count.textContent = `${rows.length} meeting${rows.length === 1 ? '' : 's'}`;
+  const count = document.getElementById('notes-list-count'); if (count) { count.textContent = String(rows.length); count.setAttribute('aria-label', `${rows.length} meeting${rows.length === 1 ? '' : 's'}`); }
   const list = document.getElementById('notes-list');
   if (!list) return;
   if (!rows.length) {
@@ -391,9 +404,9 @@ function renderMeetingNotes(search: string): void {
   list.innerHTML = rows.map((r: MeetingNoteRow) => {
     const m = monthOf(r.date);
     const divider = m !== month ? `<div class="list-divider">${escHtml((month = m))}</div>` : '';
-    const meta = [r.date ? `<span>${fmtDate(r.date)}</span>` : '', r.company ? `<span class="note-item-client">${escHtml(r.company)}</span>` : ''].filter(Boolean).join('');
+    const meta = [r.company ? `<span class="pk-mini-co note-item-co">${tileHtml(r.company, 'pk-tile mini')}<span class="note-item-client">${escHtml(r.company)}</span></span>` : '', r.date ? `<span class="note-item-date">${fmtDateShort(r.date, true)}</span>` : '', MEETING_CHIP].filter(Boolean).join('');
     return `${divider}<div class="note-item" tabindex="0" onkeydown="if(event.key==='Enter')this.click()" onclick="openRecord('meeting', ${r.id})">
-      <div class="note-item-title">${escHtml(r.title)}</div>
+      <div class="note-item-title"><span>${escHtml(r.title)}</span></div>
       <div class="note-item-preview">${escHtml(r.excerpt)}</div>
       <div class="note-item-meta">${meta}</div>
     </div>`;
@@ -617,11 +630,15 @@ function renderNoteProps(n: Note): void {
   const el = document.getElementById('notes-props');
   if (!el) return;
   const project = noteProjectId != null ? S.projects.find((p) => p.id === noteProjectId) : null;
+  const eyebrow = document.getElementById('notes-eyebrow'); if (eyebrow) eyebrow.textContent = noteKind(n, meetingNoteIds());
+  const when = n.updatedAt || n.createdAt;
+  // The client leads, by its tile; then where it is filed, its project, its tags, and the day it was last edited.
   el.innerHTML = `
+    <button class="note-prop${n.clientName ? ' set is-client' : ''}" onclick="event.stopPropagation();noteClientPicker(this)">${n.clientName ? tileHtml(n.clientName, 'pk-tile mini') : icon('building', 12)}<span>${escHtml(n.clientName || 'Client')}</span></button>
     <button class="note-prop${n.folder ? ' set' : ''}" onclick="event.stopPropagation();noteFolderPicker(this)">${icon('folder', 12)}<span>${escHtml(n.folder ? n.folder.split('/').pop()! : 'Folder')}</span></button>
-    <button class="note-prop${n.clientName ? ' set' : ''}" onclick="event.stopPropagation();noteClientPicker(this)">${icon('building', 12)}<span>${escHtml(n.clientName || 'Client')}</span></button>
     <button class="note-prop${project ? ' set' : ''}" id="note-prop-project" onclick="event.stopPropagation();noteProjectPicker(this)">${icon('target', 12)}<span>${escHtml(project?.name || 'Project')}</span></button>
-    <div id="notes-tags-chips" class="tag-chip-input note-prop-tags"></div>`;
+    <div id="notes-tags-chips" class="tag-chip-input note-prop-tags"></div>
+    ${when ? `<span class="note-prop-date">${escHtml(fmtDate(when))}</span>` : ''}`;
   const tagsContainer = document.getElementById('notes-tags-chips');
   if (tagsContainer) renderTagChips(tagsContainer, n.tags || [], (tags) => { n.tags = tags; n.updatedAt = today(); persistNotes(); renderNotesSidebar(); renderNotesList(); }, { placeholder: '#tag', suggestions: S.allTags });
   if (noteProjectLoadedFor !== n.id) void loadNoteProjectLink(n.id);
@@ -1000,7 +1017,7 @@ async function renderRelationsPanel(n: Note): Promise<void> {
   const convert = pending.length
     ? `<div class="relations-group"><div class="relations-group-label">Action items</div><div class="relations-chips"><button class="btn-secondary btn-sm" onclick="createTasksFromNoteActionItems()" data-tip="${escHtml(pending.join('\n'))}">Create ${pending.length === 1 ? 'a task' : `${pending.length} tasks`} from action items</button></div></div>`
     : '';
-  el.innerHTML = html || convert ? `<div class="relations-title">Connections</div>${html}${convert}` : '';
+  el.innerHTML = html || convert ? `${html}${convert}` : '';
 }
 
 let renderedActionItems = { noteId: 0, count: 0 };

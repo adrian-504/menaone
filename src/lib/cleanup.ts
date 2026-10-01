@@ -167,8 +167,8 @@ export function buildCleanupQueues(i: CleanupInput): CleanupQueue[] {
       .map((a) => agreementItem(a, [['Start date', `${fmt(a.startDate)} (${ago(daysBetween(a.startDate, i.today))})`]], daysBetween(a.startDate, i.today) ?? 0)),
   });
   queues.push({
-    id: 'ended-still-active', group: 'Agreements and tasks', title: 'Ended but still active',
-    why: 'The end date passed over a week ago and the service is still marked active, so it still counts towards MRR.',
+    id: 'ended-still-active', group: 'Agreements and tasks', title: 'Past term, still active',
+    why: 'The end date passed over a week ago and the service is still Active, so it still counts in MRR. Keep it if the client is still invoiced and renew the paperwork; otherwise mark the service ended.',
     actions: ['agreement_ended', 'keep'], bulk: ['agreement_ended'],
     items: i.agreements.filter((a) => a.status !== 'Canceled' && a.serviceStatus === 'Active' && a.endDate && (daysBetween(a.endDate, i.today) ?? 0) > 7)
       .map((a) => agreementItem(a, [['End date', `${fmt(a.endDate)} (${ago(daysBetween(a.endDate, i.today))})`], ['Auto-renew', a.autoRenew ? 'Yes' : 'No']], daysBetween(a.endDate, i.today) ?? 0)),

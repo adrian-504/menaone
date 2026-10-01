@@ -1341,6 +1341,8 @@ pub const UI_META_KEYS: &[&str] = &[
     "dismissed_domains",
     "dismissed_meeting_links",
     "dismissed_people",
+    // Inbox: the days it was seen empty, for "Inbox zero N days this month" (1.62).
+    "inbox_zero_days",
     "msfiles_pinned",
     "msfiles_recent",
     "msfiles_setup_done",

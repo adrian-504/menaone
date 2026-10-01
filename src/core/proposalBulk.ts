@@ -14,7 +14,7 @@ import { refreshAll } from '../lib/registry';
 import { undoToast, toast } from '../lib/ui';
 import { showDatePrompt, today } from '../lib/utils';
 import type { BulkAction } from '../lib/bulkBar';
-import { applyStatus, batchStartDate, BULK_STATUSES, PENDING_BULK_STATUSES, statusDateLabel, statusNeedsDate } from '../lib/bulkProposals';
+import { applyStatus, batchStartDate, BULK_STATUSES, PENDING_BULK_STATUSES, statusDateLabel, statusNeedsDate, unreviewedNote } from '../lib/bulkProposals';
 import { updateBadge } from './proposals';
 import type { Proposal } from '../lib/types';
 
@@ -52,7 +52,7 @@ export async function bulkStatus(ids: number[], status: string, clear?: () => vo
   let date = today();
   const dated = statusNeedsDate(status);
   if (dated) {
-    const picked = await showDatePrompt({ title: `${status} · ${plural(moving.length, 'proposal')}`, label: statusDateLabel(status, moving.length), defaultValue: date, confirmLabel: moving.length === 1 ? `Mark ${STATUS_DONE[status]}` : `Mark ${moving.length} ${STATUS_DONE[status]}` });
+    const picked = await showDatePrompt({ title: `${status} · ${plural(moving.length, 'proposal')}`, label: statusDateLabel(status, moving.length), note: unreviewedNote(moving, status), defaultValue: date, confirmLabel: moving.length === 1 ? `Mark ${STATUS_DONE[status]}` : `Mark ${moving.length} ${STATUS_DONE[status]}` });
     if (!picked) return;
     date = picked;
   }

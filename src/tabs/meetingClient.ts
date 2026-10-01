@@ -3,6 +3,7 @@
 // contacts, and a client brief with a suggested agenda built from fixed
 // rules. Also fills company websites from their contacts' email domains.
 
+import { initialsOf } from '../lib/appearance';
 import { meetingBrief } from '../lib/companyBrief';
 import { briefInputFor, ensurePinnedNotes } from './companyState';
 import { renderMeetingContext } from './meetingContext';
@@ -256,7 +257,7 @@ const attr = (v: string) => escHtml(v).replace(/'/g, '&#39;');
 
 function personRow(m: Meeting, p: MeetingPerson): string {
   const key = personKey(m.id, p.email);
-  const initials = p.name.split(/\s+/).map((x) => x[0] || '').join('').slice(0, 2).toUpperCase();
+  const initials = initialsOf(p.name);
   if (p.status === 'new' && peopleEditing.has(key)) {
     return `<div class="md-person is-editing" data-email="${attr(p.email)}">
       <div class="md-person-form">

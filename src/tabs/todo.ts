@@ -22,10 +22,12 @@ import { attachCompanySelector } from '../lib/companySelector';
 import { registerDragSource, registerDropTarget, reorder } from '../lib/dnd';
 import { renderIcons } from '../core/chrome';
 import { parseTaskInput, friendlyDate, isoDate, type ParsedTask } from '../lib/taskParse';
-import type { Todo } from '../lib/types';
+import type { Commitment, Todo } from '../lib/types';
 import { openPromiseCount } from '../lib/promises';
 import { renderPromisesView, leavePromisesView } from './commitments';
 import { normalizeCompanyKey, taskCompanyKey, todayRailCounts } from '../lib/taskRail';
+import { tileHtml } from '../lib/pageKit';
+import { dueRight, owedWhen, promiseChip, splitTasks, todayProgress } from '../lib/tasksPage';
 
 // ── Dates ───────────────────────────────────────────────────────────────────
 
@@ -73,8 +75,8 @@ type SmartList = 'today' | 'upcoming' | 'anytime' | 'someday' | 'completed';
 const SMART: { key: SmartList; label: string; icon: string; tint: string }[] = [
   { key: 'today', label: 'Today', icon: 'sun', tint: 'var(--amber)' },
   { key: 'upcoming', label: 'Upcoming', icon: 'calendar', tint: 'var(--red)' },
-  { key: 'anytime', label: 'Anytime', icon: 'list', tint: 'var(--accent)' },
-  { key: 'someday', label: 'Someday', icon: 'archive', tint: 'var(--amber-deep)' },
+  { key: 'anytime', label: 'Anytime', icon: 'list', tint: 'var(--blue)' },
+  { key: 'someday', label: 'Someday', icon: 'archive', tint: 'var(--sub)' },
   { key: 'completed', label: 'Completed', icon: 'check', tint: 'var(--green)' },
 ];
 
@@ -139,17 +141,47 @@ function smartCompare(a: Todo, b: Todo): number {
   return (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
 }
 
-interface Group { key: string; label: string; tasks: Todo[]; dropDate?: string; hint?: string; tone?: 'danger' }
+interface Group {
+  key: string; label: string; tasks: Todo[]; dropDate?: string; hint?: string; tone?: 'danger';
+  /** The dot before the name (a colour token); blue when not given. */
+  dot?: string;
+  /** What the client owes us, shown after the group's tasks (Promises only). */
+  owed?: Commitment[];
+}
+
+/** The tasks that open promises of ours stand behind. */
+function promiseTaskIds(): Set<number> {
+  return new Set(S.commitments.filter((c) => c.status === 'open' && c.todoId != null).map((c) => c.todoId!));
+}
+
+/** What clients owe us, as a list shows it: all of it in Anytime, what was due by today in Today, a company's in its list. */
+function owedIn(list: string): Commitment[] {
+  const open = S.commitments.filter((c) => c.status === 'open' && c.direction === 'theirs');
+  const t0 = todayIso();
+  const mine = list === 'anytime' ? open
+    : list === 'today' ? open.filter((c) => !!c.dueDate && c.dueDate <= t0)
+    : list.startsWith('company:') ? open.filter((c) => c.companyId != null && `id:${c.companyId}` === normalizeCompanyKey(list.slice(8), S.companies))
+    : [];
+  return mine.sort((a, b) => (a.dueDate || '9999').localeCompare(b.dueDate || '9999') || a.id - b.id);
+}
+
+/** The Promises group of a list: the tasks we promised, then what the client owes. Null when there is neither. */
+function promisesGroup(tasks: Todo[], list: string): Group | null {
+  const owed = owedIn(list);
+  return tasks.length || owed.length ? { key: 'promises', label: 'Promises', tasks, owed, dot: 'var(--coral)' } : null;
+}
 
 function groupsForList(list: string): Group[] {
   const t0 = todayIso();
   const sorted = (xs: Todo[]) => [...xs].sort(smartCompare);
   if (list === 'today') {
-    const tasks = tasksForList('today');
+    const { overdue, rest, promises } = splitTasks(tasksForList('today'), promiseTaskIds(), t0, { overdue: true });
+    const promised = promisesGroup(sorted(promises), list);
     return [
-      { key: 'overdue', label: 'Overdue', tasks: sorted(tasks.filter((t) => t.dueDate! < t0)), tone: 'danger' as const },
-      { key: 'today', label: 'Today', tasks: sorted(tasks.filter((t) => t.dueDate === t0)), dropDate: t0 },
-    ].filter((g) => g.tasks.length || g.key === 'today');
+      { key: 'overdue', label: 'Overdue', tasks: sorted(overdue), tone: 'danger' as const, dot: 'var(--red)' },
+      ...(promised ? [promised] : []),
+      { key: 'today', label: 'Today', tasks: sorted(rest), dropDate: t0, dot: 'var(--amber)' },
+    ].filter((g) => g.tasks.length || g.owed?.length || g.key === 'today');
   }
   if (list === 'upcoming') {
     const tasks = tasksForList('upcoming');
@@ -176,7 +208,7 @@ function groupsForList(list: string): Group[] {
       const k = t.completedAt || 'unknown';
       byDay.set(k, [...(byDay.get(k) || []), t]);
     }
-    return [...byDay.entries()].map(([day, ts]) => ({ key: day, label: day === 'unknown' ? 'Earlier' : friendlyDate(day, new Date()), tasks: ts }));
+    return [...byDay.entries()].map(([day, ts]) => ({ key: day, label: day === 'unknown' ? 'Earlier' : friendlyDate(day, new Date()), tasks: ts, dot: 'var(--green)' }));
   }
   if (list.startsWith('project:')) {
     const tasks = tasksForList(list);
@@ -184,15 +216,22 @@ function groupsForList(list: string): Group[] {
     return sections.map((sec) => ({ key: `sec:${sec}`, label: sec, tasks: sorted(tasks.filter((t) => (t.section || '') === sec)) }));
   }
   if (list === 'anytime' || list === 'someday' || list.startsWith('company:') || list.startsWith('tag:')) {
-    const tasks = tasksForList(list);
+    // Anytime sets the overdue apart; it and a company's list set the promises apart. Someday and tags stay whole.
+    const apart = list === 'anytime' || list.startsWith('company:');
+    const split = apart ? splitTasks(tasksForList(list), promiseTaskIds(), t0, { overdue: list === 'anytime' }) : { overdue: [], rest: tasksForList(list), promises: [] };
+    const tasks = split.rest;
     const groups: Group[] = [];
+    if (split.overdue.length) groups.push({ key: 'overdue', label: 'Overdue', tasks: sorted(split.overdue), tone: 'danger', dot: 'var(--red)' });
+    const promised = apart ? promisesGroup(sorted(split.promises), list) : null;
+    if (promised) groups.push(promised);
     const byProject = new Map<number, Todo[]>();
     const loose: Todo[] = [];
     for (const t of tasks) {
       if (t.projectId != null && S.projects.some((p) => p.id === t.projectId)) byProject.set(t.projectId, [...(byProject.get(t.projectId) || []), t]);
       else loose.push(t);
     }
-    if (loose.length) groups.push({ key: 'loose', label: list.startsWith('company:') ? '' : 'No project', tasks: sorted(loose) });
+    // A company's loose tasks need a name only when another group stands above them.
+    if (loose.length) groups.push({ key: 'loose', label: list.startsWith('company:') ? (groups.length ? 'Tasks' : '') : 'No project', tasks: sorted(loose), dot: 'var(--border2)' });
     for (const [pid, ts] of [...byProject.entries()].sort((a, b) => (S.projects.find((p) => p.id === a[0])?.name || '').localeCompare(S.projects.find((p) => p.id === b[0])?.name || ''))) {
       groups.push({ key: `p:${pid}`, label: S.projects.find((p) => p.id === pid)?.name || 'Project', tasks: sorted(ts) });
     }
@@ -205,10 +244,10 @@ function listTitle(list: string): { title: string; subtitle: string } {
   const smart = SMART.find((s) => s.key === list);
   if (smart) {
     const sub = list === 'today' ? fmtDayLong(new Date())
-      : list === 'upcoming' ? 'Everything with a date after today'
-      : list === 'anytime' ? 'All open tasks you could do now'
-      : list === 'someday' ? 'Parked until you pick them up again'
-      : 'Recently finished';
+      : list === 'upcoming' ? 'Everything with a date after today.'
+      : list === 'anytime' ? 'Every open task you could do now.'
+      : list === 'someday' ? 'Parked until you pick them up again.'
+      : 'Recently finished.';
     return { title: smart.label, subtitle: sub };
   }
   if (list.startsWith('project:')) {
@@ -219,8 +258,8 @@ function listTitle(list: string): { title: string; subtitle: string } {
     const ref = companyRefFromKey(list.slice(8));
     return { title: ref.name, subtitle: companyLink(ref.id, ref.name).replace(`>${escHtml(ref.name)}<`, '>Open company page<') };
   }
-  if (list.startsWith('tag:')) return { title: `#${list.slice(4)}`, subtitle: 'Open tasks with this tag' };
-  if (list === 'promises') return { title: 'Promises', subtitle: 'What we owe clients and what they owe us, across every client' };
+  if (list.startsWith('tag:')) return { title: `#${list.slice(4)}`, subtitle: 'Open tasks with this tag.' };
+  if (list === 'promises') return { title: 'Promises', subtitle: 'What we owe clients and what they owe us, across every client.' };
   return { title: 'Tasks', subtitle: '' };
 }
 
@@ -235,10 +274,11 @@ function renderSidebar(): void {
   const count = (key: string) => tasksForList(key).length;
   // Today's badge (overdue) and count (due today) from what the Today list shows.
   const { overdue, dueToday } = todayRailCounts(tasksForList('today'), todayIso());
-  const item = (key: string, label: string, iconHtml: string, n: number | string, extra = '') =>
+  const item = (key: string, label: string, iconHtml: string, n: number | string, countAttrs = '') =>
     `<button class="ws-side-item${list === key ? ' active' : ''}" data-drop="task-list" data-drop-value="${escHtml(key)}" onclick="setTodoFilter('${escHtml(key).replace(/'/g, "\\'")}')">
-      ${iconHtml}<span class="ws-side-label">${escHtml(label)}</span>${extra}<span class="ws-side-count">${n || ''}</span>
+      ${iconHtml}<span class="ws-side-label">${escHtml(label)}</span><span class="ws-side-count"${countAttrs}>${n || ''}</span>
     </button>`;
+  const tile = (name: string, tint: string) => `<span class="ws-side-tile" style="--c:${tint}">${icon(name, 13)}</span>`;
   const section = (id: string, label: string, body: string) => body
     ? `<div class="ws-side-section${collapsedSections.has(id) ? ' collapsed' : ''}">
         <button class="ws-side-section-hd" onclick="toggleTaskSideSection('${id}')">${icon('chevronDown', 11)}<span>${label}</span></button>
@@ -247,16 +287,17 @@ function renderSidebar(): void {
 
   // Promises (commitments, not tasks): after Someday, before Completed; no drop target.
   const promises = `<button class="ws-side-item${list === 'promises' ? ' active' : ''}" onclick="setTodoFilter('promises')">
-      <span class="ws-side-icon" style="color:var(--accent)">${icon('flag', 15)}</span><span class="ws-side-label">Promises</span><span class="ws-side-count">${openPromiseCount(S.commitments) || ''}</span>
+      ${tile('flag', 'var(--coral-text)')}<span class="ws-side-label">Promises</span><span class="ws-side-count">${openPromiseCount(S.commitments) || ''}</span>
     </button>`;
-  const smart = SMART.map((s) => (s.key === 'completed' ? promises : '') + item(s.key, s.label, `<span class="ws-side-icon" style="color:${s.tint}">${icon(s.icon, 15)}</span>`, s.key === 'completed' ? '' : s.key === 'today' ? dueToday : count(s.key),
-    s.key === 'today' && overdue ? `<span class="ws-side-alert" title="${overdue} overdue">${overdue}</span>` : '')).join('');
+  // Today counts what is due by today; the count turns into a red pill while any of it is overdue.
+  const smart = SMART.map((s) => (s.key === 'completed' ? promises : '') + item(s.key, s.label, tile(s.icon, s.tint), s.key === 'completed' ? '' : s.key === 'today' ? overdue + dueToday : count(s.key),
+    s.key === 'today' && overdue ? ` data-alert title="${overdue} overdue"` : '')).join('');
 
   const projects = S.projects.filter((p) => !p.archived && p.status !== 'Completed')
     .map((p) => ({ p, n: S.todos.filter((t) => isOpenTask(t) && t.projectId === p.id).length }))
     .filter(({ p, n }) => n > 0 || list === `project:${p.id}`)
     .sort((a, b) => a.p.name.localeCompare(b.p.name))
-    .map(({ p, n }) => item(`project:${p.id}`, p.name, `<span class="ws-side-icon">${icon('target', 14)}</span>`, n)).join('');
+    .map(({ p, n }) => item(`project:${p.id}`, p.name, tile('target', 'var(--blue)'), n)).join('');
 
   const clients = new Map<string, { name: string; n: number }>();
   for (const t of S.todos) {
@@ -267,12 +308,12 @@ function renderSidebar(): void {
     clients.set(key, entry);
   }
   const clientItems = [...clients.entries()].sort((a, b) => a[1].name.localeCompare(b[1].name))
-    .map(([key, { name, n }]) => item(`company:${key}`, name, `<span class="ws-side-icon">${icon('building', 14)}</span>`, n)).join('');
+    .map(([key, { name, n }]) => item(`company:${key}`, name, tileHtml(name, 'pk-tile mini'), n)).join('');
 
   const tags = new Map<string, number>();
   for (const t of S.todos) if (isOpenTask(t)) for (const tag of t.tags || []) tags.set(tag, (tags.get(tag) || 0) + 1);
   const tagItems = [...tags.entries()].sort((a, b) => a[0].localeCompare(b[0]))
-    .map(([tag, n]) => item(`tag:${tag}`, tag, `<span class="ws-side-icon">${icon('tag', 14)}</span>`, n)).join('');
+    .map(([tag, n]) => item(`tag:${tag}`, tag, '<span class="ws-side-hash" aria-hidden="true">#</span>', n)).join('');
 
   el.innerHTML = `<div class="ws-side-scroll">
     <div class="ws-side-group">${smart}</div>
@@ -284,7 +325,9 @@ function renderSidebar(): void {
 
 /** Counts in the rail follow commitments changed elsewhere (Promises, record pages). */
 export function refreshTaskRail(): void {
-  if (getActiveTabId() === 'todo') renderSidebar();
+  if (getActiveTabId() !== 'todo') return;
+  // A list that shows promises among its tasks follows them too; the Promises list draws itself.
+  if (currentList() === 'promises') renderSidebar(); else renderTodo();
 }
 expose('refreshTaskRail', refreshTaskRail);
 
@@ -341,6 +384,7 @@ export function renderTodo(): void {
   document.querySelectorAll<HTMLElement>('.task-vbtn').forEach((b) => b.classList.toggle('active', b.dataset.view === S.taskView));
   const calNav = document.getElementById('task-cal-nav'); if (calNav) calNav.hidden = S.taskView !== 'calendar';
   const quickAdd = document.getElementById('task-quickadd'); if (quickAdd) quickAdd.hidden = list === 'completed' || list === 'promises';
+  renderProgress(list);
 
   const container = document.getElementById('todo-list');
   if (!container) return;
@@ -365,9 +409,44 @@ export function renderTodo(): void {
 registerTabRenderer('todo', renderTodo);
 expose('renderTodo', renderTodo);
 
+/** The line under quick-add: "2 of 6 done today", its bar, and what is behind. Not on Completed or Promises, and
+ * not while there is nothing to count. */
+function renderProgress(list: string): void {
+  const el = document.getElementById('task-progress');
+  if (!el) return;
+  const p = todayProgress(S.todos, S.commitments, todayIso());
+  el.hidden = list === 'completed' || list === 'promises' || (!p.total && !p.note);
+  if (el.hidden) return;
+  el.innerHTML = `<span class="task-prog-lead"><b>${p.done} of ${p.total}</b> done today</span>
+    <span class="task-prog-bar" role="img" aria-label="${p.pct}% of today done"><i style="--p:${p.pct}%"></i></span>
+    ${p.note ? `<span class="task-prog-note">${escHtml(p.note)}</span>` : ''}`;
+}
+
+/** Overdue → "Move all to today": the overdue tasks of the list on screen, with an undo. */
+export function moveOverdueToToday(): void {
+  const tasks = groupsForList(currentList()).find((g) => g.key === 'overdue')?.tasks ?? [];
+  if (!tasks.length) return;
+  const was = new Map(tasks.map((t) => [t.id, { dueDate: t.dueDate, dueTime: t.dueTime, someday: t.someday }]));
+  scheduleTasks(tasks.map((t) => t.id), { dueDate: todayIso() });
+  undoToast(`${tasks.length === 1 ? '1 task' : `${tasks.length} tasks`} moved to today`, () => {
+    for (const [id, before] of was) { const t = S.todos.find((x) => x.id === id); if (t) Object.assign(t, before); }
+    afterTodoListChange();
+  });
+}
+expose('moveOverdueToToday', moveOverdueToToday);
+
+function groupHeadHtml(g: Group): string {
+  if (!g.label) return '';
+  const n = g.tasks.length + (g.owed?.length ?? 0);
+  const fromMeetings = g.key === 'promises' && S.commitments.some((c) => c.status === 'open' && c.sourceType === 'meeting' && (g.owed?.includes(c) || g.tasks.some((t) => t.id === c.todoId)));
+  const right = g.key === 'overdue' ? `<button class="task-group-link" onclick="moveOverdueToToday()">Move all to today</button>`
+    : fromMeetings ? '<span class="task-group-note">from meetings</span>' : '';
+  return `<div class="task-group-hd"><i style="--c:${g.dot ?? 'var(--blue)'}" aria-hidden="true"></i><b>${escHtml(g.label)}</b>${g.hint ? `<span class="task-group-hint">${escHtml(g.hint)}</span>` : ''}<span class="task-group-count">${n || ''}</span>${right}</div>`;
+}
+
 function renderListView(list: string): string {
   const groups = groupsForList(list);
-  const total = groups.reduce((n, g) => n + g.tasks.length, 0);
+  const total = groups.reduce((n, g) => n + g.tasks.length + (g.owed?.length ?? 0), 0);
   let html = '';
   if (list === 'upcoming') {
     html += `<div class="task-weekstrip">${groups.slice(0, 7).map((g) => {
@@ -389,11 +468,9 @@ function renderListView(list: string): string {
   }
   for (const g of groups) {
     const isDay = !!g.dropDate;
-    const hd = g.label
-      ? `<div class="task-group-hd${g.tone === 'danger' ? ' danger' : ''}"><span>${escHtml(g.label)}</span>${g.hint ? `<span class="task-group-hint">${escHtml(g.hint)}</span>` : ''}<span class="task-group-count">${g.tasks.length || ''}</span></div>`
-      : '';
-    const body = g.tasks.length ? g.tasks.map((t) => taskRowHtml(t, { list })).join('')
-      : `<div class="task-group-empty">${list === 'upcoming' ? 'Drop a task here to schedule it' : 'Nothing due today — enjoy the space.'}</div>`;
+    const hd = groupHeadHtml(g);
+    const body = g.tasks.length || g.owed?.length ? g.tasks.map((t) => taskRowHtml(t, { list, underProject: g.key.startsWith('p:') })).join('') + (g.owed ?? []).map(owedRowHtml).join('')
+      : `<div class="task-group-empty">${list === 'upcoming' ? 'Drop a task here to schedule it' : total ? 'Nothing else due today.' : 'Nothing due today — enjoy the space.'}</div>`;
     const groupValue = isDay ? `date:${g.dropDate}` : g.key.startsWith('sec:') ? `section:${g.key.slice(4)}` : '';
     html += `<section class="task-group" id="tg-${escHtml(g.key)}" data-sort="task-order" data-drop-value="${escHtml(groupValue)}">${hd}${body}</section>`;
   }
@@ -416,42 +493,80 @@ export function toggleCompletedIn(list: string): void {
 }
 expose('toggleCompletedIn', toggleCompletedIn);
 
+/** A client by its small tile and name, not underlined. */
+function miniCompany(companyId: number | null | undefined, name: string): string {
+  return `<span class="pk-mini-co task-co">${tileHtml(name, 'pk-tile mini')}${companyLink(companyId, name)}</span>`;
+}
+
+/** "from Monthly check-in": the meeting a promise was made in, as a link. */
+function fromMeeting(c: Pick<Commitment, 'sourceType' | 'sourceId'>): string {
+  const m = c.sourceType === 'meeting' && c.sourceId != null ? S.meetings.find((x) => x.id === c.sourceId) : null;
+  return m ? recordLink('meeting', m.id, `from ${m.title}`, { className: 'task-from' }) : '';
+}
+
 /** One task as a clean row. Also used by the company and project pages. */
-export function taskRowHtml(t: Todo, opts: { list?: string; compact?: boolean } = {}): string {
+export function taskRowHtml(t: Todo, opts: { list?: string; compact?: boolean; underProject?: boolean } = {}): string {
   const done = !isOpenTask(t);
   const over = isOverdue(t);
+  const t0 = todayIso();
   const subs = S.todos.filter((x) => x.parentId === t.id);
   const project = t.projectId != null ? S.projects.find((p) => p.id === t.projectId) : null;
   const parent = t.parentId != null ? S.todos.find((p) => p.id === t.parentId) : null;
   const inProjectList = opts.list === `project:${t.projectId}`;
   const inCompanyList = opts.list?.startsWith('company:');
+  const promise = S.commitments.find((c) => c.todoId === t.id && c.direction === 'ours' && c.status === 'open');
   const meta: string[] = [];
-  if (t.status === 'In Progress') meta.push('<span class="task-state">In progress</span>');
-  if (t.owner) meta.push(`<span class="task-owner" title="Owner">${icon('people', 11)}${escHtml(t.owner)}</span>`);
-  const promise = S.commitments.find((c) => c.todoId === t.id && c.direction === 'ours');
-  if (promise) meta.push(`<span class="task-promise" title="This task is a commitment">${icon('flag', 11)}Promised${promise.companyId != null ? ` to ${escHtml(S.companies.find((c) => c.id === promise.companyId)?.name || 'the client')}` : ''}</span>`);
-  if (t.dueDate && !(opts.list === 'today' && t.dueDate === todayIso() && !t.dueTime)) {
-    meta.push(`<span class="task-due${over ? ' overdue' : t.dueDate === todayIso() ? ' today' : ''}">${icon('calendar', 11)}${escHtml(dueLabel(t))}</span>`);
+  if (promise) {
+    const chip = promiseChip(promise, t0);
+    meta.push(`<span class="pk-chip t-${chip.tone}" title="This task is a promise${promise.companyId != null ? ` to ${escHtml(S.companies.find((c) => c.id === promise.companyId)?.name || 'the client')}` : ''}">${escHtml(chip.text)}</span>`);
   }
-  if (t.someday && opts.list !== 'someday') meta.push(`<span class="task-due">${icon('archive', 11)}Someday</span>`);
+  if (t.recurrenceRule) meta.push(`<span class="task-chip" title="Repeats ${escHtml(t.recurrenceRule)}">${icon('repeat', 11)}${escHtml(t.recurrenceRule.toLowerCase())}</span>`);
+  if (t.status === 'In Progress') meta.push('<span class="task-chip t-blue"><i></i>In progress</span>');
+  if (subs.length) meta.push(`<span class="task-chip" title="Subtasks done">${icon('check', 11)}${subs.filter((x) => !isOpenTask(x)).length}/${subs.length}</span>`);
+  if (t.owner) meta.push(`<span class="task-owner" title="Owner">${icon('people', 11)}${escHtml(t.owner)}</span>`);
+  if (t.someday && opts.list !== 'someday') meta.push(`<span class="task-chip">${icon('archive', 11)}Someday</span>`);
   if (parent) meta.push(`<span class="task-parent">↳ ${escHtml(parent.title)}</span>`);
-  if (project && !inProjectList) meta.push(recordLink('project', project.id, project.name, { className: 'task-meta-link' }));
-  if (t.client && !inCompanyList) meta.push(companyLink(t.companyId, t.client, { className: 'task-meta-link' }));
-  if (subs.length) meta.push(`<span class="task-subcount">${icon('check', 11)}${subs.filter((s) => !isOpenTask(s)).length}/${subs.length}</span>`);
+  if (t.client && !inCompanyList) meta.push(miniCompany(t.companyId, t.client));
+  if (project && !inProjectList && !opts.underProject) meta.push(recordLink('project', project.id, project.name, { className: 'task-meta-link' }));
   for (const tag of (t.tags || []).slice(0, 3)) meta.push(`<span class="task-tag">#${escHtml(tag)}</span>`);
-  if (t.recurrenceRule) meta.push(`<span class="task-icon-meta" title="Repeats ${escHtml(t.recurrenceRule)}">${icon('repeat', 11)}</span>`);
+  if (promise) { const from = fromMeeting(promise); if (from) meta.push(from); }
   if (t.description) meta.push(`<span class="task-icon-meta" title="Has notes">${icon('note', 11)}</span>`);
+  // The date on the right, coloured by lateness. The Today group does not repeat "Today"; Completed is grouped by day.
+  const when = opts.list === 'completed' || (opts.list === 'today' && t.dueDate === t0 && !t.dueTime && !done) ? null : dueRight(t, t0, dueLabel(t));
   const pri = t.priority === 'High' ? ' pri-high' : t.priority === 'Low' ? ' pri-low' : '';
   return `<div class="task-row${done ? ' done' : ''}${over ? ' overdue' : ''}${S.taskDetailId === t.id ? ' open' : ''}" data-task-id="${t.id}" data-drag-kind="task" data-drag-id="${t.id}" onclick="taskRowClick(event,${t.id})" oncontextmenu="todoContextMenu(event,${t.id})">
-    <button class="task-check${pri}${done ? ' checked' : ''}" onclick="event.stopPropagation();completeTask(${t.id})" aria-label="${done ? 'Mark as not done' : 'Complete'}" data-tip="${t.priority === 'High' ? 'High priority · ' : ''}${done ? 'Mark as not done' : 'Complete'}"></button>
+    <button class="task-check${promise ? ' is-promise' : pri}${over && !promise ? ' is-late' : ''}${done ? ' checked' : ''}" onclick="event.stopPropagation();completeTask(${t.id})" aria-label="${done ? 'Mark as not done' : 'Complete'}" data-tip="${t.priority === 'High' ? 'High priority · ' : ''}${done ? 'Mark as not done' : 'Complete'}"></button>
     <div class="task-main">
       <div class="task-title">${escHtml(t.title)}</div>
       ${meta.length ? `<div class="task-meta">${meta.join('')}</div>` : ''}
     </div>
+    ${when ? `<span class="task-when t-${when.tone}">${escHtml(when.text)}</span>` : ''}
     ${opts.compact ? '' : `<div class="task-hover-actions">
       <button class="task-hover-btn" onclick="event.stopPropagation();openDatePopover(this,[${t.id}])" data-tip="Schedule (D)" aria-label="Schedule">${icon('calendar', 14)}</button>
       <button class="task-hover-btn" onclick="event.stopPropagation();todoContextMenu(event,${t.id})" data-tip="More" aria-label="More">${icon('more', 14)}</button>
     </div>`}
+  </div>`;
+}
+
+/** What a client owes us, in the Promises group: not a task (it cannot be dragged or scheduled); the check marks it
+ * received, the row opens where it was promised. */
+function owedRowHtml(c: Commitment): string {
+  const t0 = todayIso();
+  const who = c.contactId != null ? S.contacts.find((x) => x.id === c.contactId)?.name : null;
+  const chip = promiseChip(c, t0, who);
+  const company = c.companyId != null ? S.companies.find((x) => x.id === c.companyId) : null;
+  const when = owedWhen(c, t0, c.dueDate ? friendlyDate(c.dueDate, new Date()) : '');
+  const meta = [`<span class="pk-chip t-${chip.tone}">${escHtml(chip.text)}</span>`, company ? miniCompany(company.id, company.name) : '', fromMeeting(c)].filter(Boolean);
+  return `<div class="task-row is-owed" data-commitment-id="${c.id}" onclick="if(!event.target.closest('a,button'))openCommitmentSource(${c.id})" oncontextmenu="commitmentMenu(event,${c.id})">
+    <button class="task-check is-promise is-theirs" onclick="event.stopPropagation();toggleCommitmentKept(${c.id})" aria-label="Mark received" data-tip="Mark received"></button>
+    <div class="task-main">
+      <div class="task-title">${escHtml(c.text)}</div>
+      <div class="task-meta">${meta.join('')}</div>
+    </div>
+    ${when ? `<span class="task-when t-${when.tone}">${escHtml(when.text)}</span>` : ''}
+    <div class="task-hover-actions">
+      <button class="task-hover-btn" onclick="event.stopPropagation();commitmentMenu(event,${c.id})" data-tip="More" aria-label="More">${icon('more', 14)}</button>
+    </div>
   </div>`;
 }
 
