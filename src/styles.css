@@ -3743,3 +3743,47 @@ a.btn-primary,a.btn-secondary{text-decoration:none}
 .pk-mmain .mt-purpose{overflow:visible;white-space:inherit}
 .pk-mmain .mt-purpose::before{content:"\201C"}
 .pk-mmain .mt-purpose::after{content:"\201D"}
+
+/* Projects: a card per project with a 3px top edge (client blue, internal coral) and its milestone track. */
+.pk-proj{position:relative;--c:var(--blue);border-radius:13px;padding:20px 22px 16px;background:var(--surface);border:1px solid var(--hairline);box-shadow:var(--shadow-sm);margin-bottom:16px;overflow:hidden;cursor:pointer;transition:box-shadow var(--dur-fast) var(--ease-out)}
+.pk-proj.is-internal{--c:var(--coral)}
+.pk-proj::before{content:"";position:absolute;left:0;top:0;right:0;height:3px;background:var(--c)}
+.pk-proj:hover{box-shadow:var(--shadow-md)}
+.pk-proj:active{box-shadow:var(--shadow-xs)}
+.pk-proj:focus-visible{outline:none;box-shadow:var(--shadow-focus)}
+.pk-proj-hd{display:flex;gap:14px;align-items:center}
+.pk-tile.lg{width:40px;height:40px;border-radius:9px;font-size:13px}
+.pk-proj-tt{min-width:0}
+.pk-proj-tt h3{margin:0;font:600 20px/1.2 var(--font-display);color:var(--navy);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pk-proj-s{margin-top:3px;font-size:12.5px;color:var(--sub)}
+.pk-stage.t-red{background:var(--red-bg);color:var(--red)}
+.pk-figs{margin-left:auto;display:flex;gap:28px;align-items:flex-end;flex:none}
+.pk-fig b{display:block;font:600 22px/1 var(--font-display);color:var(--navy);text-align:right;white-space:nowrap}
+.pk-fig span{display:block;margin-top:3px;font-size:var(--type-meta);color:var(--muted);text-align:right;white-space:nowrap}
+.pk-fig.t-red b{color:var(--red)}
+.pk-ring{width:56px;height:56px;flex:none}
+.pk-ring-bg{stroke:var(--surface-2)}
+.pk-ring-fg{stroke:var(--c)}
+.pk-ring text{font:600 10px var(--font-display);fill:var(--navy)}
+.pk-track{position:relative;height:58px;margin:26px 0 4px}
+.pk-track-line{position:absolute;left:0;right:0;top:9px;height:3px;border-radius:6px;background:var(--surface-2)}
+.pk-track-done{position:absolute;left:0;top:9px;height:3px;border-radius:6px;background:var(--c)}
+.pk-track-today{position:absolute;top:-2px;width:2px;height:24px;margin-left:-1px;background:var(--coral)}
+.pk-track-today span{position:absolute;top:-16px;left:50%;transform:translateX(-50%);font:500 10px var(--font-mono);color:var(--coral-text)}
+.pk-ms{position:absolute;top:2px;width:124px;margin-left:-62px;text-align:center}
+.pk-ms i{display:block;width:16px;height:16px;margin:0 auto;border-radius:50%;background:var(--surface);border:2.5px solid var(--border)}
+.pk-ms.is-done i{background:var(--c);border-color:var(--c)}
+.pk-ms.is-next i{border-color:var(--c);box-shadow:0 0 0 4px color-mix(in srgb,var(--c) 14%,transparent)}
+.pk-ms b{display:block;margin-top:6px;font-size:11.5px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pk-ms span{display:block;font:500 10.5px var(--font-mono);color:var(--muted)}
+.pk-track-none{margin:18px 0 4px;padding:12px 14px;border:1px dashed var(--border);border-radius:9px;font-size:var(--type-secondary);color:var(--sub)}
+.pk-track-none .rlink,.pk-proj-foot .rlink{color:var(--blue);font-weight:500;font-size:inherit;text-decoration-color:transparent}
+.pk-track-none .rlink:hover,.pk-proj-foot .rlink:hover{text-decoration-color:currentColor}
+.pk-proj-foot{display:flex;gap:18px;align-items:baseline;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:1px solid var(--hairline);font-size:12px;color:var(--sub)}
+.pk-proj-foot b{font-weight:500;color:var(--text)}
+.pk-proj-open{margin-left:auto}
+@media (max-width:1280px){
+  .pk-proj-hd{flex-wrap:wrap}
+  .pk-figs{margin-left:54px;gap:20px}
+  .pk-ms{width:92px;margin-left:-46px}
+}

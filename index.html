@@ -926,39 +926,36 @@
 
 <!-- PROJECTS TAB -->
 <div id="tab-projects" class="tab">
-  <div id="proj-list-view">
-    <div class="page-header">
-      <div>
-        <div class="page-title">Projects</div>
-        <div class="page-subtitle">Client engagements and internal initiatives — one system, equally first-class.</div>
-      </div>
+  <div id="proj-list-view" class="pk-page">
+    <div class="page-header pk-head">
+      <div class="pk-head-t"><div class="page-title">Projects</div><span class="bars lg" aria-hidden="true"><i></i><i></i><i></i></span><div class="page-subtitle">Client delivery and internal initiatives, milestone by milestone.</div></div>
       <div class="page-header-actions">
         <button class="btn-primary" onclick="openProjectModal(null)"><span data-icon="plus" data-icon-size="14"></span> New project</button>
       </div>
     </div>
-    <div class="toolbar">
-      <div class="segmented" id="proj-type-seg">
-        <button class="active" onclick="setProjectFilter('all')">All</button>
-        <button onclick="setProjectFilter('client')">Client</button>
-        <button onclick="setProjectFilter('internal')">Internal</button>
-      </div>
-      <input type="text" class="f-search" id="proj-search" placeholder="Search projects…" oninput="filterSoon('renderProjects')">
-      <select class="ssel" id="proj-status-filter" onchange="renderProjects()">
-        <option value="">All Statuses</option>
+    <div class="pk-tools">
+      <nav class="pr-views" id="proj-type-seg" aria-label="Which projects">
+        <button class="pr-view active" onclick="setProjectFilter('all')">All<span></span></button>
+        <button class="pr-view" onclick="setProjectFilter('client')">Client<span></span></button>
+        <button class="pr-view" onclick="setProjectFilter('internal')">Internal<span></span></button>
+      </nav>
+      <input type="text" class="f-search pk-search" id="proj-search" placeholder="Search projects…" oninput="filterSoon('renderProjects')">
+      <select class="fsel" id="proj-status-filter" onchange="renderProjects()" aria-label="Status">
+        <option value="">All statuses</option>
         <option>Idea</option><option>Planning</option><option>Not Started</option><option>In Progress</option>
         <option>At Risk</option><option>On Hold</option><option>Completed</option><option>Cancelled</option>
       </select>
-      <select class="ssel" id="proj-owner-filter" onchange="renderProjects()" aria-label="Owner"><option value="">All owners</option></select>
-      <select class="ssel" id="proj-sort" onchange="renderProjects()">
-        <option value="updated">Sort: Recently Updated</option>
-        <option value="priority">Sort: Priority</option>
-        <option value="target">Sort: Target Date</option>
-        <option value="progress">Sort: Progress</option>
-        <option value="status">Sort: Status</option>
+      <select class="fsel" id="proj-owner-filter" onchange="renderProjects()" aria-label="Owner"><option value="">All owners</option></select>
+      <select class="fsel pk-sort" id="proj-sort" onchange="renderProjects()" aria-label="Order">
+        <option value="milestone">Sorted by next milestone</option>
+        <option value="updated">Recently updated</option>
+        <option value="priority">Priority</option>
+        <option value="target">Target date</option>
+        <option value="progress">Progress</option>
+        <option value="status">Status</option>
       </select>
-      <span class="rcnt" id="proj-cnt">0 projects</span>
     </div>
-    <div class="rec-list pj-list" id="proj-grid"></div>
+    <div class="pk-projects" id="proj-grid"></div>
   </div>
 
   <div id="proj-detail" class="proj-detail record-page">

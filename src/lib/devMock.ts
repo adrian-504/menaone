@@ -145,7 +145,18 @@ const SAMPLE_PROJECTS: Project[] = [
 // browser tab. The real Tauri build never touches this file's state; it's
 // re-seeded from SAMPLE_PROJECTS on every page load.
 let projectsStore: Project[] = SAMPLE_PROJECTS.map((p) => ({ ...p }));
-let milestonesStore: Milestone[] = [];
+let milestonesStore: Milestone[] = [
+  // Acme's retainer: two milestones done, the October payroll run next.
+  { id: 101, projectId: 1, name: 'Onboarding pack', description: null, status: 'Done', targetDate: '2026-09-02', completionDate: '2026-09-02', sortOrder: 1 },
+  { id: 102, projectId: 1, name: 'GOSI registrations', description: null, status: 'Done', targetDate: '2026-09-20', completionDate: '2026-09-19', sortOrder: 2 },
+  { id: 103, projectId: 1, name: 'October payroll run', description: null, status: 'In Progress', targetDate: '2026-10-28', completionDate: null, sortOrder: 3 },
+  { id: 104, projectId: 1, name: 'Iqama renewals', description: null, status: 'Not Started', targetDate: '2026-11-30', completionDate: null, sortOrder: 4 },
+  { id: 105, projectId: 1, name: 'Year-end WPS', description: null, status: 'Not Started', targetDate: '2026-12-31', completionDate: null, sortOrder: 5 },
+  { id: 106, projectId: 2, name: 'Hire a recruiter', description: null, status: 'Not Started', targetDate: '2026-10-15', completionDate: null, sortOrder: 1 },
+  { id: 107, projectId: 2, name: 'Service pack and pricing', description: null, status: 'Not Started', targetDate: '2026-11-01', completionDate: null, sortOrder: 2 },
+  { id: 108, projectId: 2, name: 'First three clients', description: null, status: 'Not Started', targetDate: '2026-11-20', completionDate: null, sortOrder: 3 },
+  { id: 109, projectId: 2, name: 'Launch', description: null, status: 'Not Started', targetDate: '2026-12-01', completionDate: null, sortOrder: 4 },
+];
 const mockMeeting = (id: number, title: string, date: string, emails: { email: string; name: string }[]): Meeting => ({
   id, title, meetingDate: date, companyName: null, companyId: null, projectId: null, opportunityId: null, attendees: emails.map((e) => e.name),
   agenda: null, discussion: null, decisions: null, actionItems: null, followUp: null, nextMeeting: null, noteId: null,
@@ -240,7 +251,7 @@ let opportunitiesStore: Opportunity[] = [
 let opportunityActivityStore: OpportunityActivity[] = [];
 let projectActivityStore: ProjectActivity[] = [];
 let nextProjectId = 1000;
-let nextMilestoneId = 1;
+let nextMilestoneId = 200; // above the sample milestones' ids
 let nextMeetingId = 1;
 let nextCompanyId = 100; // above the sample companies' ids
 let nextOpportunityId = 100; // above the sample opportunities' ids
