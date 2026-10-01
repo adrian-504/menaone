@@ -1559,7 +1559,6 @@
         <button class="btn-primary" onclick="companyNewMenu(event)" aria-haspopup="menu"><span data-icon="plus" data-icon-size="13"></span> New</button>
         <button class="btn-secondary" onclick="openCompanyBrief()" data-tip="A one-page brief to read or print">Brief</button>
         <button class="btn-secondary" onclick="openCompanyTemplates()" data-tip="A template email to this company, ready to copy or open in Outlook">Email</button>
-        <button class="btn-secondary" onclick="openEditCompanyModal()">Edit</button>
         <button class="loc-nav rec-more" onclick="companyMoreMenu(event)" data-tip="More" aria-label="More"><span data-icon="more" data-icon-size="16"></span></button>
       </div>
     </header>
@@ -1621,29 +1620,32 @@
 
     <!-- The dossier (owner, 29-Sep, Concept B): a left column that stays while
          you scroll (details, people, what to remember), the story on the right. -->
+    <!-- Where we stand: four cards (relationship, in flight, last contact, owed), from the same clauses as the Brief. -->
+    <section class="rec-section co-standing" id="co-sec-overview" data-section="overview" aria-label="Where we stand"><div id="co-state"></div></section>
     <div class="co-dossier">
     <aside class="co-dossier-side" aria-label="Company at a glance">
       <section class="co-panel" id="co-panel-details">
-        <div class="co-panel-hd"><h2 class="brand-h hd-major">Details</h2></div>
+        <div class="co-panel-hd"><h2 class="rk-panel-h">Details</h2><a href="#" class="rlink co-panel-act" onclick="event.preventDefault();openEditCompanyModal()">Edit</a></div>
         <dl class="co-details" id="co-details"></dl>
       </section>
       <section class="co-panel" id="co-sec-contacts" data-section="contacts">
-        <div class="co-panel-hd"><span class="rec-eyebrow">People</span><span class="rec-count" id="co-contacts-count"></span><a href="#" class="rlink co-panel-act" onclick="event.preventDefault();openContactForCompany()">+ Add</a></div>
+        <div class="co-panel-hd"><h2 class="rk-panel-h">People</h2><span class="rec-count" id="co-contacts-count"></span><a href="#" class="rlink co-panel-act" onclick="event.preventDefault();openContactForCompany()">+ Add</a></div>
         <div class="rec-list co-people" id="co-contacts-list"></div>
       </section>
       <section class="co-panel" id="co-panel-remember" hidden>
-        <div class="co-panel-hd"><span class="rec-eyebrow">Remember</span></div>
+        <div class="co-panel-hd"><h2 class="rk-panel-h">Remember</h2></div>
         <div class="co-remember" id="co-remember"></div>
       </section>
     </aside>
     <div class="co-dossier-main">
-    <!-- Where we stand, as labelled lines (tabs/companyState.ts, lib/companyDossier.ts). -->
-    <section class="rec-section co-standing" id="co-sec-overview" data-section="overview"><div class="rec-section-hd"><h2 class="hd-major">Where we stand</h2></div><div id="co-state"></div></section>
-    <section class="rec-section co-nextrecent" id="co-sec-next" data-section="next">
-      <div class="co-nr-grid">
-        <div class="co-nr-col"><div class="co-nr-hd"><span class="rec-eyebrow">Next</span></div><div id="co-next"></div></div>
-        <div class="co-nr-col"><div class="co-nr-hd"><span class="rec-eyebrow">Recent</span><a href="#" class="rlink co-nr-all" id="co-activity-toggle" onclick="event.preventDefault();toggleCompanyActivity()">All activity</a></div><div id="co-recent"></div></div>
-      </div>
+    <section class="rec-section rk-sec" id="co-sec-flight" data-section="flight">
+      <div class="rk-sh"><h2 class="hd-major">In flight</h2><span class="rk-cnt" id="co-flight-count"></span><a href="#" class="rlink rk-sh-r" onclick="event.preventDefault();scrollToCompanySection('proposals')">All proposals</a></div>
+      <div id="co-flight"></div>
+    </section>
+    <section class="rec-section rk-sec co-nextrecent" id="co-sec-next" data-section="next">
+      <div class="rk-sh"><h2 class="hd-major">Next</h2><a href="#" class="rlink rk-sh-r" id="co-activity-toggle" onclick="event.preventDefault();toggleCompanyActivity()">All activity</a></div>
+      <div id="co-next"></div>
+      <div id="co-recent" hidden></div>
       <section class="rec-section sec co-activity-fold" id="co-sec-activity" data-section="activity" hidden></section>
     </section>
     <section class="rec-section sec" id="co-sec-notes-log" data-section="notes-log">

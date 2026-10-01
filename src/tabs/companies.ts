@@ -6,7 +6,7 @@ import { needsFollowUp } from '../core/proposals';
 import { PS } from '../lib/commercial';
 import { initialsOf } from '../lib/appearance';
 import { fmtTime } from '../lib/dates';
-import { companyFigures, paintFigures } from '../lib/recordFigures';
+import { paintFigures } from '../lib/recordFigures';
 import { arrive } from '../lib/motion';
 import { suggestWebsites } from '../lib/clientMatch';
 import { proposalSentDate, isAgreementActive, isOpenProposal, isLost, isWon, activeMrr as computeActiveMrr, fmtMoney, fmtMoneyByCurrency, toReporting, currencyOf, agreementMonthly, activeTeam, matchesOwnerFilter, ownerFilterOptions, type MoneyByCurrency } from '../lib/commercial';
@@ -26,7 +26,8 @@ import { type FeedItem } from '../lib/activityFeed';
 import { renderRecordTimeline } from './recordThread';
 import { renderCompanyTemplates } from './companyTemplates';
 import { clientNotesList } from '../lib/clientNotes';
-import { capCompanyRecords, renderDossierDetails, renderDossierNextRecent, renderDossierState, resetDossierFolds, watchCompanyRecords } from './companyDossier';
+import { capCompanyRecords, renderDossierDetails, renderDossierFlight, renderDossierNextRecent, renderDossierState, resetDossierFolds, watchCompanyRecords } from './companyDossier';
+import { companyHeaderFigures } from '../lib/recordCompany';
 import { liveThreads, lastContactByPerson, orderPeople, relationshipStatus as briefRelationship } from '../lib/companyBrief';
 import { briefInputFor, ensurePinnedNotes, setCompanyNotesCache } from './companyState';
 import { renderIcons } from '../core/chrome';
@@ -1033,29 +1034,30 @@ function renderCompanyDetail(): void {
   const notes = S.notes.filter((n) => inCompany(ref, n.companyId, n.clientName));
   const tasks = S.todos.filter((t) => inCompany(ref, t.companyId, t.client));
 
-  // Header
+  // Header: tile, name, one line (relationship chip, industry · place · owner, website), then the figures.
   const avatar = document.getElementById('co-avatar');
   if (avatar) {
-    avatar.textContent = d.name.split(/\s+/).slice(0, 2).map((w) => w[0] || '').join('').toUpperCase();
+    avatar.textContent = initialsOf(d.name) || '·';
     avatar.style.background = strColor(d.name);
   }
   (document.getElementById('co-detail-name') as HTMLElement).textContent = d.name;
   const status = relationshipStatus(d);
+  const place = [co?.city, co?.country].filter(Boolean).join(', ');
+  const line = [(co?.industries || []).join(', '), place, co?.owner ? `owner ${co.owner}` : ''].filter(Boolean).join(' · ');
   const badges = [
-    `<span class="rec-badge tone-${status.tone}">${status.label}</span>`,
-    ...(co?.industries || []).map((i) => `<span class="rec-badge">${escHtml(i)}</span>`),
-    co?.owner ? `<span class="rec-meta">${icon('people', 12)} ${escHtml(co.owner)}</span>` : '',
-    co?.city || co?.country ? `<span class="rec-meta">${escHtml([co?.city, co?.country].filter(Boolean).join(', '))}</span>` : '',
-    co?.website ? `<span class="rec-meta"><a class="rlink" href="#" onclick="event.preventDefault();openExternalUrl('${escHtml(/^https?:/.test(co.website) ? co.website : `https://${co.website}`)}')">${escHtml(co.website.replace(/^https?:\/\//, '').replace(/\/$/, ''))}</a></span>` : '',
+    `<span class="pk-stage t-${RELATIONSHIP_TONE[status.label] || 'grey'}"><i></i>${status.label}</span>`,
+    line ? `<span class="rec-meta">${escHtml(line)}</span>` : '',
+    co?.website ? `<span class="rec-meta mono"><a class="rlink" href="#" onclick="event.preventDefault();openExternalUrl('${escHtml(/^https?:/.test(co.website) ? co.website : `https://${co.website}`)}')">${escHtml(co.website.replace(/^https?:\/\//, '').replace(/\/$/, ''))}</a></span>` : '',
   ].filter(Boolean);
   (document.getElementById('co-detail-meta') as HTMLElement).innerHTML = badges.join('');
-  paintFigures('co-figures', companyFigures({ clientAgreements: d.clientAgreements, proposals: d.proposals, meetings }, today()));
+  paintFigures('co-figures', companyHeaderFigures({ today: today(), clientAgreements: d.clientAgreements, proposals: d.proposals, opportunities: opps, commitments: S.commitments.filter((c) => c.companyId != null && c.companyId === d.companyId) }));
 
   const key = { id: d.companyId, name: d.name };
   if (lastDetailName !== d.name) { lastDetailName = d.name; notesAll = false; resetDossierFolds(); }
   renderCompanyState(key);
   renderCompanyFacts(d);
   renderDossierDetails(co, d, listsForCompany(d.name).map((l) => `<span class="ct-list-tag" title="${l.filters ? 'Smart list' : 'Hand-picked list'}">${escHtml(l.name)}</span>`).join(' '));
+  renderDossierFlight(key);
   void renderDossierNextRecent(key);
   void loadCompanyNoteEntries();
   if (d.companyId != null) {

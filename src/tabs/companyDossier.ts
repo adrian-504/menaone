@@ -9,7 +9,14 @@ import { escHtml, expose, today } from '../lib/utils';
 import { recordLink } from '../lib/links';
 import { entityById } from '../lib/commercial';
 import { getActivity } from '../lib/db';
-import { liveThreads, type BriefClause } from '../lib/companyBrief';
+import { liveThreads, companyRecords, companyContact, relationshipStatus, type BriefClause } from '../lib/companyBrief';
+import { inFlightRows, standHeadline, STAND_TONE, type StandInput } from '../lib/recordCompany';
+import { teamMember, defaultReviewer } from '../lib/commercial';
+import { needsFollowUp } from '../core/proposals';
+import { proposalStaleMonths } from '../lib/pagesQueues';
+import { followUpCount } from '../lib/followup';
+import { opportunityHealth } from '../lib/pipeline';
+import { hasOpenWork } from '../lib/myday';
 import { buildRecordTimeline, type FutureRow } from '../lib/recordTimeline';
 import { dossierNext, dossierRecent, STAND_LABEL, whenLabel, type RecentRow } from '../lib/companyDossier';
 import { COMPANY_RECORD_SECTIONS } from '../lib/companyRecords';
@@ -22,30 +29,68 @@ type Key = { id: number | null; name: string };
 
 // ── Where we stand, and what to remember ──
 
-/** The state clauses as labelled lines; the pinned notes go to the Remember panel. */
+/** Where we stand as four cards (relationship, in flight, last contact, owed), each a headline and the clause's
+ * sentence with its links; the pinned notes go to the Remember panel. */
 export function renderDossierState(key: Key): void {
   const el = document.getElementById('co-state');
   if (!el) return;
+  const input = briefInputFor(key);
   const clauses = companyStateFor(key);
-  const dormant = liveThreads(briefInputFor(key)).filter((t) => t.dormant);
+  const threads = liveThreads(input);
+  const dormant = threads.filter((t) => t.dormant);
   const queues = [...new Set(dormant.map((t) => t.cleanupQueue))];
   const dormantLine = dormant.length
     ? ` <button class="co-stand-dormant" onclick="openCleanup(${queues.length === 1 && queues[0] ? `'${queues[0]}'` : ''})">${dormant.length} dormant — review in Clean-up</button>`
     : '';
-  const line = (c: BriefClause) => {
+  const r = companyRecords(input);
+  const stand: StandInput = {
+    today: input.today, clientAgreements: r.clientAgreements, proposals: r.proposals, opportunities: r.opportunities, commitments: r.commitments,
+    relationship: relationshipStatus(r).label, lastContact: companyContact(input, r).lastContact, threads: threads.filter((t) => !t.dormant).length,
+  };
+  const card = (c: BriefClause) => {
     const label = STAND_LABEL[c.key];
     if (!label) return '';
-    return `<div class="co-stand-line${c.tone ? ` is-${c.tone}` : ''}" data-key="${c.key}"><span class="co-stand-label">${label}</span><span class="co-stand-text">${clauseBodyHtml(c, key)}${c.key === 'inflight' ? dormantLine : ''}</span></div>`;
+    return `<div class="rk-stand t-${STAND_TONE[c.key] || 'blue'}" data-key="${c.key}"><div class="rk-stand-k">${label}</div><div class="rk-stand-h">${escHtml(standHeadline(c.key, stand))}</div><div class="rk-stand-t">${clauseBodyHtml(c, key)}${c.key === 'inflight' ? dormantLine : ''}</div></div>`;
   };
-  const lines = clauses.map(line).filter(Boolean);
-  if (dormant.length && !clauses.some((c) => c.key === 'inflight')) lines.push(`<div class="co-stand-line" data-key="inflight"><span class="co-stand-label">In flight</span><span class="co-stand-text">${dormantLine.trim()}</span></div>`);
-  el.innerHTML = lines.length ? `<div class="co-stand">${lines.join('')}</div>` : '<div class="co-stand"><div class="co-stand-line"><span class="co-stand-label">Relationship</span><span class="co-stand-text rec-muted">Nothing recorded yet.</span></div></div>';
+  const cards = clauses.map(card).filter(Boolean);
+  if (dormant.length && !clauses.some((c) => c.key === 'inflight')) cards.splice(1, 0, `<div class="rk-stand t-amber" data-key="inflight"><div class="rk-stand-k">In flight</div><div class="rk-stand-h">Nothing open</div><div class="rk-stand-t">${dormantLine.trim()}</div></div>`);
+  el.innerHTML = cards.length ? `<div class="rk-stands" style="--n:${cards.length}">${cards.join('')}</div>` : '<div class="rk-stands" style="--n:1"><div class="rk-stand t-blue"><div class="rk-stand-k">Relationship</div><div class="rk-stand-h">New company</div><div class="rk-stand-t rec-muted">Nothing recorded yet.</div></div></div>';
   renderIcons(el);
   const quotes = clauses.find((c) => c.key === 'pinned')?.quotes || [];
   const remember = document.getElementById('co-remember');
   const panel = document.getElementById('co-panel-remember');
   if (panel) panel.hidden = !quotes.length;
   if (remember) remember.innerHTML = quotes.map((q) => `<p>${escHtml(q)}</p>`).join('');
+}
+
+// ── In flight ──
+
+/** Open proposals and opportunities as rows: a kind tile, what it is, where it stands, how long, one action. */
+export function renderDossierFlight(key: Key): void {
+  const el = document.getElementById('co-flight');
+  const sec = document.getElementById('co-sec-flight');
+  if (!el || !sec) return;
+  const t = today();
+  const mine = <T extends { companyId?: number | null }>(x: T, name: string | null | undefined) => (key.id != null && x.companyId != null ? x.companyId === key.id : !!name && name === key.name);
+  const rows = inFlightRows({
+    today: t,
+    proposals: S.proposals.filter((p) => mine(p, p.client)),
+    opportunities: S.opportunities.filter((o) => mine(o, o.companyName)),
+    reviewer: (p) => teamMember(p.reviewerId)?.name || defaultReviewer()?.name || 'the reviewer',
+    due: (p) => needsFollowUp(p),
+    stale: (p) => proposalStaleMonths(p, S.touches, followUpCount(p, S.touches), t) != null,
+    followUps: (p) => followUpCount(p, S.touches),
+    health: (o) => opportunityHealth(o, S.pipelineFacts.find((f) => f.opportunityId === o.id), t, { openWork: hasOpenWork(o, S) }),
+  });
+  sec.hidden = !rows.length;
+  const cnt = document.getElementById('co-flight-count'); if (cnt) cnt.textContent = rows.length ? String(rows.length) : '';
+  el.innerHTML = rows.map((r) => `<div class="rk-row rec-row" tabindex="0" onclick="if(!event.target.closest('a,button'))openRecord('${r.kind}', ${r.id})" onkeydown="if(event.key==='Enter'&&event.target===this)this.click()">
+    <span class="rk-k t-${r.glyphTone}" aria-hidden="true">${r.glyph}</span>
+    <div class="rk-row-main"><div class="rk-row-t">${escHtml(r.title)}</div><div class="rk-row-s">${escHtml(r.sub)}</div></div>
+    <span class="pk-stage t-${r.chip.tone}"><i></i>${escHtml(r.chip.text)}</span>
+    <span class="pk-age-sm t-${r.tone}">${r.days == null ? '' : `${r.days} ${r.days === 1 ? 'day' : 'days'}`}</span>
+    <button class="btn-secondary btn-sm" onclick="event.stopPropagation();${r.kind === 'proposal' && r.action.kind !== 'open' ? `dbAct(event, ${r.id}, '${r.action.kind}')` : `openRecord('${r.kind}', ${r.id})`}">${escHtml(r.action.label)}</button>
+  </div>`).join('');
 }
 
 // ── Details ──
@@ -69,13 +114,24 @@ export function renderDossierDetails(co: Company | undefined, d: { proposals: Pr
 
 // ── Next · Recent ──
 
+const NEXT_KIND: Record<FutureRow['kind'], [string, string]> = { meeting: ['◉', 'blue'], task: ['☑', 'grey'], commitment: ['⚑', 'red'], date: ['§', 'amber'] };
+
+/** One thing ahead: a date medallion (red when late), a kind tile, what it is, and its one action. */
 function nextRow(r: FutureRow, todayIso: string): string {
-  const when = r.date ? `${whenLabel(r.date, todayIso)}${r.time ? ` ${r.time}` : ''}` : '';
-  const mark = r.action && (r.action.kind === 'complete_task' || r.action.kind === 'mark_kept')
-    ? `<button class="co-nr-box" onclick="event.stopPropagation();timelineAct('${r.action.kind}', ${r.action.id})" data-tip="${r.action.kind === 'complete_task' ? 'Mark done' : 'Mark kept'}" aria-label="${r.action.kind === 'complete_task' ? 'Mark done' : 'Mark kept'}"></button>`
-    : `<span class="co-nr-dot tone-${r.kind === 'meeting' ? 'accent' : 'muted'}"></span>`;
+  const d = r.date ? new Date(`${r.date}T12:00:00`) : null;
+  const sameYear = d && d.getFullYear() === new Date(`${todayIso}T12:00:00`).getFullYear();
+  const days = r.date ? Math.round((Date.parse(`${r.date}T00:00:00Z`) - Date.parse(`${todayIso}T00:00:00Z`)) / 86_400_000) : null;
+  // This week: the weekday; further off or behind us: the month.
+  const under = !d ? '' : days != null && days >= 0 && days < 7 ? ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()] : `${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sept', 'Oct', 'Nov', 'Dec'][d.getMonth()]}${sameYear ? '' : ` ${String(d.getFullYear()).slice(2)}`}`;
+  const [glyph, tone] = NEXT_KIND[r.kind];
   const title = r.record ? recordLink(r.record.kind, r.record.id, r.label) : escHtml(r.label);
-  return `<div class="co-nr-row"><span class="co-nr-when${r.overdue ? ' is-late' : ''}">${escHtml(when)}</span>${mark}<span class="co-nr-main">${title}${r.sub ? `<span class="co-nr-sub">${escHtml(r.sub)}</span>` : ''}</span></div>`;
+  const late = r.overdue && days != null ? `${-days} ${days === -1 ? 'day' : 'days'} late` : '';
+  const sub = [r.time || '', r.sub || '', late].filter(Boolean).join(' · ');
+  const act = r.action?.kind === 'mark_kept' ? `<button class="btn-secondary btn-sm" onclick="event.stopPropagation();timelineAct('mark_kept', ${r.action.id})">Mark kept</button>`
+    : r.action?.kind === 'complete_task' ? `<button class="btn-secondary btn-sm" onclick="event.stopPropagation();timelineAct('complete_task', ${r.action.id})">Done</button>`
+    : r.kind === 'meeting' && r.record ? `<button class="btn-secondary btn-sm" onclick="openRecord('meeting', ${r.record.id})">Prepare</button>`
+    : r.record?.kind === 'agreement' && /notice/i.test(r.label) ? `<a href="#" class="rlink rk-link" onclick="event.preventDefault();openRecord('agreement', ${r.record.id})">Start renewal</a>` : '';
+  return `<div class="rk-next"><div class="rk-med${r.overdue ? ' is-late' : ''}"><b>${d ? d.getDate() : '—'}</b><span>${escHtml(under)}</span></div><span class="rk-k sm t-${r.overdue && r.kind !== 'meeting' ? 'red' : tone}" aria-hidden="true">${glyph}</span><div class="rk-row-main"><div class="rk-row-t">${title}</div>${sub ? `<div class="rk-row-s${r.overdue ? ' is-late' : ''}">${escHtml(sub)}</div>` : ''}</div>${act}</div>`;
 }
 
 function recentRow(r: RecentRow, todayIso: string): string {
@@ -103,7 +159,8 @@ export async function renderDossierNextRecent(key: Key): Promise<void> {
   const nextRows = dossierNext(tl.future);
   const recentRows = dossierRecent(activity, S.meetings.filter((m) => of(m.companyId, m.companyName)), todayIso);
   next.innerHTML = nextRows.length ? nextRows.map((r) => nextRow(r, todayIso)).join('') : '<p class="co-nr-none">Nothing dated ahead.</p>';
-  recent.innerHTML = recentRows.length ? recentRows.map((r) => recentRow(r, todayIso)).join('') : '<p class="co-nr-none">Nothing yet.</p>';
+  recent.innerHTML = recentRows.length ? recentRows.map((r) => recentRow(r, todayIso)).join('') : '';
+  const sec = document.getElementById('co-sec-next'); if (sec) sec.classList.toggle('is-empty', !nextRows.length);
   renderIcons(next);
 }
 
