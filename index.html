@@ -1327,6 +1327,7 @@
       <header class="ws-head">
         <div class="ws-head-text">
           <h1 class="ws-title" id="tasks-title">Today</h1>
+          <span class="bars lg" aria-hidden="true"><i></i><i></i><i></i></span>
           <div class="ws-subtitle" id="tasks-subtitle"></div>
         </div>
         <div class="ws-head-actions">
@@ -1349,6 +1350,7 @@
         <input type="text" id="quick-task-input" placeholder='New task — try "Call Globex tomorrow 3pm #project !high"' oninput="quickAddPreview()" onkeydown="quickAddKey(event)" aria-label="New task">
         <div class="qa-chips" id="quick-task-preview"></div>
       </form>
+      <div class="task-progress" id="task-progress" hidden></div>
       <div class="ws-scroll" id="todo-list" tabindex="-1"></div>
     </section>
     <aside class="task-detail" id="task-detail" hidden aria-label="Task details"></aside>

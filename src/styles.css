@@ -4452,3 +4452,74 @@ a.rk-snote:hover{text-decoration-color:currentColor}
 .pk-st-d{color:var(--ct,var(--c))}
 .pk-chip.t-amber,.pk-stage.t-amber,.pk-flag.t-amber,.pk-owes .t-amber,.rk-row-s.t-amber,.rk-cnt.t-amber,.rk-snote.t-amber,.rk-lane-nl,.rk-fee-total em,.pk-lane-lbl{color:var(--amber-deep)}
 .pk-stage.t-amber i{background:var(--amber)}
+
+/* ── Working tools in the app's look (1.62 "tools") ─────────────────────────
+   Tasks, Notes, Calendar and Inbox keep their layouts, behaviour and keys; only the look joins the system. */
+/* List rails (Tasks, Notes): a tinted icon tile per list, counts in mono, the selected list white with a coral marker. */
+.ws-side-scroll{padding:14px 12px 24px}
+.ws-side-group{gap:2px}
+.ws-side-item{position:relative;gap:10px;padding:6px 10px;border-radius:9px}
+.ws-side-item.active{background:var(--surface);box-shadow:var(--shadow-xs);font-weight:600}
+.ws-side-item.active::before{content:"";position:absolute;left:0;top:8px;bottom:8px;width:3px;border-radius:6px;background:var(--coral)}
+.ws-side-tile{flex:none;width:24px;height:24px;border-radius:6px;display:grid;place-items:center;background:color-mix(in srgb,var(--c) 13%,transparent);color:var(--c)}
+.ws-side-count{font:500 11.5px var(--font-mono);color:var(--sub)}
+.ws-side-count[data-alert]{color:var(--on-accent);background:var(--red);border-radius:9px;padding:0 7px;line-height:18px}
+.ws-side-count:empty{display:none}
+.ws-side-hash{flex:none;width:18px;text-align:center;font:500 12px var(--font-mono);color:var(--muted)}
+.ws-side .pk-tile.mini{width:18px;height:18px;font-size:8px}
+.ws-side-section{margin-top:12px}
+.ws-side-section-hd{letter-spacing:.14em;padding:6px 10px}
+/* Page head: Saira title, the coral bars, the subtitle. */
+.ws-head{padding:18px 36px 6px}
+.ws-title{font:600 30px/1.05 var(--font-display);color:var(--navy)}
+.ws-head-text .bars{margin-top:10px}
+.ws-subtitle{font-size:var(--type-body);margin-top:8px}
+.ws-scroll{padding:4px 36px 60px}
+/* Tasks */
+.task-quickadd{margin:12px 36px 4px;padding:9px 14px;box-shadow:var(--shadow-xs)}
+.task-quickadd-plus{color:var(--coral-text)}
+.task-progress{display:flex;align-items:center;gap:12px;margin:10px 36px 2px;min-height:20px;font-size:12.5px;color:var(--sub)}
+.task-progress b{font:600 15px var(--font-display);color:var(--navy);margin-right:-4px}
+.task-prog-bar{flex:0 1 220px;height:6px;border-radius:6px;background:var(--surface-2);overflow:hidden}
+.task-prog-bar i{display:block;height:100%;width:var(--p);background:var(--green);border-radius:6px}
+.task-prog-note{font:500 11.5px var(--font-mono);color:var(--sub)}
+.task-group{margin-bottom:0}
+.task-group-hd{align-items:center;gap:10px;margin:20px 0 4px;padding:0 0 8px;border-bottom:1px solid var(--hairline)}
+.task-group-hd i{flex:none;width:8px;height:8px;border-radius:50%;background:var(--c)}
+.task-group-hd b{font:600 15px/1.2 var(--font-display);color:var(--navy)}
+.task-group-hint{font:500 11.5px var(--font-mono);color:var(--muted)}
+.task-group-count{margin-left:0;font:500 12px var(--font-mono);color:var(--sub)}
+.task-group-link{font:inherit;margin-left:auto;border:none;background:none;padding:0;font-size:var(--type-secondary);font-weight:500;color:var(--blue);cursor:pointer;border-radius:6px}
+.task-group-link:hover{text-decoration:underline}
+.task-group-link:active{opacity:.7}
+.task-group-link:focus-visible{outline:none;box-shadow:var(--shadow-focus)}
+.task-group-note{margin-left:auto;font:500 11.5px var(--font-mono);color:var(--sub)}
+.task-row{align-items:center;gap:12px;padding:10px 8px;border-radius:0;border-bottom:1px solid var(--hairline)}
+.task-row.sel{background:var(--blue-50);border-radius:9px;border-bottom-color:transparent}
+.task-row.open{background:var(--blue-50);border-radius:9px;border-bottom-color:transparent;box-shadow:inset 3px 0 0 var(--coral)}
+.task-check{width:17px;height:17px;margin-top:0;border-width:1.8px}
+.task-check.checked::after{left:4.5px;top:2px}
+.task-check.is-late{border-color:var(--red)}
+.task-check.is-promise{border-radius:6px;border-color:var(--blue)}
+.task-check.is-promise.is-theirs{border-color:var(--amber)}
+.task-check.is-promise.is-theirs:hover{border-color:var(--amber);background:var(--amber-bg)}
+.task-title{font-size:13.5px;font-weight:500;line-height:1.4}
+.task-meta{gap:4px 8px;margin-top:4px}
+.task-chip{display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border-radius:9px;background:var(--surface-2);color:var(--sub);font-size:var(--type-meta);font-weight:500;white-space:nowrap}
+.task-chip svg{margin-right:0}
+.task-chip.t-blue{background:var(--blue-50);color:var(--blue)}
+.task-chip i{width:6px;height:6px;border-radius:50%;background:currentColor}
+.task-co{gap:6px;font-size:11.5px}
+.task-meta .pk-tile.mini{width:18px;height:18px;font-size:8px}
+.task-tag,.task-from{font:500 var(--type-meta) var(--font-mono);color:var(--muted)}
+.task-from{text-decoration-color:transparent}
+.task-from:hover{color:var(--blue);text-decoration-color:currentColor}
+.task-when{flex:none;font:600 14px var(--font-display);white-space:nowrap;color:var(--sub)}
+.task-when.t-red{color:var(--red)}.task-when.t-amber,.task-when.t-wait{color:var(--amber-deep)}.task-when.t-done{color:var(--muted);font-weight:500}
+.task-row.is-owed{cursor:pointer}
+.task-hover-actions{position:absolute;right:6px;top:50%;transform:translateY(-50%);padding:2px;border-radius:9px;background:var(--surface);box-shadow:var(--shadow-sm);pointer-events:none}
+.task-row.sel:not(:hover) .task-hover-actions{opacity:0}
+.task-row:hover .task-hover-actions{pointer-events:auto}
+.task-check::before{content:none}
+.task-group-empty{padding:10px 37px}
+.task-board .board-card .task-row,.rk-tgroup .task-row,.co-dossier .co-records .task-row{border-bottom:none}
