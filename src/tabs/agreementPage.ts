@@ -17,14 +17,16 @@ import { showMenuAt } from '../lib/contextMenu';
 import { renderRecordTimeline, renderThreadStrip } from './recordThread';
 import { renderIcons } from '../core/chrome';
 import { AGR_STATUSES, AGR_TYPES, SERVICE_STATUSES } from '../lib/constants';
-import { renderLinesEditor } from '../lib/linesEditor';
+import { cardFor, renderLinesEditor } from '../lib/linesEditor';
 import { endPropsEdit, isEditingAll, mountPropsList, propsEditButton, propsListHtml, resetPropsLists, type PropField } from '../lib/propsList';
 import { agrBadge, genAgrRef, updateAgrStatus } from '../core/agreements';
-import { syncAgreementTotals, currencyOf, teamMember, activeTeam, entityById, contractEndDate, lineTotals, isAgreementActive, isOpenProposal, nextLineId, defaultReviewer, PS } from '../lib/commercial';
+import { syncAgreementTotals, currencyOf, teamMember, activeTeam, entityById, contractEndDate, lineTotals, isAgreementActive, isOpenProposal, nextLineId, defaultReviewer, PS, agreementMonthly, fmtMoney } from '../lib/commercial';
 import { proposalProject } from '../lib/workGraph';
 import { agreementNextStep } from '../lib/recordSteps';
 import type { Agreement, RenewalDecision } from '../lib/types';
-import { agreementHeaderFigures, decisionChip, renewalDraft, renewalFor, termLane } from '../lib/recordAgreement';
+import { agreementHeaderFigures, decisionChip, documentChain, renewalDraft, renewalFor, termLane } from '../lib/recordAgreement';
+import { RENEWAL_TYPES, SIGNATURE_STATUSES, noticeFact, pastTermActive, renewalFact, signatureOf } from '../lib/agreementTerms';
+import { feeGroups } from '../lib/pricingShape';
 import { signatureStepper, stepperHtml } from '../lib/recordStory';
 import { nextDecision } from '../lib/pagesAgreements';
 import { tileHtml, plural } from '../lib/pageKit';
@@ -102,7 +104,8 @@ export function renderAgreementPage(): void {
     `<span class="pk-stage t-${STATUS_TONE[a.status || ''] || 'grey'}"><i></i>${escHtml([a.status || 'In preparation', a.serviceStatus ? `service ${a.serviceStatus.toLowerCase()}` : ''].filter(Boolean).join(' · '))}</span>`,
     decided ? `<span class="pk-chip is-text t-${decided.tone}">${escHtml(decided.text)}</span>`
       : a.status === 'Signed' && (next.tone === 'amber' || next.tone === 'blue') ? `<span class="pk-chip is-text t-${next.tone}">${escHtml(next.text)}</span>` : '',
-    [entity?.name, preparer ? `prepared by ${preparer}` : ''].some(Boolean) ? `<span class="rec-meta">${escHtml([entity?.name, preparer ? `prepared by ${preparer}` : ''].filter(Boolean).join(' · '))}</span>` : '',
+    // The parties: our entity and the client; then who prepared it.
+    `<span class="rec-meta">${escHtml([entity && a.client ? `between ${entity.name} and ${a.client}` : entity?.name, preparer ? `prepared by ${preparer}` : ''].filter(Boolean).join(' · '))}</span>`,
     from ? `<span class="rec-meta">renews ${recordLink('agreement', from.id, from.agrRef || 'the previous agreement')}</span>` : '',
     renewal ? `<span class="rec-meta">renewal ${recordLink('agreement', renewal.id, renewal.agrRef || 'drafted')}</span>` : '',
   ].filter(Boolean).join('');
@@ -118,6 +121,7 @@ export function renderAgreementPage(): void {
   renderTerm(a);
   renderAt(a);
   renderLines(a);
+  renderDocuments(a);
   renderDates(a);
   void renderActivity(a);
   const page = document.getElementById('agr-detail'); if (page) renderIcons(page);
@@ -129,15 +133,28 @@ function renderLane(a: Agreement): void {
   const el = document.getElementById('agd-lane');
   if (!el) return;
   const l = termLane(a, today());
-  el.hidden = !l;
-  if (!l) { el.innerHTML = ''; return; }
-  el.innerHTML = `<div class="rk-lane${a.status === 'Signed' ? '' : ' is-outline'}">
+  el.hidden = false;
+  el.classList.toggle('is-none', !l);
+  // No term recorded: one calm line, with the way to add it.
+  if (!l) { el.innerHTML = `<p class="rk-lane-noterm">No term recorded · <a href="#" class="rlink" onclick="event.preventDefault();agreementEditTerm()">add the start and end dates</a></p>`; return; }
+  const open = l.kind !== 'fixed';
+  el.innerHTML = `<div class="rk-lane is-${l.kind}${a.status === 'Signed' ? '' : ' is-outline'}${l.past ? ' is-past' : ''}">
       ${l.notice ? `<span class="rk-lane-nl" style="left:${l.notice.left}%">${escHtml(l.notice.label)}</span>` : ''}
-      <div class="rk-lane-bar"><span class="rk-lane-ran" style="width:${l.elapsed}%"></span>${l.notice ? `<span class="rk-lane-notice" style="left:${l.notice.left}%"></span>` : ''}</div>
+      ${l.past ? `<span class="rk-lane-nl is-right">${escHtml(l.past.label)}</span>` : ''}
+      <div class="rk-lane-bar"${l.kind === 'project' ? ` style="right:${100 - l.elapsed}%"` : ''}><span class="rk-lane-ran" style="width:${l.kind === 'project' ? 100 : l.elapsed}%"></span>${l.notice ? `<span class="rk-lane-notice" style="left:${l.notice.left}%"></span>` : ''}${l.past ? `<span class="rk-lane-notice" style="left:${l.past.left}%"></span>` : ''}</div>
+      ${l.kind === 'project' ? `<span class="rk-lane-tail" style="left:${l.elapsed}%"></span>` : ''}${l.kind === 'open_ended' ? '<span class="rk-lane-arrow" aria-hidden="true">→</span>' : ''}
       ${l.today != null ? `<span class="rk-lane-today" style="left:${l.today}%"><em>today</em></span>` : ''}
-      <span class="rk-lane-s">${escHtml(l.startLabel)}</span><span class="rk-lane-e">${escHtml(l.endLabel)}</span>
+      <span class="rk-lane-s">${escHtml(l.startLabel)}</span><span class="rk-lane-e${open ? ' is-word' : ''}"${l.past ? ` style="right:${100 - l.past.left}%"` : ''}>${escHtml(l.endLabel)}</span>
     </div>`;
 }
+
+/** "Add the start and end dates": opens the Term panel for editing. */
+export function agreementEditTerm(): void {
+  w.propsEditAll?.('agd-term', true);
+  document.getElementById('agd-term')?.scrollIntoView({ block: 'center' });
+  document.querySelector<HTMLElement>('#agd-f-startDate')?.focus();
+}
+expose('agreementEditTerm', agreementEditTerm);
 
 /** Renewal: three choices, each saying what it does; the chosen one is marked and can be changed. */
 function renderRenewal(a: Agreement): void {
@@ -248,6 +265,8 @@ const input = (key: string, type: string, value: string, placeholder = '') => `<
 const select = (key: string, options: [string, string][], value: string) => `<select class="td-select" id="agd-f-${key}" onchange="${onChange(key)}">${options.map(([v, l]) => opt(v, l, value)).join('')}</select>`;
 
 const text = (v: string | null | undefined) => (v ? escHtml(v) : '');
+/** A term fact as it reads: what is not recorded in grey. */
+const fact = (f: { text: string; known: boolean }) => (f.known ? escHtml(f.text.charAt(0).toUpperCase() + f.text.slice(1)) : '<span class="rec-muted">Not recorded</span>');
 const dateText = (v: string | null | undefined) => (v ? escHtml(fmtDate(v)) : '');
 
 /** Renders a read-first list into `elId`, with its Edit/Done in `actId`. */
@@ -300,10 +319,12 @@ function renderTerm(a: Agreement): void {
     { key: 'endDate', label: 'End', always: !!suggestedEnd,
       display: a.endDate ? dateText(a.endDate) : suggestedEnd ? `<button class="rec-add-link" onclick="agreementFieldChanged('endDate','${suggestedEnd}')">Use ${escHtml(fmtDate(suggestedEnd))}</button>` : '',
       control: () => input('endDate', 'date', a.endDate || '') },
-    { key: 'autoRenew', label: 'Auto-renews', display: a.autoRenew ? 'Yes' : '', control: () => select('autoRenew', [['no', 'No'], ['yes', 'Yes']], a.autoRenew ? 'yes' : 'no') },
-    { key: 'noticeDays', label: 'Notice', display: a.noticeDays != null ? `${a.noticeDays} days` : '', control: () => input('noticeDays', 'number', a.noticeDays != null ? String(a.noticeDays) : '', 'Days') },
+    // Unknown is not none: what was never recorded says so; a notice of 0 is "no notice period".
+    { key: 'renewalType', label: 'Renews', always: true, display: fact(renewalFact(a)), control: () => select('renewalType', [['', 'Not recorded'], ...RENEWAL_TYPES], a.renewalType || '') },
+    { key: 'noticeDays', label: 'Notice', always: true, display: fact(noticeFact(a)), control: () => input('noticeDays', 'number', a.noticeDays != null ? String(a.noticeDays) : '', 'Days (0 = none)') },
+    { key: 'signatureStatus', label: 'Signature', always: true, display: fact({ text: signatureOf(a).text, known: signatureOf(a).known }), control: () => select('signatureStatus', [['', 'Not recorded'], ...SIGNATURE_STATUSES], a.signatureStatus || '') },
     { key: 'actionDate', label: 'Next action', display: dateText(a.actionDate), control: () => input('actionDate', 'date', a.actionDate || '') },
-    { key: 'countsAs', label: 'Counts as', display: active ? '<span class="t-positive">Active client · in MRR</span>' : '<span class="rec-muted">Not active — set the service to Active once it has started</span>' },
+    { key: 'countsAs', label: 'Counts as', display: active ? '<span class="t-positive">Active client · in MRR</span>' : pastTermActive(a, today()) ? '<span class="rec-muted">Past term, still active — not counted in MRR until the term is extended</span>' : '<span class="rec-muted">Not active — set the service to Active once it has started</span>' },
   ];
   readList('agd-term', 'agd-term-act', fields, again(renderTerm));
 }
@@ -325,12 +346,13 @@ function renderLines(a: Agreement): void {
   // What the lines add up to as drawn: an edit that changes it moves the stored fee, any other leaves the fee alone.
   linesMonthly = lineTotals(a.lines, a.contractMonths).monthly;
   if (act) act.innerHTML = (a.lines || []).length ? `<button class="rlink" onclick="toggleAgreementLines()" aria-pressed="${linesEditing}">${linesEditing ? 'Done' : 'Edit services'}</button>` : '';
+  if (!editing) { renderFees(a); return; }
   renderLinesEditor(`agreement:${a.id}`, 'agd-lines', {
     lines: () => a.lines || [],
     setLines: (lines) => { a.lines = lines; },
     currency: () => currencyOf(a),
     contractMonths: () => a.contractMonths,
-    editable: editing,
+    editable: true,
     onChange: () => {
       syncAgreementTotals(a, linesMonthly);
       linesMonthly = lineTotals(a.lines, a.contractMonths).monthly;
@@ -341,6 +363,38 @@ function renderLines(a: Agreement): void {
     },
   });
 }
+
+/** The fees as they read: the lines grouped by how they are charged — monthly, per person, per action, per hire,
+ * one-time, a percentage — with the billed monthly figure the header shows. */
+function renderFees(a: Agreement): void {
+  const el = document.getElementById('agd-lines');
+  if (!el) return;
+  const cur = currencyOf(a);
+  const groups = feeGroups(a.lines, cardFor, cur);
+  const monthly = agreementMonthly(a);
+  const fromLines = lineTotals(a.lines, a.contractMonths).monthly;
+  const differs = monthly != null && fromLines != null && Math.abs(monthly - fromLines) >= 0.005;
+  el.innerHTML = `<div class="rk-fees">${groups.map((g) => `<div class="rk-fee-g"><div class="rk-fee-h"><span>${escHtml(g.label)}</span>${g.total ? `<b>${escHtml(g.total)}</b>` : ''}</div>
+      ${g.rows.map((r) => `<div class="rk-fee"><div class="rk-fee-s"><b>${escHtml(r.service)}</b>${r.detail ? `<span>${escHtml(r.detail)}</span>` : ''}${r.rates.length ? `<ul>${r.rates.map((x) => `<li><span>${escHtml(x.label)}</span><span>${escHtml(x.value)}</span></li>`).join('')}</ul>` : ''}</div><span class="rk-fee-a">${escHtml(r.amount)}</span></div>`).join('')}</div>`).join('')}
+    <div class="rk-fee-total"><span>Billed monthly</span><b>${monthly != null ? escHtml(fmtMoney(monthly, cur)) : '—'}</b>${differs ? `<em>the lines add up to ${escHtml(fmtMoney(fromLines!, cur))}</em>` : ''}</div></div>`;
+}
+
+/** Documents and history, top to bottom: the term it renews, the principal agreement with its document, the renewal
+ * drafted from it. One document today; more entries can join the chain. */
+function renderDocuments(a: Agreement): void {
+  const el = document.getElementById('agd-docs');
+  if (!el) return;
+  const chain = documentChain(a, S.agreements);
+  el.innerHTML = chain.map((c) => `<div class="rk-chain${c.here ? ' is-here' : ''}"><i aria-hidden="true"></i><div class="rk-row-main"><div class="rk-row-t">${c.here || c.agreementId == null ? escHtml(c.title) : recordLink('agreement', c.agreementId, c.title)}</div><div class="rk-row-s">${escHtml(c.sub)}</div></div>
+      ${c.docLink ? `<a href="#" class="rlink rk-link" onclick="event.preventDefault();openExternalUrl('${escHtml(c.docLink)}')">Open document</a>` : c.here ? `<span class="rk-chain-none"><span class="rec-muted">no document linked · </span><a href="#" class="rlink rk-link" onclick="event.preventDefault();agreementAddDocument()">Add link</a></span>` : '<span class="rec-muted">no document</span>'}</div>`).join('');
+}
+
+/** "Add link": the Document field in Details. */
+export function agreementAddDocument(): void {
+  w.propsEdit?.('agd-props', 'docLink');
+  document.getElementById('agd-props')?.scrollIntoView({ block: 'center' });
+}
+expose('agreementAddDocument', agreementAddDocument);
 
 /** The signature trail as five green steps; Edit opens the dates. */
 function renderDates(a: Agreement): void {
@@ -392,7 +446,12 @@ export async function agreementFieldChanged(key: string, value: string): Promise
       a.contractMonths = v ? Number(v) : null;
       if (a.startDate && a.contractMonths) a.endDate = contractEndDate(a.startDate, a.contractMonths);
       break;
-    case 'autoRenew': a.autoRenew = v === 'yes'; break;
+    case 'renewalType':
+      a.renewalType = (v || null) as Agreement['renewalType'];
+      // The older yes/no follows it, for what still reads that.
+      a.autoRenew = a.renewalType === 'auto';
+      break;
+    case 'signatureStatus': a.signatureStatus = (v || null) as Agreement['signatureStatus']; break;
     case 'noticeDays': a.noticeDays = v ? Math.max(0, Math.round(Number(v))) : null; break;
     case 'serviceStatus':
       a.serviceStatus = (v || null) as Agreement['serviceStatus'];

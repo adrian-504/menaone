@@ -11,6 +11,7 @@ import { entityById } from '../lib/commercial';
 import { getActivity } from '../lib/db';
 import { liveThreads, companyRecords, companyContact, relationshipStatus, type BriefClause } from '../lib/companyBrief';
 import { inFlightRows, standHeadline, STAND_TONE, type StandInput } from '../lib/recordCompany';
+import { companyServiceRows } from '../lib/companyServices';
 import { teamMember, defaultReviewer } from '../lib/commercial';
 import { needsFollowUp } from '../core/proposals';
 import { proposalStaleMonths } from '../lib/pagesQueues';
@@ -64,6 +65,25 @@ export function renderDossierState(key: Key): void {
 }
 
 // ── In flight ──
+
+/** The services the company is getting, one line each: what it costs a month, the agreement, when that expires and
+ * where it stands — Live, Past term · still active, No agreement, One-time work (lib/companyServices.ts). */
+export function renderDossierServices(key: Key): void {
+  const el = document.getElementById('co-services');
+  const sec = document.getElementById('co-sec-services');
+  if (!el || !sec) return;
+  const mine = <T extends { companyId?: number | null }>(x: T, name: string | null | undefined) => (key.id != null && x.companyId != null ? x.companyId === key.id : !!name && name === key.name);
+  const rows = companyServiceRows({ today: today(), agreements: S.agreements.filter((a) => mine(a, a.client)), proposals: S.proposals.filter((p) => mine(p, p.client)) });
+  sec.hidden = !rows.length;
+  const cnt = document.getElementById('co-services-count'); if (cnt) cnt.textContent = rows.length ? String(rows.length) : '';
+  el.innerHTML = rows.length ? `<div class="rk-svc-h"><span>Service</span><span>Per month</span><span>Agreement</span><span>Expires</span><span>Status</span></div>${rows.map((r) => `<div class="rk-svc" onclick="if(!event.target.closest('a,button'))openRecord('${r.agreement ? 'agreement' : 'proposal'}', ${r.agreement ? r.agreement.id : r.proposalId})">
+      <b>${escHtml(r.service)}</b>
+      <span class="rk-svc-m">${escHtml(r.monthly)}</span>
+      <span>${r.agreement ? recordLink('agreement', r.agreement.id, r.agreement.ref) : r.proposalId != null ? `<span class="rec-muted">from </span>${recordLink('proposal', r.proposalId, `SL# ${r.proposalId}`)}` : '—'}</span>
+      <span${r.expires.known ? '' : ' class="rec-muted"'}>${escHtml(r.expires.text)}</span>
+      <span class="pk-stage t-${r.tone}"><i></i>${escHtml(r.status)}</span>
+    </div>`).join('')}` : '';
+}
 
 /** Open proposals and opportunities as rows: a kind tile, what it is, where it stands, how long, one action. */
 export function renderDossierFlight(key: Key): void {

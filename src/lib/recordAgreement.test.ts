@@ -2,7 +2,7 @@
 // The agreement page's figures, its term lane and the renewal: three choices, what was chosen, the drafted renewal.
 import { describe, expect, it } from 'vitest';
 
-import { agreementHeaderFigures, decisionChip, renewalDraft, renewalFor, termLane } from './recordAgreement';
+import { agreementHeaderFigures, decisionChip, documentChain, renewalDraft, renewalFor, termLane } from './recordAgreement';
 import type { Agreement } from './types';
 
 const T = '2026-10-01';
@@ -15,33 +15,80 @@ const A = (over: Partial<Agreement> = {}): Agreement => ({
 });
 
 describe('the agreement header', () => {
-  it('contracted, a month, days left with the end (amber when notice is near), the notice period', () => {
+  it('monthly, decide by, term end, notice, signature', () => {
     expect(agreementHeaderFigures(A(), T).map((f) => [f.value, f.label, f.tone])).toEqual([
-      ['SAR 48,000', 'contracted', 'green'], ['SAR 4,000', 'a month', undefined], ['91 days', 'left · ends 31 Dec', 'amber'], ['90 days', 'notice', undefined],
+      ['SAR 4,000', 'a month', 'green'], ['2 Oct', 'decide by · 1 day', 'amber'], ['31 Dec', 'term ends · 91 days', undefined], ['90 days', 'notice', undefined], ['Signed by both', 'signature', undefined],
     ]);
   });
-  it('far from its end it is plain; in its last month red; once over it says when it ended', () => {
-    expect(agreementHeaderFigures(A({ endDate: '2027-12-31', noticeDays: 30 }), T)[2]).toMatchObject({ value: '456 days', tone: undefined });
-    expect(agreementHeaderFigures(A({ endDate: '2026-10-20' }), T)[2]).toMatchObject({ value: '19 days', tone: 'red' });
-    expect(agreementHeaderFigures(A({ endDate: '2026-09-20' }), T)[2]).toEqual({ value: '20 Sept', label: 'ended · 11 days ago' });
+  it('what is not recorded reads so, in grey — unknown is not none', () => {
+    const f = agreementHeaderFigures(A({ endDate: null, noticeDays: null, dateClientSigned: null, dateMenaSigned: null, status: 'In Preparation' }), T);
+    expect(f.map((x) => [x.value, x.label, x.tone])).toEqual([
+      ['SAR 4,000', 'a month', 'green'], ['Not recorded', 'term end', 'muted'], ['Not recorded', 'notice period', 'muted'], ['Not recorded', 'signature', 'muted'],
+    ]);
+    expect(agreementHeaderFigures(A({ noticeDays: 0 }), T)[3]).toEqual({ value: 'No notice period', label: 'notice', tone: undefined });
+  });
+  it('open-ended and ending with the project say so; there is then no day to decide', () => {
+    expect(agreementHeaderFigures(A({ endDate: null, renewalType: 'open_ended' }), T).map((x) => x.value)).toEqual(['SAR 4,000', 'Open-ended', '90 days', 'Signed by both']);
+    expect(agreementHeaderFigures(A({ endDate: null, renewalType: 'project' }), T)[1]).toEqual({ value: 'With the project', label: 'term ends' });
+  });
+  it('the day to decide is red once passed; past its term it is "still active"; decided, it is no longer shown', () => {
+    expect(agreementHeaderFigures(A({ endDate: '2026-11-15', noticeDays: 60 }), T)[1]).toEqual({ value: '16 Sept', label: 'decide-by passed', tone: 'red' });
+    const past = agreementHeaderFigures(A({ endDate: '2026-08-31' }), T);
+    expect(past.map((x) => x.label)).toEqual(['a month', 'term ended · still active', 'notice', 'signature']);
+    expect(past[1].tone).toBe('amber');
+    expect(agreementHeaderFigures(A({ endDate: '2026-08-31', serviceStatus: 'Ended' }), T)[1]).toMatchObject({ label: 'term ended · 31 days ago', tone: undefined });
+    expect(agreementHeaderFigures(A({ renewalDecision: 'end' }), T).map((x) => x.label)).toEqual(['a month', 'term ends · 91 days', 'notice', 'signature']);
+  });
+  it('the monthly is the stored (billed) fee; a signature still outstanding is amber', () => {
+    expect(agreementHeaderFigures(A({ monthlyFee: 4500 }), T)[0].value).toBe('SAR 4,500');
+    expect(agreementHeaderFigures(A({ monthlyFee: null, lines: [] }), T)[0]).toEqual({ value: '—', label: 'no monthly fee' });
+    expect(agreementHeaderFigures(A({ dateMenaSigned: null }), T)[4]).toEqual({ value: 'Countersignature outstanding', label: 'signature', tone: 'amber' });
   });
 });
 
 describe('the term as a lane', () => {
-  it('what has run, today, and the notice window from the last day to give notice to the end', () => {
+  it('a fixed term: what has run, today, and the notice window from the last day to give notice to the end', () => {
     const l = termLane(A(), T)!;
+    expect(l.kind).toBe('fixed');
     expect(l.startLabel).toBe('6 Jan 2026');
     expect(l.endLabel).toBe('31 Dec 2026');
     expect(l.elapsed).toBeCloseTo(74.7, 0);
     expect(l.today).toBe(l.elapsed);
     expect(l.notice?.label).toBe('notice window · 2 Oct – 31 Dec');
     expect(l.notice!.left).toBeGreaterThan(l.elapsed);
+    expect(l.past).toBeNull();
   });
-  it('before the start nothing has run; after the end all of it; without both dates there is no lane', () => {
+  it('before the start nothing has run; after the end (service ended) all of it; no notice window when it was never recorded', () => {
     expect(termLane(A({ startDate: '2026-11-01', endDate: '2027-10-31' }), T)).toMatchObject({ elapsed: 0, today: null });
-    expect(termLane(A({ startDate: '2025-01-01', endDate: '2025-12-31' }), T)).toMatchObject({ elapsed: 100, today: null });
-    expect(termLane(A({ endDate: null }), T)).toBeNull();
+    expect(termLane(A({ startDate: '2025-01-01', endDate: '2025-12-31', serviceStatus: 'Ended' }), T)).toMatchObject({ elapsed: 100, today: null, past: null });
     expect(termLane(A({ noticeDays: null }), T)?.notice).toBeNull();
+  });
+  it('past its term and still active: the lane runs on to today, and says since when', () => {
+    const l = termLane(A({ startDate: '2025-09-01', endDate: '2026-08-31', noticeDays: 30 }), T)!;
+    expect(l.past).toEqual({ left: l.elapsed, label: 'past term · still active since 31 Aug' });
+    expect(l.today).toBe(100);
+    expect(l.notice).toBeNull();
+    expect(l.elapsed).toBeLessThan(100);
+  });
+  it('open-ended and ending with the project have no end to scale by; with no term recorded there is no lane', () => {
+    expect(termLane(A({ endDate: null, renewalType: 'open_ended' }), T)).toMatchObject({ kind: 'open_ended', endLabel: 'open-ended', today: 60, notice: null });
+    expect(termLane(A({ endDate: null, renewalType: 'project' }), T)).toMatchObject({ kind: 'project', endLabel: 'with the project' });
+    expect(termLane(A({ endDate: null }), T)).toBeNull();
+  });
+});
+
+describe('documents and history', () => {
+  it('the principal agreement with its document; a renewal sits between the term it renews and what follows', () => {
+    const first = A({ docLink: 'https://example.test/agreement.pdf' });
+    const renewal = A({ id: 9, agrRef: 'GLX_BS_002_0127', status: 'In Preparation', startDate: '2027-01-01', endDate: '2027-12-31', renewedFrom: 3, dateClientSigned: null, dateMenaSigned: null, datePrepared: '2026-10-01' });
+    expect(documentChain(first, [first, renewal]).map((c) => [c.kind, c.title, c.sub, c.here, !!c.docLink])).toEqual([
+      ['principal', 'Principal agreement', 'GLX_BS_001_0126 · signed 5 Jan', true, true],
+      ['renewal', 'Renewal', 'GLX_BS_002_0127 · in preparation · from 1 Jan 2027', false, false],
+    ]);
+    expect(documentChain(renewal, [first, renewal]).map((c) => [c.kind, c.title, c.sub, c.here])).toEqual([
+      ['previous', 'Previous term', 'GLX_BS_001_0126 · ended 31 Dec', false],
+      ['principal', 'Renewal agreement', 'GLX_BS_002_0127 · prepared 1 Oct', true],
+    ]);
   });
 });
 

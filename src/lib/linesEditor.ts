@@ -41,7 +41,8 @@ function serviceOptions(selectedId: number | null, selectedName: string): string
     + [...groups.entries()].map(([cat, opts]) => `<optgroup label="${escHtml(cat)}">${opts.join('')}</optgroup>`).join('');
 }
 
-function cardFor(line: CommercialLine): PricingService | null {
+/** The rate card pricing behind a line's service (by id, else by name). */
+export function cardFor(line: CommercialLine): PricingService | null {
   const service = serviceById(line.serviceId) || serviceByName(line.serviceName);
   const card = service?.rateCardId != null ? S.rateCards.find((r) => r.id === service.rateCardId) : undefined;
   return card?.pricing ?? null;

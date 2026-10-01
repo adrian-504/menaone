@@ -4374,3 +4374,55 @@ a.btn-primary,a.btn-secondary{text-decoration:none}
   .pk-nrow-m{display:none}
   .pk-nrow .pk-g1 .pk-svc-pill + .pk-svc-pill{display:none}
 }
+
+/* Agreement record, for how the real agreements are recorded (1.61): what is not recorded reads in grey; the lane is
+   drawn by how the term ends; fees are grouped by how they are charged; documents form a chain. */
+.rec-fig-n.t-muted{color:var(--muted);font-weight:500}
+.rk-lane-card.is-none{padding:14px 20px;box-shadow:none;border-style:dashed}
+.rk-lane-noterm{margin:0;font-size:var(--type-secondary);color:var(--sub)}
+.rk-lane-noterm .rlink{color:var(--blue);font-weight:500;text-decoration-color:transparent}
+.rk-lane-noterm .rlink:hover{text-decoration-color:currentColor}
+.rk-lane.is-open_ended .rk-lane-bar{border-radius:6px 0 0 6px}
+.rk-lane-arrow{position:absolute;right:-18px;top:40px;font:600 18px/26px var(--font-text);color:var(--blue)}
+.rk-lane-tail{position:absolute;right:0;top:52px;height:2px;background:repeating-linear-gradient(90deg,var(--blue) 0 7px,transparent 7px 13px)}
+.rk-lane-e.is-word{font-family:var(--font-text);font-size:var(--type-meta);color:var(--sub)}
+.rk-lane.is-past .rk-lane-notice{border-radius:0 6px 6px 0}
+.rk-fees{border:1px solid var(--hairline);border-radius:13px;background:var(--surface);box-shadow:var(--shadow-xs);overflow:hidden}
+.rk-fee-h{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:8px 16px;background:var(--panel-bg);font:600 10.5px var(--font-text);letter-spacing:.12em;text-transform:uppercase;color:var(--sub)}
+.rk-fee-h b{font:500 12px var(--font-mono);letter-spacing:0;text-transform:none;color:var(--text)}
+.rk-fee{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:10px 16px}
+.rk-fee + .rk-fee{border-top:1px solid var(--hairline)}
+.rk-fee-s{min-width:0}
+.rk-fee-s b{display:block;font-weight:600;color:var(--text)}
+.rk-fee-s > span{display:block;font-size:var(--type-secondary);color:var(--sub)}
+.rk-fee-s ul{list-style:none;margin:6px 0 0;padding:0;font-size:var(--type-secondary);color:var(--sub)}
+.rk-fee-s li{display:flex;gap:16px;justify-content:space-between;max-width:360px;padding:1px 0}
+.rk-fee-a{flex:none;font:500 13px var(--font-mono);color:var(--text);white-space:nowrap}
+.rk-fee-total{display:flex;align-items:baseline;gap:12px;justify-content:flex-end;padding:12px 16px;border-top:1px solid var(--hairline)}
+.rk-fee-total span{font:600 10.5px var(--font-text);letter-spacing:.12em;text-transform:uppercase;color:var(--sub)}
+.rk-fee-total b{font:600 19px/1 var(--font-display);color:var(--green)}
+.rk-fee-total em{order:-1;margin-right:auto;font-style:normal;font-size:var(--type-meta);color:var(--amber)}
+.rk-chain{position:relative;display:flex;align-items:center;gap:12px;padding:9px 6px 9px 4px}
+.rk-chain > i{flex:none;width:12px;height:12px;border-radius:50%;background:var(--surface);border:2px solid var(--border)}
+.rk-chain.is-here > i{background:var(--blue);border-color:var(--blue)}
+.rk-chain + .rk-chain::before{content:"";position:absolute;left:9px;top:-12px;height:24px;width:2px;background:var(--hairline)}
+.rk-chain .rk-link,.rk-chain-none{margin-left:auto}
+.rk-chain-none{font-size:var(--type-secondary);white-space:nowrap}
+.rk-chain-none .rk-link{margin-left:0}
+.rk-lane-nl.is-right{right:0;left:auto}
+/* Company: the services it is getting, one line each. */
+.rk-svc-h,.rk-svc{display:grid;grid-template-columns:minmax(0,1.4fr) 120px minmax(0,1fr) 120px 190px;gap:14px;align-items:center;padding:9px 6px}
+.rk-svc-h{padding-top:0;padding-bottom:6px;font:600 10.5px var(--font-text);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--hairline)}
+.rk-svc{cursor:pointer;border-radius:9px;font-size:var(--type-secondary);transition:background-color var(--dur-fast) var(--ease-out)}
+.rk-svc:hover{background:var(--hover)}
+.rk-svc:active{background:var(--surface-pressed)}
+.rk-svc + .rk-svc{box-shadow:0 -1px 0 var(--hairline)}
+.rk-svc b{font-size:var(--type-body);font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rk-svc-m{font:500 12.5px var(--font-mono);color:var(--text)}
+.rk-svc .rlink{color:var(--blue);text-decoration-color:transparent;white-space:nowrap}
+.rk-svc .rlink:hover{text-decoration-color:currentColor}
+.rk-svc .pk-stage{justify-self:start}
+@media (max-width:1280px){
+  .rk-svc-h,.rk-svc{grid-template-columns:minmax(0,1.3fr) 96px minmax(0,1fr) 150px}
+  .rk-svc-h > :nth-child(4),.rk-svc > :nth-child(4){display:none}
+}

@@ -10,7 +10,7 @@ import { daysBetween } from './pipeline';
 import { fmtDateShort } from './dates';
 import { escHtml } from './utils';
 
-export interface Figure { value: string; label: string; tone?: 'coral' | 'red' | 'green' | 'amber'; /** A thin bar under the figure: how much has run, a probability. */ bar?: { pct: number; tone?: 'green' | 'amber' | 'blue' } }
+export interface Figure { value: string; label: string; /** `muted`: a fact that is not recorded. */ tone?: 'coral' | 'red' | 'green' | 'amber' | 'muted'; /** A thin bar under the figure: how much has run, a probability. */ bar?: { pct: number; tone?: 'green' | 'amber' | 'blue' } }
 
 const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
 const MAX = 3;

@@ -1655,6 +1655,10 @@
       </section>
     </aside>
     <div class="co-dossier-main">
+    <section class="rec-section rk-sec" id="co-sec-services" data-section="services" hidden>
+      <div class="rk-sh"><h2 class="hd-major">Services</h2><span class="rk-cnt" id="co-services-count"></span><a href="#" class="rlink rk-sh-r" onclick="event.preventDefault();scrollToCompanySection('agreements')">All agreements</a></div>
+      <div id="co-services"></div>
+    </section>
     <section class="rec-section rk-sec" id="co-sec-flight" data-section="flight">
       <div class="rk-sh"><h2 class="hd-major">In flight</h2><span class="rk-cnt" id="co-flight-count"></span><a href="#" class="rlink rk-sh-r" onclick="event.preventDefault();scrollToCompanySection('proposals')">All proposals</a></div>
       <div id="co-flight"></div>
@@ -1752,7 +1756,7 @@
     <div class="rec-actions" id="agd-actions"></div>
   </header>
   <!-- The story: the term as one lane — what has run, today, the notice window. -->
-  <div class="rk-lane-card" id="agd-lane" hidden></div>
+  <div class="rk-lane-card" id="agd-lane"></div>
   <div class="thread-host" id="agd-thread" hidden></div>
   <div class="ctd-grid rk-grid">
     <aside class="rk-side">
@@ -1771,6 +1775,10 @@
       <section class="rk-sec">
         <div class="rk-sh"><h2 class="hd-major">Services on this agreement</h2><span class="rk-cnt" id="agd-lines-count"></span><span class="rk-sh-r" id="agd-lines-act"></span></div>
         <div id="agd-lines"></div>
+      </section>
+      <section class="rk-sec">
+        <div class="rk-sh"><h2 class="hd-major">Documents and history</h2></div>
+        <div id="agd-docs"></div>
       </section>
       <section class="rk-sec">
         <div class="rk-sh"><h2 class="hd-major">Signature trail</h2><span class="rk-sh-r" id="agd-dates-act"></span></div>

@@ -26,7 +26,7 @@ import { type FeedItem } from '../lib/activityFeed';
 import { renderRecordTimeline } from './recordThread';
 import { renderCompanyTemplates } from './companyTemplates';
 import { clientNotesList } from '../lib/clientNotes';
-import { capCompanyRecords, renderDossierDetails, renderDossierFlight, renderDossierNextRecent, renderDossierState, resetDossierFolds, watchCompanyRecords } from './companyDossier';
+import { capCompanyRecords, renderDossierDetails, renderDossierFlight, renderDossierServices, renderDossierNextRecent, renderDossierState, resetDossierFolds, watchCompanyRecords } from './companyDossier';
 import { companyHeaderFigures } from '../lib/recordCompany';
 import { liveThreads, lastContactByPerson, orderPeople, relationshipStatus as briefRelationship } from '../lib/companyBrief';
 import { briefInputFor, ensurePinnedNotes, setCompanyNotesCache } from './companyState';
@@ -1057,6 +1057,7 @@ function renderCompanyDetail(): void {
   renderCompanyState(key);
   renderCompanyFacts(d);
   renderDossierDetails(co, d, listsForCompany(d.name).map((l) => `<span class="ct-list-tag" title="${l.filters ? 'Smart list' : 'Hand-picked list'}">${escHtml(l.name)}</span>`).join(' '));
+  renderDossierServices(key);
   renderDossierFlight(key);
   void renderDossierNextRecent(key);
   void loadCompanyNoteEntries();
