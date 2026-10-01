@@ -989,8 +989,17 @@ export async function installDevMockIfNeeded(): Promise<void> {
           const oppId = (_payload as any)?.opportunityId;
           return opportunityActivityStore.filter((a) => a.opportunityId === oppId).slice().reverse();
         }
-        case 'get_inbox_items':
-          return [] as InboxItem[];
+        case 'get_inbox_items': {
+          // 1.62: one of each kind, captured today, yesterday and two days ago.
+          const ago = (hours: number) => new Date(Date.now() - hours * 3600e3).toISOString();
+          const item = (id: number, itemType: InboxItem['itemType'], content: string, hours: number): InboxItem => ({ id, itemType, content, createdAt: ago(hours), processed: false, convertedToType: null, convertedToId: null });
+          return [
+            item(1, 'task', 'Call Lina at Northwind Trading about the GM Representative scope tomorrow 3pm', 4.9),
+            item(2, 'followup', 'Chase Red Sea Global on the EOR offer before it runs out', 5.4),
+            item(3, 'idea', 'Package PRO + payroll for small startups at one monthly price #services', 26),
+            item(4, 'note', 'Jane mentioned the Jeddah office might need two recruiters in Q1 @Acme Holdings', 50),
+          ];
+        }
         case 'add_inbox_item': {
           const p = _payload as any;
           return { id: Math.floor(Math.random() * 100000) + 1, itemType: p?.itemType, content: p?.content, createdAt: new Date().toISOString(), processed: false, convertedToType: null, convertedToId: null } as InboxItem;

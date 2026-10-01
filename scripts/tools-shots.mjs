@@ -28,6 +28,7 @@ const SHOTS = [
   ['calendar-day', CLOCK, "switchTab('calendar'), setCalendarView('day')"],
   ['calendar-month', CLOCK, "switchTab('calendar'), setCalendarView('month')"],
   ['inbox', CLOCK, "switchTab('inbox')"],
+  ['inbox-zero', CLOCK, "switchTab('inbox'), (async () => { for (const el of [...document.querySelectorAll('.inbox-item')]) await dismissInboxItem(Number(el.dataset.inboxId)); document.querySelectorAll('.toast').forEach((t) => t.remove()); })()"],
 ].filter(([n]) => !process.env.ONLY || process.env.ONLY.split(',').includes(n));
 
 const port = 9700 + Math.floor(Math.random() * 100);

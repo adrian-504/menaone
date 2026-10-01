@@ -511,12 +511,10 @@
 </div>
 
 <!-- INBOX TAB -->
-<div id="tab-inbox" class="tab">
-  <div class="page-header">
-    <div>
-      <div class="page-title">Inbox</div>
-      <div class="page-subtitle">Capture anything fast, then decide what it becomes.</div>
-    </div>
+<div id="tab-inbox" class="tab pk-page">
+  <div class="page-header pk-head tk-head">
+    <div class="pk-head-t"><div class="page-title">Inbox</div><span class="bars lg" aria-hidden="true"><i></i><i></i><i></i></span><div class="page-subtitle">Capture anything fast, then decide what it becomes.</div></div>
+    <div class="page-header-actions"><span class="inbox-summary" id="inbox-summary"></span></div>
   </div>
   <form class="task-quickadd inbox-composer" onsubmit="captureInboxItem(event)" autocomplete="off">
     <span class="task-quickadd-plus" data-icon="plus" data-icon-size="14"></span>
@@ -529,6 +527,7 @@
       <button type="button" class="inbox-kind" data-kind="followup" onclick="setInboxKind('followup')">Follow-up</button>
     </div>
   </form>
+  <div class="inbox-hint">Dates, @company and #tags are read as you type · ⌘K from anywhere</div>
   <div class="inbox-list" id="inbox-list"></div>
 </div>
 
