@@ -84,17 +84,22 @@ export function playRow(p: Proposal, ctx: TouchContext & { reviewerName?: (p: Pr
   };
 }
 
-/** The in-play picture: stage counts with their oldest, and the six rows that have waited longest, shown in stage order. */
-export function buildInPlay(proposals: Proposal[], ctx: TouchContext, cap = 6): InPlay {
+/** How many rows each stage may show on My Day: its own share, so a long queue with clients never pushes the
+ * proposals to draft or the ones with Hassan off the list. */
+export const STAGE_SHARE: Record<Stage, number> = { draft: 2, hassan: 3, client: 3 };
+
+/** The in-play picture: stage counts with their oldest, and each stage's own share of rows (urgent first, then the
+ * ones that waited longest within the stage), in stage order. `hidden` is what each stage left out. Pure. */
+export function buildInPlay(proposals: Proposal[], ctx: TouchContext, share: Record<Stage, number> = STAGE_SHARE): InPlay {
   const all = proposals.map((p) => playRow(p, ctx)).filter((r): r is PlayRow => !!r);
   const stages = STAGE_ORDER.map((stage) => {
     const mine = all.filter((r) => r.stage === stage);
     return { stage, count: mine.length, oldest: Math.max(0, ...mine.map((r) => r.age)) };
   }).filter((s) => s.count > 0);
-  const urgentFirst = (a: PlayRow, b: PlayRow) => (a.tone === 'red' ? 0 : 1) - (b.tone === 'red' ? 0 : 1) || b.age - a.age;
-  const picked = new Set([...all].sort(urgentFirst).slice(0, cap).map((r) => r.id));
-  const rows = STAGE_ORDER.flatMap((stage) => all.filter((r) => r.stage === stage && picked.has(r.id)).sort(urgentFirst));
-  const hidden = Object.fromEntries(STAGE_ORDER.map((s) => [s, all.filter((r) => r.stage === s && !picked.has(r.id)).length])) as Record<Stage, number>;
+  const urgentFirst = (a: PlayRow, b: PlayRow) => (a.tone === 'red' ? 0 : 1) - (b.tone === 'red' ? 0 : 1) || b.age - a.age || a.id - b.id;
+  const byStage = (stage: Stage) => all.filter((r) => r.stage === stage).sort(urgentFirst);
+  const rows = STAGE_ORDER.flatMap((stage) => byStage(stage).slice(0, share[stage]));
+  const hidden = Object.fromEntries(STAGE_ORDER.map((s) => [s, Math.max(0, byStage(s).length - share[s])])) as Record<Stage, number>;
   return { total: all.length, stages, rows, hidden };
 }
 

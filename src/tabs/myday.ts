@@ -441,7 +441,7 @@ function inPlayHtml(p: InPlay): string {
     const rows = p.rows.filter((r) => r.stage === stage);
     if (!rows.length) return '';
     const count = p.stages.find((s) => s.stage === stage)?.count ?? rows.length;
-    return `<div class="mdy-stg st-${STAGE_TINT[stage]}"><i></i>${escHtml(STAGE_LABEL[stage])}<span class="mdy-stg-cnt">${count}</span>${p.hidden[stage] ? `<button class="rlink mdy-stg-all" onclick="mydayPlayAll('${stage}')">+${p.hidden[stage]}</button>` : ''}</div>
+    return `<div class="mdy-stg st-${STAGE_TINT[stage]}"><i></i>${escHtml(STAGE_LABEL[stage])}<span class="mdy-stg-cnt">${count}</span>${p.hidden[stage] ? `<button class="rlink mdy-stg-all" onclick="mydayPlayAll('${stage}')" data-tip="${stage === 'client' ? 'Open Follow-up' : 'Open Pending'}">+${p.hidden[stage]} more</button>` : ''}</div>
       ${rows.map(playRowHtml).join('')}`;
   }).join('');
   return `<div class="mdy-flow">${panels}</div>${groups}`;
