@@ -3697,6 +3697,10 @@ button.pk-st:focus-visible{outline:none;box-shadow:var(--shadow-focus)}
 /* Meetings: a date medallion per day, a coral now-line, the next meeting in a panel. */
 .pk-mday{display:grid;grid-template-columns:72px minmax(0,1fr);gap:20px;padding:16px 0;border-bottom:1px solid var(--hairline)}
 .pk-mday:first-of-type{border-top:1px solid var(--hairline)}
+/* 1.64: where upcoming turns into past, a full group header with 28 px above it. */
+.pk-mpast{margin-top:28px}
+.pk-mpast .pk-gh{margin:0}
+.pk-mpast:first-child{margin-top:0}
 .pk-medal{text-align:center;padding-top:4px}
 .pk-medal em{display:block;font-style:normal;font:600 10px var(--font-text);letter-spacing:.14em;text-transform:uppercase;color:var(--coral-text);margin-bottom:4px}
 .pk-medal b{display:block;font:600 34px/1 var(--font-display);color:var(--navy)}
