@@ -3833,6 +3833,8 @@ a.btn-primary,a.btn-secondary{text-decoration:none}
 .pk-owes .t-red{background:var(--red-bg);color:var(--red)}
 .pk-owes .t-amber{background:var(--amber-bg);color:var(--amber)}
 #ct-table .pk-td-co{width:24%;min-width:190px}
+#ct-table .pk-td-pos{max-width:0;width:22%}
+.pk-pos{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--sub)}
 #ct-table .ct-mail-link{color:var(--sub);text-decoration:none}
 #ct-table .ct-mail-link:hover{color:var(--blue)}
 #ct-table .ct-copy{opacity:0;transition:opacity var(--dur-fast) var(--ease-out)}

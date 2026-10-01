@@ -423,14 +423,17 @@ export function personAvatar(name: string, cls = 'pk-pav'): string {
 
 const CONTACT_COLUMNS: Column<CtRow>[] = [
   { key: 'name', label: 'Person', shown: true, fixed: true, sort: (r) => (r.c.name || '').toLowerCase(), className: 'pk-td-co',
-    cell: (r) => `<div class="pk-co">${personAvatar(r.c.name || '')}<div class="pk-co-t">${recordLink('contact', r.c.id, r.c.name || 'Unnamed')}${r.c.role ? `<div class="pk-co-sub">${escHtml(r.c.role)}</div>` : ''}</div></div>` },
+    cell: (r) => `<div class="pk-co">${personAvatar(r.c.name || '')}<div class="pk-co-t">${recordLink('contact', r.c.id, r.c.name || 'Unnamed')}</div></div>` },
   { key: 'company', label: 'Company', shown: true, sort: (r) => (r.c.clientName || '').toLowerCase(),
     cell: (r) => (r.c.clientName ? `<span class="pk-mini-co">${tileHtml(r.c.clientName, 'pk-tile mini')}${companyLink(r.c.companyId, r.c.clientName)}</span>` : muted) },
+  // The job title, in its own column since 1.64 (it sat under the name): the name cell is one line.
+  { key: 'position', label: 'Position', shown: true, sort: (r) => (r.c.role || '').toLowerCase(), className: 'pk-td-pos',
+    cell: (r) => (r.c.role ? `<span class="pk-pos" title="${escHtml(r.c.role)}">${escHtml(r.c.role)}</span>` : muted) },
   { key: 'dm', label: 'Role', shown: true, sort: (r) => (r.c.isDecisionMaker ? 0 : 1),
     cell: (r) => (r.c.isDecisionMaker ? '<span class="pk-stage t-navy">Decision maker</span>' : muted) },
-  { key: 'touch', label: 'Last contact', shown: true, sort: (r) => r.lastTouch, descFirst: true,
+  { key: 'touch', label: 'Last contact', shown: false, sort: (r) => r.lastTouch, descFirst: true,
     cell: (r) => `<div class="pk-lc${r.spoke.quiet ? ' is-quiet' : ''}"><b>${escHtml(r.spoke.headline)}</b><span>${escHtml(r.spoke.sub)}</span></div>` },
-  { key: 'open', label: 'Open with them', shown: true, sort: (r) => r.open.length, descFirst: true, className: 'pk-narrow-hide',
+  { key: 'open', label: 'Open with them', shown: false, sort: (r) => r.open.length, descFirst: true, className: 'pk-narrow-hide',
     cell: (r) => (r.open.length ? `<div class="pk-owes">${r.open.map((o) => `<span class="t-${o.tone}">${escHtml(o.text)}</span>`).join('')}</div>` : '') },
   { key: 'email', label: 'Email', shown: true, sort: (r) => (r.c.email || '').toLowerCase(),
     cell: (r) => (r.c.email ? `<a href="mailto:${escHtml(r.c.email)}" class="ct-mail-link mono">${escHtml(r.c.email)}</a>${copyBtn(r.c.email, 'Email')}` : '<span class="t-amber">No email</span>') },
@@ -468,16 +471,19 @@ export function contactRowMenu(e: MouseEvent, id: number): void {
 expose('contactRowMenu', contactRowMenu);
 
 const CONTACT_SORT_DEFAULT: SortState = { key: 'name', dir: 'asc' };
+/** Where this table's column choice and sort are kept. Renamed in 1.64, when the default columns changed
+ * (Person · Company · Position · Role · Email), so a choice saved before starts from the new default once. */
+const CT_TABLE = 'contacts-2';
 
 export function sortContacts(key: string): void {
-  setSort('contacts', CONTACT_COLUMNS, key, CONTACT_SORT_DEFAULT);
+  setSort(CT_TABLE, CONTACT_COLUMNS, key, CONTACT_SORT_DEFAULT);
   renderContacts();
 }
 expose('sortContacts', sortContacts);
 
 export function openContactColumns(e: MouseEvent): void {
   e.stopPropagation();
-  openColumnPicker(e.currentTarget as HTMLElement, 'contacts', CONTACT_COLUMNS, () => renderContacts());
+  openColumnPicker(e.currentTarget as HTMLElement, CT_TABLE, CONTACT_COLUMNS, () => renderContacts());
 }
 expose('openContactColumns', openContactColumns);
 
@@ -522,8 +528,8 @@ export function renderContacts(): void {
   const cntEl = document.getElementById('ct-cnt'); if (cntEl) cntEl.textContent = `${data.length} contact${data.length !== 1 ? 's' : ''}`;
   const tbody = document.getElementById('ct-tbody');
   if (!tbody) return;
-  const columns = shownColumns('contacts', CONTACT_COLUMNS);
-  const sort = sortState('contacts', CONTACT_COLUMNS, CONTACT_SORT_DEFAULT);
+  const columns = shownColumns(CT_TABLE, CONTACT_COLUMNS);
+  const sort = sortState(CT_TABLE, CONTACT_COLUMNS, CONTACT_SORT_DEFAULT);
   const thead = document.getElementById('ct-thead');
   if (thead) thead.innerHTML = `<tr><th class="td-chk"><input type="checkbox" id="ct-select-all" class="ct-chk" onchange="toggleSelectAllContacts(this.checked)" title="Select all" aria-label="Select all"></th>${headerCells(columns, sort, 'sortContacts')}</tr>`;
   updateCtBulkBar();
