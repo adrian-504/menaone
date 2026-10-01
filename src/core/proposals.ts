@@ -537,7 +537,9 @@ export function openWlModal(id: number, mode: 'won' | 'lost', o: { ids?: number[
   openOutcomeDialog({
     mode,
     title: isWon ? 'Signed by both parties' : many.length > 1 ? `Close ${many.length} proposals as lost` : 'Mark as lost',
-    subtitle: many.length > 1 ? `${p.client} — ${many.map((x) => x.type || 'Proposal').join(', ')}` : `${p.client} — ${p.type || 'Proposal'}`,
+    subtitle: many.length > 1
+      ? (new Set(many.map((x) => x.client)).size > 1 ? `${many.length} proposals for ${new Set(many.map((x) => x.client)).size} clients` : `${p.client} — ${many.map((x) => x.type || 'Proposal').join(', ')}`)
+      : `${p.client} — ${p.type || 'Proposal'}`,
     withDate: true,
     date: isWon ? p.dblSignedDate : today(),
     dateLabel: isWon ? undefined : 'The day it was lost',

@@ -21,8 +21,10 @@ import { channelWord, sentWith } from '../lib/followRequests';
 import type { Touch, TouchKind } from '../lib/types';
 
 export interface EntryDraft {
-  /** The proposals it is about. */
+  /** The proposals it is about: one entry (one batch) across them. */
   ids: number[];
+  /** Or several entries written in one go, one per group (one per request ticked on Follow-up); `ids` is then ignored. */
+  groups?: number[][];
   kind: TouchKind;
   direction?: 'out' | 'in';
   /** The day; today when not given. */
@@ -50,15 +52,20 @@ function entryWords(d: Pick<EntryDraft, 'kind' | 'direction' | 'at'>): string {
 /** Writes one entry on every proposal it is about: shown at once, saved behind (a failed save puts it back), and
  * undoable as one. Several proposals share a batch id. Returns the rows saved. */
 export async function logEntry(d: EntryDraft): Promise<Touch[]> {
-  const proposals = d.ids.map((id) => S.proposals.find((p) => p.id === id)).filter((p): p is NonNullable<typeof p> => !!p);
+  const groups = (d.groups?.length ? d.groups : [d.ids]).map((ids) => ids.map((id) => S.proposals.find((p) => p.id === id)).filter((p): p is NonNullable<typeof p> => !!p)).filter((g) => g.length);
+  const proposals = groups.flat();
   if (!proposals.length) return [];
   const at = d.at || today();
   const direction: 'out' | 'in' = d.kind === 'email_in' ? 'in' : d.kind === 'email_out' || d.kind === 'meeting' ? 'out' : d.direction === 'in' ? 'in' : 'out';
-  const batchId = proposals.length > 1 ? (crypto.randomUUID?.() ?? `b${Date.now()}${Math.random().toString(16).slice(2)}`) : null;
-  const drafts = proposals.map((p) => ({
-    proposalId: p.id, companyId: p.companyId ?? null, kind: d.kind, direction, at, contactId: p.primaryContactId ?? null,
-    byMemberId: d.byMemberId ?? null, note: d.note?.trim() || null, batchId, revertAfter: direction === 'in' ? d.revertAfter || null : null,
-  }));
+  const newBatch = () => crypto.randomUUID?.() ?? `b${Date.now()}${Math.random().toString(16).slice(2)}`;
+  const drafts = groups.flatMap((group) => {
+    // One entry per group: its proposals share a batch id (a single proposal needs none).
+    const batchId = group.length > 1 ? newBatch() : null;
+    return group.map((p) => ({
+      proposalId: p.id, companyId: p.companyId ?? null, kind: d.kind, direction, at, contactId: p.primaryContactId ?? null,
+      byMemberId: d.byMemberId ?? null, note: d.note?.trim() || null, batchId, revertAfter: direction === 'in' ? d.revertAfter || null : null,
+    }));
+  });
   const stamp = Date.now();
   const temps = drafts.map((x, n) => ({ ...x, id: -(stamp + n), subject: null, source: 'manual', sourceId: null, createdAt: new Date().toISOString() }) as unknown as Touch);
   const tempIds = new Set(temps.map((t) => t.id));
@@ -73,7 +80,7 @@ export async function logEntry(d: EntryDraft): Promise<Touch[]> {
   S.touches = [...S.touches.filter((x) => !tempIds.has(x.id) && !savedIds.has(x.id)), ...saved];
   redraw(ids);
   undoToast(`Logged: ${entryWords({ kind: d.kind, direction, at })}`, () => { void removeEntry(saved.map((t) => t.id), true); }, undefined, undefined,
-    { detail: proposals.length > 1 ? `on the ${proposals.length} proposals sent together` : undefined });
+    { detail: groups.length > 1 ? `on ${plural(groups.length, 'request')}` : proposals.length > 1 ? `on the ${proposals.length} proposals sent together` : undefined });
   return saved;
 }
 

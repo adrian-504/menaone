@@ -19,10 +19,13 @@ import { registerTabRenderer, refreshAll } from '../lib/registry';
 import { persistProposals } from '../lib/persist';
 import { contactFirstName, followUpMenu, getFollowups, getSnoozed, isSnoozed, openRevisionDialog, openWlModal } from '../core/proposals';
 import { bulkApply } from '../core/proposalBulk';
+import { logEntry } from '../core/followLog';
+import { hideBulkBar, renderBulkBar, type BulkAction } from '../lib/bulkBar';
+import { rangeIds } from '../lib/bulkProposals';
 import { FOLLOW_UP_AFTER_DAYS, backInDays } from '../lib/followup';
 import { menuHead, showContextMenu, showMenuAt } from '../lib/contextMenu';
 import { icon } from '../lib/icons';
-import type { Proposal } from '../lib/types';
+import type { Proposal, TouchKind } from '../lib/types';
 
 export function toggleFuArchived(): void {
   S.fuShowArchived = !S.fuShowArchived;
@@ -138,6 +141,7 @@ function drawFollowup(): void {
     html += `<div class="pk-note"><span class="bars" aria-hidden="true"><i></i><i></i><i></i></span><span>Won this month: ${won.length ? list(won) : 'none'}. Lost: ${lost.length ? list(lost) : 'none'}.</span></div>`;
   }
   el.innerHTML = html;
+  paintFuSelection();
 }
 registerTabRenderer('followup', renderFollowup);
 registerStrip('followup', () => renderFollowup());
@@ -178,8 +182,9 @@ export function requestRowHtml(r: FollowRequest, primary: boolean): string {
     const menu = a.kind === 'followed_up';
     return `<button class="${blue ? 'btn-primary' : 'btn-secondary'} btn-sm${a.kind === 'decide_lost' ? ' is-danger' : ''}" onclick="event.stopPropagation();fuAct(event, ${lead}, '${a.kind}')"${menu ? ' aria-haspopup="menu"' : ''}>${escHtml(a.label)}${menu ? ` ${icon('chevronDown', 11)}` : ''}</button>`;
   }).join('');
-  const row = `<div class="pq-row pk-row has-mid fr-row${open ? ' is-open' : ''}" data-row-id="${lead}" onclick="if(!event.target.closest('a,button,input,label'))fuOpenRow(${lead})" oncontextmenu="fuMenu(event, ${lead})">
-    ${tileHtml(r.client)}
+  const ticked = fuSelected.has(r.key);
+  const row = `<div class="pq-row pk-row has-mid fr-row${open ? ' is-open' : ''}${ticked ? ' is-selected' : ''}" data-row-id="${lead}" onclick="if(!event.target.closest('a,button,input,label'))fuOpenRow(${lead})" oncontextmenu="fuMenu(event, ${lead})">
+    <label class="pk-chk"><input type="checkbox" ${ticked ? 'checked' : ''} onclick="fuCheckClick(event, ${lead})" aria-label="Select ${escHtml(r.client)}, ${escHtml(r.services.join(', '))}"></label>${tileHtml(r.client)}
     <div class="pk-main">
       <div class="pk-title">${companyLink(r.companyId, r.client)}<span class="fr-chips">${chips}</span>${many
         ? `<button class="fr-count" onclick="event.stopPropagation();fuToggle(${lead})" aria-expanded="${open}" data-tip="${open ? 'Hide' : 'Show'} its proposals">${r.ids.length} proposals ${icon(open ? 'chevronDown' : 'chevronRight', 11)}</button>`
@@ -206,6 +211,70 @@ export function requestRowHtml(r: FollowRequest, primary: boolean): string {
   }).join('');
   return `${row}<div class="fr-members">${members}</div>`;
 }
+
+// ── Selection and the bar (1.65: "select multiple and set the same follow up status for them") ──
+
+/** The requests ticked, by key. */
+const fuSelected = new Set<string>();
+let fuLastTicked: number | null = null;
+const fuShownLeads = (): number[] => [...document.querySelectorAll<HTMLElement>('#fu-list .fr-row[data-row-id]')].map((el) => Number(el.dataset.rowId));
+
+/** The ticked requests, as their proposals: one group per request. */
+function selectedGroups(): number[][] {
+  return followRequests().rows.filter((r) => fuSelected.has(r.key)).map((r) => r.ids);
+}
+
+function clearFuSelection(): void {
+  fuSelected.clear();
+  fuLastTicked = null;
+}
+
+/** The bar's actions on the ticked requests: what was done with all of them today, in one click each. */
+function fuBulkActions(): BulkAction[] {
+  const groups = () => selectedGroups();
+  const ids = () => groups().flat();
+  const log = (kind: TouchKind, direction: 'out' | 'in' = 'out') => () => { const g = groups(); clearFuSelection(); void logEntry({ ids: [], groups: g, kind, direction }); };
+  const snooze = (days: number) => ({ label: `${days} days`, run: () => { const until = backInDays(today(), days); bulkApply(ids(), `Snoozed until ${fmtDateShort(backInDays(until, 1), true)}`, (p) => { p.snoozedUntil = until; }, { clear: clearFuSelection }); } });
+  return [
+    { label: 'Followed up', choices: () => [{ label: 'Email', run: log('email_out') }, { label: 'Call', run: log('call') }, { label: 'WhatsApp', run: log('whatsapp') }, { label: 'Met', run: log('meeting') }] },
+    { label: 'Client replied', choices: () => [{ label: 'Email', run: log('email_in', 'in') }, { label: 'Call', run: log('call', 'in') }, { label: 'WhatsApp', run: log('whatsapp', 'in') }] },
+    // A request for changes is about one proposal: with several ticked, which one.
+    { label: 'Client asked for changes', choices: () => proposalsOf(ids()).map((p) => ({ label: `${p.client} — ${p.type || 'Proposal'} · SL# ${p.id}`, run: () => { clearFuSelection(); paintFuSelection(); openRevisionDialog(p.id); } })) },
+    { label: 'Snooze', choices: () => [snooze(3), snooze(7), snooze(14), { label: 'Until…', run: () => { const all = ids(); clearFuSelection(); paintFuSelection(); void snoozeRequest(all); } }] },
+    { label: 'Mark lost', danger: true, run: () => { const all = ids(); if (!all.length) return; clearFuSelection(); paintFuSelection(); openWlModal(all[0], 'lost', { ids: all }); } },
+  ];
+}
+
+function paintFuSelection(): void {
+  // A request that left the page (lost, snoozed, signed) leaves the selection too.
+  const keys = new Set(followRequests().rows.map((r) => r.key));
+  for (const k of [...fuSelected]) if (!keys.has(k)) fuSelected.delete(k);
+  document.getElementById('fu-list')?.classList.toggle('has-selection', fuSelected.size > 0);
+  document.querySelectorAll<HTMLElement>('#fu-list .fr-row[data-row-id]').forEach((el) => {
+    const on = fuSelected.has(requestOf(Number(el.dataset.rowId))?.key ?? '');
+    el.classList.toggle('is-selected', on);
+    const box = el.querySelector<HTMLInputElement>('.pk-chk input'); if (box) box.checked = on;
+  });
+  if (S.currentTab !== 'followup') { hideBulkBar('fu-bulk'); return; }
+  renderBulkBar('fu-bulk', fuSelected.size, ['request', 'requests'], fuBulkActions(), 'fuClearSelection()', () => S.currentTab === 'followup' && S.currentProposalId == null);
+}
+
+/** A click on a row's checkbox: with Shift, every row from the last one ticked to this one takes this one's state. */
+export function fuCheckClick(e: MouseEvent, lead: number): void {
+  e.stopPropagation();
+  const on = (e.currentTarget as HTMLInputElement).checked;
+  const leads = e.shiftKey && fuLastTicked != null && fuLastTicked !== lead ? rangeIds(fuShownLeads(), fuLastTicked, lead) : [lead];
+  for (const x of leads) { const key = requestOf(x)?.key; if (!key) continue; if (on) fuSelected.add(key); else fuSelected.delete(key); }
+  fuLastTicked = lead;
+  paintFuSelection();
+}
+expose('fuCheckClick', fuCheckClick);
+
+export function fuClearSelection(): void {
+  clearFuSelection();
+  paintFuSelection();
+}
+expose('fuClearSelection', fuClearSelection);
 
 /** A click on a row, or Enter: a request of several proposals opens to show them; a single one opens its proposal. */
 export function fuOpenRow(lead: number): void {
