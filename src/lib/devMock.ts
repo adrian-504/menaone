@@ -88,6 +88,12 @@ const SAMPLE: AppData = {
       monthlyFee: 3000, contractMonths: 12, proposalId: null, hubspot: null, docLink: null, actionDate: null, remarks: null, createdAt: '2026-03-01', businessEntityId: 1, currency: 'SAR', startDate: '2026-03-05', endDate: '2027-03-04', serviceStatus: 'Active', autoRenew: true, noticeDays: 60, preparedById: 1,
       lines: [{ id: 31, serviceId: 15, serviceName: 'Payroll', description: null, billing: 'monthly', quantity: 1, unitPrice: 3000, commission: false, sortOrder: 0 }],
     },
+    // Prepared and with the client for signature: Agreements draws it as a dashed outline.
+    {
+      id: 4, agrRef: 'NWT_GMR_001_1026', client: 'Northwind Trading', companyId: 2, type: 'GM Representative', status: 'Client Signature', preparedBy: 'Hassan Balaghi', datePrepared: '2026-09-28', dateSentToClient: '2026-09-29', dateClientSigned: null, dateMenaSigned: null, dateFiled: null,
+      monthlyFee: 6500, contractMonths: 12, proposalId: null, hubspot: null, docLink: null, actionDate: null, remarks: null, createdAt: '2026-09-28', businessEntityId: 1, currency: 'SAR', startDate: '2026-11-01', endDate: '2027-10-31', serviceStatus: 'Not started', autoRenew: false, noticeDays: 60, preparedById: 1,
+      lines: [{ id: 41, serviceId: 15, serviceName: 'GM Representative', description: null, billing: 'monthly', quantity: 1, unitPrice: 6500, commission: false, sortOrder: 0 }],
+    },
   ],
   todos: [
     { id: 1, title: 'Follow up on Acme proposal', type: 'client', client: 'Acme Holdings', priority: 'High', dueDate: '2026-09-10', status: 'Pending', description: null, createdAt: '2026-09-01', completedAt: null, projectId: null, parentId: null, areaId: null, section: null, sortOrder: 1, recurrenceRule: null, meetingId: null, tags: ['urgent'] },

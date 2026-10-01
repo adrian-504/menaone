@@ -1699,43 +1699,27 @@
 
 <!-- AGREEMENTS -->
 <div id="tab-agreements" class="tab">
-<div id="agr-list-view">
-  <div class="page-header">
-    <div>
-      <div class="page-title">Agreements</div>
-      <div class="page-subtitle">Contracts from preparation to signature, and the services running under them.</div>
-    </div>
+<div id="agr-list-view" class="pk-page">
+  <div class="page-header pk-head">
+    <div class="pk-head-t"><div class="page-title">Agreements</div><span class="bars lg" aria-hidden="true"><i></i><i></i><i></i></span><div class="page-subtitle">What's signed, what it's worth, and when each one needs a decision.</div></div>
     <div class="page-header-actions">
       <button class="btn-primary" onclick="openAgrModal(null)"><span data-icon="plus" data-icon-size="14"></span> New agreement</button>
       <button class="loc-nav rec-more" onclick="pageMoreMenu(event, 'agreements')" data-tip="More" aria-label="More"><span data-icon="more" data-icon-size="16"></span></button>
     </div>
   </div>
-  <div id="agr-summary" class="kpi-row-auto"></div>
+  <div id="agr-strip"></div>
+  <div class="pk-tools">
   <div class="fbar">
-    <input type="text" class="f-search" id="agr-search" placeholder="Search client, reference, service, remarks…" oninput="filterSoon('renderAgreements')">
-    <select class="fsel" id="agr-status" onchange="renderAgreements()"><option value="">All statuses</option></select>
-    <select class="fsel" id="agr-service" onchange="renderAgreements()"><option value="">Any service status</option></select>
-    <select class="fsel" id="agr-type" onchange="renderAgreements()"><option value="">All types</option></select>
-    <select class="fsel" id="agr-prep" onchange="renderAgreements()"><option value="">Prepared by anyone</option></select>
+    <input type="text" class="f-search pk-search" id="agr-search" placeholder="Search client, reference, service…" oninput="filterSoon('renderAgreements')">
+    <select class="fsel" id="agr-status" onchange="renderAgreements()" aria-label="Status"><option value="">All statuses</option></select>
+    <select class="fsel" id="agr-service" onchange="renderAgreements()" aria-label="Service status"><option value="">Any service status</option></select>
+    <select class="fsel" id="agr-type" onchange="renderAgreements()" aria-label="Type"><option value="">All types</option></select>
+    <select class="fsel" id="agr-prep" onchange="renderAgreements()" aria-label="Prepared by"><option value="">Prepared by anyone</option></select>
     <button class="rlink" onclick="agrClear()">Clear</button>
     <span class="rcnt" id="agr-cnt">0 agreements</span>
   </div>
-  <div class="tbl-wrap data-table">
-    <table>
-      <thead><tr>
-        <th>Reference</th>
-        <th>Client</th>
-        <th>Services</th>
-        <th>Status</th>
-        <th>Service</th>
-        <th>Prepared by</th>
-        <th>Start</th>
-        <th>End</th>
-        <th class="num">Monthly</th>
-      </tr></thead>
-      <tbody id="agr-tbody"></tbody>
-    </table>
   </div>
+  <div class="pk-gantt" id="agr-gantt"></div>
 </div>
 
 <div class="record-page agr-page" id="agr-detail">
