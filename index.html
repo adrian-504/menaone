@@ -1357,12 +1357,9 @@
 </div>
 
 <!-- PENDING / WORK QUEUE -->
-<div id="tab-pending" class="tab">
-  <div class="page-header">
-    <div>
-      <div class="page-title">Proposals</div>
-      <div class="page-subtitle">Requests, drafts and proposals in internal review.</div>
-    </div>
+<div id="tab-pending" class="tab pk-page">
+  <div class="page-header pk-head">
+    <div class="pk-head-t"><div class="page-title">Pending</div><span class="bars lg" aria-hidden="true"><i></i><i></i><i></i></span><div class="page-subtitle" id="wq-sub">Proposals waiting on you or on your reviewer before they go to the client.</div></div>
     <div class="page-header-actions"><select class="fsel period-sel" onchange="setGlobalPeriod(this.value)" title="Period" aria-label="Period">
       <option value="all">All time</option>
       <option value="2026" class="opt-year">2026</option>
@@ -1385,26 +1382,18 @@
       <option value="2023-Q2"> 2023 Q2 — Apr–Jun</option>
       <option value="2023-Q3"> 2023 Q3 — Jul–Sep</option>
       <option value="2023-Q4"> 2023 Q4 — Oct–Dec</option>
-    </select><button class="btn-primary" onclick="openProposalBuilder()"><span data-icon="plus" data-icon-size="14"></span> New proposal</button></div>
+    </select><button class="btn-secondary btn-sm" id="wq-toggle-archived" onclick="toggleWqArchived()">Show archived</button><button class="btn-primary" id="wq-new" onclick="openProposalBuilder()"><span data-icon="plus" data-icon-size="14"></span> New proposal</button></div>
   </div>
-  <nav class="pr-views" data-pr-views aria-label="Proposal views"></nav>
-  <div class="fbar">
-    <input type="text" class="f-search" id="wq-search" placeholder="Search client, type, owner…" oninput="filterSoon('renderPending')">
-    <select class="fsel" id="wq-filter-status" onchange="renderPending()">
-      <option value="">All stages</option>
-      <option value="Proposal Request Received">Request received</option>
-      <option value="Drafting">Drafting</option>
-      <option value="In Internal Review">In internal review</option>
+  <div class="pk-tools">
+    <nav class="pr-views" data-pr-views aria-label="Proposal views"></nav>
+    <input type="text" class="f-search pk-search" id="wq-search" placeholder="Search client, service, SL#…" oninput="filterSoon('renderPending')" aria-label="Search pending proposals">
+    <select class="fsel pk-sort" id="wq-sort" onchange="renderPending()" aria-label="Order">
+      <option value="age">Oldest first</option>
+      <option value="age-desc">Newest first</option>
+      <option value="client">Client A–Z</option>
     </select>
-    <select class="fsel" id="wq-sort" onchange="renderPending()">
-      <option value="age">Sort: Oldest First</option>
-      <option value="age-desc">Sort: Newest First</option>
-      <option value="client">Sort: Client A–Z</option>
-    </select>
-    <button class="btn-secondary btn-sm" onclick="wqClear()">Clear</button>
-    <button class="btn-secondary btn-sm" id="wq-toggle-archived" onclick="toggleWqArchived()">Show archived</button>
-    <span class="rcnt" id="wq-cnt">0 pending</span>
   </div>
+  <div id="wq-strip"></div>
   <div id="wq-content"></div>
 </div>
 

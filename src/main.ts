@@ -263,7 +263,7 @@ async function init(): Promise<void> {
   rememberFilters({ ids: ['ct-client', 'ct-list-filter', 'ct-type-filter'] });
   rememberFilters({ ids: ['agr-status', 'agr-service', 'agr-type', 'agr-prep'], clear: 'agrClear' });
   rememberFilters({ ids: ['db-status', 'db-type', 'db-owner', 'db-entity'], clear: 'dbClear' });
-  rememberFilters({ ids: ['wq-filter-status', 'wq-sort'], clear: 'wqClear' });
+  rememberFilters({ ids: ['wq-sort'], clear: 'wqClear' });
   rememberFilters({ ids: ['opp-stage-filter', 'opp-owner-filter'] });
   rememberFilters({ ids: ['proj-status-filter', 'proj-owner-filter', 'proj-sort'] });
   // Focus: search and the two filters used most stay; the rest go behind "Filters".

@@ -138,7 +138,7 @@ export function renderProposalViews(): void {
     won: S.proposals.filter((p) => !p.archived && isWon(p)).length,
     lost: S.proposals.filter((p) => !p.archived && isLost(p)).length,
   };
-  const labels: [ProposalView, string][] = [['all', 'All'], ['pending', 'In preparation'], ['followup', 'Follow-up'], ['won', 'Won'], ['lost', 'Lost']];
+  const labels: [ProposalView, string][] = [['all', 'All'], ['pending', 'Pending'], ['followup', 'Follow-up'], ['won', 'Won'], ['lost', 'Lost']];
   document.querySelectorAll<HTMLElement>('[data-pr-views]').forEach((nav) => {
     nav.innerHTML = labels.map(([v, l]) => `<button class="pr-view${v === active ? ' active' : ''}" onclick="proposalView('${v}')" aria-pressed="${v === active}">${l}<span>${counts[v]}</span></button>`).join('');
   });

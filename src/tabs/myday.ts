@@ -21,10 +21,10 @@ import { onChange } from '../lib/changes';
 import { showContextMenu, type ContextMenuItem } from '../lib/contextMenu';
 import { deferWhileHovered, toast, undoToast } from '../lib/ui';
 import { renderIcons } from '../core/chrome';
-import { changeProposalStatus, contactFirstName, snoozeProposal } from '../core/proposals';
+import { changeProposalStatus, contactFirstName, nudgeReview, snoozeProposal } from '../core/proposals';
 import { addTaskFromText, deleteTodo, openDatePopover, quickAddTokensHtml, setTasksDue, toggleTodoDone } from './todo';
 import { unprocessedInboxItems } from './inbox';
-import { activityLog, activityRemove, getAppMeta, getIntelligenceItems, getPipelineFacts, ms365GetCachedEmails, setAppMeta } from '../lib/db';
+import { getAppMeta, getIntelligenceItems, getPipelineFacts, ms365GetCachedEmails, setAppMeta } from '../lib/db';
 import { buildInPlay, buildComingUpFocus, regulatoryNotes, STAGE_LABEL, STAGE_ORDER, type ComingDay, type ComingItem, type InPlay, type PlayRow } from '../lib/mydayFocus';
 import { briefInputFor } from './companyState';
 import { companyContact, companyRecords } from '../lib/companyBrief';
@@ -471,16 +471,7 @@ export async function mydayPlay(e: MouseEvent, id: number, action: string): Prom
   if (action === 'draft') { w.openRecord('proposal', id); return; }
   if (action === 'followed_up') { followUpMenu(e, id); return; }
   if (action === 'revision_sent' || action === 'mark_sent') { if (await changeProposalStatus(id, PS.SENT)) renderMyDay(); return; }
-  if (action === 'nudge') {
-    // A nudge to the reviewer is ours, not contact with the client: it goes in the activity log, not the client's touches.
-    const who = teamMember(p.reviewerId)?.name || defaultReviewer()?.name || 'the reviewer';
-    try {
-      const entryId = await activityLog({ action: 'review_nudged', entityType: 'proposal', entityId: id, entityLabel: `${p.client} — ${p.type || 'proposal'}`, detail: `Nudged ${who} about the review`, companyId: p.companyId ?? null });
-      undoToast(`Nudged ${who} about ${p.client}`, () => { void activityRemove(entryId); });
-    } catch (err) {
-      toast("Couldn't log the nudge", { tone: 'error', detail: String(err) });
-    }
-  }
+  if (action === 'nudge') await nudgeReview(id);
 }
 expose('mydayPlay', mydayPlay);
 

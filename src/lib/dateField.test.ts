@@ -26,12 +26,13 @@ describe('one date control', () => {
   });
 
   it('typed text is kept on Enter (and tells the page), bad text goes back', () => {
-    const el = field('2026-10-02');
+    // A start date that "tomorrow" can never be, whatever day the test runs.
+    const el = field('2020-01-02');
     const changed = vi.fn();
     el.addEventListener('change', () => changed(el.value));
     type(el, 'tomorrow');
     el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-    expect(el.value).not.toBe('2026-10-02');
+    expect(el.value).not.toBe('2020-01-02');
     expect(changed).toHaveBeenCalledTimes(1);
     type(el, 'banana');
     el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
