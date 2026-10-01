@@ -91,7 +91,7 @@ const VIEWS = [
 ];
 const COUNT = `(() => {
   const H = innerHeight, W = innerWidth;
-  const chrome = '.sidebar, #sidebar, #loc-bar, #record-rail, .modal-ov:not(.open), .toast-stack, #toast-stack';
+  const chrome = '.sidebar, #sidebar, #loc-bar, #record-rail, .modal-ov:not(.open), .toast-stack, #toast-stack, .undo-stack';
   const vis = (el) => { const r = el.getBoundingClientRect(); if (r.width < 2 || r.height < 2 || r.bottom <= 0 || r.top >= H || r.right <= 0 || r.left >= W) return false;
     const s = getComputedStyle(el); if (s.visibility === 'hidden' || s.display === 'none' || +s.opacity === 0) return false;
     // Hidden by an ancestor too (row actions that only show on hover sit in a wrapper at opacity 0).

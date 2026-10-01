@@ -22,32 +22,23 @@ export interface ToastOptions {
   duration?: number;
 }
 
-function stack(): HTMLElement {
-  let el = document.getElementById('toast-stack');
-  if (!el) {
-    el = document.createElement('div');
-    el.id = 'toast-stack';
-    el.className = 'toast-stack';
-    el.setAttribute('role', 'status');
-    el.setAttribute('aria-live', 'polite');
-    document.body.appendChild(el);
-  }
-  return el;
-}
+const TONE_ICON: Record<Tone, string> = { neutral: 'flag', success: 'check', error: 'warning' };
 
-/** Shows a short message at the bottom of the window. Replaces `alert()`:
- * it never blocks, and repeated identical messages don't pile up. */
+/** Shows a short message as a card in the stack at the bottom left — the same navy card and the same stack as an
+ * undo (1.64: one toast style), three at most between them. Replaces `alert()`: it never blocks, and repeated
+ * identical messages don't pile up. A notice with an action ("… · Review") carries it where Undo sits. */
 export function toast(message: string, opts: ToastOptions = {}): { dismiss: () => void } {
   const tone = opts.tone ?? 'neutral';
-  const root = stack();
+  const root = undoStack();
   const existing = [...root.children].find((c) => (c as HTMLElement).dataset.message === message) as HTMLElement | undefined;
   existing?.remove();
 
   const el = document.createElement('div');
-  el.className = `toast toast-${tone}`;
+  el.className = `toast toast-card toast-${tone}`;
   el.dataset.message = message;
-  el.innerHTML = `<div class="toast-body"><div class="toast-msg">${esc(message)}</div>${opts.detail ? `<div class="toast-detail">${esc(opts.detail)}</div>` : ''}</div>`
-    + (opts.action ? `<button class="toast-action">${esc(opts.action.label)}</button>` : '')
+  el.innerHTML = `<span class="undo-tile is-${tone}" aria-hidden="true">${icon(TONE_ICON[tone], 14)}</span>
+    <div class="toast-body"><div class="toast-msg">${esc(message)}</div>${opts.detail ? `<div class="toast-detail">${esc(opts.detail)}</div>` : ''}</div>`
+    + (opts.action ? `<button class="toast-action toast-go">${esc(opts.action.label)}</button>` : '')
     + `<button class="toast-close" aria-label="Dismiss">×</button>`;
 
   let timer: number | undefined;
@@ -62,13 +53,9 @@ export function toast(message: string, opts: ToastOptions = {}): { dismiss: () =
     const { run } = opts.action;
     el.querySelector('.toast-action')?.addEventListener('click', () => { dismiss(); run(); });
   }
+  live();
   root.appendChild(el);
-  // Three at most: the oldest fades out first.
-  const live = [...root.children].filter((c) => !c.classList.contains('leaving')) as HTMLElement[];
-  for (const old of live.slice(0, Math.max(0, live.length - 3))) {
-    old.classList.add('leaving');
-    window.setTimeout(() => old.remove(), 180);
-  }
+  trimStack(root);
 
   const duration = opts.duration ?? (tone === 'error' ? 8000 : opts.action ? 6000 : 3500);
   if (duration > 0) {
@@ -127,6 +114,16 @@ function live(): void {
   for (const u of undos.filter((x) => !x.el.isConnected)) dropUndo(u);
 }
 
+/** Three cards at most in the stack, notices and undos together: the oldest leaves first. */
+function trimStack(root: HTMLElement): void {
+  const cards = [...root.children].filter((c) => !c.classList.contains('leaving')) as HTMLElement[];
+  for (const old of cards.slice(0, Math.max(0, cards.length - 3))) {
+    const u = undos.find((x) => x.el === old);
+    if (u) dropUndo(u);
+    else { old.classList.add('leaving'); window.setTimeout(() => old.remove(), 180); }
+  }
+}
+
 function undoStack(): HTMLElement {
   let el = document.getElementById('undo-stack');
   if (!el) {
@@ -145,7 +142,7 @@ function undoStack(): HTMLElement {
 export function undoToast(message: string, undo: () => void, ms = UNDO_MS, also?: { label: string; run: () => void }, meta: { detail?: string; icon?: string } = {}): void {
   const parts = toastParts(message, meta.detail);
   const el = document.createElement('div');
-  el.className = 'toast toast-undo';
+  el.className = 'toast toast-card toast-undo';
   // `also`: the step that usually follows (after signing several: "Mark service started"), beside Undo.
   el.innerHTML = `<span class="undo-tile${meta.icon && meta.icon !== 'check' ? ' is-coral' : ''}" aria-hidden="true">${icon(meta.icon || 'check', 14)}</span>
     <div class="toast-body"><div class="toast-msg">${esc(parts.title)}</div>${parts.meta ? `<div class="toast-detail">${esc(parts.meta)}</div>` : ''}</div>
@@ -177,6 +174,7 @@ export function undoToast(message: string, undo: () => void, ms = UNDO_MS, also?
   const { keep, drop } = stackAfterAdd(undos, entry);
   undos = keep;
   for (const old of drop) dropUndo(old);
+  trimStack(undoStack());
   count(ms);
 }
 

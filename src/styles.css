@@ -795,7 +795,6 @@ button.rlink{background:none;border:0;padding:0;font:inherit;line-height:inherit
 .rlink-preview-hint{margin-top:10px;font-size:var(--type-meta);color:var(--muted)}
 
 /* ═══════════════ Design system: toasts ═══════════════ */
-.toast-stack{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:9999;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none}
 .toast{pointer-events:auto;display:flex;align-items:center;gap:10px;min-width:260px;max-width:min(560px,calc(100vw - 40px));background:var(--text);color:var(--surface);border-radius:var(--radius-sm);padding:9px 8px 9px 14px;box-shadow:0 10px 30px rgba(20,18,40,.28);font-size:var(--type-secondary);animation:toast-in var(--dur-slow) var(--ease-out)}
 .toast.leaving{animation:toast-out var(--dur-base) var(--ease-out) forwards}
 .toast-body{flex:1;min-width:0}
@@ -2349,8 +2348,6 @@ main.with-rail > .record-rail{display:flex;flex-direction:column;grid-column:1;g
 .bulk-clear{font-size:var(--type-large);line-height:1;padding:4px 9px}
 .td-chk{width:28px}
 tr.is-selected > td{background:var(--selected)}
-.toast-stack{transition:none}
-body:has(.bulk-bar.open) .toast-stack{bottom:76px}
 
 /* Settings: section list + pane, like System Settings */
 .settings-layout{display:grid;grid-template-columns:210px minmax(0,760px);gap:28px;align-items:start}
@@ -4936,10 +4933,17 @@ a.rk-snote:hover{text-decoration-color:currentColor}
 .ctx-menu-item kbd{flex:none;margin-left:16px;font:500 11px var(--font-mono);color:var(--muted)}
 .ctx-menu-sep{background:var(--hairline);margin:5px 6px}
 /* Undo toasts: navy cards, bottom-left, three at most, with the time left as a coral bar */
-.toast-undo{position:relative;align-items:center;gap:12px;min-width:340px;padding:12px 10px 14px 14px;border-radius:13px;background:var(--tile-3);color:var(--on-tile);box-shadow:var(--shadow-md);overflow:hidden}
+/* One toast style (1.64): a notice is the same navy card as an undo, in the same stack at the bottom left. */
+.toast-card{position:relative;align-items:center;gap:12px;min-width:340px;padding:12px 10px 12px 14px;border-radius:13px;background:var(--tile-3);color:var(--on-tile);box-shadow:var(--shadow-md);overflow:hidden}
+.toast-undo{padding-bottom:14px}
 .undo-tile{flex:none;width:28px;height:28px;border-radius:6px;display:grid;place-items:center;background:color-mix(in srgb,var(--green) 28%,transparent);color:var(--on-tile)}
 .undo-tile.is-coral{background:color-mix(in srgb,var(--coral) 32%,transparent)}
-.toast-undo .toast-msg{font-weight:600}
+.undo-tile.is-neutral{background:color-mix(in srgb,var(--blue-100) 26%,transparent)}
+.undo-tile.is-error{background:var(--red);color:var(--on-tile)}
+.toast-card.toast-error{background:var(--tile-3)}
+.toast-card.toast-success .toast-msg::before{content:none}
+.toast-card .toast-go{color:var(--coral);text-decoration:none;font-weight:600}
+.toast-card .toast-detail{opacity:.78;font-size:var(--type-secondary);margin-top:1px}
 .toast-undo .toast-detail{opacity:.78;font-size:var(--type-secondary);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:320px}
 .toast-undo .toast-undo-btn{color:var(--coral);text-decoration:none;font-weight:600}
 .toast-undo .toast-action kbd{font:500 11px var(--font-mono);opacity:.7;margin-left:6px;color:var(--on-tile)}
