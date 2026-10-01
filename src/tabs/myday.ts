@@ -32,6 +32,7 @@ import { initialsOf } from '../lib/appearance';
 import { ownDomains } from '../lib/clientMatch';
 import { PS, teamMember, defaultReviewer, isAgreementActive, isOpenProposal } from '../lib/commercial';
 import { strColor } from '../lib/utils';
+import { attendeeName } from '../lib/pagePeople';
 import { followUpMenu } from '../core/proposals';
 import {
   buildAttention, buildTimeline, shownAttentionKeys, personName, greeting, summaryLine, addDays, isClientMeeting, buildIndex, nowMeeting,
@@ -71,12 +72,6 @@ function input(): MyDayInput {
 }
 
 /** An attendee as a name: the contact with that email, else the email's name part, capitalised. */
-function attendeeName(a: string): string {
-  const email = a.trim().toLowerCase();
-  const c = email.includes('@') ? S.contacts.find((x) => (x.email || '').toLowerCase() === email) : null;
-  return c?.name || personName(a);
-}
-
 /** Active clients (a running agreement or an open proposal) and when we last met, emailed or called them. */
 function quietClients(): QuietClient[] {
   const t = today();

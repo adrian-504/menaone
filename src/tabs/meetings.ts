@@ -22,7 +22,10 @@ import { contextFromMeeting, companyFromForm, contextFromCompany, contextFromOpp
 import { icon } from '../lib/icons';
 import { isMeetingOver, previewLines, writeUpState } from '../lib/meetingRecap';
 import { meetingExcerpt } from '../lib/meetingExcerpt';
-import { durationLabel, groupMeetingsByDay, meetingOutcomes, nextMeeting, placeLabel } from '../lib/meetingsList';
+import { durationLabel, isRunning, meetingDays, meetingOutcomes, nextMeeting, nowLineAfter, placeLabel } from '../lib/meetingsList';
+import { nowLineHtml } from '../lib/timeline';
+import { tileHtml } from '../lib/pageKit';
+import { attendeeName } from '../lib/pagePeople';
 import { standLine } from './companyState';
 import { flushMeetingNotes, isOver, renderEarlierMeetings, renderMeetingInvite, renderMeetingNotes } from './meetingNotes';
 import { renderMeetingClientSection, meetingSuggestionsBanner, meetingSuggestionChip } from './meetingClient';
@@ -68,6 +71,9 @@ function renderMeetingList(): void {
   // What's coming first (soonest at the top), history below — the order the
   // Calendar already uses, so the two modules can't disagree.
   const { upcoming, past } = orderMeetings(shown, meetingWhen === 'writeup' ? 'all' : meetingWhen, todayIso);
+  const matchQ = (m: Meeting) => !q || [m.title, m.companyName, ...(m.attendees || [])].some((v) => (v || '').toLowerCase().includes(q));
+  const counts = { all: S.meetings.filter(matchQ).length, upcoming: S.meetings.filter((m) => matchQ(m) && (m.meetingDate || '') >= todayIso).length, past: S.meetings.filter((m) => matchQ(m) && !!m.meetingDate && m.meetingDate < todayIso).length, writeup: S.meetings.filter((m) => matchQ(m) && state.get(m.id)?.needsWriteUp).length };
+  document.querySelectorAll<HTMLElement>('#meeting-when-seg button').forEach((b) => { const n = b.querySelector('span'); if (n) n.textContent = String(counts[b.dataset.when as keyof typeof counts] ?? ''); });
   const sorted = [...upcoming, ...past];
   const count = document.getElementById('meeting-count');
   if (count) count.textContent = `${sorted.length} meeting${sorted.length === 1 ? '' : 's'}`;
@@ -81,13 +87,29 @@ function renderMeetingList(): void {
     renderIcons(el);
     return;
   }
-  // By day (owner, 29-Sep, Concept A): Today, Tomorrow, each coming day, then Earlier by month.
+  // By day with a date medallion (1.59 "pages"): today and onward soonest first, then earlier days.
   const next = meetingWhen === 'writeup' ? null : nextMeeting(sorted, now);
-  const groups = groupMeetingsByDay(sorted, now);
-  el.innerHTML = meetingSuggestionsBanner() + groups.map((g) => `<section class="mt-day">
-      <div class="mt-day-hd"><span class="mt-day-label">${escHtml(g.label)}</span>${g.sub ? `<span>${escHtml(g.sub)}</span>` : ''}</div>
-      ${g.meetings.map((m) => (m.id === next?.id ? nextMeetingHtml(m) : meetingRowHtml(m, g.earlier, state.get(m.id), now, todayIso))).join('')}
-    </section>`).join('');
+  const nextToday = next && next.meetingDate === todayIso ? next : null;
+  const days = meetingDays(sorted, now);
+  let joinShown = false;
+  el.innerHTML = meetingSuggestionsBanner() + days.map((g) => {
+    const rows = g.meetings.map((m) => {
+      const running = isRunning(m, now);
+      if (running && m.onlineMeetingUrl) joinShown = true;
+      return m.id === nextToday?.id && !running ? nextMeetingHtml(m, now, todayIso) : meetingRowHtml(m, state.get(m.id), now, todayIso);
+    });
+    if (g.today) {
+      const at = nowLineAfter(g.meetings, now);
+      rows.splice(at, 0, nowLineHtml(fmtTime(now.toISOString()), 'pk-nowbar'));
+    }
+    return `<section class="pk-mday${g.today ? ' is-today' : ''}">
+      <div class="pk-medal">${g.eyebrow ? `<em>${escHtml(g.eyebrow)}</em>` : ''}<b>${escHtml(g.day)}</b><span>${escHtml(g.weekdayMonth)}</span></div>
+      <div class="pk-mday-rows">${rows.join('')}</div>
+    </section>`;
+  }).join('');
+  // One blue button: Join while a meeting is on, else New meeting.
+  const nb = document.getElementById('mt-new');
+  if (nb) { nb.classList.toggle('btn-primary', !joinShown); nb.classList.toggle('btn-secondary', joinShown); }
   renderIcons(el);
 }
 
@@ -95,18 +117,10 @@ const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1).trim
 
 /** "Acme Holdings · Jane Doe, Omar Haddad"; internal meetings say so. */
 function meetingPeopleLine(m: Meeting): string {
-  const people = (m.attendees || []).filter(Boolean);
+  const people = (m.attendees || []).filter(Boolean).map(attendeeName);
   const names = people.slice(0, 3).join(', ') + (people.length > 3 ? ` +${people.length - 3}` : '');
   const company = m.companyName ? companyLink(m.companyId, m.companyName) : 'Internal';
   return [company, names ? escHtml(names) : ''].filter(Boolean).join(' · ');
-}
-
-/** The time column: today onward the time (with duration and place); earlier the date, then the time. */
-function timeCell(m: Meeting, earlier: boolean): string {
-  const time = m.startAt ? fmtTime(m.startAt) : '';
-  if (earlier) return `<b>${m.meetingDate ? escHtml(fmtDateShort(m.meetingDate)) : '—'}</b>${escHtml(time)}`;
-  const extra = [durationLabel(m.startAt, m.endAt), placeLabel(m)].filter(Boolean).join(' · ');
-  return `<b>${escHtml(time || 'All day')}</b>${escHtml(extra)}`;
 }
 
 /** Before the meeting its agenda's first line; after it, what was noted. */
@@ -116,48 +130,67 @@ function purposeLine(m: Meeting, over: boolean): string {
   return agenda ? `Agenda: ${escHtml(clip(agenda, 140))}` : '';
 }
 
-function meetingRowHtml(m: Meeting, earlier: boolean, w: ReturnType<typeof writeUpState> | undefined, now: Date, todayIso: string): string {
-  const over = isMeetingOver(m, now, todayIso);
-  const purpose = purposeLine(m, over);
-  const tasks = S.todos.filter((t) => t.meetingId === m.id && t.parentId == null);
-  const o = over && !m.isCancelled ? meetingOutcomes(m, S.commitments, tasks, over) : null;
+/** The time and how long. */
+function timeCell(m: Meeting, running: boolean): string {
+  const time = m.startAt ? fmtTime(m.startAt) : 'All day';
+  return `<div class="pk-mtime${running ? ' is-now' : ''}"><b>${escHtml(time)}</b><span>${escHtml(durationLabel(m.startAt, m.endAt) || '')}</span></div>`;
+}
+
+/** The meeting's tile: the client's initials, or MENA BIG's for an internal one. */
+function meetingTile(m: Meeting): string {
+  return m.companyName ? tileHtml(m.companyName, 'pk-tile sm') : '<span class="pk-tile sm is-internal" aria-hidden="true">MB</span>';
+}
+
+/** "Acme Holdings · Jane Doe · Teams"; internal meetings say so. After the meeting, what was noted follows in quotes. */
+function meetingSubLine(m: Meeting, over = false): string {
+  const noted = over ? purposeLine(m, true) : '';
+  return [meetingPeopleLine(m), escHtml(placeLabel(m) || ''), noted ? `<span class="mt-purpose">${noted}</span>` : ''].filter(Boolean).join(' · ');
+}
+
+/** What it produced (or, before it, its agenda) as small chips. */
+function outcomeChips(m: Meeting, w: ReturnType<typeof writeUpState> | undefined, over: boolean): { html: string; outcomes: boolean; writtenUp: boolean } {
   const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
-  const outcomes = o ? [
+  if (m.isCancelled) return { html: '<span>Cancelled</span>', outcomes: false, writtenUp: false };
+  if (!over) {
+    const agenda = previewLines(m.agenda, 1)[0];
+    if (agenda) return { html: `<span title="${escHtml(agenda)}">Agenda: ${escHtml(clip(agenda, 44))}</span>`, outcomes: false, writtenUp: false };
+    return { html: m.companyName ? '<span class="a">No agenda yet</span>' : '', outcomes: false, writtenUp: false };
+  }
+  const tasks = S.todos.filter((t) => t.meetingId === m.id && t.parentId == null);
+  const o = meetingOutcomes(m, S.commitments, tasks, over);
+  const bits = [
     o.decisions ? plural(o.decisions, 'decision') : '',
-    o.promisesMade ? `${plural(o.promisesMade, 'promise')} made` : '',
+    o.promisesMade ? plural(o.promisesMade, 'promise') : '',
     o.owedToUs ? `${o.owedToUs} owed to us` : '',
-    o.openActions ? plural(o.openActions, 'open action') : '',
-    o.writtenUp ? '<span class="t-positive">Written up</span>' : o.needsWriteUp ? '<span class="is-amber">Not written up</span>' : '',
-  ].filter(Boolean) : [];
-  const writeUp = o?.needsWriteUp ? `<button class="btn-secondary btn-sm" onclick="event.stopPropagation();writeUpMeeting(${m.id})">Write up</button>` : '';
-  return `<div class="mt-row${m.isCancelled ? ' is-cancelled' : ''}" onclick="openMeetingDetail(${m.id})">
-    <div class="mt-time">${timeCell(m, earlier)}</div>
-    <div class="mt-main">
-      <div class="mt-title">${m.source === 'outlook' ? icon('calendar', 12) + ' ' : ''}${escHtml(m.title)}${m.isCancelled ? ' (Cancelled)' : ''}</div>
-      <div class="mt-line">${meetingPeopleLine(m)}${meetingSuggestionChip(m) ? ` · ${meetingSuggestionChip(m)}` : ''}</div>
-      ${purpose ? `<div class="mt-line mt-purpose">${purpose}</div>` : ''}
-      ${outcomes.length ? `<div class="mt-out">${outcomes.map((x) => `<span>${x}</span>`).join('')}</div>` : ''}
-    </div>
-    <div class="mt-act">${writeUp}</div>
+  ].filter(Boolean).map((x) => `<span>${x}</span>`);
+  bits.push(o.writtenUp ? '<span class="g">Written up</span>' : w?.needsWriteUp ? '<span class="a">Not written up</span>' : '');
+  return { html: bits.join(''), outcomes: o.decisions + o.promisesMade + o.owedToUs > 0, writtenUp: o.writtenUp };
+}
+
+function actionFor(m: Meeting, w: ReturnType<typeof writeUpState> | undefined, over: boolean, running: boolean): string {
+  if (running && m.onlineMeetingUrl) return `<a class="btn-primary btn-sm" href="${escHtml(m.onlineMeetingUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Join</a>`;
+  if (over) return w?.needsWriteUp ? `<button class="btn-secondary btn-sm" onclick="event.stopPropagation();writeUpMeeting(${m.id})">Write up</button>` : '';
+  return m.isCancelled ? '' : `<button class="btn-secondary btn-sm" onclick="event.stopPropagation();openRecord('meeting', ${m.id})">Prepare</button>`;
+}
+
+function meetingRowHtml(m: Meeting, w: ReturnType<typeof writeUpState> | undefined, now: Date, todayIso: string): string {
+  const running = isRunning(m, now);
+  const over = isMeetingOver(m, now, todayIso) && !running;
+  const chips = outcomeChips(m, w, over);
+  const quiet = over && !(chips.writtenUp && chips.outcomes);
+  return `<div class="mt-row pk-mrow${quiet ? ' is-past' : ''}${m.isCancelled ? ' is-cancelled' : ''}" onclick="openMeetingDetail(${m.id})">
+    ${timeCell(m, running)}${meetingTile(m)}
+    <div class="pk-mmain"><div class="mt-title">${escHtml(m.title)}${m.isCancelled ? ' (Cancelled)' : ''}${running ? '<span class="pk-now-tag">now</span>' : ''}</div><div class="mt-line">${meetingSubLine(m, over)}${meetingSuggestionChip(m) ? ` · ${meetingSuggestionChip(m)}` : ''}</div></div>
+    <div class="pk-mout">${chips.html}</div>
+    <div class="mt-act">${actionFor(m, w, over, running)}</div>
   </div>`;
 }
 
-/** The next meeting, opened up: when and where, who, where we stand with the client, and Prepare
- * (secondary: "+ New meeting" is the page's one primary). */
-function nextMeetingHtml(m: Meeting): string {
+/** Today's next meeting, in a panel with the client's standing beside it. */
+function nextMeetingHtml(m: Meeting, now: Date, todayIso: string): string {
   const key = m.companyName ? { id: m.companyId ?? null, name: m.companyName } : null;
   const stand = key ? standLine(key) : '';
-  const initials = (m.attendees || []).slice(0, 5).map((a) => `<span class="mt-av" title="${escHtml(a)}">${escHtml(a.split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((w) => w[0] || '').join('').toUpperCase() || '?')}</span>`).join('');
-  return `<div class="mt-row mt-next" onclick="openMeetingDetail(${m.id})">
-    <div class="mt-time">${timeCell(m, false)}</div>
-    <div class="mt-main">
-      <div class="mt-title">${escHtml(m.title)}</div>
-      <div class="mt-line">${meetingPeopleLine(m)}</div>
-      ${stand ? `<div class="mt-stand"><span class="mt-stand-label">Where we stand</span>${escHtml(stand)}</div>` : ''}
-      ${initials ? `<div class="mt-avs">${initials}</div>` : ''}
-    </div>
-    <div class="mt-act"><button class="btn-secondary btn-sm" onclick="event.stopPropagation();openRecord('meeting', ${m.id})">Prepare</button></div>
-  </div>`;
+  return `<div class="pk-mnext">${meetingRowHtml(m, undefined, now, todayIso)}${stand ? `<div class="mt-stand pk-mstand"><span class="mt-stand-label">Where we stand</span>${escHtml(stand)}</div>` : ''}</div>`;
 }
 
 /** Write up: the meeting, with the cursor in Discussion. */

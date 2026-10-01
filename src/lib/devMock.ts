@@ -198,7 +198,7 @@ function todaysMockMeetings(): Meeting[] {
     make(13, 'GM Representative', 2, 30, { companyName: 'Northwind', attendeeEmails: ['lina@northwind.test'], attendees: ['Lina Saleh'], isOnlineMeeting: false, location: 'Riyadh office' }),
     // Ended earlier today with nothing written (My Day's write-up prompt), and one tomorrow (Coming up).
     make(14, 'Payroll questions — Acme', -3.5, 30, { companyName: 'Acme Holdings', companyId: 1, attendeeEmails: ['omar@acme.test'], attendees: ['omar@acme.test'] }),
-    make(15, 'Payroll kickoff — month one', 21, 60, { companyName: 'Acme Holdings', companyId: 1, attendeeEmails: ['omar@acme.test'], attendees: ['omar@acme.test'], onlineMeetingUrl: 'https://teams.microsoft.com/l/meetup-join/demo', isOnlineMeeting: true }),
+    make(15, 'Payroll kickoff — month one', 21, 60, { agenda: 'October calendar, GOSI, cut-off', companyName: 'Acme Holdings', companyId: 1, attendeeEmails: ['omar@acme.test'], attendees: ['omar@acme.test'], onlineMeetingUrl: 'https://teams.microsoft.com/l/meetup-join/demo', isOnlineMeeting: true }),
   ];
 }
 let companiesStore: Company[] = [];

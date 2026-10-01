@@ -112,3 +112,65 @@ export function placeLabel(m: Pick<Meeting, 'location' | 'isOnlineMeeting'>): st
   if (loc) return loc.length > 28 ? `${loc.slice(0, 27)}…` : loc;
   return m.isOnlineMeeting ? 'Online' : null;
 }
+
+// ── 1.59 "pages": day medallions ────────────────────────────────────────────
+
+export interface MeetingDay<T> {
+  key: string;
+  date: string | null;
+  /** "Today", "Tomorrow", "Earlier" on the first past day; '' otherwise. */
+  eyebrow: string;
+  /** The day of the month, large. */
+  day: string;
+  /** "Thu Oct"; "Wed Apr 2025" in another year. */
+  weekdayMonth: string;
+  today: boolean;
+  earlier: boolean;
+  meetings: T[];
+}
+
+const SHORT_WD = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const SHORT_MO = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sept', 'Oct', 'Nov', 'Dec'];
+
+/** One group per day with a date medallion: today onward soonest first, then earlier days newest first. Pure. */
+export function meetingDays<T extends ListMeeting>(meetings: T[], now: Date): MeetingDay<T>[] {
+  const today = localIso(now);
+  const tomorrow = addDaysIso(today, 1);
+  const coming = meetings.filter((m) => (m.meetingDate || '') >= today).sort((a, b) => startKey(a).localeCompare(startKey(b)) || a.id - b.id);
+  const earlier = meetings.filter((m) => !!m.meetingDate && m.meetingDate < today).sort((a, b) => startKey(b).localeCompare(startKey(a)) || b.id - a.id);
+  const out: MeetingDay<T>[] = [];
+  let firstEarlier = true;
+  for (const m of [...coming, ...earlier]) {
+    const date = m.meetingDate!;
+    let g = out.find((x) => x.key === date);
+    if (!g) {
+      const d = new Date(`${date}T12:00:00`);
+      const past = date < today;
+      g = {
+        key: date, date, today: date === today, earlier: past, meetings: [],
+        eyebrow: date === today ? 'Today' : date === tomorrow ? 'Tomorrow' : past && firstEarlier ? 'Earlier' : '',
+        day: String(d.getDate()),
+        weekdayMonth: `${SHORT_WD[d.getDay()]} ${SHORT_MO[d.getMonth()]}${d.getFullYear() !== now.getFullYear() ? ` ${d.getFullYear()}` : ''}`,
+      };
+      if (past) firstEarlier = false;
+      out.push(g);
+    }
+    g.meetings.push(m);
+  }
+  const undated = meetings.filter((m) => !m.meetingDate);
+  if (undated.length) out.push({ key: 'undated', date: null, eyebrow: 'No date', day: '—', weekdayMonth: '', today: false, earlier: true, meetings: undated });
+  return out;
+}
+
+/** Is it on now: started, not ended (an hour when there's no end). */
+export function isRunning(m: Pick<Meeting, 'startAt' | 'endAt' | 'isCancelled'>, now: Date): boolean {
+  if (m.isCancelled || !m.startAt) return false;
+  const start = new Date(m.startAt).getTime();
+  const end = m.endAt ? new Date(m.endAt).getTime() : start + 3_600_000;
+  return start <= now.getTime() && now.getTime() < end;
+}
+
+/** Where today's now-line goes: after this many of the day's meetings (those that have started). Pure. */
+export function nowLineAfter(meetings: Pick<Meeting, 'startAt'>[], now: Date): number {
+  return meetings.filter((m) => m.startAt && new Date(m.startAt).getTime() <= now.getTime()).length;
+}

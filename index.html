@@ -574,23 +574,20 @@
     </div>
   </div>
 
-  <div id="meeting-list-view">
-    <div class="page-header">
-      <div>
-        <div class="page-title">Meetings</div>
-        <div class="page-subtitle">Attendees, decisions, and action items — never lost in someone's inbox.</div>
-      </div>
-      <div class="page-header-actions"><button class="btn-primary" onclick="openMeetingModal(null)"><span data-icon="plus" data-icon-size="14"></span> New meeting</button></div>
+  <div id="meeting-list-view" class="pk-page">
+    <div class="page-header pk-head">
+      <div class="pk-head-t"><div class="page-title">Meetings</div><span class="bars lg" aria-hidden="true"><i></i><i></i><i></i></span><div class="page-subtitle">Agendas before, decisions and promises after.</div></div>
+      <div class="page-header-actions"><button class="btn-primary" id="mt-new" onclick="openMeetingModal(null)"><span data-icon="plus" data-icon-size="14"></span> New meeting</button></div>
     </div>
-    <div class="toolbar">
-      <div class="segmented" id="meeting-when-seg">
-        <button class="active" data-when="all" onclick="setMeetingFilter('all')">All</button>
-        <button data-when="upcoming" onclick="setMeetingFilter('upcoming')">Upcoming</button>
-        <button data-when="past" onclick="setMeetingFilter('past')">Past</button>
-        <button data-when="writeup" onclick="setMeetingFilter('writeup')" data-tip="Past meetings with no notes, decisions or action items">Needs write-up</button>
-      </div>
-      <input type="text" class="f-search" id="meeting-search" placeholder="Search title, company, attendee…" oninput="filterSoon('renderMeetingsTab')" aria-label="Search meetings">
-      <span class="rcnt" id="meeting-count"></span>
+    <div class="pk-tools">
+      <nav class="pr-views" id="meeting-when-seg" aria-label="Which meetings">
+        <button class="pr-view active" data-when="all" onclick="setMeetingFilter('all')">All<span></span></button>
+        <button class="pr-view" data-when="upcoming" onclick="setMeetingFilter('upcoming')">Upcoming<span></span></button>
+        <button class="pr-view" data-when="past" onclick="setMeetingFilter('past')">Past<span></span></button>
+        <button class="pr-view" data-when="writeup" onclick="setMeetingFilter('writeup')" data-tip="Past meetings with no notes, decisions or action items">Needs write-up<span></span></button>
+      </nav>
+      <input type="text" class="f-search pk-search" id="meeting-search" placeholder="Search title, company, attendee…" oninput="filterSoon('renderMeetingsTab')" aria-label="Search meetings">
+      <span class="pk-order" id="meeting-count"></span>
     </div>
     <div id="meeting-list"></div>
   </div>

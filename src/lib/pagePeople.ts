@@ -6,6 +6,7 @@ import { S } from './state';
 import { escHtml, strColor } from './utils';
 import { initialsOf } from './appearance';
 import type { Contact, Proposal } from './types';
+import { personName } from './myday';
 
 export function proposalContact(p: Pick<Proposal, 'primaryContactId' | 'companyId'>): Contact | null {
   if (p.primaryContactId != null) {
@@ -28,4 +29,11 @@ export function personHtml(name: string | null, sub: string, none = 'No contact 
     ? `<span class="pk-person" style="background:${strColor(name)}" aria-hidden="true">${escHtml(initialsOf(name))}</span>`
     : '<span class="pk-person is-none" aria-hidden="true">—</span>';
   return `${tile}<span class="pk-who-t">${escHtml([name || none, sub].filter(Boolean).join(' · '))}</span>`;
+}
+
+/** An attendee as a person's name: the contact's when the email is known, else the email's name part. */
+export function attendeeName(a: string): string {
+  const email = a.trim().toLowerCase();
+  const c = email.includes('@') ? S.contacts.find((x) => (x.email || '').toLowerCase() === email) : null;
+  return c?.name || personName(a);
 }
