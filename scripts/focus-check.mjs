@@ -89,6 +89,9 @@ const VIEWS = [
   // Studio: the Generate sheet over a proposal (counted inside the sheet), and the builder's
   // company suggestion list must not survive leaving the builder.
   ['Generate sheet', "openRecord('proposal', 3), openGenerateProposal(3)", {}],
+  // The generator (1.66): Revise prices on a draft, and the builder starting from a past proposal.
+  ['Proposal → revise prices', "openRecord('proposal', 2), proposalRevisePrices(201)", {}],
+  ['Builder → start from', "openProposalBuilder({}), prbStartFromToggle()", { noPopover: true }],
   ['Builder → away', "openProposalBuilder({}), (() => { const c = document.getElementById('prb-client'); c.focus(); c.value = 'Acme'; c.dispatchEvent(new Event('input', { bubbles: true })); })(), openRecord('proposal', 3)", { noPopover: true }],
 ];
 const COUNT = `(() => {
