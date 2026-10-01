@@ -163,7 +163,8 @@ const SAMPLE: AppData = {
     {
       id: 3, title: 'Acme — Payroll Requirements', folder: 'Client Notes/Acme Holdings', clientName: 'Acme Holdings', tags: ['payroll'], pinned: false,
       createdAt: '2026-09-03', updatedAt: '2026-09-03',
-      content: '# Acme — Payroll Requirements\n\nPayroll cycle requirements gathered from Acme finance team.',
+      // 1.62: headings, a ticked and an open item, and a promise line, as the editor draws them.
+      content: 'Payroll cycle requirements gathered from Acme finance: cut-off on the 25th, GOSI registrations, and the October joiners.\n\n## Payroll cycle\n\n- Cut-off on the 25th; salaries paid on the 27th.\n- WPS file submitted by MENA BIG on behalf of Acme.\n- Three new joiners in October, two in Riyadh, one in Jeddah.\n\n## To do\n\n- [x] Collect October headcount from Omar\n- [ ] Confirm GOSI contribution changes for 2027\n- >> Revised quote for three people by Friday',
     },
   ],
   noteFolders: ['Meeting Notes', 'Client Notes', 'Client Notes/Acme Holdings', 'Internal'],

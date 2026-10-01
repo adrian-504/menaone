@@ -23,6 +23,7 @@ const SHOTS = [
   ['tasks-selected', CLOCK, "switchTab('todo'), setTodoFilter('anytime'), openTaskDetail(1)"],
   ['tasks-promises', CLOCK, "switchTab('todo'), setTodoFilter('promises')"],
   ['notes', CLOCK, "switchTab('notes')"],
+  ['notes-open', CLOCK, "switchTab('notes'), openNote(3)"],
   ['calendar-week', CLOCK, "switchTab('calendar'), setCalendarView('week')"],
   ['calendar-day', CLOCK, "switchTab('calendar'), setCalendarView('day')"],
   ['calendar-month', CLOCK, "switchTab('calendar'), setCalendarView('month')"],

@@ -4247,13 +4247,13 @@ a.btn-primary,a.btn-secondary{text-decoration:none}
 .md-notes .md-sec{counter-increment:mdsec;padding:16px 0;border-top-color:var(--hairline)}
 .md-notes .md-sec-hd h3{font:600 16px/1.2 var(--font-display);letter-spacing:0;text-transform:none;color:var(--navy)}
 .md-notes .md-sec-hd h3::before{content:counter(mdsec,decimal-leading-zero);margin-right:10px;font:500 11px var(--font-mono);color:var(--coral-text);vertical-align:1px}
-.md-notes .cm-md-owe{font:500 11px var(--font-mono);padding:2px 0}
-.md-notes .cm-md-owe.is-start{padding-left:7px;border-radius:6px 0 0 6px}
-.md-notes .cm-md-owe.is-end::after{padding:2px 7px 2px 0;margin-right:6px;border-radius:0 6px 6px 0;font:500 11px var(--font-mono)}
-.md-notes .cm-md-owe.is-ours,.md-notes .cm-md-owe.is-ours::after{background:var(--red-bg);color:var(--red)}
-.md-notes .cm-md-owe.is-theirs,.md-notes .cm-md-owe.is-theirs::after{background:var(--amber-bg);color:var(--amber)}
-.md-notes .cm-md-owe.is-ours.is-end::after{content:" we owe"}
-.md-notes .cm-md-owe.is-theirs.is-end::after{content:" they owe"}
+:is(.md-notes,.notes-editor) .cm-md-owe{font:500 11px var(--font-mono);padding:2px 0}
+:is(.md-notes,.notes-editor) .cm-md-owe.is-start{padding-left:7px;border-radius:6px 0 0 6px}
+:is(.md-notes,.notes-editor) .cm-md-owe.is-end::after{padding:2px 7px 2px 0;margin-right:6px;border-radius:0 6px 6px 0;font:500 11px var(--font-mono)}
+:is(.md-notes,.notes-editor) .cm-md-owe.is-ours,:is(.md-notes,.notes-editor) .cm-md-owe.is-ours::after{background:var(--red-bg);color:var(--red)}
+:is(.md-notes,.notes-editor) .cm-md-owe.is-theirs,:is(.md-notes,.notes-editor) .cm-md-owe.is-theirs::after{background:var(--amber-bg);color:var(--amber)}
+:is(.md-notes,.notes-editor) .cm-md-owe.is-ours.is-end::after{content:" we owe"}
+:is(.md-notes,.notes-editor) .cm-md-owe.is-theirs.is-end::after{content:" they owe"}
 .rk-mfigs{display:flex;flex-wrap:wrap;gap:6px 24px;margin:2px 0 10px}
 .rk-mfigs b{display:block;font:600 19px/1.1 var(--font-display);color:var(--navy)}
 .rk-mfigs b.t-green{color:var(--green)}.rk-mfigs b.t-amber{color:var(--amber)}.rk-mfigs b.t-red{color:var(--red)}
@@ -4532,3 +4532,44 @@ a.rk-snote:hover{text-decoration-color:currentColor}
 .pk-lane-end{z-index:3;padding:0 3px;margin-left:3px;background:var(--row-bg,var(--surface))}
 /* The stepper's end note rides in its last step, so the two wrap together. */
 .rk-sp .rk-snote{margin-left:14px}
+/* Notes */
+.notes-list-pane{background:var(--surface-2)}
+.notes-list-head{align-items:flex-end;padding:16px 12px 10px 18px}
+.notes-list-title-wrap{display:flex;align-items:baseline;gap:8px;min-width:0}
+.notes-list-title{font:600 18px/1.2 var(--font-display);color:var(--navy);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.notes-list-count{flex:none;margin-top:0;font:500 11px var(--font-mono);color:var(--muted)}
+.notes-search-box{margin:0 14px 10px;border:1px solid var(--border);background:var(--surface)}
+.notes-list{padding:0 10px 24px}
+.note-item{padding:11px 12px;margin-bottom:4px;border-radius:9px}
+.note-item::after{content:none}
+.note-item.active{background:var(--surface);box-shadow:var(--shadow-sm)}
+.note-item.active::before{content:"";position:absolute;left:0;top:10px;bottom:10px;width:3px;border-radius:6px;background:var(--coral)}
+.note-item-title{gap:6px;font-size:var(--type-body)}
+.note-item-title > span:last-child{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.note-pin{font-size:9px;line-height:1;color:var(--amber)}
+.note-item-preview{margin:3px 0 6px}
+.note-item-meta{margin-top:0}
+.note-item-co{flex:0 1 auto;gap:6px;min-width:0;font-size:11.5px}
+.note-item-co .pk-tile.mini{width:18px;height:18px;font-size:8px}
+.note-item-co .note-item-client{color:var(--text);font-weight:500;overflow:hidden;text-overflow:ellipsis}
+.note-item-date,.note-item-tag{flex:none;font:500 11px var(--font-mono);color:var(--muted)}
+.note-item-chip{flex:none;padding:1px 7px;border-radius:9px;background:var(--blue-50);color:var(--blue);font-size:var(--type-meta);font-weight:500}
+.notes-doc{max-width:760px;padding:22px 56px 120px}
+.notes-eyebrow{font:600 10.5px var(--font-text);letter-spacing:.16em;text-transform:uppercase;color:var(--muted);min-height:15px}
+.notes-title-input{margin-top:6px;font:600 32px/1.1 var(--font-display);color:var(--navy)}
+.notes-props{gap:6px 10px;margin:10px 0 22px;padding-bottom:16px;border-bottom-color:var(--hairline)}
+.note-prop{margin:0;padding:3px 8px;background:var(--surface-2)}
+.note-prop.is-client{background:none;padding-left:0;font-weight:500}
+.note-prop .pk-tile.mini{width:18px;height:18px;font-size:8px}
+.note-prop-tags{flex:0 1 auto;min-width:80px}
+.note-prop-date{margin-left:auto;font:500 11.5px var(--font-mono);color:var(--sub);white-space:nowrap}
+.notes-editor .cm-md-h1{font:600 24px/1.3 var(--font-display);color:var(--navy)}
+.notes-editor .cm-md-h2{font:600 19px/1.35 var(--font-display);color:var(--navy)}
+.notes-editor .cm-md-h3{font:600 16px/1.4 var(--font-display);color:var(--navy)}
+.cm-md-checkbox:checked{accent-color:var(--green)}
+.cm-md-task-done{color:var(--muted);text-decoration:line-through;text-decoration-color:var(--muted)}
+.relations-panel{margin-top:32px;padding-top:14px;border-top-color:var(--hairline)}
+.relations-group{align-items:center;gap:10px;margin-bottom:6px}
+.relations-group-label{width:auto;min-width:84px}
+.notes-relations .rlink-chip,.relations-panel .rlink-chip{border:none;background:none;padding:0;margin-right:8px;font-size:var(--type-secondary);font-weight:500;color:var(--blue)}
+.notes-clients-toggle{gap:6px}
