@@ -2147,6 +2147,8 @@ body.dnd-active .opp-board .board-column.stage-hidden{display:flex}
 .mdy-empty svg{flex:none;color:var(--accent);margin-top:1px}
 .mdy-empty strong{color:var(--text)}
 .mdy-empty.compact{padding:8px 0}
+/* 1.64: nothing needs you — one line, no more space than that. */
+.mdy-none{padding:2px 0;font-size:var(--type-secondary);color:var(--muted)}
 
 /* Today */
 .mdy-group-hd{display:flex;align-items:center;gap:8px;margin:10px 0 2px;font-size:var(--type-meta);font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--sub)}

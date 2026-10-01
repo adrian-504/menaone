@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { buildInPlay, buildComingUpFocus, playRow, regulatoryNotes, stageOf } from './mydayFocus';
-import { buildAttention, buildIndex, personName, QUIET_DAYS, type MyDayInput } from './myday';
+import { buildAttention, buildIndex, personName, type MyDayInput } from './myday';
 import type { Agreement, Commitment, IntelligenceItem, Meeting, Proposal } from './types';
 
 const TODAY = '2026-09-30';
@@ -123,7 +123,7 @@ describe('regulatory', () => {
   });
 });
 
-describe('needs your attention: write-ups and quiet clients', () => {
+describe('needs your attention: write-ups', () => {
   const input = (over: Partial<MyDayInput>): MyDayInput => ({
     today: TODAY, now: new Date('2026-09-30T18:00:00'), proposals: [], opportunities: [], pipelineFacts: [], agreements: [], meetings: [],
     todos: [], projects: [], emails: [], inboxCount: 0, reviewerName: () => 'Hassan', ownDomains: new Set(['menabig.com']), snoozed: {}, ...over,
@@ -136,17 +136,6 @@ describe('needs your attention: write-ups and quiet clients', () => {
     expect(keys).toContain('meeting:5:writeup');
     expect(keys).not.toContain('meeting:6:writeup');
     expect(keys).not.toContain('meeting:7:writeup');
-  });
-  it('an active client with no contact for a month has gone quiet', () => {
-    const items = buildAttention(input({ quietClients: [
-      { companyId: 1, name: 'Elite HR', lastContact: '2026-08-30', days: 31, service: 'payroll' },
-      { companyId: 2, name: 'Acme', lastContact: '2026-09-25', days: 5, service: 'payroll' },
-    ] }));
-    const quiet = items.filter((a) => a.kind === 'quiet');
-    expect(quiet.map((a) => a.title)).toEqual(['Elite HR has gone quiet']);
-    expect(quiet[0].reason).toBe('Active client · last contact 30 Aug · payroll');
-    expect(quiet[0].action.kind).toBe('email_company');
-    expect(QUIET_DAYS).toBe(30);
   });
 });
 

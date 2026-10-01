@@ -26,23 +26,21 @@ import { addTaskFromText, deleteTodo, openDatePopover, quickAddTokensHtml, setTa
 import { unprocessedInboxItems } from './inbox';
 import { getAppMeta, getIntelligenceItems, getPipelineFacts, ms365GetCachedEmails, setAppMeta } from '../lib/db';
 import { buildInPlay, buildComingUpFocus, regulatoryNotes, STAGE_LABEL, STAGE_ORDER, type ComingDay, type ComingItem, type InPlay, type PlayRow } from '../lib/mydayFocus';
-import { briefInputFor } from './companyState';
-import { companyContact, companyRecords } from '../lib/companyBrief';
 import { initialsOf } from '../lib/appearance';
 import { ownDomains } from '../lib/clientMatch';
-import { PS, teamMember, defaultReviewer, isAgreementActive, isOpenProposal } from '../lib/commercial';
+import { PS, teamMember, defaultReviewer, isAgreementActive } from '../lib/commercial';
 import { strColor } from '../lib/utils';
 import { attendeeName } from '../lib/pagePeople';
 import { followUpMenu } from '../core/proposals';
 import {
   buildAttention, buildTimeline, shownAttentionKeys, personName, greeting, summaryLine, addDays, isClientMeeting, buildIndex, nowMeeting,
-  type AttentionItem, type MyDayInput, type Timeline, type QuietClient,
+  type AttentionItem, type MyDayInput, type Timeline,
 } from '../lib/myday';
 import type { IntelligenceItem, Meeting, Todo } from '../lib/types';
-import { daysBetween } from '../lib/pipeline';
 
 const w = window as any;
-const ATTENTION_VISIBLE = 8;
+/** Needs your attention shows seven rows (a folded row counts as one), then "N more". */
+const ATTENTION_VISIBLE = 7;
 
 let snoozed: Record<string, string> = {};
 let snoozedLoaded = false;
@@ -67,31 +65,11 @@ function input(): MyDayInput {
     commitments: S.commitments, companies: S.companies, touches: S.touches, contactName: contactFirstName,
     integrityFailed: S.housekeeping?.integrity?.ok === false,
     reviewerName: (p) => teamMember(p.reviewerId)?.name || reviewer,
-    ownDomains: ownDomains(), snoozed, quietClients: quietClients(), nameOf: attendeeName, railOwnsProposals: true,
+    ownDomains: ownDomains(), snoozed, nameOf: attendeeName, railOwnsProposals: true,
   };
 }
 
 /** An attendee as a name: the contact with that email, else the email's name part, capitalised. */
-/** Active clients (a running agreement or an open proposal) and when we last met, emailed or called them. */
-function quietClients(): QuietClient[] {
-  const t = today();
-  const ids = new Set<number>();
-  for (const a of S.agreements) if (a.companyId != null && isAgreementActive(a, t)) ids.add(a.companyId);
-  for (const p of S.proposals) if (p.companyId != null && !p.archived && isOpenProposal(p)) ids.add(p.companyId);
-  const out: QuietClient[] = [];
-  for (const id of ids) {
-    const c = S.companies.find((x) => x.id === id);
-    if (!c) continue;
-    const bi = briefInputFor({ id, name: c.name });
-    const r = companyRecords(bi);
-    const { lastContact } = companyContact(bi, r);
-    const service = r.clientAgreements.flatMap((a) => (a.lines?.length ? a.lines.map((l) => l.serviceName) : [a.type || ''])).filter(Boolean)[0]
-      || r.proposals.find((p) => isOpenProposal(p))?.type || null;
-    out.push({ companyId: id, name: c.name, lastContact, days: lastContact ? daysBetween(lastContact, t) : null, service: service ? service.toLowerCase() : null });
-  }
-  return out;
-}
-
 /** Loads what My Day needs that other tabs normally load on their own visit. */
 async function ensureData(): Promise<boolean> {
   let changed = false;
@@ -120,14 +98,17 @@ async function ensureData(): Promise<boolean> {
 // ── Render ──────────────────────────────────────────────────────────────────
 
 /** Attention first: a promise's task leaves Today only when its row is on screen. */
-function inputWithShown(): { data: MyDayInput; attention: AttentionItem[] } {
-  const data = input();
+function inputWithShown(): { data: MyDayInput; attention: AttentionItem[]; inPlay: InPlay } {
+  const base = input();
+  // The rail first: a review outcome waiting on you is raised in Needs your attention only when the rail isn't showing it.
+  const inPlay = buildInPlay(S.proposals, { emails: base.emails, meetings: base.meetings, today: base.today, ownDomains: base.ownDomains, touches: base.touches, contactName: base.contactName });
+  const data = { ...base, railShown: new Set(inPlay.rows.map((r) => r.id)) };
   const attention = buildAttention(data);
-  return { data: { ...data, attentionShown: shownAttentionKeys(attention, showAllAttention ? null : ATTENTION_VISIBLE) }, attention };
+  return { data: { ...data, attentionShown: shownAttentionKeys(attention, showAllAttention ? null : ATTENTION_VISIBLE) }, attention, inPlay };
 }
 
 export function renderMyDay(): void {
-  const { data, attention } = inputWithShown();
+  const { data, attention, inPlay } = inputWithShown();
   const timeline = buildTimeline(data);
   attentionByKey = new Map();
   for (const a of attention) { attentionByKey.set(a.key, a); a.children?.forEach((c) => attentionByKey.set(c.key, c)); }
@@ -137,7 +118,6 @@ export function renderMyDay(): void {
   renderOfficeStrip();
   setHtml('myday-date', escHtml(fmtDayLong(now, true).replace(',', '')));
   paintBand(now);
-  const inPlay = buildInPlay(S.proposals, { emails: data.emails, meetings: data.meetings, today: data.today, ownDomains: data.ownDomains, touches: data.touches, contactName: data.contactName });
   setHtml('myday-index', indexHtml(buildIndex(timeline, attention, inPlay.total)));
   const nowPick = nowMeeting(timeline);
   setHtml('myday-now', nowPick ? nowPanelHtml(nowPick.meeting, nowPick.current) : '');
@@ -312,11 +292,11 @@ function todayHtml(t: Timeline, data: MyDayInput): string {
 
 const KIND_ICON: Record<AttentionItem['kind'], string> = {
   proposal: 'database', review: 'check', followup: 'repeat', opportunity: 'warning', agreement: 'document',
-  meeting: 'clock', project: 'target', email: 'mail', inbox: 'inbox', commitment: 'flag', system: 'warning', writeup: 'edit', quiet: 'people',
+  meeting: 'clock', project: 'target', email: 'mail', inbox: 'inbox', commitment: 'flag', system: 'warning', writeup: 'edit',
 };
 /** The tile's colour, by what the row is (mock: red late promise and at risk, amber write-up and no agenda, blue waiting on a client, green waiting on Hassan). */
 const KIND_TINT: Partial<Record<AttentionItem['kind'], 'red' | 'amber' | 'blue' | 'green'>> = {
-  writeup: 'amber', meeting: 'amber', followup: 'blue', quiet: 'blue', review: 'green', opportunity: 'red', system: 'red',
+  writeup: 'amber', meeting: 'amber', followup: 'blue', review: 'green', opportunity: 'red', system: 'red',
 };
 const tintOf = (a: AttentionItem) => KIND_TINT[a.kind] ?? (a.tone === 'red' ? 'red' : a.tone === 'amber' ? 'amber' : 'blue');
 
@@ -341,11 +321,12 @@ function attentionRow(a: AttentionItem, child = false): string {
 }
 
 function attentionHtml(items: AttentionItem[]): string {
-  if (!items.length) return `<div class="mdy-empty">${icon('check', 18)}<div><strong>All clear.</strong> No proposals, renewals, meetings or deals need you right now.</div></div>`;
+  // Nothing qualifies: one line, and no more space than that.
+  if (!items.length) return '<div class="mdy-none">Nothing needs you right now</div>';
   const visible = showAllAttention ? items : items.slice(0, ATTENTION_VISIBLE);
   const hidden = items.length - visible.length;
   return `<div class="mdy-att-list">${visible.map((a) => attentionRow(a)).join('')}</div>
-    ${hidden > 0 ? `<button class="mdy-more" onclick="mydayShowAll(true)">Show ${hidden} more</button>` : items.length > ATTENTION_VISIBLE ? `<button class="mdy-more" onclick="mydayShowAll(false)">Show fewer</button>` : ''}`;
+    ${hidden > 0 ? `<button class="mdy-more" onclick="mydayShowAll(true)">${hidden} more</button>` : items.length > ATTENTION_VISIBLE ? `<button class="mdy-more" onclick="mydayShowAll(false)">Show fewer</button>` : ''}`;
 }
 
 export function mydayToggleGroup(key: string): void {
@@ -381,9 +362,6 @@ export async function mydayAct(key: string): Promise<void> {
     case 'open_cleanup': w.openCleanup(a.action.queue); return;
     case 'toggle_group': w.mydayToggleGroup(a.key); return;
     case 'write_up': open(); return;
-    case 'email_company':
-      if (a.companyName) { w.openCompanyDetail?.(a.companyName); setTimeout(() => w.openCompanyTemplates?.(), 250); }
-      return;
     case 'mark_kept':
       if (a.commitmentId != null) { setCommitmentKept(a.commitmentId, true); renderMyDay(); }
       return;
