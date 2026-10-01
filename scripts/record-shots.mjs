@@ -25,6 +25,7 @@ const SHOTS = [
   ['opportunity', CLOCK, "openRecord('opportunity', 2)"],
   ['opportunity-next', CLOCK, "openRecord('opportunity', 1)"],
   ['project', CLOCK, "openRecord('project', 1)"],
+  ['project-empty', CLOCK, "openRecord('project', 3)"],
   ['agreement', CLOCK, "openRecord('agreement', 2)"],
   ['meeting', CLOCK, "openRecord('meeting', 12)"],
 ].filter(([n]) => !process.env.ONLY || process.env.ONLY.split(',').includes(n));

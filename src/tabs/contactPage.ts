@@ -12,10 +12,8 @@ import { personAvatar } from '../core/contacts';
 import { initialsOf } from '../lib/appearance';
 import { agreementMonthly, currencyOf, defaultReviewer, fmtMoneyByCurrency, isAgreementActive, teamMember, type MoneyByCurrency } from '../lib/commercial';
 import { contextFromCompany, EMPTY_CONTEXT } from '../lib/workGraph';
-import { isRunning, meetingOutcomes, placeLabel } from '../lib/meetingsList';
-import { isMeetingOver } from '../lib/meetingRecap';
-import { meetingExcerpt } from '../lib/meetingExcerpt';
-import { fmtDateShort, fmtTime } from '../lib/dates';
+import { meetingRowHtml } from '../core/meetingRow';
+import { fmtDateShort } from '../lib/dates';
 import { contactNextStep } from '../lib/recordSteps';
 import { endPropsEdit, mountPropsList, propsEditButton, propsListHtml, type PropField } from '../lib/propsList';
 import { jsString } from './companyState';
@@ -293,17 +291,7 @@ async function renderContactRelations(c: Contact): Promise<void> {
   const t = today();
   setCount('ctd-meetings-count', meetings.length);
   setHtml('ctd-meetings', meetings.length
-    ? meetings.slice(0, 8).map((m) => {
-      const running = isRunning(m, now);
-      const over = isMeetingOver(m, now, t) && !running;
-      const tasks = S.todos.filter((x) => x.meetingId === m.id && x.parentId == null);
-      const o = over ? meetingOutcomes(m, S.commitments, tasks, over) : null;
-      const chips = o ? [o.decisions ? `<span>${o.decisions} ${o.decisions === 1 ? 'decision' : 'decisions'}</span>` : '', o.promisesMade ? `<span>${o.promisesMade} ${o.promisesMade === 1 ? 'promise' : 'promises'}</span>` : '', o.writtenUp ? '<span class="g">Written up</span>' : o.needsWriteUp ? '<span class="a">Not written up</span>' : ''].join('') : running ? '<span>Notes open</span>' : '';
-      const when = [m.meetingDate === t ? `Today${m.startAt ? ` ${fmtTime(m.startAt)}` : ''}` : m.meetingDate ? fmtDateShort(m.meetingDate, true) : '', placeLabel(m) || ''].filter(Boolean).join(' · ');
-      const noted = over ? meetingExcerpt(m) : null;
-      const act = running && m.onlineMeetingUrl ? `<a class="btn-secondary btn-sm" href="${escHtml(m.onlineMeetingUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Join</a>` : '';
-      return `<div class="rk-row rk-row-3 rec-row" onclick="if(!event.target.closest('a,button'))openRecord('meeting', ${m.id})"><span class="rk-k t-blue" aria-hidden="true">◉</span><div class="rk-row-main"><div class="rk-row-t">${recordLink('meeting', m.id, m.title)}</div><div class="rk-row-s">${escHtml(when)}${noted ? ` · “${escHtml(noted)}”` : ''}</div></div><div class="pk-mout">${chips}</div>${act || '<span></span>'}</div>`;
-    }).join('')
+    ? meetings.slice(0, 8).map((m) => meetingRowHtml(m, { now })).join('')
     : '<p class="co-nr-none">No meetings with them yet.</p>');
 
   // Mentioned in tasks and notes.

@@ -959,54 +959,51 @@
 
   <div id="proj-detail" class="proj-detail record-page">
     <header class="rec-header">
-      <div class="rec-avatar rec-avatar-icon"><span data-icon="target" data-icon-size="24"></span></div>
+      <div class="rec-avatar" id="pd-avatar"></div>
       <div class="rec-head-main">
-        <div class="rec-eyebrow">Project</div>
+        <div class="rec-eyebrow" id="pd-eyebrow">Project</div>
         <h1 class="rec-title" id="pd-name"></h1>
         <div class="rec-badges" id="pd-badges"></div>
         <div class="rec-figures" id="pd-figures" hidden></div>
       </div>
       <div class="rec-actions" id="pd-actions"></div>
     </header>
+    <!-- The story: the milestone track at full width, today in coral. -->
+    <div class="rk-ptrack-card" id="pd-track"></div>
     <div class="thread-host" id="pd-thread" hidden></div>
-    <div class="rec-layout">
+    <div class="ctd-grid rk-grid">
+    <aside class="rk-side">
+      <section class="rk-panel">
+        <div class="rec-section-hd"><h2 class="rk-panel-h">Details</h2><div class="rec-section-actions" id="pd-props-act"></div></div>
+        <dl class="rec-props" id="pd-props"></dl>
+        <p id="pd-desc" class="rec-desc"></p>
+      </section>
+      <section class="rk-panel" id="pd-files-sec">
+        <div class="rec-section-hd"><h2 class="rk-panel-h">Files</h2><span class="rec-count" id="pd-files-cnt"></span><div class="rec-section-actions" id="pd-files-act"></div></div>
+        <div id="pd-files"></div>
+      </section>
+      <section class="rk-panel" id="pd-origin" hidden></section>
+    </aside>
     <div class="rec-main rec-stack" id="pd-main">
+      <section class="rk-sec" id="pd-tasks-sec">
+        <div class="rk-sh"><h2 class="hd-major">Tasks by milestone</h2><span class="rk-cnt" id="pd-task-cnt"></span><a href="#" class="rlink rk-sh-r" onclick="event.preventDefault();createTodoForCurrentProject()">Add task</a></div>
+        <div id="pd-tasks"></div>
+      </section>
+      <section class="rk-sec" id="pd-meetings"></section>
       <div class="sec rec-section" id="pd-activity"></div>
       <section class="sec rec-section" id="pd-milestones-sec">
         <div class="rec-section-hd"><h2>Milestones</h2><span class="rec-count" id="pd-milestone-cnt"></span></div>
         <div id="pd-milestones"></div>
         <form class="milestone-add-row" onsubmit="addMilestone(event)">
-          <input class="td-input" name="msName" placeholder="New milestone…" required>
-          <input class="td-input" type="date" name="msDate">
+          <input class="td-input" name="msName" placeholder="New milestone…" aria-label="New milestone" required>
+          <input class="td-input" type="date" name="msDate" aria-label="Its date">
           <button type="submit" class="btn-secondary btn-sm">Add</button>
         </form>
       </section>
-      <section class="sec rec-section" id="pd-tasks-sec">
-        <div class="rec-section-hd"><h2>Tasks</h2><span class="rec-count" id="pd-task-cnt"></span><div class="rec-section-actions"><button class="rlink" onclick="createTodoForCurrentProject()">Add</button></div></div>
-        <div id="pd-tasks"></div>
-      </section>
-      <div class="sec rec-section" id="pd-meetings"></div>
       <section class="sec rec-section" id="pd-commitments" hidden></section>
-      <div class="sec rec-section" id="pd-origin" hidden></div>
       <div class="sec rec-section" id="pd-notes"></div>
       <div class="sec rec-section" id="pd-emails" style="display:none"></div>
-      <section class="sec rec-section" id="pd-files-sec">
-        <div class="rec-section-hd"><h2>Files</h2><span class="rec-count" id="pd-files-cnt"></span></div>
-        <div id="pd-files"></div>
-      </section>
     </div>
-    <aside class="rec-side">
-      <section class="sec rec-side-card">
-        <div class="rec-section-hd"><h2>Details</h2><div class="rec-section-actions" id="pd-props-act"></div></div>
-        <dl class="rec-props" id="pd-props"></dl>
-        <div class="rec-progress">
-          <span class="rec-progress-lbl">Progress</span>
-          <div class="project-progress-track"><div class="project-progress-fill" id="pd-progress-fill"></div></div>
-          <strong id="pd-progress-txt"></strong>
-        </div>
-        <p id="pd-desc" class="rec-desc"></p>
-      </section>
-    </aside>
     </div>
   </div>
 </div>

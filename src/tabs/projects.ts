@@ -1,5 +1,9 @@
 import { arrive, settleNew } from '../lib/motion';
-import { paintFigures, projectFigures } from '../lib/recordFigures';
+import { paintFigures } from '../lib/recordFigures';
+import { projectHeaderFigures, tasksByMilestone, trackNotes, type TaskGroup } from '../lib/recordProject';
+import { meetingRowHtml, orderMeetingRows } from '../core/meetingRow';
+import { initialsOf } from '../lib/appearance';
+import { personAvatar } from '../core/contacts';
 import { S } from '../lib/state';
 import { emptyState, undoToast } from '../lib/ui';
 import { recordLink } from '../lib/links';
@@ -10,7 +14,7 @@ import { renderIcons } from '../core/chrome';
 import { registerDragSource, registerDropTarget, reorder } from '../lib/dnd';
 import { loadInto } from '../lib/ui';
 import { companyLink } from '../lib/links';
-import { fmtDate, escHtml, expose, statusDot, showConfirm, nextNoteId, today, inCompany } from '../lib/utils';
+import { fmtDate, escHtml, expose, statusDot, showConfirm, nextNoteId, today, inCompany, strColor } from '../lib/utils';
 import { registerTabRenderer, registerProjectViewRefresher, refreshAll, notifyNavigated } from '../lib/registry';
 import { createListNav } from '../lib/listNav';
 import { getProjects, getMilestones, getLinksFor, setLinksFrom, filesGetByIds } from '../lib/db';
@@ -25,7 +29,7 @@ import { showContextMenu, showMenuAt } from '../lib/contextMenu';
 import { projectNextStep } from '../lib/recordSteps';
 import { newForRecordItems } from '../core/contextActions';
 import { attachCompanySelector } from '../lib/companySelector';
-import type { Project, Milestone, Note } from '../lib/types';
+import type { Project, Milestone, Note, Todo } from '../lib/types';
 import { statusTone, toneVar } from '../lib/statusTone';
 import { renderCommitmentSection } from './commitments';
 import { currentUser, matchesOwnerFilter, ownerFilterOptions, isAgreementActive } from '../lib/commercial';
@@ -229,28 +233,28 @@ async function renderProjectDetail(): Promise<void> {
   if (S.currentProjectId == null) return;
   const p = S.projects.find((x) => x.id === S.currentProjectId);
   if (!p) { closeProjectDetail(); return; }
+  const internal = p.type !== 'client';
 
+  const avatar = document.getElementById('pd-avatar');
+  if (avatar) {
+    avatar.textContent = internal ? 'MB' : initialsOf(p.companyName || p.name) || '?';
+    avatar.style.background = internal ? 'var(--tile-3)' : strColor(p.companyName || p.name);
+  }
+  (document.getElementById('pd-eyebrow') as HTMLElement).textContent = `Project · ${internal ? 'internal' : 'client'}`;
   (document.getElementById('pd-name') as HTMLElement).textContent = p.name;
   (document.getElementById('pd-desc') as HTMLElement).textContent = p.description || '';
-  // Status/priority/owner are edited inline just below (see the control row
-  // in index.html) rather than shown as read-only chips here too — showing
-  // both would mean the chip goes stale between edits and a full re-render.
-  paintFigures('pd-figures', projectFigures(p, S.currentProjectMilestones, today()));
+  const facts = [projectServices(p).slice(0, 3).join(', '), p.startDate ? `${p.startDate <= today() ? 'started' : 'starts'} ${fmtDateShort(p.startDate, true)}` : '', p.targetDate ? `target ${fmtDateShort(p.targetDate, true)}` : ''].filter(Boolean).join(' · ');
   (document.getElementById('pd-badges') as HTMLElement).innerHTML = [
-    `<span class="rec-badge">${p.type === 'client' ? 'Client project' : 'Internal project'}</span>`,
-    p.startDate ? `<span class="rec-meta">Started ${fmtDate(p.startDate)}</span>` : '',
-    p.targetDate ? `<span class="rec-meta">Target ${fmtDate(p.targetDate)}</span>` : '',
+    !internal && p.companyName ? `<span class="pk-mini-co">${tileHtml(p.companyName, 'pk-tile mini')}${companyLink(p.companyId, p.companyName)}</span>` : '',
+    `<span class="pk-stage t-${PROJECT_STAGE_TONE[p.status] || 'grey'}"><i></i>${escHtml(p.status)}</span>`,
+    p.archived ? '<span class="pk-chip t-grey">Archived</span>' : '',
+    facts ? `<span class="rec-meta">${escHtml(facts)}</span>` : '',
   ].filter(Boolean).join('');
   renderProjectProps(p);
   fillTeamNames();
-  (document.getElementById('pd-progress-txt') as HTMLElement).textContent = `${p.computedProgress}%`;
-  (document.getElementById('pd-progress-fill') as HTMLElement).style.width = `${p.computedProgress}%`;
-
-  renderProjectActions(p);
 
   renderThreadStrip('pd-thread', { kind: 'project', id: p.id });
   renderMilestones();
-  renderProjectTasks(p.id);
   renderProjectMeetings(p.id);
   renderCommitmentSection('pd-commitments', { projectId: p.id }, contextFromProject(S, p));
   void renderLinkedEmails('project', p.id, 'pd-emails');
@@ -258,18 +262,49 @@ async function renderProjectDetail(): Promise<void> {
   if (S.currentProjectId === p.id) layoutProjectSections();
 }
 
-/** The timeline stays first; below it the sections with content, Files
- * last, then the empty ones, collapsed. */
+/** The project's top-level tasks under their milestones (lib/recordProject.ts). */
+function projectTaskGroups(projectId: number): TaskGroup<Todo>[] {
+  return tasksByMilestone(S.todos.filter((t) => t.projectId === projectId), S.currentProjectId === projectId ? S.currentProjectMilestones : []);
+}
+
+/** What follows the milestones and the tasks: the header's figures and ring, and the full-width track. */
+function renderProjectStory(p: Project): void {
+  const t = today();
+  const list = S.currentProjectId === p.id ? S.currentProjectMilestones : [];
+  paintFigures('pd-figures', projectHeaderFigures(p, list, t));
+  const el = document.getElementById('pd-track');
+  if (!el) return;
+  const track = projectTrack(p, list, t);
+  const closed = p.status === 'Completed' || p.status === 'Cancelled';
+  el.classList.toggle('is-empty', !track.points.length);
+  if (!track.points.length) {
+    // No milestones: the track's place asks for the first one.
+    el.innerHTML = closed ? '' : `<div class="rk-ptrack-none"><div><b>No milestones yet</b><span>Add the first one and the track appears here: what is done, what is next, and where today falls.</span></div>
+      <form class="milestone-add-row" onsubmit="addMilestone(event)"><input class="td-input" name="msName" placeholder="First milestone…" aria-label="First milestone" required><input class="td-input" type="date" name="msDate" aria-label="Its date"><button type="submit" class="btn-secondary btn-sm">Add milestone</button></form></div>`;
+    el.hidden = closed;
+    return;
+  }
+  el.hidden = false;
+  const notes = trackNotes(list, projectTaskGroups(p.id), t);
+  // On a narrow window a milestone close to the one before it carries its label above the line.
+  let alt = false;
+  const points = track.points.map((x, i) => { const near = i > 0 && x.pos - track.points[i - 1].pos < 13; alt = near && !alt; return { ...x, alt }; });
+  el.innerHTML = `<div class="rk-ptrack${points.some((x) => x.alt) ? ' has-alt' : ''}"><div class="rk-pt-line"></div><div class="rk-pt-done" style="width:${track.done}%"></div>${track.today != null ? `<div class="rk-pt-today" style="left:${track.today}%"><span>today</span></div>` : ''}
+    ${points.map((x) => { const n = notes.get(x.id); return `<div class="rk-pm is-${x.state}${x.alt ? ' is-alt' : ''}" style="left:${x.pos}%"><i></i><b>${escHtml(x.name)}</b><span>${escHtml(x.dateLabel)}</span>${n ? `<em${n.tone ? ` class="t-${n.tone}"` : ''}>${escHtml(n.text)}</em>` : ''}</div>`; }).join('')}</div>`;
+}
+
+/** Tasks and meetings stay first, then the timeline; below it the sections
+ * with content, then the empty ones, collapsed. */
 function layoutProjectSections(): void {
   const host = document.getElementById('pd-main');
   if (!host) return;
   const el = (id: string) => document.getElementById(id);
   const inner = (id: string) => !!el(id)?.querySelector(':scope > .feed-empty');
-  const sections = ['pd-milestones-sec', 'pd-tasks-sec', 'pd-meetings', 'pd-commitments', 'pd-origin', 'pd-notes', 'pd-emails', 'pd-files-sec']
+  const sections = ['pd-milestones-sec', 'pd-commitments', 'pd-notes', 'pd-emails']
     .map((id) => el(id)).filter((x): x is HTMLElement => !!x && !x.hidden);
   collapseEmptySections(host, sections.map((x) => ({
     el: x,
-    empty: x.id === 'pd-milestones-sec' ? inner('pd-milestones') : x.id === 'pd-tasks-sec' ? inner('pd-tasks') : x.id === 'pd-files-sec' ? inner('pd-files') : !!x.querySelector(':scope > .feed-empty'),
+    empty: x.id === 'pd-milestones-sec' ? inner('pd-milestones') : !!x.querySelector(':scope > .feed-empty'),
   })));
 }
 
@@ -310,11 +345,14 @@ async function renderLinkedFiles(projectId: number): Promise<void> {
     return;
   }
   const files = await filesGetByIds(msfileIds);
-  el.innerHTML = `<div class="rec-list">${files.map((f) => `<div class="rec-row${f.exists ? '' : ' is-missing'}" onclick="switchTab('files');msFilesNavigateToPath('${escHtml(f.path).replace(/'/g, "\\'")}')">
-    <span class="rec-row-icon">${icon(f.isFolder ? 'folder' : 'document', 15)}</span>
-    <div class="rec-row-main"><div class="rec-row-title">${escHtml(f.name)}</div><div class="rec-row-sub">${escHtml(f.path)}</div></div>
-    ${f.exists ? '' : '<span class="rec-badge tone-red">Unavailable</span>'}
-  </div>`).join('')}</div>`;
+  if (S.currentProjectId !== projectId) return;
+  el.innerHTML = files.map((f) => {
+    const sheet = /\.(xlsx?|csv|numbers)$/i.test(f.name);
+    return `<div class="rk-person${f.exists ? '' : ' is-missing'}" role="button" tabindex="0" onkeydown="if(event.key==='Enter')this.click()" onclick="switchTab('files');msFilesNavigateToPath('${escHtml(f.path).replace(/'/g, "\\'")}')">
+    <span class="rk-k sm t-${f.isFolder ? 'amber' : sheet ? 'green' : 'blue'}" aria-hidden="true">${icon(f.isFolder ? 'folder' : 'document', 13)}</span>
+    <div class="rk-row-main"><div class="rk-row-t">${escHtml(f.name)}</div><div class="rk-row-s${f.exists ? '' : ' is-late'}">${f.exists ? (f.modifiedAt ? escHtml(fmtDateShort(f.modifiedAt.slice(0, 10), true)) : f.isFolder ? 'Folder' : 'File') : 'Unavailable'}</div></div>
+  </div>`;
+  }).join('');
 }
 
 // Notes linked via entity_links (note → project) — same shape as Opportunity's
@@ -360,15 +398,9 @@ expose('createNoteForProject', createNoteForProject);
 function renderProjectMeetings(projectId: number): void {
   const el = document.getElementById('pd-meetings');
   if (!el) return;
-  const meetings = S.meetings.filter((m) => m.projectId === projectId);
-  el.innerHTML = `<div class="rec-section-hd"><h2>Meetings</h2><span class="rec-count">${meetings.length || ''}</span><div class="rec-section-actions"><button class="rlink" onclick="createMeetingForProject()">Add</button></div></div>` +
-    (meetings.length === 0
-      ? `<div class="feed-empty">No meetings yet.</div>`
-      : `<div class="rec-list">${meetings.map((m) => `<div class="rec-row" onclick="openRecord('meeting', ${m.id})">
-          <span class="rec-row-icon">${icon('meeting', 15)}</span>
-          <div class="rec-row-main"><div class="rec-row-title">${escHtml(m.title)}</div></div>
-          <span class="rec-row-date">${m.meetingDate ? fmtDate(m.meetingDate) : ''}</span>
-        </div>`).join('')}</div>`);
+  const meetings = orderMeetingRows(S.meetings.filter((m) => m.projectId === projectId));
+  el.innerHTML = `<div class="rk-sh"><h2 class="hd-major">Meetings</h2><span class="rk-cnt">${meetings.length || ''}</span><a href="#" class="rlink rk-sh-r" onclick="event.preventDefault();createMeetingForProject()">New meeting</a></div>` +
+    (meetings.length === 0 ? '<p class="co-nr-none">No meetings yet.</p>' : meetings.slice(0, 8).map((m) => meetingRowHtml(m, { second: 'people' })).join(''));
 }
 
 // The client contacts on the opportunity the project came from (the chain
@@ -382,11 +414,10 @@ async function renderProjectOrigin(projectId: number): Promise<void> {
   if (S.currentProjectId !== projectId) return;
   const { contacts } = projectChain(S, projectId, links);
   el.hidden = contacts.length === 0;
-  el.innerHTML = `<div class="rec-section-hd"><h2>Client contacts</h2><span class="rec-count">${contacts.length || ''}</span></div>
-    <div class="rec-list">${contacts.map((c) => `<div class="rec-row" onclick="openRecord('contact', ${c.id})">
-      <span class="rec-row-icon">${icon('people', 15)}</span>
-      <div class="rec-row-main"><div class="rec-row-title">${recordLink('contact', c.id, c.name || c.email || 'Contact')}</div><div class="rec-row-sub">${escHtml(c.role || c.email || '')}</div></div>
-    </div>`).join('')}</div>`;
+  el.innerHTML = `<div class="rec-section-hd"><h2 class="rk-panel-h">Client contacts</h2><span class="rec-count">${contacts.length || ''}</span></div>
+    ${contacts.map((c) => `<div class="rk-person" onclick="openRecord('contact', ${c.id})" role="button" tabindex="0" onkeydown="if(event.key==='Enter')this.click()">${personAvatar(c.name || c.email || '', 'pk-pav sm')}
+      <div class="rk-row-main"><div class="rk-row-t">${escHtml(c.name || c.email || 'Contact')}</div><div class="rk-row-s">${escHtml(c.role || c.email || '')}</div></div>
+    </div>`).join('')}`;
 }
 
 async function renderProjectActivity(projectId: number): Promise<void> {
@@ -431,12 +462,16 @@ function renderProjectActions(p: Project): void {
   const el = document.getElementById('pd-actions');
   if (!el) return;
   const step = projectNextStep(p, S.currentProjectId === p.id ? S.currentProjectMilestones : []);
-  el.innerHTML = recordHeaderHtml([{ label: 'Edit', run: 'editCurrentProject()' }], step, 'projectMoreMenu(event)');
+  const f = trackFigures(p, S.currentProjectId === p.id ? S.currentProjectMilestones : [], today());
+  const ring = ringProgress(p, f);
+  const of = ring.of === 'milestones' ? 'of milestones done' : ring.of === 'tasks' ? 'of tasks done' : 'done';
+  el.innerHTML = `<svg class="pk-ring rk-ring" viewBox="0 0 36 36" role="img" aria-label="${ring.pct}% ${of}" data-tip="${ring.pct}% ${of}"><circle cx="18" cy="18" r="15" fill="none" class="pk-ring-bg" stroke-width="4"/>${ring.pct > 0 ? `<circle cx="18" cy="18" r="15" fill="none" class="pk-ring-fg" stroke-width="4" stroke-dasharray="${ringDash(ring.pct)}" transform="rotate(-90 18 18)" stroke-linecap="round"/>` : ''}<text x="18" y="21.5" text-anchor="middle">${ring.pct}%</text></svg>`
+    + recordHeaderHtml([{ label: 'Edit', run: 'editCurrentProject()' }], step, 'projectMoreMenu(event)');
 }
 
 function renderMilestones(): void {
   const cur = S.projects.find((x) => x.id === S.currentProjectId);
-  if (cur) renderProjectActions(cur);
+  if (cur) { renderProjectActions(cur); renderProjectTasks(cur.id); }
   const el = document.getElementById('pd-milestones'); if (!el) return;
   const cnt = document.getElementById('pd-milestone-cnt');
   const list = S.currentProjectMilestones;
@@ -453,18 +488,21 @@ function renderMilestones(): void {
   </div>`).join('');
 }
 
+/** Tasks under the milestone they belong to — the one a task's heading names, else the first one due on or after
+ * its date — each group with its progress; then the header figures and the track, which count the same tasks. */
 function renderProjectTasks(projectId: number): void {
+  const p = S.projects.find((x) => x.id === projectId);
+  if (p) renderProjectStory(p);
   const el = document.getElementById('pd-tasks'); if (!el) return;
   const cnt = document.getElementById('pd-task-cnt');
-  const tasks = S.todos.filter((t) => t.projectId === projectId);
-  if (cnt) cnt.textContent = `${tasks.filter((t) => t.status === 'Done').length}/${tasks.length}`;
-  if (tasks.length === 0) { el.innerHTML = `<div class="feed-empty">No tasks in this project yet.</div>`; return; }
-  const priOrder: Record<string, number> = { High: 0, Medium: 1, Low: 2 };
-  const sorted = [...tasks].sort((a, b) => {
-    if ((a.status === 'Done') !== (b.status === 'Done')) return a.status === 'Done' ? 1 : -1;
-    return (priOrder[a.priority || 'Medium'] ?? 1) - (priOrder[b.priority || 'Medium'] ?? 1);
-  });
-  el.innerHTML = `<div class="task-group">${sorted.filter((t) => t.parentId == null || !tasks.some((x) => x.id === t.parentId)).map((t) => taskRowHtml(t, { list: `project:${projectId}`, compact: true })).join('')}</div>`;
+  const groups = projectTaskGroups(projectId);
+  const open = groups.reduce((n, g) => n + g.total - g.done, 0);
+  if (cnt) cnt.textContent = groups.length ? `${open} open` : '';
+  if (!groups.length) { el.innerHTML = `<p class="co-nr-none">No tasks in this project yet.</p>`; return; }
+  el.innerHTML = groups.map((g) => `<div class="rk-tgroup${g.done === g.total ? ' is-done' : ''}">
+    <div class="rk-tgroup-hd"><b>${escHtml(g.name)}</b><span class="rk-tbar" role="img" aria-label="${g.done} of ${g.total} done"><i style="width:${g.pct}%"></i></span><span class="rk-tgroup-n">${escHtml(g.note)}</span></div>
+    <div class="task-group">${g.tasks.map((t) => taskRowHtml(t, { list: `project:${projectId}`, compact: true })).join('')}</div>
+  </div>`).join('');
 }
 
 export function editCurrentProject(): void {

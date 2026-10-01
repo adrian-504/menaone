@@ -102,6 +102,11 @@ const SAMPLE: AppData = {
     { id: 4, title: 'Draft summary slide', type: 'general', client: null, priority: 'Low', dueDate: '2026-09-14', status: 'Pending', description: null, createdAt: '2026-09-02', completedAt: null, projectId: null, parentId: 2, areaId: null, section: null, sortOrder: 2, recurrenceRule: null, meetingId: null, tags: [] },
     { id: 6, title: 'Send the revised quote for three people', type: 'client', client: 'Acme Holdings', priority: 'Medium', dueDate: '2026-09-19', status: 'Pending', description: 'From meeting: Monthly check-in', createdAt: '2026-09-15', completedAt: null, projectId: null, parentId: null, areaId: null, section: null, sortOrder: 4, recurrenceRule: null, meetingId: 2, companyId: 1, opportunityId: 1, tags: [], owner: 'Ahmad Abdallah' },
     { id: 7, title: 'Share the October headcount', type: 'client', client: 'Acme Holdings', priority: 'Medium', dueDate: null, status: 'Pending', description: 'From meeting: Monthly check-in', createdAt: '2026-09-15', completedAt: null, projectId: null, parentId: null, areaId: null, section: null, sortOrder: 5, recurrenceRule: null, meetingId: 2, tags: [], owner: 'Omar Haddad' },
+    // The retainer project's tasks: each falls under the milestone due on or after it.
+    { id: 20, title: 'Collect October headcount from Omar', type: 'client', client: 'Acme Holdings', priority: 'Medium', dueDate: '2026-09-30', status: 'Done', description: null, createdAt: '2026-09-22', completedAt: '2026-09-30', projectId: 1, parentId: null, areaId: null, section: null, sortOrder: 20, recurrenceRule: null, meetingId: null, tags: [], companyId: 1 },
+    { id: 21, title: 'Confirm GOSI contribution changes for 2027', type: 'client', client: 'Acme Holdings', priority: 'Medium', dueDate: '2026-10-20', status: 'Pending', description: null, createdAt: '2026-09-22', completedAt: null, projectId: 1, parentId: null, areaId: null, section: null, sortOrder: 21, recurrenceRule: null, meetingId: null, tags: [], companyId: 1 },
+    { id: 22, title: 'Run payroll and send WPS file', type: 'client', client: 'Acme Holdings', priority: 'Medium', dueDate: '2026-10-25', status: 'Pending', description: null, createdAt: '2026-09-22', completedAt: null, projectId: 1, parentId: null, areaId: null, section: null, sortOrder: 22, recurrenceRule: null, meetingId: null, tags: [], companyId: 1 },
+    { id: 23, title: 'List iqamas expiring before March', type: 'client', client: 'Acme Holdings', priority: 'Medium', dueDate: '2026-11-15', status: 'Pending', description: null, createdAt: '2026-09-22', completedAt: null, projectId: 1, parentId: null, areaId: null, section: null, sortOrder: 23, recurrenceRule: null, meetingId: null, tags: [], companyId: 1 },
     { id: 5, title: 'Weekly payroll review', type: 'general', client: null, priority: 'Medium', dueDate: '2026-09-11', status: 'Pending', description: null, createdAt: '2026-09-01', completedAt: null, projectId: null, parentId: null, areaId: null, section: null, sortOrder: 3, recurrenceRule: 'weekly', meetingId: null, tags: ['payroll'] },
   ],
   notes: [
@@ -145,6 +150,13 @@ const SAMPLE_PROJECTS: Project[] = [
     owner: 'Ahmad', description: null, companyName: null, areaId: null, startDate: '2026-08-01',
     targetDate: '2026-12-01', completionDate: null, progressOverride: null, tags: [], archived: false,
     createdAt: '2026-08-01', updatedAt: '2026-09-05', taskCount: 6, taskDoneCount: 2, computedProgress: 33,
+  },
+  // Nothing planned yet: its page asks for the first milestone.
+  {
+    id: 3, name: 'Northwind Trading — Onboarding', type: 'client', status: 'Planning', priority: 'Medium',
+    owner: 'Ahmad', description: null, companyName: 'Northwind Trading', areaId: null, startDate: '2026-10-05',
+    targetDate: '2026-11-30', completionDate: null, progressOverride: null, tags: [], archived: false,
+    createdAt: '2026-09-28', updatedAt: '2026-09-28', taskCount: 0, taskDoneCount: 0, computedProgress: 0,
   },
 ];
 

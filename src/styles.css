@@ -4183,3 +4183,54 @@ a.btn-primary,a.btn-secondary{text-decoration:none}
 .od-people .rk-person:hover .rec-icon-btn,.od-people .rk-person .rec-icon-btn:focus-visible{visibility:visible}
 .od-people .rec-add-select{margin-top:8px;width:100%}
 @media (max-width:1280px){.rk-files{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* Project: the milestone track at full width, tasks under their milestones. */
+.rk-ring{--c:var(--blue);width:52px;height:52px;margin-right:4px}
+.rk-ptrack-card{border-radius:13px;background:var(--surface);border:1px solid var(--hairline);box-shadow:var(--shadow-xs);padding:0 28px;margin:0 0 22px}
+.rk-ptrack-card.is-empty{padding:16px 20px;border-style:dashed;box-shadow:none}
+.rk-ptrack{position:relative;height:132px}
+.rk-pt-line{position:absolute;left:0;right:0;top:45px;height:4px;border-radius:6px;background:var(--surface-2)}
+.rk-pt-done{position:absolute;left:0;top:45px;height:4px;border-radius:6px;background:var(--blue)}
+.rk-pt-today{position:absolute;top:24px;width:2px;height:46px;margin-left:-1px;background:var(--coral)}
+.rk-pt-today span{position:absolute;top:-16px;left:50%;transform:translateX(-50%);font:500 10px var(--font-mono);color:var(--coral-text)}
+.rk-pm{position:absolute;top:36px;width:150px;margin-left:-75px;text-align:center}
+.rk-pm i{display:block;width:22px;height:22px;margin:0 auto;border-radius:50%;background:var(--surface);border:3px solid var(--border)}
+.rk-pm.is-done i{background:var(--blue);border-color:var(--blue)}
+.rk-pm.is-next i{border-color:var(--blue);box-shadow:0 0 0 5px color-mix(in srgb,var(--blue) 14%,transparent)}
+.rk-pm b{margin-top:8px;font-size:12.5px;font-weight:600;color:var(--text);line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.rk-pm span{display:block;font:500 10.5px var(--font-mono);color:var(--muted)}
+.rk-pm em{display:block;font-style:normal;font-size:10.5px;color:var(--sub)}
+.rk-pm em.t-green{color:var(--green)}.rk-pm em.t-blue{color:var(--blue)}.rk-pm em.t-red{color:var(--red)}
+.rk-ptrack-none{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.rk-ptrack-none > div{flex:1;min-width:240px}
+.rk-ptrack-none b{display:block;font:600 15px/1.2 var(--font-display);color:var(--navy)}
+.rk-ptrack-none span{font-size:var(--type-secondary);color:var(--sub)}
+.rk-ptrack-none .milestone-add-row{flex:1;min-width:320px;margin:0;padding:0;border:none}
+.rk-ptrack-none .td-input{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:0 10px;height:32px}
+.rk-ptrack-none .td-input[type=date]{flex:0 0 150px}
+.rk-tgroup{border-radius:13px;border:1px solid var(--hairline);background:var(--surface);box-shadow:var(--shadow-xs);overflow:hidden}
+.rk-tgroup + .rk-tgroup{margin-top:12px}
+.rk-tgroup-hd{display:flex;align-items:center;gap:12px;padding:10px 16px;background:var(--panel-bg)}
+.rk-tgroup-hd b{font:600 14px/1.2 var(--font-display);color:var(--navy);min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rk-tbar{flex:none;width:160px;height:4px;border-radius:6px;background:var(--surface);overflow:hidden}
+.rk-tbar i{display:block;height:100%;border-radius:6px;background:var(--blue)}
+.rk-tgroup.is-done .rk-tbar i{background:var(--green)}
+.rk-tgroup-n{margin-left:auto;font:500 11px var(--font-mono);color:var(--sub);white-space:nowrap}
+.rk-tgroup .task-group{padding:2px 8px}
+#pd-files .rk-person .rk-k svg{display:block}
+@media (max-width:1280px){
+  .rk-ptrack{height:148px}
+  .rk-pm{width:96px;margin-left:-48px}
+  .rk-ptrack.has-alt{height:194px}
+  .rk-ptrack.has-alt .rk-pt-line,.rk-ptrack.has-alt .rk-pt-done{top:91px}
+  .rk-ptrack.has-alt .rk-pt-today{top:18px;height:98px}
+  .rk-ptrack.has-alt .rk-pm{top:82px}
+  #proj-detail .rec-header{flex-wrap:wrap}
+  #proj-detail .rec-head-main{flex:1 1 0}
+  #proj-detail .rec-actions{flex:0 0 100%;order:3;justify-content:flex-start;padding-left:76px}
+  .rk-pm b{font-size:11.5px}
+  .rk-ptrack.has-alt .rk-pm.is-alt{top:auto;bottom:calc(100% - 104px);display:flex;flex-direction:column-reverse}
+  .rk-pm.is-alt b{margin:0 0 6px}
+  .rk-pm.is-alt em{order:1}
+  .rk-tbar{width:80px}
+}
