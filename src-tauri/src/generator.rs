@@ -570,6 +570,11 @@ pub struct GenerateResult {
     pub services_title: Option<String>,
 }
 
+/// A custom line: a named service outside the catalogue, with a unit (1.66).
+fn is_custom(l: &CommercialLine) -> bool {
+    l.unit.as_deref().map(|u| !u.trim().is_empty()).unwrap_or(false)
+}
+
 pub(crate) fn safe_file_name(name: &str) -> String {
     let cleaned: String = name.chars().map(|c| if matches!(c, '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|') { ' ' } else { c }).collect();
     let trimmed = cleaned.split_whitespace().collect::<Vec<_>>().join(" ");
@@ -587,6 +592,8 @@ pub fn smart_line(l: &CommercialLine, card: Option<&crate::pricing::Card>, categ
         rates: l.rates.clone(),
         preset_labels: card.map(|c| c.preset_labels()).unwrap_or_default(),
         months: None,
+        quantity: l.quantity,
+        unit: l.unit.clone().filter(|u| !u.trim().is_empty()),
     }
 }
 
@@ -696,7 +703,7 @@ pub fn generate_proposal(db: &Mutex<Connection>, request: &GenerateRequest, poli
             }
             let mut wanted: Vec<&'static str> = Vec::new();
             for (line, ml) in proposal.lines.iter().zip(master_lines.iter()) {
-                if ml.modules.is_empty() && !line.service_name.trim().is_empty() {
+                if ml.modules.is_empty() && !line.service_name.trim().is_empty() && !is_custom(line) {
                     warnings.push(format!("No slides are known for \"{}\"; add its scope and fees by hand.", line.service_name.trim()));
                 }
                 for m in &ml.modules {
@@ -735,7 +742,7 @@ pub fn generate_proposal(db: &Mutex<Connection>, request: &GenerateRequest, poli
             let mut wanted: Vec<&'static str> = Vec::new();
             for (line, category) in proposal.lines.iter().zip(categories.iter()) {
                 let modules = lib::modules_for_service(&line.service_name, category.as_deref());
-                if modules.is_empty() && !line.service_name.trim().is_empty() {
+                if modules.is_empty() && !line.service_name.trim().is_empty() && !is_custom(line) {
                     warnings.push(format!("No template slides are known for \"{}\"; add its scope and fees by hand.", line.service_name.trim()));
                 }
                 for m in modules {
@@ -748,6 +755,9 @@ pub fn generate_proposal(db: &Mutex<Connection>, request: &GenerateRequest, poli
             let ignored = lib::ignored_files(dir);
             if !ignored.is_empty() {
                 warnings.push(format!("Not read as templates (only \"… Template.pptx\" files are): {}", ignored.join(", ")));
+            }
+            if wanted.is_empty() && proposal.lines.iter().any(is_custom) {
+                return Err("The current design starts from a catalogue service's template, and this proposal has custom lines only. Use the 2026 design for it.".into());
             }
             let composed = lib::compose(&library, &wanted)?;
             for m in &composed.missing {
@@ -774,11 +784,45 @@ pub fn generate_proposal(db: &Mutex<Connection>, request: &GenerateRequest, poli
         (None, None) => return Err("Choose a template.".into()),
     };
     let months = proposal.contract_months.filter(|m| *m > 0);
+    let smart_lines: Vec<crate::smartfill::SmartLine> = proposal
+        .lines
+        .iter()
+        .zip(line_cards.iter())
+        .zip(categories.iter())
+        .map(|((l, card), category)| crate::smartfill::SmartLine {
+            months: (l.billing != "one_time").then(|| months.unwrap_or(12) as f64),
+            ..smart_line(l, card.as_ref(), category.as_deref())
+        })
+        .collect();
+    let currency = proposal.currency.clone().unwrap_or_else(|| "SAR".into());
     for (s, info) in slides.iter_mut().zip(inspection.slides.iter()).filter(|_| master.is_none()) {
         if let Some(reason) = automatic_exclusion(&info.text, &proposal.lines, &categories, months) {
             s.included = false;
             s.reason = reason.into();
         }
+    }
+    // Slides MENA One adds itself (1.66): one per custom line, and the summary of fees for a deck with two or more
+    // services. They are on by default and can be left out in the preview like any slide. They are numbered after
+    // the template's slides and listed where they go in the deck: after the last service slide.
+    let template_slides = slides.len();
+    let custom_lines: Vec<&crate::smartfill::SmartLine> = smart_lines.iter().filter(|l| crate::extra_slides::is_custom(l) && !l.service.trim().is_empty()).collect();
+    let mut added: Vec<SlideChoice> = custom_lines.iter().enumerate().map(|(k, l)| SlideChoice {
+        index: template_slides + k + 1, slide_id: String::new(), title: l.service.trim().to_string(), included: true, reason: "A custom line: its scope and fee".into(), source: "Added by MENA One".into(),
+    }).collect();
+    let summary_index = crate::extra_slides::summary_slide(&smart_lines, months, &currency).map(|_| {
+        let index = template_slides + added.len() + 1;
+        added.push(SlideChoice { index, slide_id: String::new(), title: "Summary of fees".into(), included: true, reason: "Every service's fee and the totals".into(), source: "Added by MENA One".into() });
+        index
+    });
+    if !added.is_empty() {
+        let after_services = if master.is_some() {
+            inspection.slides.iter().rposition(|s| { let t = crate::master::parse(&s.notes); t.module.is_some() && !matches!(t.role.as_deref(), Some("terms")) })
+        } else {
+            use crate::proposal_library::Role;
+            crate::proposal_library::classify(&inspection).iter().rposition(|s| matches!(s.role, Role::ServiceDivider | Role::Approach | Role::FeesDivider | Role::Fees))
+        };
+        let at = after_services.map(|i| i + 1).unwrap_or(slides.len()).min(slides.len());
+        slides.splice(at..at, added);
     }
     if let Some(keep) = &request.keep {
         for s in slides.iter_mut() {
@@ -853,24 +897,18 @@ pub fn generate_proposal(db: &Mutex<Connection>, request: &GenerateRequest, poli
         },
         None => None,
     };
-    let smart_lines: Vec<crate::smartfill::SmartLine> = proposal
-        .lines
-        .iter()
-        .zip(line_cards.iter())
-        .zip(categories.iter())
-        .map(|((l, card), category)| crate::smartfill::SmartLine {
-            months: (l.billing != "one_time").then(|| months.unwrap_or(12) as f64),
-            ..smart_line(l, card.as_ref(), category.as_deref())
-        })
-        .collect();
-    let currency = proposal.currency.clone().unwrap_or_else(|| "SAR".into());
     let country = deck.values.get("client_country").cloned().unwrap_or_default();
     let smart = template.as_ref().map(|t| t.config.smart_fields).unwrap_or(true).then(|| crate::smartfill::SmartInput {
         client_name: &proposal.client, date_iso: &request.date, country: Some(country.as_str()).filter(|c| !c.is_empty()),
         currency: &currency, lines: &smart_lines, logo, contract_months: months, standards: standards.clone(),
     });
-    if keep.is_empty() {
+    if !keep.iter().any(|k| *k <= template_slides) {
         return Err("No slides are selected.".into());
+    }
+    // The added slides that are kept, in deck order: the custom lines', then the summary.
+    let mut extras: Vec<crate::extra_slides::ExtraSlide> = custom_lines.iter().enumerate().filter(|(k, _)| keep.contains(&(template_slides + k + 1))).map(|(_, l)| crate::extra_slides::custom_slide(l, &currency)).collect();
+    if summary_index.map(|i| keep.contains(&i)).unwrap_or(false) {
+        extras.extend(crate::extra_slides::summary_slide(&smart_lines, months, &currency));
     }
     let report = if master.is_some() {
         if result.warnings.iter().all(|w| !w.contains("logo")) && request.logo_path.as_deref().map(|p| !p.trim().is_empty()).unwrap_or(false) {
@@ -878,7 +916,21 @@ pub fn generate_proposal(db: &Mutex<Connection>, request: &GenerateRequest, poli
         }
         let empty = HashMap::new();
         let mut built = pptx::build(&mut pkg, &pptx::BuildInput { keep: &keep, values: &empty, lines: &[], replacements: &[] })?;
-        let tags: Vec<crate::master::MasterTags> = inspection.slides.iter().filter(|s| keep.contains(&s.index)).map(|s| crate::master::parse(&s.notes)).collect();
+        if !extras.is_empty() {
+            // Before the fields are filled, so the agenda's page numbers count them: after the last service slide,
+            // each a rewritten copy of one of the master's own fee slides.
+            let tags: Vec<crate::master::MasterTags> = pptx::inspect(&pkg).slides.iter().map(|s| crate::master::parse(&s.notes)).collect();
+            let service = |t: &crate::master::MasterTags| t.module.is_some() && !matches!(t.role.as_deref(), Some("terms"));
+            let at = tags.iter().rposition(service).map(|i| i + 1)
+                .or_else(|| tags.iter().position(|t| matches!(t.role.as_deref(), Some("section-terms") | Some("terms") | Some("acceptance"))))
+                .unwrap_or(tags.len());
+            let source = Package::read(master.as_deref().expect("master"))?;
+            match crate::extra_slides::donor_in(&source).filter(|d| d.1) {
+                Some(donor) => built.slides_after += crate::extra_slides::add_slides(&mut pkg, &source, donor, at, &extras)?,
+                None => result.warnings.push(format!("The 2026 master has no plain fee slide to make {} from; add {} by hand.", if extras.len() == 1 { "this slide" } else { "these slides" }, extras.iter().map(|e| e.title.clone()).collect::<Vec<_>>().join(", "))),
+            }
+        }
+        let tags: Vec<crate::master::MasterTags> = pptx::inspect(&pkg).slides.iter().map(|s| crate::master::parse(&s.notes)).collect();
         let mut values = deck.values.clone();
         values.insert("services_title".into(), result.services_title.clone().unwrap_or_default());
         values.insert("entity_region".into(), deck.entity_code.clone().unwrap_or_else(|| "KSA".into()));
@@ -894,7 +946,31 @@ pub fn generate_proposal(db: &Mutex<Connection>, request: &GenerateRequest, poli
         built.smart = Some(crate::smartfill::SmartReport { filled: filled.filled, fees_to_check: vec![], warnings: vec![], checks: filled.checks });
         built
     } else {
-        pptx::build_with_smart_fields(&mut pkg, &pptx::BuildInput { keep: &keep, values: &deck.values, lines: &deck.lines, replacements: &replacements }, smart)?
+        let mut built = pptx::build(&mut pkg, &pptx::BuildInput { keep: &keep, values: &deck.values, lines: &deck.lines, replacements: &replacements })?;
+        let mut added_at: Option<(usize, usize)> = None;
+        if !extras.is_empty() {
+            // Before the automatic fields, so the agenda is recounted with them: after the last service slide, under
+            // a copy of the deck's own "Project Fees" title.
+            let roles = crate::proposal_library::classify(&pptx::inspect(&pkg));
+            let content = |r: crate::proposal_library::Role| matches!(r, crate::proposal_library::Role::ServiceDivider | crate::proposal_library::Role::Approach | crate::proposal_library::Role::FeesDivider | crate::proposal_library::Role::Fees);
+            let at = roles.iter().rposition(|s| content(s.role)).map(|i| i + 1)
+                .or_else(|| roles.iter().position(|s| matches!(s.role, crate::proposal_library::Role::Terms | crate::proposal_library::Role::Acceptance)))
+                .unwrap_or(roles.len());
+            let source = Package { order: pkg.order.clone(), parts: pkg.parts.clone() };
+            match crate::extra_slides::donor_in(&source) {
+                Some(donor) => { built.slides_after += crate::extra_slides::add_slides(&mut pkg, &source, donor, at, &extras)?; added_at = Some((at, extras.len())); }
+                None => result.warnings.push(format!("This deck has no fee slide to make {} from; add {} by hand.", if extras.len() == 1 { "this slide" } else { "these slides" }, extras.iter().map(|e| e.title.clone()).collect::<Vec<_>>().join(", "))),
+            }
+        }
+        if let Some(smart) = smart {
+            let mut report = crate::smartfill::apply(&mut pkg, smart);
+            // The figures on the added slides are the proposal's own: nothing there to check by hand.
+            if let Some((at, n)) = added_at {
+                report.fees_to_check.retain(|f| !(at + 1..=at + n).any(|slide| f.starts_with(&format!("Slide {slide}:"))));
+            }
+            built.smart = Some(report);
+        }
+        built
     };
     result.errors = generation_errors(&proposal, &report);
     if request.dry_run {

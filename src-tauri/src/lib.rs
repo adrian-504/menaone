@@ -28,6 +28,7 @@ pub mod pptx_import;
 pub mod proposal_library;
 pub mod smartfill;
 pub mod pricing;
+pub mod extra_slides;
 pub mod reprice;
 pub mod revisions;
 pub mod sendcheck;

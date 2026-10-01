@@ -432,7 +432,25 @@ let templatesStore: NoteTemplate[] = [
 let nextTemplateId = 100;
 let nextAttachmentId = 1;
 /** The preview part of a mock generation (slides, values, report). */
+/** The slides MENA One adds itself (1.66): one per custom line of the proposal, and the summary for two or more services. */
+function mockAddedSlides(r: any, from: number): any[] {
+  const lines = ((SAMPLE.proposals.find((x: any) => x.id === r.proposalId) as any)?.lines || []).filter((l: any) => (l.serviceName || '').trim());
+  const on = (index: number) => !r.keep || r.keep.includes(index);
+  const added = lines.filter((l: any) => l.unit).map((l: any, k: number) => ({ index: from + k + 1, slideId: '', title: l.serviceName, included: on(from + k + 1), reason: 'A custom line: its scope and fee', source: 'Added by MENA One' }));
+  if (lines.length >= 2) added.push({ index: from + added.length + 1, slideId: '', title: 'Summary of fees', included: on(from + added.length + 1), reason: 'Every service\u2019s fee and the totals', source: 'Added by MENA One' });
+  return added;
+}
+
 function mockBuildDeck(r: any): any {
+  const built = mockBuildDeckBase(r);
+  // Listed where they go in the deck: after the last service slide (here, before the terms).
+  const added = mockAddedSlides(r, built.slides.length);
+  const at = Math.max(0, built.slides.findIndex((s: any) => /terms|acceptance/i.test(s.title)));
+  built.slides.splice(at > 0 ? at : built.slides.length, 0, ...added);
+  return built;
+}
+
+function mockBuildDeckBase(r: any): any {
           if (r.fromLibrary) {
             const src = (i: number) => (i >= 11 && i <= 13 ? 'Labor Law - HR - Manpower Consultancy Services Proposal Template' : 'Accountancy & VAT Service Proposal Template');
             const titles = ['Cover', 'Attn: Acme Holdings', 'AGENDA', 'Detailed Approach & Project Fees', 'ACCOUNTANCY SERVICES', 'Detailed Approach', 'Detailed Approach', 'Detailed Approach', 'ACCOUNTANCY FEES BREAKDOWN', 'Value Based', 'LABOR LAW & EMPLOYMENT', 'Detailed Approach', 'Value Based', 'Terms & Conditions, and Acceptance', 'Terms', 'Applicable Law', 'We believe that this proposal', 'About MENA BIG', '50+ Clients', 'Selected References', 'MENA - BIG'];

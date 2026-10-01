@@ -1946,6 +1946,13 @@ body.dnd-active .opp-board .board-column.stage-hidden{display:flex}
 .le-service-cell{min-width:220px}
 .le-service-sel{width:100%;font-weight:600}
 .le-desc{width:100%;margin-top:2px;color:var(--sub)}
+/* 1.66: a custom line — a named service outside the catalogue, with its unit and a short scope. */
+.le-custom-hd{display:flex;align-items:center;gap:8px}
+.le-custom-tag{flex:none;padding:1px 7px;border-radius:6px;background:var(--surface-2);color:var(--sub);font-size:var(--type-caption);font-weight:500}
+.le-custom-name{flex:1;min-width:0;font-weight:500}
+.le-custom-scope{display:block;width:100%;margin-top:4px;color:var(--sub);resize:vertical;min-height:44px;line-height:1.4}
+.le-unit-text{font-weight:400;font-size:var(--type-meta);color:var(--sub);white-space:normal}
+.le-adds{display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap}
 .le-billing-sel{min-width:96px}
 .le-qty{width:56px;text-align:right}
 .le-price{width:110px;text-align:right}

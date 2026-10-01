@@ -1,7 +1,7 @@
 // Revise prices against the real templates: a deck revised in place must read exactly like the deck generated
 // afresh at the new prices (everything but the prices was the same to begin with), or it must refuse.
 // Opt-in, on COPIES (never files inside the repository, never the live database, never OneDrive):
-//   MENA_DB_COPY=<copy.sqlite3> MENA_TEMPLATE_DIR=<Proposals New Logo copy> MENA_OUT=<scratch dir> [MENA_MASTER_MODE=1] [MENA_TERM=12:6] \
+//   MENA_DB_COPY=<copy.sqlite3> MENA_TEMPLATE_DIR=<Proposals New Logo copy> MENA_OUT=<scratch dir> [MENA_MASTER_MODE=1] [MENA_TERM=12:6] [MENA_ONLY=Payroll] [MENA_KEEP_OUTPUT=1] \
 //   cargo test --test reprice_real -- --ignored --nocapture
 // Prints service names, slide numbers and the app's own messages; never slide text beyond a differing line.
 use menabig_tracker_lib::commands::upsert_proposal_rows;
@@ -64,8 +64,19 @@ fn a_revised_deck_reads_like_one_generated_at_the_new_prices() {
     for combo in [&["Administration and PRO", "Payroll"][..], &["Business Setup", "Company Maintenance"], &["Employer of Record", "Mobilization"], &["Labour Law Consultancy", "Recruitment"], &["Administration and PRO", "Accountancy", "Recruitment"]] {
         sets.push(combo.iter().map(|s| s.to_string()).collect());
     }
+    // Custom lines beside a catalogue service, and on their own (the 2026 design only: the current one starts from a service's template).
+    sets.push(vec!["Payroll".into(), "custom:Visa processing|per_visa|1500".into(), "custom:Market study|per_month|4000".into(), "custom:Executive search|percent_of_annual_package|12".into()]);
+    sets.push(vec!["custom:Market study|one_time|9000".into(), "custom:On-site HR|per_person_per_month|150".into()]);
+    // A custom line (1.66): "custom:<name>|<unit>|<price>", a service outside the catalogue with a short scope.
+    let custom_line = |id: i64, spec: &str, step: f64| -> CommercialLine {
+        let mut it = spec.trim_start_matches("custom:").split('|');
+        let (name, unit, price) = (it.next().unwrap(), it.next().unwrap(), it.next().unwrap().parse::<f64>().unwrap());
+        let price = if unit == "percent_of_annual_package" { price + if step > 0.0 { 2.5 } else { 0.0 } } else { price + step };
+        CommercialLine { id, service_name: name.into(), unit: Some(unit.into()), unit_price: Some(price), quantity: 1.0, billing: "monthly".into(), description: Some("First point of the scope\nSecond point of the scope\nThird point".into()), ..Default::default() }
+    };
     let lines_at = |conn: &rusqlite::Connection, id: i64, set: &[String], step: f64| -> Vec<CommercialLine> {
         set.iter().enumerate().map(|(k, n)| {
+            if n.starts_with("custom:") { return custom_line(id * 10 + k as i64, n, step); }
             let s = services.iter().find(|s| s.1 == *n).expect("service");
             CommercialLine { id: id * 10 + k as i64, service_id: Some(s.0), service_name: n.clone(), billing: if n == "Business Setup" || n == "Company Liquidation" || n == "Mobilization" { "one_time".into() } else { "monthly".into() }, quantity: 1.0, unit_price: Some(price(n, step)), rates: rates_for(conn, s.0, step), ..Default::default() }
         }).collect()
@@ -80,6 +91,8 @@ fn a_revised_deck_reads_like_one_generated_at_the_new_prices() {
             plan.push((id, set.join(" + "), months, set.clone()));
         }
     }
+    // MENA_ONLY=<part of a set's name> runs those sets alone (with MENA_KEEP_OUTPUT=1, to look at their decks).
+    if let Ok(only) = std::env::var("MENA_ONLY") { plan.retain(|p| p.1.contains(&only)); }
     upsert_proposal_rows(&mut conn, &rows).unwrap();
     for p in &rows { menabig_tracker_lib::commercial::save_lines(&conn, "proposal_lines", "proposal_id", p.id, &p.lines).unwrap(); }
     let db = std::sync::Mutex::new(conn);

@@ -283,8 +283,14 @@ pub fn reprice(pkg: &mut Package, input: &RepriceInput) -> RepriceReport {
         let mut singles_here: Vec<(usize, f64)> = Vec::new();
         let mut changed_here = false;
 
+        // The summary of fees is MENA One's own slide: its rows are worked out again, not searched.
+        let summary = crate::extra_slides::refresh_summary(&original, input.lines, Some(total_months), input.currency);
+        if let Some((_, n)) = &summary {
+            report.amounts += n;
+            changed_here = *n > 0;
+        }
         // Fee rows: a priced row of a line by its label, else the row that names a single-price line.
-        let mut xml = row_re.replace_all(&original, |c: &regex::Captures| {
+        let mut xml = if let Some((y, _)) = summary { y } else { row_re.replace_all(&original, |c: &regex::Captures| {
             let row = &c[0];
             let row_text = paragraph_texts(row).join(" ");
             if !money_regex().is_match(&row_text) { return row.to_string(); }
@@ -320,7 +326,8 @@ pub fn reprice(pkg: &mut Package, input: &RepriceInput) -> RepriceReport {
                 changed_here = true;
             }
             new_row
-        }).to_string();
+        }).to_string() };
+        let is_summary = xml.contains(crate::extra_slides::SUMMARY_MARK);
 
         // A total under one monthly fee follows it; any other total on a slide whose prices changed cannot be recalculated here.
         let monthly: Vec<(usize, f64)> = singles_here.iter().copied().filter(|(k, _)| pts[*k].line.months.is_some()).collect();
@@ -329,7 +336,7 @@ pub fn reprice(pkg: &mut Package, input: &RepriceInput) -> RepriceReport {
             let row = &c[0];
             let row_text = paragraph_texts(row).join(" ");
             let amounts: Vec<f64> = money_regex().find_iter(&row_text).filter(|m| !m.as_str().contains('%')).filter_map(|m| parse_amount(m.as_str())).collect();
-            if !total_regex().is_match(&smartfill::row_label(&row_text)) || amounts.len() != 1 { return row.to_string(); }
+            if is_summary || !total_regex().is_match(&smartfill::row_label(&row_text)) || amounts.len() != 1 { return row.to_string(); }
             if !changed_here && !term_moves { return row.to_string(); }
             let cannot = |report: &mut RepriceReport| report.blocked.push(format!("Slide {position}: the total ({}) cannot be recalculated in place.", format_like("1 SAR", amounts[0], input.currency)));
             let [(k, old_unit)] = monthly.as_slice() else { if changed_here { cannot(&mut report); } return row.to_string() };

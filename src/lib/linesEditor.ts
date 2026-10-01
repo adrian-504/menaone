@@ -10,7 +10,8 @@ import { icon } from './icons';
 import { activeServices, fmtMoney, lineAmount, lineTotals, newLine, serviceById, serviceByName } from './commercial';
 import { checkPrice, defaultRates, lineValue, presetFor, rowKind, rowPresets, singleRange, trancheLabel, type RowKind, type RowPreset } from './pricing';
 import type { PricingService } from './constants';
-import type { CommercialLine, LineRate, Service } from './types';
+import type { CommercialLine, LineRate, LineUnit, Service } from './types';
+import { LINE_UNITS, customPrice, customPriceText, isCustomLine, normalizeCustomLine, unitCounts, unitLabel } from './customLine';
 
 export interface LinesEditorContext {
   lines: () => CommercialLine[];
@@ -164,6 +165,8 @@ export function renderLinesEditor(key: string, containerId: string, ctx: LinesEd
     const amount = lineAmount(l);
     const note = ctx.lineNote?.(l);
     const noteHtml = note ? `<div class="le-desc-text le-was">${escHtml(note)}</div>` : '';
+    // A custom line (1.66): a service outside the catalogue, named here, priced by its unit, with a short scope.
+    if (isCustomLine(l)) return customRow(k, l, currency, ctx.editable, noteHtml);
     if (!ctx.editable) {
       return `<tr>
         <td><div class="le-service">${escHtml(l.serviceName || '—')}</div>${l.description ? `<div class="le-desc-text">${escHtml(l.description)}</div>` : ''}${noteHtml}${readOnlyRates(l, currency)}</td>
@@ -206,13 +209,42 @@ export function renderLinesEditor(key: string, containerId: string, ctx: LinesEd
       <tbody>${rows || `<tr><td colspan="${ctx.editable ? 6 : 5}" class="le-empty">No services yet${ctx.editable ? ' — add the first one below.' : '.'}</td></tr>`}</tbody>
     </table></div>
     <div class="le-footer">
-      ${ctx.editable ? `<button type="button" class="btn-secondary btn-sm" onclick="linesEdit('${k}', 0, 'add', '')">${icon('plus', 13)} Add service</button>` : '<span></span>'}
+      ${ctx.editable ? `<span class="le-adds"><button type="button" class="btn-secondary btn-sm" onclick="linesEdit('${k}', 0, 'add', '')">${icon('plus', 13)} Add service</button><button type="button" class="btn-ghost btn-sm" onclick="linesEdit('${k}', 0, 'addCustom', '')" data-tip="A service outside the catalogue, with its own price, unit and a short scope. It gets its own slide in the deck.">Add custom line</button></span>` : '<span></span>'}
       <dl class="le-totals">
         <div><dt>Monthly</dt><dd data-roll="${k}-monthly">${totals.monthly != null ? fmtMoney(totals.monthly, currency) : '—'}</dd></div>
         <div><dt>One-time</dt><dd data-roll="${k}-onetime">${totals.oneTime != null ? fmtMoney(totals.oneTime, currency) : '—'}</dd></div>
         <div class="le-total-main"><dt>Contract value${months ? ` · ${months} mo` : ''}</dt><dd data-roll="${k}-value">${totals.contractValue != null ? fmtMoney(totals.contractValue, currency) : '—'}</dd></div>
       </dl>
     </div>`;
+}
+
+/** A custom line's row: its name and short scope, its unit where a catalogue line has its billing, and its price. */
+function customRow(k: string, l: CommercialLine, currency: string, editable: boolean, noteHtml: string): string {
+  const amount = unitCounts(l.unit) ? lineAmount(l) : null;
+  const price = customPrice(l);
+  const percent = l.unit === 'percent_of_annual_package';
+  const said = customPriceText(l, (v) => fmtMoney(v, currency));
+  if (!editable) {
+    const scope = (l.description || '').split('\n').map((x) => x.trim()).filter(Boolean);
+    return `<tr>
+      <td><div class="le-service">${escHtml(l.serviceName || '—')}</div>${scope.map((x) => `<div class="le-desc-text">${escHtml(x)}</div>`).join('')}${noteHtml}</td>
+      <td class="le-billing">${escHtml(unitLabel(l.unit!))}</td>
+      <td class="num">${unitCounts(l.unit) ? l.quantity : '—'}</td>
+      <td class="num">${price != null ? (percent ? `${price}%` : fmtMoney(price, currency)) : '—'}</td>
+      <td class="num strong">${amount != null ? fmtMoney(amount, currency) : '—'}</td>
+    </tr>`;
+  }
+  return `<tr data-line-id="${l.id}" class="le-custom">
+    <td class="le-service-cell">
+      <div class="le-custom-hd"><span class="le-custom-tag" data-tip="A service outside the catalogue: it gets its own scope-and-fee slide in the deck">Custom</span><input class="td-input le-custom-name" value="${escHtml(l.serviceName)}" placeholder="Name of the service" aria-label="Service name" maxlength="80" onchange="linesEdit('${k}', ${l.id}, 'customName', this.value)"></div>
+      <textarea class="td-input le-custom-scope" rows="2" maxlength="600" placeholder="Short scope: one point per line, up to six (goes on its slide)" aria-label="Scope" onchange="linesEdit('${k}', ${l.id}, 'description', this.value)">${escHtml(l.description || '')}</textarea>${noteHtml}
+    </td>
+    <td><select class="td-select le-billing-sel" aria-label="Unit" onchange="linesEdit('${k}', ${l.id}, 'unit', this.value)">${LINE_UNITS.map(([u, label]) => `<option value="${u}"${l.unit === u ? ' selected' : ''}>${escHtml(label)}</option>`).join('')}</select></td>
+    <td class="num">${unitCounts(l.unit) ? `<input class="td-input le-qty" type="number" min="1" step="1" value="${l.quantity}" aria-label="Quantity" onchange="linesEdit('${k}', ${l.id}, 'quantity', this.value)">` : '<span class="t-muted">—</span>'}</td>
+    <td class="num"><input class="td-input le-price" type="number" min="0" step="${percent ? '0.5' : '50'}" value="${price ?? ''}" placeholder="${percent ? '%' : '0'}" aria-label="${percent ? 'Percentage' : 'Price'}" onchange="linesEdit('${k}', ${l.id}, 'customPrice', this.value)"></td>
+    <td class="num strong le-amount">${amount != null ? fmtMoney(amount, currency) : `<span class="le-unit-text" data-tip="Not a sum: it is not part of the totals">${escHtml(price != null ? said : '—')}</span>`}</td>
+    <td class="le-remove"><button type="button" class="rec-icon-btn" onclick="linesEdit('${k}', ${l.id}, 'remove', '')" data-tip="Remove service" aria-label="Remove service">${icon('close', 13)}</button></td>
+  </tr>`;
 }
 
 /** A new line for a service, starting with its rate card's rows and standard price. */
@@ -251,6 +283,13 @@ export function linesEdit(key: string, lineId: number, field: string, value: str
     commit(key, lines, true);
     return;
   }
+  if (field === 'addCustom') {
+    const line = normalizeCustomLine({ ...newLine(null, lines.length), unit: 'per_month' as LineUnit });
+    lines.push(line);
+    commit(key, lines);
+    document.querySelector<HTMLInputElement>(`#${entry.containerId} tr[data-line-id="${line.id}"] .le-custom-name`)?.focus();
+    return;
+  }
   const i = lines.findIndex((l) => l.id === lineId);
   if (i < 0) return;
   const l = lines[i];
@@ -275,6 +314,10 @@ export function linesEdit(key: string, lineId: number, field: string, value: str
       break;
     }
     case 'description': l.description = value.trim() || null; break;
+    case 'customName': l.serviceId = null; l.serviceName = value.trim(); break;
+    // The unit decides the billing, and where a price that is not a sum lives (lib/customLine.ts).
+    case 'unit': Object.assign(l, normalizeCustomLine({ ...l, unit: value as LineUnit, unitPrice: customPrice(l), rates: [] })); break;
+    case 'customPrice': Object.assign(l, normalizeCustomLine({ ...l, unitPrice: value.trim() === '' ? null : Math.max(0, Number(value) || 0), rates: [] })); break;
     case 'commission': {
       const before = rowPresets(cardFor(l), l.commission);
       l.commission = value === '1';

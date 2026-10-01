@@ -3,6 +3,7 @@
 // (generator.rs, smartfill.rs) is untouched; this only reads what it returns.
 // Pure, except miniCoverHtml's escaping.
 
+import { customPrice, customPriceText, unitCounts } from './customLine';
 import { escHtml } from './utils';
 import { fmtMoney, lineAmount } from './commercial';
 import type { CommercialLine } from './types';
@@ -71,7 +72,9 @@ export function miniCoverHtml(client: string, label: string, sub = ''): string {
 }
 
 /** A service row on the builder's proposal card: "Payroll · Monthly · SAR 5,000". Pure. */
-export function cardLine(l: Pick<CommercialLine, 'serviceName' | 'billing' | 'unitPrice' | 'quantity'>, currency: string): string {
+export function cardLine(l: Pick<CommercialLine, 'serviceName' | 'billing' | 'unitPrice' | 'quantity'> & Partial<Pick<CommercialLine, 'unit' | 'rates'>>, currency: string): string {
+  // A custom line priced per person, per visa or as a percentage says how it is priced: it is not a sum.
+  if (l.unit && !unitCounts(l.unit)) return [l.serviceName.trim() || 'Service', customPrice({ unit: l.unit, unitPrice: l.unitPrice, rates: l.rates }) != null ? customPriceText({ unit: l.unit, unitPrice: l.unitPrice, rates: l.rates }, (v) => fmtMoney(v, currency)) : 'price to set'].join(' · ');
   const amount = lineAmount(l);
   return [l.serviceName.trim() || 'Service', l.billing === 'one_time' ? 'One-time' : 'Monthly', amount != null ? fmtMoney(amount, currency) : 'price to set'].join(' · ');
 }
