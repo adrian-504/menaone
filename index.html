@@ -2246,6 +2246,48 @@
   </div>
 </div>
 
+<!-- A follow-up entry's optional details (1.65): never asked for; "Followed up" itself is one click. -->
+<div class="modal-ov" id="modal-entry" onclick="if(event.target===this)closeEntryDialog()">
+  <div class="modal modal-sm">
+    <div class="modal-hd"><div class="modal-title" id="entry-title">Follow-up details</div><button class="modal-close" onclick="closeEntryDialog()">×</button></div>
+    <div class="modal-sub" id="entry-sub"></div>
+    <div class="fgrp">
+      <div class="seg-btns entry-seg" id="entry-direction" role="radiogroup" aria-label="Who reached out">
+        <button type="button" class="seg-btn" role="radio" data-direction="out" onclick="entryDirection('out')">We followed up</button>
+        <button type="button" class="seg-btn" role="radio" data-direction="in" onclick="entryDirection('in')">Client replied</button>
+      </div>
+    </div>
+    <div class="entry-row">
+      <div class="fgrp">
+        <label class="flbl" for="entry-channel">How</label>
+        <select class="finp" id="entry-channel"></select>
+      </div>
+      <div class="fgrp">
+        <label class="flbl" for="entry-date">When</label>
+        <input type="date" class="finp" id="entry-date">
+      </div>
+    </div>
+    <div class="fgrp" id="entry-who-grp">
+      <label class="flbl" for="entry-who">Who followed up</label>
+      <select class="finp" id="entry-who"></select>
+    </div>
+    <div class="fgrp">
+      <label class="flbl" for="entry-note" id="entry-note-lbl">What was said (optional)</label>
+      <input type="text" class="finp" id="entry-note" maxlength="200" placeholder="One line">
+    </div>
+    <div class="fgrp" id="entry-revert-grp" hidden>
+      <label class="flbl" for="entry-revert">They will revert after (optional)</label>
+      <input type="date" class="finp" id="entry-revert">
+    </div>
+    <label class="check-label entry-also" id="entry-also-grp" hidden><input type="checkbox" id="entry-also" checked> <span id="entry-also-lbl"></span></label>
+    <div class="fact">
+      <button class="btn-danger entry-delete" id="entry-delete" onclick="deleteEntryFromDialog()" hidden>Delete entry</button>
+      <button class="btn-secondary" onclick="closeEntryDialog()">Cancel</button>
+      <button class="btn-primary" id="entry-save" onclick="saveEntryDialog()">Log it</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-ov" id="modal-wl" onclick="if(event.target===this)closeWlModal()">
   <div class="modal modal-sm">
     <div class="modal-hd"><div class="modal-title" id="wl-title">Close Proposal</div><button class="modal-close" onclick="closeWlModal()">×</button></div>

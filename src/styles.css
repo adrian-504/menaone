@@ -1396,6 +1396,16 @@ body.dnd-active .board-column.drop-target{background:var(--accent-bg)!important}
 .notes-side-meetings{margin-top:8px}
 /* A revision's "was …" under a changed service. */
 /* The proposal page's follow-up log: one muted line per contact, hairline above. */
+/* 1.65: an entry's optional details, and Edit on a logged entry. */
+.entry-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.entry-seg{display:flex}
+.entry-seg .seg-btn{flex:1;justify-content:center}
+.entry-also{margin-top:4px}
+.entry-delete{margin-right:auto}
+.pr-contact-list li{display:flex;align-items:baseline;gap:10px}
+.pr-contact-list li > span{min-width:0}
+.pr-contact-edit{flex:none;font-size:var(--type-meta);opacity:0}
+.pr-contact-list li:hover .pr-contact-edit,.pr-contact-edit:focus-visible{opacity:1}
 .pr-contact-list{list-style:none;margin:0;padding:8px 0 0;border-top:1px solid var(--hairline);color:var(--muted);font-size:var(--type-secondary);display:flex;flex-direction:column;gap:4px}
 .pr-contact-all{display:inline-block;margin-top:6px;font-size:var(--type-secondary)}
 .le-was{color:var(--muted);font-size:var(--type-secondary)}

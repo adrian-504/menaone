@@ -2,7 +2,7 @@
 // Follow-up by client and request (1.65): what a request is, how its log
 // counts, where it sits (Decide · Due · Waiting) and what its row says.
 import { describe, it, expect } from 'vitest';
-import { DECIDE_DAYS, buildRequest, buildRequests, entriesOf, nextAction, orderRequests, requestKey, requestStrip, requestValue, sentWith, statusList, type EntryTouch, type RequestContext } from './followRequests';
+import { CHANNELS, DECIDE_DAYS, channelOf, entryLine, kindOf, buildRequest, buildRequests, entriesOf, nextAction, orderRequests, requestKey, requestStrip, requestValue, sentWith, statusList, type EntryTouch, type RequestContext } from './followRequests';
 import type { Proposal } from './types';
 
 const T = '2026-10-01';
@@ -188,5 +188,22 @@ describe('the strip and the status list', () => {
       'Northwind — EOR — sent 26 Sept (5 days) — waiting on the client — next: follow up from 7 Oct',
     ]);
     expect(text).not.toMatch(/SAR|\d{1,3},\d{3}/);
+  });
+});
+
+describe('one entry, in words', () => {
+  const names = { memberName: (id: number) => ({ 1: 'Ahmad', 2: 'Hassan' } as Record<number, string>)[id] ?? null, me: 1 };
+  it('says who followed up when it was someone else, what was said, and when they will revert', () => {
+    expect(entryLine({ direction: 'out', byMemberId: null, note: null, revertAfter: null }, 'you called Sara', names)).toBe('you called Sara');
+    expect(entryLine({ direction: 'out', byMemberId: 1, note: null, revertAfter: null }, 'you called Sara', names)).toBe('you called Sara');
+    expect(entryLine({ direction: 'out', byMemberId: 2, note: 'Left a message', revertAfter: null }, 'you called Sara', names)).toBe('Hassan called Sara · “Left a message”');
+    expect(entryLine({ direction: 'out', byMemberId: 2, note: null, revertAfter: null }, 'WhatsApp to Sara', names)).toBe('Hassan sent a WhatsApp to Sara');
+    expect(entryLine({ direction: 'in', byMemberId: 2, note: 'After the board meeting', revertAfter: '2026-10-15' }, 'Sara replied', names)).toBe('Sara replied · “After the board meeting” · will revert after 15 Oct');
+  });
+  it('a channel and a direction make the kind; a reply is never a meeting', () => {
+    expect([kindOf('email', 'out'), kindOf('email', 'in'), kindOf('call', 'in'), kindOf('whatsapp', 'out'), kindOf('meeting', 'out')]).toEqual(['email_out', 'email_in', 'call', 'whatsapp', 'meeting']);
+    expect(CHANNELS.in.map(([c]) => c)).toEqual(['email', 'whatsapp', 'call']);
+    expect(CHANNELS.out.map(([c]) => c)).toEqual(['email', 'whatsapp', 'call', 'meeting']);
+    expect(['email_in', 'email_out', 'call', 'whatsapp', 'meeting'].map((k) => channelOf(k as never))).toEqual(['email', 'email', 'call', 'whatsapp', 'meeting']);
   });
 });

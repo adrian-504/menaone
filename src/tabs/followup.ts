@@ -19,7 +19,7 @@ import { registerTabRenderer, refreshAll } from '../lib/registry';
 import { persistProposals } from '../lib/persist';
 import { contactFirstName, followUpMenu, getFollowups, getSnoozed, isSnoozed, openRevisionDialog, openWlModal } from '../core/proposals';
 import { bulkApply } from '../core/proposalBulk';
-import { logEntry } from '../core/followLog';
+import { logEntry, openEntryDialog } from '../core/followLog';
 import { hideBulkBar, renderBulkBar, type BulkAction } from '../lib/bulkBar';
 import { rangeIds } from '../lib/bulkProposals';
 import { FOLLOW_UP_AFTER_DAYS, backInDays } from '../lib/followup';
@@ -238,6 +238,8 @@ function fuBulkActions(): BulkAction[] {
   return [
     { label: 'Followed up', choices: () => [{ label: 'Email', run: log('email_out') }, { label: 'Call', run: log('call') }, { label: 'WhatsApp', run: log('whatsapp') }, { label: 'Met', run: log('meeting') }] },
     { label: 'Client replied', choices: () => [{ label: 'Email', run: log('email_in', 'in') }, { label: 'Call', run: log('call', 'in') }, { label: 'WhatsApp', run: log('whatsapp', 'in') }] },
+    // The optional details for all of them at once: another day, who did it, what was said.
+    { label: 'Add details…', run: () => { const g = groups(); clearFuSelection(); paintFuSelection(); openEntryDialog(g.flat(), undefined, g); } },
     // A request for changes is about one proposal: with several ticked, which one.
     { label: 'Client asked for changes', choices: () => proposalsOf(ids()).map((p) => ({ label: `${p.client} — ${p.type || 'Proposal'} · SL# ${p.id}`, run: () => { clearFuSelection(); paintFuSelection(); openRevisionDialog(p.id); } })) },
     { label: 'Snooze', choices: () => [snooze(3), snooze(7), snooze(14), { label: 'Until…', run: () => { const all = ids(); clearFuSelection(); paintFuSelection(); void snoozeRequest(all); } }] },

@@ -25,6 +25,7 @@ import { latestRevision, lineWasNote, parseSnapshot, removedServices, revisionFa
 import { companyFromForm, contextFromOpportunity } from '../lib/workGraph';
 import { S } from '../lib/state';
 import { touchDoing, touchesOf } from '../lib/followup';
+import { entryLine } from '../lib/followRequests';
 import { escHtml, expose, fmtDate, today, nextId, nextCtId, showConfirm, showTextPrompt, showDatePrompt, debounce, strColor, fmtDateShort } from '../lib/utils';
 import { icon } from '../lib/icons';
 import { companyLink, recordLink } from '../lib/links';
@@ -507,9 +508,14 @@ export function renderContact(p: Proposal): void {
   if (el.hidden) { el.innerHTML = ''; return; }
   const touches = touchesOf(p, S.touches).slice().sort((a, b) => b.at.localeCompare(a.at) || b.id - a.id);
   const shown = contactAll === p.id ? touches : touches.slice(0, 5);
+  const names = { memberName: (id: number) => (teamMember(id)?.name || '').trim().split(/\s+/)[0] || null, me: S.currentUserId };
   const rows = shown.map((t) => {
     const who = t.contactId != null ? contactFirstName(t.contactId) : null;
-    return `<li>${[fmtDate(t.at.slice(0, 10)), touchDoing(t, who), t.subject || ''].filter(Boolean).map(escHtml).join(' · ')}</li>`;
+    // Who followed up when it was someone else, what was said, when they will revert (1.65); an entry logged by
+    // hand can be changed or deleted afterwards.
+    const line = entryLine({ direction: t.direction, byMemberId: t.byMemberId ?? null, note: t.note ?? null, revertAfter: t.revertAfter ?? null }, touchDoing(t, who), names);
+    const edit = t.source === 'manual' && t.id > 0 ? `<button class="rlink pr-contact-edit" onclick="openEntryDialog([${p.id}], ${t.id})" aria-label="Edit the entry of ${escHtml(fmtDate(t.at.slice(0, 10)))}">Edit</button>` : '';
+    return `<li><span>${[fmtDate(t.at.slice(0, 10)), line, t.subject || ''].filter(Boolean).map(escHtml).join(' · ')}</span>${edit}</li>`;
   }).join('');
   // When a follow-up is due the two actions are in the header; otherwise they stay here.
   const acts = needsFollowUp(p) ? '' : `<div class="rec-section-actions"><button class="btn-secondary btn-sm" onclick="openRevisionDialog(${p.id})" data-tip="Record what the client wants changed; the proposal goes back to drafting as a revision">Client asked for changes</button><button class="btn-secondary btn-sm" onclick="followUpMenu(event, ${p.id})" data-tip="Log an email, call, WhatsApp or meeting in one click" aria-haspopup="menu">Followed up ${icon('chevronDown', 11)}</button></div>`;

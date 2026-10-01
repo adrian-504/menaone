@@ -315,3 +315,30 @@ export function statusList(rows: FollowRequest[], today: string): string {
     return `${r.client} — ${r.services.join(', ')} — sent ${fmtDateShort(r.sent, true)} (${plural(days, 'day')}) — ${status} — next: ${nextAction(r)}`;
   }).join('\n');
 }
+
+// ── One entry, in words ─────────────────────────────────────────────────────
+
+export type Channel = 'email' | 'whatsapp' | 'call' | 'meeting';
+/** The channels a details dialog offers; a client's reply is never a meeting. */
+export const CHANNELS: Record<'out' | 'in', [Channel, string][]> = {
+  out: [['email', 'Email'], ['whatsapp', 'WhatsApp'], ['call', 'Call'], ['meeting', 'Meeting']],
+  in: [['email', 'Email'], ['whatsapp', 'WhatsApp'], ['call', 'Call']],
+};
+
+/** The touch kind a channel and a direction make. */
+export function kindOf(channel: Channel, direction: 'out' | 'in'): Touch['kind'] {
+  if (channel === 'email') return direction === 'in' ? 'email_in' : 'email_out';
+  return channel === 'meeting' && direction === 'in' ? 'call' : channel;
+}
+
+/** A touch kind's channel. */
+export const channelOf = (kind: Touch['kind']): Channel => (kind === 'email_in' || kind === 'email_out' ? 'email' : kind);
+
+/** One entry as the proposal page says it: "you called Sara", who did it when it was someone else, what was said,
+ * and when they will revert. `doing` is the "you called Sara" part (lib/followup.ts touchDoing). Pure. */
+export function entryLine(e: Pick<Entry, 'direction' | 'byMemberId' | 'note' | 'revertAfter'>, doing: string, o: { memberName?: (id: number) => string | null; me?: number | null } = {}): string {
+  const by = e.direction === 'out' && e.byMemberId != null && e.byMemberId !== o.me ? o.memberName?.(e.byMemberId) : null;
+  // Someone else followed up: "Hassan called Sara", not "you called Sara".
+  const what = by ? doing.replace(/^you /, `${by} `).replace(/^WhatsApp/, `${by} sent a WhatsApp`).replace(/^met/, `${by} met`) : doing;
+  return [what, e.note ? `“${e.note}”` : '', e.revertAfter ? `will revert after ${fmtDateShort(e.revertAfter, true)}` : ''].filter(Boolean).join(' · ');
+}
