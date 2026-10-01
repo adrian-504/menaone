@@ -9,6 +9,7 @@ import { daysBetween } from './pipeline';
 import { draftingSince, revisionOf } from './revisions';
 import { fmtDateShort, fmtWeekday } from './dates';
 import { ageTone, moneyTotal, plural, type StripPanel, type Tone } from './pageKit';
+import { PAPERWORK_PENDING, paperworkPending } from './afterYes';
 
 export type Stage = 'request' | 'drafting' | 'review' | 'client' | 'signed' | 'lost';
 export const PIPE_ORDER: Stage[] = ['request', 'drafting', 'review', 'client', 'signed'];
@@ -97,7 +98,8 @@ export function tableCells(p: Proposal, ctx: { today: string; reviewer: string; 
       action = p.reviewStatus === 'approved' ? { kind: 'mark_sent', label: 'Mark sent' } : { kind: 'nudge', label: 'Nudge' };
       break;
     case 'client':
-      chip = { text: p.status === PS.CLIENT_SIGNED ? 'Client signed' : 'With client', tone: 'coral' };
+      // The client said yes and has not signed yet: the list says so (1.65).
+      chip = paperworkPending(p) ? { text: PAPERWORK_PENDING, tone: 'green' } : { text: p.status === PS.CLIENT_SIGNED ? 'Client signed' : 'With client', tone: 'coral' };
       if (ctx.due) flag = { text: 'follow up', tone: 'amber' };
       action = ctx.stale ? { kind: 'mark_lost', label: 'Mark lost' } : { kind: 'followed_up', label: 'Followed up' };
       break;

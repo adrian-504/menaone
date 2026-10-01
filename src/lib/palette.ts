@@ -13,6 +13,7 @@ import { stageOfProposal, stageSince } from './pagesProposals';
 import { companyHeaderFigures } from './recordCompany';
 import { agreementHeaderFigures } from './recordAgreement';
 import type { Figure } from './recordFigures';
+import { PAPERWORK_PENDING, paperworkPending } from './afterYes';
 
 // ── Groups ──────────────────────────────────────────────────────────────────
 
@@ -83,7 +84,7 @@ const proposalChip = (p: Proposal, today: string): Chip => {
   const days = since ? Math.max(0, daysBetween(since.slice(0, 10), today) ?? 0) : null;
   const age = days == null ? '' : ` · ${plural(days, 'day')}`;
   return stage === 'request' ? { text: `To draft${age}`, tone: 'red' } : stage === 'drafting' ? { text: `Drafting${age}`, tone: 'blue' }
-    : stage === 'review' ? { text: `In review${age}`, tone: 'amber' } : stage === 'client' ? { text: `With client${age}`, tone: 'blue' }
+    : stage === 'review' ? { text: `In review${age}`, tone: 'amber' } : stage === 'client' ? (paperworkPending(p) ? { text: PAPERWORK_PENDING, tone: 'green' } : { text: `With client${age}`, tone: 'blue' })
     : stage === 'signed' ? { text: 'Signed', tone: 'green' } : { text: p.status === PS.LOST ? 'Lost' : 'Closed', tone: 'grey' };
 };
 

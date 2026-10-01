@@ -8,6 +8,7 @@ import type { Agreement, Commitment, IntelligenceItem, Meeting, Proposal } from 
 import { PS, proposalSentDate } from './commercial';
 import { openRevision } from './revisions';
 import { lastTouch, type TouchContext } from './followup';
+import { PAPERWORK_PENDING, paperworkPending } from './afterYes';
 import { daysBetween } from './pipeline';
 import { agreementRenewal, addDays, personName } from './myday';
 import { fmtDateShort, fmtDateWeekday } from './dates';
@@ -77,7 +78,7 @@ export function playRow(p: Proposal, ctx: TouchContext & { reviewerName?: (p: Pr
   const touch = lastTouch(p, ctx);
   const age = touch?.days ?? Math.max(0, daysBetween(sent, today) ?? 0);
   const expires = p.validUntil && p.validUntil >= today && (daysBetween(today, p.validUntil) ?? 99) <= 30 ? p.validUntil : null;
-  const second = rev ? `revision ${rev.number} open` : expires ? `offer expires ${fmtDateShort(expires)}` : touch && touch.kind !== 'sent' ? `last touch ${fmtDateShort(touch.date)}` : 'no answer yet';
+  const second = paperworkPending(p) ? PAPERWORK_PENDING.toLowerCase() : rev ? `revision ${rev.number} open` : expires ? `offer expires ${fmtDateShort(expires)}` : touch && touch.kind !== 'sent' ? `last touch ${fmtDateShort(touch.date)}` : 'no answer yet';
   return {
     ...base, meta: `${sent ? `Sent ${fmtDateShort(sent)}` : 'Sent'} · ${second}`, age, ageLabel: plural(age, 'day'), tone: age > 30 ? 'amber' : null,
     action: rev ? { kind: 'revision_sent', label: 'Mark revision sent' } : { kind: 'followed_up', label: 'Followed up' },

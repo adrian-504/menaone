@@ -1396,6 +1396,15 @@ body.dnd-active .board-column.drop-target{background:var(--accent-bg)!important}
 .notes-side-meetings{margin-top:8px}
 /* A revision's "was …" under a changed service. */
 /* The proposal page's follow-up log: one muted line per contact, hairline above. */
+/* 1.65: After the yes — a checklist in the proposal's right column. */
+.pr-yes-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.pr-yes-list li{display:flex;align-items:center;gap:8px;min-height:26px;font-size:var(--type-secondary);color:var(--sub)}
+.pr-yes-list li > i{flex:none;width:16px;height:16px;border-radius:50%;display:grid;place-items:center;box-shadow:inset 0 0 0 1.5px var(--border);color:var(--on-tile)}
+.pr-yes-list li.is-done > i{background:var(--green);box-shadow:none}
+.pr-yes-list li.is-done .pr-yes-l{color:var(--text)}
+.pr-yes-l{flex:1;min-width:0}
+.pr-yes-d{flex:none;font:500 11.5px var(--font-mono);color:var(--sub)}
+.pr-yes-m{flex:none;font-size:var(--type-meta);font-weight:500;color:var(--blue)}
 /* 1.65: an entry's optional details, and Edit on a logged entry. */
 .entry-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .entry-seg{display:flex}

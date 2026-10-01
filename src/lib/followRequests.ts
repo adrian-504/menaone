@@ -27,6 +27,7 @@ import { FOLLOW_UP_AFTER_DAYS, lastTouch, touchesOf, type LastTouch, type TouchC
 import { fmtDateShort, fmtDateWeekday } from './dates';
 import { moneyTotal, plural, type StripPanel } from './pageKit';
 import { contactTrail, expiresIn, followUpDueOn, EXPIRING_DAYS, type MetaBit, type Trail } from './pagesQueues';
+import { PAPERWORK_PENDING, paperworkPending } from './afterYes';
 
 /** Days since the client's last word (or since sending) before a request is put to a decision. */
 export const DECIDE_DAYS = 60;
@@ -207,7 +208,9 @@ export function buildRequest(members: Proposal[], ctx: RequestContext): FollowRe
   else if (replied) hold = { kind: 'replied', until: null, text: 'the client replied' };
 
   const quiet = Math.max(0, daysBetween(since, today) ?? 0);
-  const decide = quiet >= DECIDE_DAYS && (unanswered >= DECIDE_UNANSWERED || quiet >= DECIDE_DAYS) && (!hold || hold.kind === 'replied');
+  // The client said yes and the paperwork is still out: it is chased, never put to a close-or-keep decision.
+  const accepted = ps.some(paperworkPending);
+  const decide = !accepted && quiet >= DECIDE_DAYS && (unanswered >= DECIDE_UNANSWERED || quiet >= DECIDE_DAYS) && (!hold || hold.kind === 'replied');
   const due = !decide && !hold && age > FOLLOW_UP_AFTER_DAYS;
   const bucket: RequestBucket = decide ? 'decide' : due ? 'due' : 'waiting';
 
@@ -226,6 +229,7 @@ export function buildRequest(members: Proposal[], ctx: RequestContext): FollowRe
 
   const noContact = !!ctx.hasContact && !ps.some((p) => ctx.hasContact!(p));
   const word: MetaBit[] = [lastWord ? { text: `${/^(Replied|Called)/.test(lastWord.text) ? lastWord.text : `“${lastWord.text}”`} · ${fmtDateShort(lastWord.date, true)}` } : { text: 'Never replied' }];
+  if (accepted) word.unshift({ text: PAPERWORK_PENDING });
   if (hold && hold.kind !== 'replied') word.push({ text: hold.text });
   if (noContact) word.push({ text: 'no contact person', tone: 'amber' });
 
