@@ -102,7 +102,7 @@ export const TIER = {
   countersign: 700,
   /** 4. A promise owed to you that is late. */
   owedLate: 600,
-  /** 5. Signed by both for a week or more with the service not started, or with no agreement yet. */
+  /** 5. Signed by both for a week or more with the service not started, or (signed in the last 60 days) with no agreement yet. */
   afterSigned: 500,
   /** 6. An agreement whose decide-by date has passed or falls within 30 days, or that is past term and still active. */
   agreement: 400,
@@ -110,14 +110,18 @@ export const TIER = {
   meeting: 300,
   /** 8. An opportunity at risk, or with you for more than a week (and those with no next step, folded). */
   opportunity: 200,
-  /** Not in the owner's list, kept below it: a project at risk or near its date, a kickoff that was due, a flagged
-   * email that is due; and, only when My Day has no rail, the proposal stages the rail would show. */
+  /** Not in the owner's list, kept below it: a project at risk or within 7 days of its date, a kickoff that was due,
+   * a flagged email that is due (flagged emails with no date are not counted here: nothing to act on); and, only
+   * when My Day has no rail, the proposal stages the rail would show. */
   other: 100,
   /** 9. The Inbox count, last. */
   inbox: 0,
 } as const;
 /** Days a signed proposal may sit before its missing service start or agreement is raised. */
 export const AFTER_SIGNED_DAYS = 7;
+/** "No agreement yet" is raised only for proposals signed in the last this-many days: an older one is a record nobody
+ * linked, not today's job (its own page still says so). It must never become a permanent row. */
+export const NO_AGREEMENT_WITHIN_DAYS = 60;
 /** An agreement's decide-by date is raised this many days ahead. */
 export const DECIDE_AHEAD_DAYS = 30;
 /** An opportunity is raised once it has been with you longer than this. */
@@ -177,7 +181,7 @@ function proposalItems(i: MyDayInput): AttentionItem[] {
       if (d == null || d < AFTER_SIGNED_DAYS) continue;
       if (!p.serviceStartedAt) out.push({ ...base, key: `proposal:${p.id}:not-started`, kind: 'proposal', score: TIER.afterSigned + 50 + within(d / 4), tone: 'amber',
         reason: `Signed by both ${days(d)} ago — the service has not started${services}`, when: days(d), action: { kind: 'open', label: 'Open' } });
-      else if (!linked.has(p.id)) out.push({ ...base, key: `proposal:${p.id}:no-agreement`, kind: 'proposal', score: TIER.afterSigned + within(d / 8), tone: 'accent',
+      else if (!linked.has(p.id) && d <= NO_AGREEMENT_WITHIN_DAYS) out.push({ ...base, key: `proposal:${p.id}:no-agreement`, kind: 'proposal', score: TIER.afterSigned + within(d / 8), tone: 'accent',
         reason: `Signed by both on ${shortDate(signed!)} — no agreement yet${services}`, when: days(d), action: { kind: 'open', label: 'Open' } });
     } else if (p.status === PS.REVIEW && p.reviewStatus === 'changes_requested') {
       out.push({ ...base, key: `proposal:${p.id}:changes`, kind: 'review', score: TIER.reviewOutcome + 50, tone: 'red',
@@ -407,16 +411,12 @@ function emailItems(i: MyDayInput): AttentionItem[] {
   if (!flagged.length) return [];
   const endOfToday = new Date(`${i.today}T23:59:59`);
   const due = flagged.filter((e) => e.flagDueAt && new Date(e.flagDueAt) <= endOfToday);
-  const out: AttentionItem[] = due.map((e) => ({
+  return due.map((e) => ({
     key: `email:${e.id}:due`, kind: 'email' as const, title: e.subject || '(No subject)', companyId: e.companyId ?? null, companyName: e.companyName,
     score: TIER.other + 72, tone: new Date(e.flagDueAt!) < i.now ? 'red' as const : 'amber' as const,
     reason: `Flagged email from ${e.senderName || e.senderEmail || 'someone'}`, when: e.flagDueAt!.slice(0, 10) < i.today ? 'Overdue' : 'Due today',
     action: { kind: 'open_action_required' as const, label: 'Open' },
   }));
-  const rest = flagged.length - due.length;
-  if (rest > 0) out.push({ key: 'email:flagged', kind: 'email', title: `${plural(rest, 'flagged email')} in Outlook`, score: TIER.other + 1, tone: 'accent',
-    reason: 'No due date — go through them when you have a moment', action: { kind: 'open_action_required', label: 'Review' } });
-  return out;
 }
 
 const GROUP_WHEN_OVER = 3;
