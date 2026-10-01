@@ -3472,7 +3472,13 @@ body.dnd-active [data-sort-shift] .dnd-source{opacity:0}
 .pk-strip.is-flex{display:flex}
 .pk-st{position:relative;font:inherit;text-align:left;border:none;border-radius:9px;padding:14px 16px 14px 18px;background:var(--panel-bg);color:var(--text);overflow:hidden;box-shadow:var(--shadow-xs);min-width:0}
 .pk-st::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--c)}
-.pk-strip.edge-bottom .pk-st::before{top:auto;right:0;width:auto;height:3px}
+.pk-strip.is-pipe{gap:4px;margin-bottom:10px}
+.pk-strip.is-pipe .pk-st{padding:12px 14px 14px;min-width:96px}
+.pk-strip.is-pipe .pk-st::before{top:auto;right:0;width:auto;height:3px}
+.pk-strip.is-pipe .pk-st-n{display:block;font-size:26px}
+.pk-strip.is-pipe .pk-st-l{display:block;margin-top:4px;font-size:var(--type-secondary)}
+.pk-strip.is-pipe .pk-st-d{margin-top:4px;color:var(--sub)}
+.pk-arrow{align-self:center;flex:none;color:var(--muted);font-size:14px}
 button.pk-st{cursor:pointer;transition:box-shadow var(--dur-fast) var(--ease-out),background-color var(--dur-fast) var(--ease-out),transform var(--dur-fast) var(--ease-out)}
 button.pk-st:hover{box-shadow:var(--shadow-sm)}
 button.pk-st:active{transform:scale(.99)}
@@ -3566,3 +3572,48 @@ button.pk-st:focus-visible{outline:none;box-shadow:var(--shadow-focus)}
 .pk-note b{font-weight:500;color:var(--text)}
 .pk-order{margin-left:auto;font-size:var(--type-secondary);color:var(--muted)}
 .pk-group.is-muted{opacity:.8}
+
+/* Tables in the page language (Proposals, Companies): no box, uppercase tracked heads, hover tint, numbers right. */
+.tbl-wrap.pk-table{border:none;border-radius:0;box-shadow:none;background:none}
+.pk-table table{background:none}
+.pk-table th{background:none;text-align:left;font:600 10.5px var(--font-text);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);padding:0 10px 10px;border-bottom:1px solid var(--hairline)}
+.pk-table th.num{text-align:right}
+.pk-table td{padding:11px 10px;border-bottom:1px solid var(--hairline);background:none}
+.pk-table tbody tr:nth-child(even) td{background:none}
+.pk-table tbody tr{transition:background-color var(--dur-fast) var(--ease-out)}
+.pk-table tbody tr:hover td{background:var(--hover)}
+.pk-table tbody tr.is-selected td{background:var(--accent-bg)}
+.pk-table .mono{font-size:12px;font-weight:500}
+.pk-table .t-sub{color:var(--sub)}
+/* The checkbox shows on hover or once something is picked. */
+.pk-table .td-chk{width:28px;padding-right:0}
+.pk-table .td-chk input{opacity:0;transition:opacity var(--dur-fast) var(--ease-out)}
+.pk-table tr:hover .td-chk input,.pk-table tr.is-selected .td-chk input,.pk-table .td-chk input:focus-visible,.pk-table:has(tr.is-selected) .td-chk input{opacity:1}
+.pk-co{display:flex;align-items:center;gap:12px;min-width:0}
+.pk-tile.sm{width:32px;height:32px;border-radius:9px;font-size:11px}
+.pk-co-t{min-width:0;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pk-co-t .rlink{font-weight:600;color:var(--text);text-decoration-color:transparent}
+.pk-co-t .rlink:hover{text-decoration-color:currentColor}
+.pk-stage{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:500;padding:3px 9px;border-radius:18px;white-space:nowrap}
+.pk-stage i{width:6px;height:6px;border-radius:50%;background:currentColor}
+.pk-stage.t-grey{background:var(--surface-2);color:var(--sub)}
+.pk-stage.t-blue{background:var(--blue-50);color:var(--blue)}
+.pk-stage.t-amber{background:var(--amber-bg);color:var(--amber)}
+.pk-stage.t-coral{background:color-mix(in srgb,var(--coral) 12%,transparent);color:var(--coral-text)}
+.pk-stage.t-green{background:var(--green-bg);color:var(--green)}
+.pk-age-sm{font:600 15px var(--font-display);color:var(--sub);white-space:nowrap}
+.pk-age-sm.t-red{color:var(--red)}.pk-age-sm.t-amber{color:var(--amber)}
+.pk-mrr{font:600 15px var(--font-display);color:var(--navy);white-space:nowrap}
+.pk-mrr.is-none{color:var(--muted)}
+.pk-td-act{white-space:nowrap}
+.pk-act{font-size:var(--type-secondary);font-weight:500}
+.pk-td-act .row-more{margin-left:4px;vertical-align:middle;opacity:0;transition:opacity var(--dur-fast) var(--ease-out)}
+.pk-table tr:hover .pk-td-act .row-more,.pk-table tr:focus-within .pk-td-act .row-more{opacity:1}
+.pk-tools .fbar{flex:1;display:flex;align-items:center;gap:10px;margin:0;padding:0;border:none;min-width:0}
+.pk-tools .fbar .rcnt{margin-left:auto}
+.pk-table tbody tr,.pk-table tbody tr:hover{border-bottom:none;background:none}
+.pk-act.rlink{color:var(--blue);text-decoration-color:transparent}
+.pk-act.rlink:hover{text-decoration-color:currentColor}
+.pk-table .pk-chip{font-family:var(--font-text)}
+.pk-table .pk-td-co{width:36%;max-width:0}
+@media (max-width:1280px){#db-table th:nth-child(7),#db-table td:nth-child(7){display:none}}

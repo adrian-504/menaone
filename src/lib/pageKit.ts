@@ -61,7 +61,7 @@ export function clearBucket(page: string): void {
 }
 
 /** The strip: a navy total, then one panel per bucket with a 3px edge in its colour. */
-export function stripHtml(page: string, panels: StripPanel[], opts: { edge?: 'left' | 'bottom'; flex?: (p: StripPanel) => number } = {}): string {
+export function stripHtml(page: string, panels: StripPanel[], opts: { flex?: (p: StripPanel) => number; pipe?: boolean } = {}): string {
   const shown = visiblePanels(panels);
   if (!shown.length) return '';
   const active = bucketOf(page);
@@ -72,9 +72,12 @@ export function stripHtml(page: string, panels: StripPanel[], opts: { edge?: 'le
       return `<div class="pk-st is-total" style="${style}"><div class="pk-st-n">${escHtml(p.n)}</div><div class="pk-st-l">${escHtml(p.label)}</div>${detail}</div>`;
     }
     const on = active === p.key;
-    return `<button type="button" class="pk-st${on ? ' is-on' : ''}" style="${style}" aria-pressed="${on}" onclick="stripPick('${page}','${p.key}')"><div class="pk-st-top"><span class="pk-st-n">${escHtml(p.n)}</span><span class="pk-st-l">${escHtml(p.label)}</span></div>${detail}</button>`;
-  }).join('');
-  return `<div class="pk-strip${opts.edge === 'bottom' ? ' edge-bottom' : ''}${opts.flex ? ' is-flex' : ''}" style="--cols:${shown.length}">${cells}</div>`;
+    const body = opts.pipe
+      ? `<span class="pk-st-n">${escHtml(p.n)}</span><div class="pk-st-l">${escHtml(p.label)}</div>${detail}`
+      : `<div class="pk-st-top"><span class="pk-st-n">${escHtml(p.n)}</span><span class="pk-st-l">${escHtml(p.label)}</span></div>${detail}`;
+    return `<button type="button" class="pk-st${on ? ' is-on' : ''}" style="${style}" aria-pressed="${on}" onclick="stripPick('${page}','${p.key}')">${body}</button>`;
+  }).join(opts.pipe ? '<span class="pk-arrow" aria-hidden="true">›</span>' : '');
+  return `<div class="pk-strip${opts.pipe ? ' is-pipe' : ''}${opts.flex ? ' is-flex' : ''}" style="--cols:${shown.length}">${cells}</div>`;
 }
 
 export function toneVar(t: Tone): string {

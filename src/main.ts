@@ -267,7 +267,7 @@ async function init(): Promise<void> {
   rememberFilters({ ids: ['opp-stage-filter', 'opp-owner-filter'] });
   rememberFilters({ ids: ['proj-status-filter', 'proj-owner-filter', 'proj-sort'] });
   // Focus: search and the two filters used most stay; the rest go behind "Filters".
-  foldFilterBar(document.querySelector('#tab-database .fbar'), ['db-status', 'db-owner']);
+  foldFilterBar(document.querySelector('#tab-database .fbar'), ['db-owner']);
   foldFilterBar(document.querySelector('#co-list-view .co-search-bar'), ['co-filter-status', 'co-filter-owner']);
   foldFilterBar(document.querySelector('#agr-list-view .fbar'), ['agr-status', 'agr-service']);
   foldFilterBar(document.querySelector('#tab-contacts .fbar'), ['ct-client', 'ct-list-filter']);

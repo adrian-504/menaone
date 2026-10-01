@@ -155,6 +155,14 @@ export function staleMonths(p: { sent: string; followUps: number; lastFromClient
   return quiet < STALE_DAYS ? null : Math.floor(quiet / 30);
 }
 
+/** The stale rule for one sent proposal, from its touches. Pure. */
+export function proposalStaleMonths(p: Proposal, touches: Pick<Touch, 'proposalId' | 'companyId' | 'kind' | 'direction' | 'at' | 'contactId'>[], followUps: number, today: string): number | null {
+  const sent = proposalSentDate(p)?.slice(0, 10);
+  if (!sent || p.status !== PS.SENT) return null;
+  const fromClient = touchesOf(p, touches).filter((x) => x.direction === 'in' && x.at.slice(0, 10) >= sent).map((x) => x.at.slice(0, 10)).sort().pop() || null;
+  return staleMonths({ sent, followUps, lastFromClient: fromClient }, today);
+}
+
 export interface FollowRow extends QueueRow { expiring: boolean; dueOn: string | null; trail: Trail }
 
 export function followRow(p: Proposal, ctx: { today: string; touch: LastTouch | null; followUps: number; touches: Pick<Touch, 'proposalId' | 'companyId' | 'kind' | 'direction' | 'at' | 'contactId'>[] }): FollowRow | null {

@@ -1,13 +1,18 @@
 import { S } from '../lib/state';
 import { companyLink } from '../lib/links';
-import { STATUSES, ST } from '../lib/constants';
-import { fmtDate, escHtml, expose, debounce, statusDot } from '../lib/utils';
+import { STATUSES } from '../lib/constants';
+import { escHtml, expose, debounce } from '../lib/utils';
+import { bucketOf, clearBucket, plural, registerStrip, stripHtml, tileHtml } from '../lib/pageKit';
+import { pipeFlex, pipelineStrip, stageOfProposal, tableCells } from '../lib/pagesProposals';
+import { proposalStaleMonths, type RowActionKind } from '../lib/pagesQueues';
+import { followUpCount } from '../lib/followup';
+import { queueAct } from './pending';
 import { icon } from '../lib/icons';
 import { showContextMenu, showMenuAt } from '../lib/contextMenu';
 import { emptyState } from '../lib/ui';
 import { needsFollowUp } from '../core/proposals';
 import { withClients } from './followup';
-import { PS, proposalSentDate, isInPreparation, isWon, isLost, lineTotals, fmtMoney, currencyOf, ownerName, entityById, teamMember } from '../lib/commercial';
+import { PS, isInPreparation, isWon, isLost, lineTotals, currencyOf, ownerName, entityById, teamMember, defaultReviewer } from '../lib/commercial';
 import { applyFilters } from '../lib/filters';
 import { registerTabRenderer, getActiveTabId } from '../lib/registry';
 import { createListNav } from '../lib/listNav';
@@ -22,7 +27,7 @@ import { activeTeam } from '../lib/commercial';
 import { today } from '../lib/utils';
 import type { Proposal } from '../lib/types';
 
-export function dbGetFiltered(): Proposal[] {
+export function dbGetFiltered(withBucket = true): Proposal[] {
   const showArch = (document.getElementById('db-show-archived') as HTMLInputElement | null)?.checked || false;
   const owner = (document.getElementById('db-owner') as HTMLSelectElement | null)?.value || '';
   const entity = (document.getElementById('db-entity') as HTMLSelectElement | null)?.value || '';
@@ -41,6 +46,9 @@ export function dbGetFiltered(): Proposal[] {
     if (entity && String(p.businessEntityId ?? '') !== entity) return false;
     return true;
   });
+  // A pipeline panel picked on the All view narrows the table to its stage.
+  const bucket = withBucket && !currentStatusFilter() ? bucketOf('proposals') : null;
+  if (bucket) filtered.splice(0, filtered.length, ...filtered.filter((p) => stageOfProposal(p) === bucket));
   filtered.sort((a, b) => {
     let av: any = S.dbSortCol === 'owner' ? ownerName(a) : (a as any)[S.dbSortCol] ?? '';
     let bv: any = S.dbSortCol === 'owner' ? ownerName(b) : (b as any)[S.dbSortCol] ?? '';
@@ -51,8 +59,17 @@ export function dbGetFiltered(): Proposal[] {
   return filtered;
 }
 
+const currentStatusFilter = () => (document.getElementById('db-status') as HTMLSelectElement | null)?.value || '';
+
 export function renderDB(): void {
   renderProposalViews();
+  // The pipeline strip: on the All view, from what the filters leave (before a panel narrows it).
+  const strip = document.getElementById('db-strip');
+  if (strip) {
+    const base = currentStatusFilter() ? [] : dbGetFiltered(false);
+    if (bucketOf('proposals') && !base.some((p) => stageOfProposal(p) === bucketOf('proposals'))) clearBucket('proposals');
+    strip.innerHTML = base.length ? stripHtml('proposals', pipelineStrip(base), { pipe: true, flex: (p) => pipeFlex(p.count) }) : '';
+  }
   const filtered = dbGetFiltered();
   const total = filtered.length;
   const totalPages = Math.max(1, Math.ceil(total / S.PS));
@@ -68,28 +85,41 @@ export function renderDB(): void {
   const allBox = document.getElementById('db-select-all') as HTMLInputElement | null;
   if (allBox) allBox.checked = rows.length > 0 && rows.every((p) => dbSelected.has(p.id));
   updateDbBulkBar();
-  if (rows.length === 0) { tbody.innerHTML = `<tr><td colspan="11">${emptyState({ icon: 'search', title: 'No proposals match these filters', body: 'Try a different search, or clear the filters.', compact: true })}</td></tr>`; return; }
+  if (rows.length === 0) { tbody.innerHTML = `<tr><td colspan="8">${emptyState({ icon: 'search', title: 'No proposals match these filters', body: 'Try a different search, or clear the filters.', compact: true })}</td></tr>`; return; }
+  const t = today();
+  const reviewer = (p: Proposal) => teamMember(p.reviewerId)?.name || defaultReviewer()?.name || 'the reviewer';
   tbody.innerHTML = rows.map((p) => {
-    const cfg = ST[p.status] || { c: 'var(--muted)' };
     const fu = needsFollowUp(p);
+    const stale = p.status === PS.SENT && proposalStaleMonths(p, S.touches, followUpCount(p, S.touches), t) != null;
+    const agreementId = S.agreements.find((a) => a.proposalId === p.id)?.id ?? null;
+    const c = tableCells(p, { today: t, reviewer: reviewer(p), due: fu, stale, agreementId });
     const services = p.lines?.length ? lineTotals(p.lines, p.contractMonths).serviceNames : (p.type && p.type !== '—' ? [p.type] : []);
-    const review = p.status === PS.REVIEW ? `<span class="db-review ${p.reviewStatus === 'approved' ? 't-positive' : 't-muted'}">${p.reviewStatus === 'approved' ? 'Approved' : 'Awaiting review'}</span>` : '';
-    const monthly = p.monthlyFee ? fmtMoney(p.monthlyFee, currencyOf(p)) : p.oneTimeFee ? `${fmtMoney(p.oneTimeFee, currencyOf(p))} once` : '—';
-    return `<tr data-proposal-id="${p.id}" class="rec-tr${p.archived ? ' archived-row' : ''}${fu ? ' db-row-followup' : ''}${dbSelected.has(p.id) ? ' is-selected' : ''}" onclick="if(!event.target.closest('a,button,select,input'))openRecord('proposal', ${p.id})" oncontextmenu="proposalRowMenu(event, ${p.id})">
+    const act = c.action ? `<button class="rlink pk-act" onclick="event.stopPropagation();dbAct(event, ${p.id}, '${c.action.kind}')"${c.action.kind === 'followed_up' ? ' aria-haspopup="menu"' : ''}>${escHtml(c.action.label)}</button>` : '';
+    return `<tr data-proposal-id="${p.id}" class="rec-tr${p.archived ? ' archived-row' : ''}${dbSelected.has(p.id) ? ' is-selected' : ''}" onclick="if(!event.target.closest('a,button,select,input'))openRecord('proposal', ${p.id})" oncontextmenu="proposalRowMenu(event, ${p.id})">
       <td class="td-chk"><input type="checkbox" ${dbSelected.has(p.id) ? 'checked' : ''} onchange="dbSelect(${p.id}, this.checked)" aria-label="Select SL# ${p.id}"></td>
-      <td class="td-id">${p.id}</td>
-      <td class="td-c strong" title="${escHtml(p.client)}">${companyLink(p.companyId, p.client)}${p.archived ? ' <span class="chip">Archived</span>' : ''}</td>
-      <td class="db-services" title="${escHtml(services.join(', '))}">${services.length ? services.map((sv) => `<span class="chip">${escHtml(sv)}</span>`).join(' ') : '<span class="t-muted">To be confirmed</span>'}</td>
-      <td class="td-status">${statusDot(cfg, p.status)}${review}<button class="rec-icon-btn row-more" onclick="proposalRowMenu(event, ${p.id})" data-tip="Change status…" aria-label="Change status of SL# ${p.id}">${icon('more', 14)}</button></td>
-      <td class="t-sub">${escHtml(ownerName(p) || '—')}</td>
-      <td class="td-d">${fmtDate(p.dateAdded)}</td>
-      <td class="td-d"${p.lastSentAt && p.dateSentToClient ? ` title="First sent ${fmtDate(p.dateSentToClient)}"` : ''}>${fmtDate(proposalSentDate(p))}${fu ? ' <span class="db-fu" title="No answer for over 10 days">follow up</span>' : ''}</td>
-      <td class="td-d">${p.dblSignedDate ? `<span class="t-positive">${fmtDate(p.dblSignedDate)}</span>` : '—'}</td>
-      <td class="num">${monthly}</td>
-      <td class="t-sub">${p.contractMonths ? `${p.contractMonths} mo` : '—'}</td>
+      <td class="pk-td-co"><div class="pk-co">${tileHtml(p.client, 'pk-tile sm')}<div class="pk-co-t">${companyLink(p.companyId, p.client)}<span class="pk-svc">— ${escHtml(services.join(', ') || 'to be confirmed')}</span>${p.archived ? ' <span class="pk-chip t-grey">Archived</span>' : ''}</div></div></td>
+      <td class="mono t-sub">${p.id}</td>
+      <td><span class="pk-stage t-${c.chip.tone}"><i></i>${escHtml(c.chip.text)}</span>${c.flag ? ` <span class="pk-chip t-${c.flag.tone}">${escHtml(c.flag.text)}</span>` : ''}</td>
+      <td class="num"><span class="pk-age-sm t-${c.tone}">${c.days == null ? '—' : escHtml(plural(c.days, 'day'))}</span></td>
+      <td class="num"><span class="pk-mrr${c.monthly === '—' ? ' is-none' : ''}">${escHtml(c.monthly)}</span></td>
+      <td class="mono t-sub">${escHtml(ownerName(p) || '—')}</td>
+      <td class="num pk-td-act">${act}<button class="rec-icon-btn row-more" onclick="proposalRowMenu(event, ${p.id})" data-tip="Change status…" aria-label="Change status of SL# ${p.id}">${icon('more', 14)}</button></td>
     </tr>`;
   }).join('');
 }
+
+/** The table's one next step. */
+export function dbAct(e: MouseEvent, id: number, kind: string): void {
+  if (kind === 'agreement') {
+    const a = S.agreements.find((x) => x.proposalId === id);
+    if (a) (window as any).openRecord('agreement', a.id);
+    return;
+  }
+  void queueAct(e, id, kind as RowActionKind).then(() => { if (getActiveTabId() === 'database') renderDB(); });
+}
+expose('dbAct', dbAct);
+registerStrip('proposals', () => { S.dbPage = 1; renderDB(); });
+
 /** A row's status reads as text; it changes from here (right-click or "…") or on the proposal page. */
 export function proposalRowMenu(e: MouseEvent, id: number): void {
   const p = S.proposals.find((x) => x.id === id);

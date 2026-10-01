@@ -1786,12 +1786,9 @@
 
 <!-- DATABASE (Proposals) -->
 <div id="tab-database" class="tab">
-<div id="pr-list-view">
-  <div class="page-header">
-    <div>
-      <div class="page-title">Proposals</div>
-      <div class="page-subtitle">Every proposal, from the first request to signature.</div>
-    </div>
+<div id="pr-list-view" class="pk-page">
+  <div class="page-header pk-head">
+    <div class="pk-head-t"><div class="page-title">Proposals</div><span class="bars lg" aria-hidden="true"><i></i><i></i><i></i></span><div class="page-subtitle">Every proposal from the first request to signature.</div></div>
     <div class="page-header-actions"><select class="fsel period-sel" onchange="setGlobalPeriod(this.value)" title="Period" aria-label="Period">
       <option value="all">All time</option>
       <option value="2026" class="opt-year">2026</option>
@@ -1819,9 +1816,10 @@
       <button class="loc-nav rec-more" onclick="pageMoreMenu(event, 'proposals')" data-tip="More" aria-label="More"><span data-icon="more" data-icon-size="16"></span></button>
     </div>
   </div>
+  <div class="pk-tools">
   <nav class="pr-views" data-pr-views aria-label="Proposal views"></nav>
   <div class="fbar">
-    <input type="text" class="f-search" id="db-search" placeholder="Search client, service, owner, remarks…" oninput="dbSearchChanged()">
+    <input type="text" class="f-search pk-search" id="db-search" placeholder="Search client, service, SL#…" oninput="dbSearchChanged()">
     <select class="fsel" id="db-status" onchange="dbFilter()"><option value="">All statuses</option></select>
     <select class="fsel" id="db-type" onchange="dbFilter()"><option value="">All services</option></select>
     <select class="fsel" id="db-owner" onchange="dbFilter()"><option value="">All owners</option></select>
@@ -1836,21 +1834,19 @@
     <span class="rcnt" id="db-cnt">0 results</span>
     <label class="rlink fbar-toggle"><input type="checkbox" id="db-show-archived" onchange="dbFilter()" hidden>Show archived</label>
   </div>
-  <div class="tbl-wrap data-table">
+  </div>
+  <div id="db-strip"></div>
+  <div class="tbl-wrap data-table pk-table">
     <table id="db-table">
       <thead><tr>
         <th class="td-chk"><input type="checkbox" id="db-select-all" onchange="dbSelectAll(this.checked)" aria-label="Select all on this page"></th>
+        <th class="pk-th-co" onclick="dbSort('client')">Client and service</th>
         <th onclick="dbSort('id')">SL#</th>
-        <th onclick="dbSort('client')">Client</th>
-        <th onclick="dbSort('type')">Services</th>
-        <th onclick="dbSort('status')">Status</th>
-        <th onclick="dbSort('owner')">Owner</th>
-        <th onclick="dbSort('dateAdded')">Received</th>
-        <th onclick="dbSort('sentDate')">Sent</th>
-        <th onclick="dbSort('dblSignedDate')">Signed</th>
+        <th onclick="dbSort('status')">Stage</th>
+        <th class="num">In stage</th>
         <th class="num" onclick="dbSort('monthlyFee')">Monthly</th>
-        <th onclick="dbSort('contractMonths')">Term</th>
-        
+        <th onclick="dbSort('owner')">Owner</th>
+        <th class="num" aria-label="Next step"></th>
       </tr></thead>
       <tbody id="db-tbody"></tbody>
     </table>
