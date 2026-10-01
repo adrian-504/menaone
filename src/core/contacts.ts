@@ -12,7 +12,7 @@ import { bucketOf, clearBucket, registerStrip, stripHtml, tileHtml } from '../li
 import { contactBuckets, contactsStrip, lastSpokeByContact, openWith, spokeCell, type ContactBucket, type ContactFigures, type OpenChip, type SpokeCell } from '../lib/pagesContacts';
 import { initialsOf } from '../lib/appearance';
 import { renderBulkBar } from '../lib/bulkBar';
-import { showContextMenu, showMenuAt } from '../lib/contextMenu';
+import { showContextMenu, showMenuAt, menuHead } from '../lib/contextMenu';
 import { shownColumns, sortState, setSort, sortRows, headerCells, openColumnPicker, agoLabel, type Column, type SortState } from '../lib/tableColumns';
 import { companyLists, smartContactLists, companyNamesInList, contactsInCompanyList, createSavedList, renameSavedList, removeSavedList, updateSmartListFilters, exportToActiveCampaign, listById, sameFilters, cleanFilters, listChipLabel, newContactList, renameContactList, addContactsToList, removeContactsFromList } from './lists';
 import { attachCompanySelector } from '../lib/companySelector';
@@ -453,7 +453,8 @@ export function contactRowMenu(e: MouseEvent, id: number): void {
   const w = window as any;
   const wa = (c.whatsapp || c.phone || '').replace(/[^0-9]/g, '');
   const items = [
-    { label: 'Open', iconName: 'people', run: () => w.openRecord('contact', id) },
+    menuHead(c.name || 'Contact', [c.role, c.clientName].filter(Boolean).join(' · '), { name: c.name || '?', round: true }),
+    { label: 'Open', iconName: 'people', shortcut: '↵', run: () => w.openRecord('contact', id) },
     ...(c.email ? [{ label: 'Copy email', iconName: 'copy', run: () => w.copyText(c.email, 'Email copied') }] : []),
     ...(c.phone ? [{ label: `Call ${c.phone}`, iconName: 'bolt', run: () => w.openExternalUrl(`tel:${c.phone!.replace(/[^+0-9]/g, '')}`) }] : []),
     ...(wa ? [{ label: 'WhatsApp', iconName: 'link', run: () => w.openExternalUrl(`https://wa.me/${wa}`) }] : []),

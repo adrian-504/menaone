@@ -7,6 +7,7 @@
 // modules use these too.
 
 import { icon } from './icons';
+import { UNDO_MS, countdownLeft, stackAfterAdd, toastParts } from './chromeKit';
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
@@ -104,21 +105,26 @@ export function deferWhileHovered(list: HTMLElement | null, render: () => void):
 }
 
 // ── Undo (owner, 30-Sep-2026: "Undo everywhere") ───────────────────────────
-// One undo at a time, bottom-left, for 7 s; a new one replaces it; ⌘Z runs it
-// (unless you're typing, where ⌘Z undoes the text).
+// Bottom-left, for 7 s each, three at most (the oldest leaves first); ⌘Z runs
+// the newest (unless you're typing, where ⌘Z undoes the text). Each is a navy
+// card: a tile for what was done, a title and one line about it, a coral Undo,
+// and a coral bar that runs out with the time left (lib/chromeKit.ts).
 
-let undoEl: HTMLElement | null = null;
-let undoRun: (() => void) | null = null;
-let undoTimer = 0;
+interface UndoEntry { el: HTMLElement; run: () => void; timer: number; frame: number }
+let undos: UndoEntry[] = [];
 
-function clearUndo(): void {
-  window.clearTimeout(undoTimer);
-  undoRun = null;
-  const el = undoEl;
-  undoEl = null;
-  if (!el?.isConnected) return;
-  el.classList.add('leaving');
-  window.setTimeout(() => el.remove(), 180);
+function dropUndo(u: UndoEntry): void {
+  window.clearTimeout(u.timer);
+  if (typeof cancelAnimationFrame === 'function') cancelAnimationFrame(u.frame);
+  undos = undos.filter((x) => x !== u);
+  if (!u.el.isConnected) return;
+  u.el.classList.add('leaving');
+  window.setTimeout(() => u.el.remove(), 180);
+}
+
+/** Only the cards still on the page count (a page that was redrawn under them takes them with it). */
+function live(): void {
+  for (const u of undos.filter((x) => !x.el.isConnected)) dropUndo(u);
 }
 
 function undoStack(): HTMLElement {
@@ -134,23 +140,44 @@ function undoStack(): HTMLElement {
   return el;
 }
 
-/** "Task deleted · Undo" — the pattern for every reversible action. */
-export function undoToast(message: string, undo: () => void, ms = 7000, also?: { label: string; run: () => void }): void {
-  clearUndo();
+/** "Task deleted · Undo" — the pattern for every reversible action. `meta.detail` is the line under the title (a
+ * message written "Title: what" is split the same way); `meta.icon` is the tile's icon (a tick unless said). */
+export function undoToast(message: string, undo: () => void, ms = UNDO_MS, also?: { label: string; run: () => void }, meta: { detail?: string; icon?: string } = {}): void {
+  const parts = toastParts(message, meta.detail);
   const el = document.createElement('div');
-  el.className = 'toast toast-neutral toast-undo';
+  el.className = 'toast toast-undo';
   // `also`: the step that usually follows (after signing several: "Mark service started"), beside Undo.
-  el.innerHTML = `<div class="toast-body"><div class="toast-msg">${esc(message)}</div></div>${also ? `<button class="toast-action toast-also">${esc(also.label)}</button>` : ''}<button class="toast-action toast-undo-btn">Undo <kbd>⌘Z</kbd></button><button class="toast-close" aria-label="Dismiss">×</button>`;
-  const run = () => { clearUndo(); undo(); };
-  el.querySelector('.toast-undo-btn')?.addEventListener('click', run);
-  if (also) el.querySelector('.toast-also')?.addEventListener('click', () => { clearUndo(); also.run(); });
-  el.querySelector('.toast-close')?.addEventListener('click', clearUndo);
-  el.addEventListener('mouseenter', () => window.clearTimeout(undoTimer));
-  el.addEventListener('mouseleave', () => { undoTimer = window.setTimeout(clearUndo, 2500); });
+  el.innerHTML = `<span class="undo-tile${meta.icon && meta.icon !== 'check' ? ' is-coral' : ''}" aria-hidden="true">${icon(meta.icon || 'check', 14)}</span>
+    <div class="toast-body"><div class="toast-msg">${esc(parts.title)}</div>${parts.meta ? `<div class="toast-detail">${esc(parts.meta)}</div>` : ''}</div>
+    ${also ? `<button class="toast-action toast-also">${esc(also.label)}</button>` : ''}<button class="toast-action toast-undo-btn">Undo <kbd>⌘Z</kbd></button><button class="toast-close" aria-label="Dismiss">×</button>
+    <i class="undo-bar" aria-hidden="true"></i>`;
+  const entry: UndoEntry = { el, run: () => { dropUndo(entry); undo(); }, timer: 0, frame: 0 };
+  // The bar shows the time left, and stops while the pointer is on the card.
+  const bar = el.querySelector<HTMLElement>('.undo-bar');
+  const count = (window_: number) => {
+    const started = Date.now();
+    window.clearTimeout(entry.timer);
+    entry.timer = window.setTimeout(() => dropUndo(entry), window_);
+    if (typeof requestAnimationFrame !== 'function') return;
+    cancelAnimationFrame(entry.frame);
+    const tick = () => {
+      const left = countdownLeft(started, Date.now(), window_);
+      bar?.style.setProperty('--left', String(left));
+      if (left > 0 && el.isConnected) entry.frame = requestAnimationFrame(tick);
+    };
+    tick();
+  };
+  el.querySelector('.toast-undo-btn')?.addEventListener('click', entry.run);
+  if (also) el.querySelector('.toast-also')?.addEventListener('click', () => { dropUndo(entry); also.run(); });
+  el.querySelector('.toast-close')?.addEventListener('click', () => dropUndo(entry));
+  el.addEventListener('mouseenter', () => { window.clearTimeout(entry.timer); if (typeof cancelAnimationFrame === 'function') cancelAnimationFrame(entry.frame); });
+  el.addEventListener('mouseleave', () => count(2500));
+  live();
   undoStack().appendChild(el);
-  undoEl = el;
-  undoRun = run;
-  undoTimer = window.setTimeout(clearUndo, ms);
+  const { keep, drop } = stackAfterAdd(undos, entry);
+  undos = keep;
+  for (const old of drop) dropUndo(old);
+  count(ms);
 }
 
 /** Does it now, offers Undo for 7 s. */
@@ -161,8 +188,10 @@ export function withUndo<T>(label: string, commit: () => T, undo: () => void): T
 }
 
 /** The undo on screen, if any (for tests and ⌘Z). */
+/** The newest undo still on screen (what ⌘Z runs), or null. */
 export function pendingUndo(): (() => void) | null {
-  return undoRun;
+  live();
+  return undos.length ? undos[undos.length - 1].run : null;
 }
 
 // ⌘Z is a registered key (core/appKeys.ts).

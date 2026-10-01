@@ -1,5 +1,6 @@
 import { S } from './state';
 import { ST, CHART_TOKENS } from './constants';
+import { isDestructive } from './chromeKit';
 
 /** Today's date (YYYY-MM-DD) in local time — toISOString() is UTC, which
  * gave yesterday's date in KSA before 3am. */
@@ -176,12 +177,37 @@ let confirmPromptResolve: ((value: boolean) => void) | null = null;
  * every `.modal-ov` already has for free) instead of the native dialog. Not
  * a wholesale replacement of every confirm() in the app — just the ones
  * guarding real data loss. */
-export function showConfirm(message: string, opts?: { title?: string; confirmLabel?: string }): Promise<boolean> {
+export interface ConfirmOptions {
+  title?: string;
+  confirmLabel?: string;
+  /** What else goes with the record (worked out from it; files on disk never are), as a short list. */
+  also?: string[];
+  /** What stays and is worth saying, under the list. */
+  stays?: string[];
+  /** The action offers Undo afterwards: the footer says so. */
+  undoable?: boolean;
+  /** Red, with the red tile. Read from the button's label (Delete, Remove, Discard…) unless said. */
+  destructive?: boolean;
+}
+
+export function showConfirm(message: string, opts?: ConfirmOptions): Promise<boolean> {
   return new Promise((resolve) => {
     confirmPromptResolve = resolve;
-    (document.getElementById('confirm-prompt-title') as HTMLElement).textContent = opts?.title || 'Are you sure?';
+    const label = opts?.confirmLabel || 'Confirm';
+    const destructive = opts?.destructive ?? isDestructive(label);
+    (document.getElementById('confirm-prompt-title') as HTMLElement).textContent = opts?.title || (destructive ? `${label}?` : 'Are you sure?');
     (document.getElementById('confirm-prompt-message') as HTMLElement).textContent = message;
-    (document.getElementById('confirm-prompt-ok-btn') as HTMLElement).textContent = opts?.confirmLabel || 'Confirm';
+    const ok = document.getElementById('confirm-prompt-ok-btn') as HTMLElement;
+    ok.textContent = label;
+    // Only what destroys is red; anything else is the dialog's one primary.
+    ok.className = destructive ? 'btn-danger' : 'btn-primary';
+    document.getElementById('confirm-prompt-box')?.classList.toggle('is-destructive', destructive);
+    const also = document.getElementById('confirm-prompt-also');
+    if (also) { also.hidden = !opts?.also?.length; also.innerHTML = (opts?.also || []).map((x) => `<li>${escHtml(x)}</li>`).join(''); }
+    const stays = document.getElementById('confirm-prompt-stays');
+    if (stays) { stays.hidden = !opts?.stays?.length; stays.textContent = (opts?.stays || []).join(' '); }
+    const undo = document.getElementById('confirm-prompt-undo');
+    if (undo) undo.hidden = !opts?.undoable;
     document.getElementById('modal-confirm-prompt')?.classList.add('open');
   });
 }

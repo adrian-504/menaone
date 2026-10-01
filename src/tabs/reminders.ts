@@ -12,6 +12,7 @@ import { getAppMeta, setAppMeta } from '../lib/db';
 import { DEFAULT_REMINDERS, dueReminders, pruneSent, type Reminder, type ReminderSettings } from '../lib/reminders';
 import { mydaySummaryText } from './myday';
 import { renderIcons } from '../core/chrome';
+import { icon } from '../lib/icons';
 
 const w = window as any;
 const inTauri = () => !!w.__TAURI_INTERNALS__?.invoke;
@@ -110,17 +111,17 @@ export async function renderReminderSettings(): Promise<void> {
     `<select class="fsel" id="${id}" onchange="reminderSettingChanged()">${options.map(([v, l]) => `<option value="${v}"${String(v) === String(value) ? ' selected' : ''}>${escHtml(l)}</option>`).join('')}</select>`;
   const toggle = (id: string, on: boolean) => `<input type="checkbox" class="switch" id="${id}" ${on ? 'checked' : ''} onchange="reminderSettingChanged()">`;
   el.innerHTML = `<div class="sec settings-card">
-    <div class="settings-card-hd"><span data-icon="clock"></span><div class="card-hd">Reminders</div></div>
-    <p class="settings-card-desc">Mac notifications while MENA One is open, even with its window hidden.</p>
-    ${permission === 'denied' ? `<div class="settings-callout tone-amber">Notifications are turned off for MENA One. Allow them in System Settings → Notifications → MENA One.</div>`
-      : permission === 'unknown' ? `<div class="settings-callout tone-accent">MENA One needs your permission to show notifications. <button class="btn-secondary btn-sm" onclick="sendTestReminder()">Allow notifications</button></div>` : ''}
+    <div class="settings-card-hd"><span class="settings-ic" style="--c:var(--amber)" data-icon="clock" data-icon-size="15"></span>
+      <div class="settings-card-t"><div class="card-hd">Reminders</div><p class="settings-card-desc">Mac notifications while MENA One is open, even with its window hidden.</p></div>
+      <button class="btn-secondary btn-sm" onclick="sendTestReminder()">Send a test</button></div>
+    ${permission === 'denied' ? `<div class="settings-strip">${icon('warning', 14)}<span>Notifications are turned off for MENA One. Allow them in System Settings → Notifications → MENA One.</span></div>`
+      : permission === 'unknown' ? `<div class="settings-strip">${icon('warning', 14)}<span>MENA One needs your permission to show notifications.</span><button class="btn-primary btn-sm" onclick="sendTestReminder()">Allow notifications</button></div>` : ''}
     <div class="rem-rows">
       <label class="rem-row">${toggle('rem-meetings', settings.meetings)}<span class="rem-label"><strong>Meetings</strong><span>Before each meeting in your calendar</span></span>${sel('rem-meeting-min', settings.meetingMinutes, MINUTES.map((n) => [n, minuteLabel(n)]))}</label>
       <label class="rem-row">${toggle('rem-tasks', settings.tasks)}<span class="rem-label"><strong>Tasks with a time</strong><span>e.g. "Call Globex tomorrow 3pm"</span></span>${sel('rem-task-min', settings.taskMinutes, MINUTES.map((n) => [n, n === 0 ? 'At the due time' : minuteLabel(n)]))}</label>
       <label class="rem-row">${toggle('rem-morning', settings.morning)}<span class="rem-label"><strong>Morning summary</strong><span>Meetings, tasks and what needs attention, from My Day</span></span>
         <span class="rem-inline"><input type="time" id="rem-morning-at" value="${escHtml(settings.morningAt)}" onchange="reminderSettingChanged()">${sel('rem-workweek', settings.workweek, [['sun-thu', 'Sunday–Thursday'], ['mon-fri', 'Monday–Friday'], ['every-day', 'Every day']])}</span></label>
     </div>
-    <div class="btn-row"><button class="btn-secondary" onclick="sendTestReminder()">Send a test notification</button></div>
   </div>`;
   renderIcons(el);
 }

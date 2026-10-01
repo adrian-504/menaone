@@ -10,14 +10,14 @@ import { renderIcons } from '../core/chrome';
 import { toast, undoToast } from '../lib/ui';
 import { emitChange } from '../lib/changes';
 import { recordLink, companyLink } from '../lib/links';
-import { escHtml, expose, fmtDate, today, inCompany, showTextPrompt, showConfirm } from '../lib/utils';
+import { escHtml, expose, fmtDate, today, inCompany, showTextPrompt, showConfirm, fmtDateShort } from '../lib/utils';
 import { commitmentsAdd, type NewCommitment } from '../lib/db';
 import { persistCommitments, persistProposals, persistTodos, markCommitmentsSaved } from '../lib/persist';
 import { activeServices, syncProposalTotals } from '../lib/commercial';
 import { lineForService } from '../lib/linesEditor';
 import { refreshBadges } from '../lib/registry';
 import { icon } from '../lib/icons';
-import { showContextMenu } from '../lib/contextMenu';
+import { showContextMenu, menuHead } from '../lib/contextMenu';
 import { attachCompanySelector } from '../lib/companySelector';
 import { isProposalCommitment, parseCommitmentLines } from '../lib/commitments';
 import { nudgeMailto, promisesView } from '../lib/promises';
@@ -58,6 +58,11 @@ export async function readCommitmentsFrom(sourceType: 'meeting' | 'note' | 'capt
     liveKeys,
   }));
   return addToState(await commitmentsAdd(items), { announce: sourceType !== 'capture' });
+}
+
+/** A promise of ours added by hand (the task dialog's "We owe"): the backend writes it with its task. */
+export async function addManualPromise(f: { text: string; dueDate: string | null; companyId: number | null; opportunityId: number | null; projectId: number | null; meetingId: number | null }): Promise<AddedRecords> {
+  return addToState(await commitmentsAdd([{ direction: 'ours', ...f, sourceType: 'manual' }]));
 }
 
 function addToState(added: { commitments: Commitment[]; tasks: import('../lib/types').Todo[]; proposals?: import('../lib/types').Proposal[] }, opts: { announce?: boolean } = {}): AddedRecords {
@@ -238,14 +243,14 @@ export function setCommitmentKept(id: number, kept: boolean): void {
   else refreshCommitmentViews();
   // A promise kept can be taken back (owner, 30-Sep-2026: Undo where a save is reversible).
   if (kept && was.status !== 'kept') {
-    undoToast(`Kept: ${c.text}`, () => {
+    undoToast(c.direction === 'ours' ? 'Promise kept' : 'Received', () => {
       c.status = was.status;
       c.closedAt = was.closedAt;
       persistCommitments();
       refreshBadges();
       refreshCommitmentViews();
       (window as any).renderMyDay?.();
-    });
+    }, undefined, undefined, { detail: c.text, icon: 'flag' });
   }
 }
 
@@ -313,6 +318,7 @@ export function commitmentMenu(e: MouseEvent, id: number): void {
   if (!c) return;
   const hasSource = (c.sourceType === 'meeting' || c.sourceType === 'note') && c.sourceId != null;
   showContextMenu(e, [
+    menuHead(c.text, `${c.direction === 'ours' ? 'We owe' : 'They owe'}${c.dueDate ? ` · due ${fmtDateShort(c.dueDate, true)}` : ''}`, { icon: 'flag' }),
     { label: 'Edit', iconName: 'edit', run: () => openCommitmentModal(EMPTY_CONTEXT, id) },
     ...(c.status === 'open' && c.direction === 'theirs' ? [
       { label: 'Mark kept', iconName: 'check', run: () => setCommitmentKept(id, true) },
@@ -438,7 +444,7 @@ export function openCommitmentModal(ctx: WorkContext = EMPTY_CONTEXT, editId: nu
   const c = editId != null ? byId(editId) : undefined;
   modalContext = c ? { ...EMPTY_CONTEXT, companyId: c.companyId, companyName: S.companies.find((x) => x.id === c.companyId)?.name ?? null, opportunityId: c.opportunityId, projectId: c.projectId } : inheritCompany(S, ctx);
   (document.getElementById('commitment-modal-title') as HTMLElement).textContent = c ? 'Edit commitment' : 'New commitment';
-  (document.getElementById('commitment-submit-btn') as HTMLElement).textContent = c ? 'Save changes' : 'Create commitment';
+  (document.getElementById('commitment-submit-btn') as HTMLElement).textContent = c ? 'Save changes' : 'Create promise';
   setCommitmentDirection(c?.direction ?? 'ours');
   (f.elements.namedItem('cmText') as HTMLInputElement).value = c?.text ?? '';
   (f.elements.namedItem('cmDue') as HTMLInputElement).value = c?.dueDate ?? '';

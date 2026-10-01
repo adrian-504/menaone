@@ -5,6 +5,7 @@
 // commercials, the client's OneDrive folder and documents, what it's linked
 // to, notes and activity.
 
+import { proposalCascade } from '../lib/chromeKit';
 import { pricingShape } from '../lib/pricingShape';
 import { cardFor } from '../lib/linesEditor';
 import { requestSiblings } from '../lib/proposalGroups';
@@ -293,7 +294,9 @@ async function deleteProposalFromPage(id: number): Promise<void> {
   if (index < 0) return;
   const p = S.proposals[index];
   const agreement = S.agreements.find((a) => a.proposalId === id);
-  const ok = await showConfirm(`Delete "${p.client} — ${p.type || 'Proposal'}" (SL# ${id})?${agreement ? `\n\nIts agreement ${agreement.agrRef || ''} stays, without the link.` : ''}`, { title: 'Delete proposal?', confirmLabel: 'Delete' });
+  // What goes with it is worked out from the record; the decks themselves stay in OneDrive.
+  const c = proposalCascade(p, agreement ? { agreementRef: agreement.agrRef || '' } : {});
+  const ok = await showConfirm(`${c.named}.${c.also.length ? ' This also removes:' : ''}`, { title: 'Delete this proposal?', confirmLabel: 'Delete', also: c.also, stays: c.stays, undoable: true });
   if (!ok) return;
   const [removed] = S.proposals.splice(index, 1);
   persistProposals();

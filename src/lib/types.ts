@@ -679,6 +679,9 @@ export interface LocalFileItem {
   /** False only for a linked/recent item whose path no longer resolves on
    * disk (moved/renamed/deleted) — always true for a live folder listing. */
   exists: boolean;
+  /** For a folder in a live listing: the files and the folders directly in it (hidden ones aside). */
+  fileCount?: number | null;
+  folderCount?: number | null;
 }
 
 /** One row of the Files tab's "Linked" view — every msfile currently linked

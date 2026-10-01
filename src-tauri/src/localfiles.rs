@@ -31,6 +31,10 @@ pub struct LocalFileItem {
     /// true for a live folder listing, since those paths just came from
     /// `read_dir`. Never assume a linked path stays valid (Section 19).
     pub exists: bool,
+    /// For a folder in a live listing: how many files and how many folders it
+    /// holds, hidden ones aside (one level, never deeper). None otherwise.
+    pub file_count: Option<i64>,
+    pub folder_count: Option<i64>,
 }
 
 /// The folders OneDrive syncs to on this computer: `~/Library/CloudStorage/OneDrive-*`
@@ -100,6 +104,8 @@ fn onedrive_roots() -> Result<Vec<LocalFileItem>, String> {
             size: None,
             modified_at: None,
             exists: true,
+            file_count: None,
+            folder_count: None,
         })
         .collect();
     roots.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
@@ -152,6 +158,21 @@ fn chrono_like_iso(unix_secs: i64) -> String {
     format!("{:04}-{:02}-{:02}T{:02}:{:02}:{:02}Z", year, month + 1, days + 1, hour, minute, second)
 }
 
+/// How many visible files and folders sit directly in `dir` (one level).
+fn visible_counts(dir: &Path) -> Option<(i64, i64)> {
+    let entries = std::fs::read_dir(dir).ok()?;
+    let (mut files, mut folders) = (0i64, 0i64);
+    for e in entries.filter_map(|e| e.ok()) {
+        if e.file_name().to_string_lossy().starts_with('.') { continue; }
+        match e.file_type() {
+            Ok(t) if t.is_dir() => folders += 1,
+            Ok(_) => files += 1,
+            Err(_) => {}
+        }
+    }
+    Some((files, folders))
+}
+
 fn read_folder(dir: &Path) -> Result<Vec<LocalFileItem>, String> {
     let entries = std::fs::read_dir(dir).map_err(|e| format!("Could not read this folder: {e}"))?;
     let mut items: Vec<LocalFileItem> = entries
@@ -159,6 +180,7 @@ fn read_folder(dir: &Path) -> Result<Vec<LocalFileItem>, String> {
         .filter(|e| !e.file_name().to_string_lossy().starts_with('.')) // hidden files, .DS_Store, OneDrive sentinels
         .filter_map(|e| {
             let meta = e.metadata().ok()?;
+            let counts = if meta.is_dir() { visible_counts(&e.path()) } else { None };
             Some(LocalFileItem {
                 path: e.path().to_string_lossy().to_string(),
                 name: e.file_name().to_string_lossy().to_string(),
@@ -166,6 +188,8 @@ fn read_folder(dir: &Path) -> Result<Vec<LocalFileItem>, String> {
                 size: if meta.is_dir() { None } else { Some(meta.len() as i64) },
                 modified_at: meta.modified().ok().and_then(system_time_to_iso),
                 exists: true,
+                file_count: counts.map(|c| c.0),
+                folder_count: counts.map(|c| c.1),
             })
         })
         .collect();
@@ -269,6 +293,8 @@ pub fn files_by_ids(conn: &Connection, ids: &[i64]) -> CmdResult<Vec<LocalFileIt
             size: meta.as_ref().filter(|m| !m.is_dir()).map(|m| m.len() as i64),
             modified_at: meta.as_ref().and_then(|m| m.modified().ok()).and_then(system_time_to_iso),
             exists: meta.is_some(),
+            file_count: None,
+            folder_count: None,
             path,
             name,
         });
@@ -368,6 +394,8 @@ pub fn files_stat_paths(paths: Vec<String>) -> CmdResult<Vec<LocalFileItem>> {
             size: meta.as_ref().filter(|m| !m.is_dir()).map(|m| m.len() as i64),
             modified_at: meta.as_ref().and_then(|m| m.modified().ok()).and_then(system_time_to_iso),
             exists: meta.is_some(),
+            file_count: None,
+            folder_count: None,
             path: p,
             name,
         });
@@ -387,6 +415,22 @@ mod tests {
         }
         assert!(!is_within_onedrive(Path::new("/tmp/../etc")));
         assert!(!is_within_onedrive(Path::new("/etc/passwd")));
+    }
+
+    #[test]
+    fn a_listed_folder_says_how_many_files_and_folders_it_holds() {
+        let root = std::env::temp_dir().join(format!("menaone-files-count-{}", std::process::id()));
+        let client = root.join("Sample Client");
+        std::fs::create_dir_all(client.join("Old versions")).unwrap();
+        for name in ["Proposal.pptx", "Commercials.xlsx", ".DS_Store"] { std::fs::write(client.join(name), b"x").unwrap(); }
+        std::fs::write(root.join("Readme.txt"), b"x").unwrap();
+        let items = super::read_folder(&root).unwrap();
+        let folder = items.iter().find(|i| i.name == "Sample Client").unwrap();
+        // Hidden files are not counted, and nothing below the first level is.
+        assert_eq!((folder.file_count, folder.folder_count), (Some(2), Some(1)));
+        let file = items.iter().find(|i| i.name == "Readme.txt").unwrap();
+        assert_eq!((file.file_count, file.folder_count), (None, None));
+        std::fs::remove_dir_all(&root).unwrap();
     }
 }
 

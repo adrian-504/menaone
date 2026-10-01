@@ -3,6 +3,10 @@
 One entry per install, newest first: the version, the day it was installed, and in two lines what changed.
 Settings → Data shows the last five. `scripts/release-check.mjs` refuses a build whose version has no entry here.
 
+## 1.63 — 2026-10-01
+Files and Settings join the new look: client folders as tiles in their company's colour with the matching shown as progress, files as cards with a cover by type; Settings as cards, with the tint, the team, a missing signature, Outlook and the last backup said in its navigation.
+Every pop-up is redrawn: a grouped New menu you can type to filter; one dialog shape for every "New …", where a task is typed in one line and ⌘⇧↵ creates and starts the next; ⌘K with a preview and quick actions for the selected result; menus that name the record; undo toasts that show the time left; and delete confirmations that list what else goes.
+
 ## 1.62 — 2026-10-01
 Tasks, Notes, Calendar and Inbox join the new look without changing how they work: tinted list rails with a coral marker, client tiles, dates and promises as chips; Tasks shows today's progress, what is overdue and the promises from meetings.
 The calendar's week and day are a time grid — events placed by their start and end and coloured by client, a now-line, and an all-day row for tasks due, promises and offers that expire; the Inbox suggests where each line goes and counts the days it was at zero.

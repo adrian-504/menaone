@@ -173,4 +173,15 @@ export function startDateFields(): void {
     });
   }).observe(document.body, { subtree: true, childList: true });
   document.addEventListener('scroll', () => { closeCalendar(); hideHint(); }, true);
+  // A form's reset empties its date fields too (the kept date is ours, not the input's own value).
+  document.addEventListener('reset', (e) => { if (e.target instanceof HTMLFormElement) resetDateFields(e.target); }, true);
+}
+
+/** Back to what the markup says (usually nothing), as the form's own reset does for every other field. */
+export function resetDateFields(form: HTMLFormElement): void {
+  const fields = [...form.querySelectorAll<HTMLInputElement>('input.date-field')];
+  for (const el of fields) el.dataset.iso = el.getAttribute('value') || '';
+  // The reset itself writes the markup's raw value into the box afterwards: show it the app's way once it has
+  // (and whatever the opener set right after the reset).
+  queueMicrotask(() => { for (const el of fields) show(el, iso(el) ? fmtDate(iso(el)) : ''); });
 }

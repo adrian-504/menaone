@@ -38,7 +38,7 @@ import { companyFromForm, contextFromOpportunity, opportunityTasks, type WorkCon
 import { taskRowHtml } from './todo';
 import { icon } from '../lib/icons';
 import { recordHeaderHtml } from '../lib/recordHeader';
-import { showContextMenu, showMenuAt, type ContextMenuItem } from '../lib/contextMenu';
+import { showContextMenu, showMenuAt, type ContextMenuItem, menuHead } from '../lib/contextMenu';
 import { opportunityNextStep } from '../lib/recordSteps';
 import { paintFigures } from '../lib/recordFigures';
 import { opportunityStepper, stepperHtml } from '../lib/recordStory';
@@ -266,7 +266,8 @@ export function opportunityContextMenu(e: MouseEvent, id: number): void {
     label: `Move to ${s}`, run: () => { void updateOpportunityStage(id, s); },
   }));
   showContextMenu(e, [
-    { label: 'Open', iconName: 'briefcase', run: () => { void openOpportunityDetail(id); } },
+    menuHead(o.name, ['Opportunity', (o.stage || '').toLowerCase(), o.companyName].filter(Boolean).join(' · '), o.companyName ? { name: o.companyName } : { icon: 'briefcase' }),
+    { label: 'Open', iconName: 'briefcase', shortcut: '↵', run: () => { void openOpportunityDetail(id); } },
     { label: 'Edit', iconName: 'edit', run: () => openOpportunityModal(id) },
     ...stageItems,
     { label: 'Archive', iconName: 'archive', danger: true, run: () => { S.currentOpportunityId = id; void archiveOpportunity(); } },

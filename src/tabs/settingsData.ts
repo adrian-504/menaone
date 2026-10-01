@@ -12,6 +12,8 @@ import type { HousekeepingStatus } from '../lib/types';
 
 const entries = parseChangelog(changelogMd);
 const version = (() => { try { return String(JSON.parse(packageJson).version || ''); } catch { return ''; } })();
+/** The installed version, for the line under Settings' title. */
+export const APP_VERSION = version;
 
 /** "today 09:12", "yesterday 09:12", "28 Sept 09:12". */
 function when(d: Date | null): string {

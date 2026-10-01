@@ -17,7 +17,8 @@ import { renderTab } from '../lib/registry';
 import { loadReviewQueue } from './companies';
 import { renderCommercialSettings } from './settingsCommercial';
 import { renderTemplatesSettings } from './settingsTemplates';
-import { renderDataStatus } from './settingsData';
+import { renderDataStatus, APP_VERSION } from './settingsData';
+import { PANES, settingsNavHints, settingsSubtitle } from '../lib/settingsPage';
 
 async function loadStatus(): Promise<void> {
   S.ms365Status = await ms365Status();
@@ -75,7 +76,7 @@ expose('appearanceToggleModule', (tab: string, on: boolean) => {
   if (item && !item.hidden && getActiveTabId() !== tab) void collapseRow(item).then(apply); else apply();
 });
 
-expose('appearanceSetTint', (t: Tint) => { setTint(t); void renderAppearance(); });
+expose('appearanceSetTint', (t: Tint) => { setTint(t); void renderAppearance(); renderSettingsNav(); });
 expose('appearanceSetBand', (b: BandSource) => { setBandSource(b); void renderAppearance(); });
 expose('appearanceSetName', (v: string) => { setYourName(v); renderMe(); toast(v.trim() ? 'Name saved' : 'Name cleared', { tone: 'success' }); });
 expose('appearanceChoosePhotos', async () => {
@@ -103,15 +104,45 @@ export function setSettingsPane(pane: string): void {
 }
 expose('setSettingsPane', setSettingsPane);
 
-function showSettingsPane(): void {
+function currentPane(): string {
   let pane = 'general';
   try { pane = localStorage.getItem(PANE_KEY) || 'general'; } catch { /* default */ }
-  if (!document.querySelector(`.settings-pane[data-pane="${pane}"]`)) pane = 'general';
-  document.querySelectorAll<HTMLElement>('.settings-pane').forEach((el) => { el.hidden = el.dataset.pane !== pane; });
-  document.querySelectorAll<HTMLElement>('.settings-nav-item').forEach((el) => {
-    el.classList.toggle('active', el.dataset.pane === pane);
-    el.setAttribute('aria-current', el.dataset.pane === pane ? 'page' : 'false');
+  return document.querySelector(`.settings-pane[data-pane="${pane}"]`) ? pane : 'general';
+}
+
+/** The navigation: an icon tile per pane, a coral marker on the open one, and what each has to say on the right
+ * (lib/settingsPage.ts). Drawn again when what it says changes. */
+function renderSettingsNav(): void {
+  const nav = document.getElementById('settings-nav');
+  if (!nav) return;
+  const pane = currentPane();
+  const hints = settingsNavHints({
+    tint: tint(), teamCount: S.team.filter((t) => t.active).length, signatureEmpty, now: new Date(),
+    outlookConnected: S.ms365Status ? S.ms365Status.status === 'connected' : null, dailyBackupAt: S.housekeeping?.dailyLast ?? null,
   });
+  nav.innerHTML = PANES.map((p) => {
+    const h = hints[p.key];
+    return `<button class="settings-nav-item${p.key === pane ? ' active' : ''}" data-pane="${p.key}" aria-current="${p.key === pane ? 'page' : 'false'}" onclick="setSettingsPane('${p.key}')">
+      <span class="settings-nav-ic" style="--c:${p.tint}">${icon(p.icon, 14)}</span><span class="settings-nav-name">${escHtml(p.title)}</span>
+      ${h ? `<span class="settings-nav-hint${h.tone ? ` t-${h.tone}` : ''}">${escHtml(h.text)}${h.dot ? `<i class="is-${h.dot}"></i>` : ''}</span>` : ''}</button>`;
+  }).join('');
+  const sub = document.getElementById('settings-subtitle'); if (sub) sub.textContent = settingsSubtitle(APP_VERSION);
+  document.querySelectorAll<HTMLElement>('.settings-pane').forEach((el) => {
+    const info = PANES.find((p) => p.key === el.dataset.pane);
+    const desc = el.querySelector('.settings-pane-desc');
+    if (info && desc) desc.textContent = info.description;
+  });
+}
+expose('renderSettingsNav', renderSettingsNav);
+
+/** No signature written yet (the Templates pane says so when it reads or saves them); null until then. */
+let signatureEmpty: boolean | null = null;
+expose('settingsSignature', (empty: boolean) => { signatureEmpty = empty; renderSettingsNav(); });
+
+function showSettingsPane(): void {
+  const pane = currentPane();
+  document.querySelectorAll<HTMLElement>('.settings-pane').forEach((el) => { el.hidden = el.dataset.pane !== pane; });
+  renderSettingsNav();
   window.scrollTo(0, 0);
 }
 
@@ -123,8 +154,9 @@ async function renderSettingsTab(): Promise<void> {
   void renderAppearance();
   renderCommercialSettings();
   void renderTemplatesSettings();
-  void renderDataStatus();
+  void renderDataStatus().then(renderSettingsNav);
   await loadStatus();
+  renderSettingsNav();
   const clientIdInput = document.getElementById('ms365-client-id-input') as HTMLInputElement | null;
   if (clientIdInput && !clientIdInput.value) {
     const clientId = await ms365GetClientId();

@@ -3,6 +3,7 @@
 // signature trail and activity. Active agreements make a company an active
 // client and count towards MRR; the end date drives renewal alerts.
 
+import { agreementCascade } from '../lib/chromeKit';
 import { paintFigures } from '../lib/recordFigures';
 import { S } from '../lib/state';
 import { escHtml, expose, fmtDate, today, showConfirm, showDatePrompt, inCompany, nextAgrId, strColor } from '../lib/utils';
@@ -522,8 +523,8 @@ async function deleteAgreementFromPage(id: number): Promise<void> {
   if (index < 0) return;
   const a = S.agreements[index];
   const fromWon = a.proposalId != null && S.proposals.some((p) => p.id === a.proposalId && p.status === 'Signed by Both Parties');
-  const note = fromWon ? `\n\nIts proposal (SL# ${a.proposalId}) is still marked as signed by both parties, so MENA One will create a new agreement for it. To stop that, change the proposal's status first.` : '';
-  if (!(await showConfirm(`Delete agreement ${a.agrRef || ''} for ${a.client || 'this client'}?${note}`, { title: 'Delete agreement?', confirmLabel: 'Delete' }))) return;
+  const c = agreementCascade(a, { proposalStillSigned: fromWon, renewals: S.agreements.filter((x) => x.renewedFrom === a.id).length });
+  if (!(await showConfirm(`${c.named}.${c.also.length ? ' This also removes:' : ''}`, { title: 'Delete this agreement?', confirmLabel: 'Delete', also: c.also, stays: c.stays, undoable: true }))) return;
   const [removed] = S.agreements.splice(index, 1);
   persistAgreements();
   closeAgreementPage();

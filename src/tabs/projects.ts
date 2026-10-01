@@ -25,7 +25,7 @@ import { taskRowHtml, createTodoForCurrentProject } from './todo';
 import { renderLinkedEmails } from '../core/emailLinks';
 import { icon } from '../lib/icons';
 import { recordHeaderHtml } from '../lib/recordHeader';
-import { showContextMenu, showMenuAt } from '../lib/contextMenu';
+import { showContextMenu, showMenuAt, menuHead } from '../lib/contextMenu';
 import { projectNextStep } from '../lib/recordSteps';
 import { newForRecordItems } from '../core/contextActions';
 import { attachCompanySelector } from '../lib/companySelector';
@@ -182,7 +182,8 @@ export function projectContextMenu(e: MouseEvent, id: number): void {
   const p = S.projects.find((x) => x.id === id);
   if (!p) return;
   showContextMenu(e, [
-    { label: 'Open', iconName: 'target', run: () => (window as any).openRecord('project', id) },
+    menuHead(p.name, ['Project', (p.status || '').toLowerCase(), p.companyName].filter(Boolean).join(' · '), p.companyName ? { name: p.companyName } : { icon: 'target' }),
+    { label: 'Open', iconName: 'target', shortcut: '↵', run: () => (window as any).openRecord('project', id) },
     { label: 'Edit', iconName: 'edit', run: () => openProjectModal(id) },
     { label: 'Create Task', iconName: 'plus', run: () => { (window as any).switchTab('projects'); void openProjectDetail(id).then(() => createTodoForCurrentProject()); } },
     { label: p.archived ? 'Unarchive' : 'Archive', iconName: 'archive', run: () => { S.currentProjectId = id; void toggleArchiveProject(); } },

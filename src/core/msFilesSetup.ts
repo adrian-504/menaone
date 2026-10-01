@@ -353,5 +353,7 @@ export async function msFilesSaveLink(): Promise<void> {
   ]);
   if (linkTarget.kind === 'company') S.companies = await getCompanies();
   closeMsFilesLinkModal();
+  // Files shows the match on the folder's tile and in its rail.
+  void (window as any).msFilesLinksChanged?.();
 }
 expose('msFilesSaveLink', msFilesSaveLink);

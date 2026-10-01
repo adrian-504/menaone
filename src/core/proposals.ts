@@ -1,3 +1,4 @@
+import { proposalCascade } from '../lib/chromeKit';
 import { applyStatus } from '../lib/bulkProposals';
 import { collapseRow, collapseRows } from '../lib/motion';
 import { backInDays, lastTouch, FOLLOW_UP_AFTER_DAYS, WAIT_LONGER_DAYS, type LastTouch } from '../lib/followup';
@@ -297,7 +298,8 @@ expose('undoReview', undoReview);
 export async function deleteProposal(id: number): Promise<void> {
   const p = S.proposals.find((x) => x.id === id);
   if (!p) return;
-  if (await showConfirm(`Permanently delete:\n\n"${p.client} — ${p.type}" (SL# ${id})\n\nThis cannot be undone.`, { confirmLabel: 'Delete' })) {
+  const c = proposalCascade(p, {});
+  if (await showConfirm(`${c.named}.${c.also.length ? ' This also removes:' : ''}`, { title: 'Delete this proposal?', confirmLabel: 'Delete', also: c.also, stays: ['This cannot be undone.'] })) {
     S.proposals = S.proposals.filter((x) => x.id !== id);
     persistProposals();
     refreshAll();
