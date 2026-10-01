@@ -52,7 +52,7 @@ describe('Outlook times', () => {
 });
 
 describe('attention', () => {
-  it('ranks signed, approved and requested proposals above old follow-ups', () => {
+  it('ranks a review outcome, then a countersignature, then requests, above old follow-ups', () => {
     const items = buildAttention(input({ proposals: [
       proposal({ id: 1, status: 'Sent to Client', dateSentToClient: '2026-08-01' }),
       proposal({ id: 2, status: 'Signed by Client', dateSigned: '2026-09-12' }),
@@ -60,8 +60,8 @@ describe('attention', () => {
       proposal({ id: 4, status: 'In Internal Review', reviewStatus: 'approved' }),
       proposal({ id: 5, status: 'Sent to Client', dateSentToClient: '2026-09-10' }),
     ] }));
-    expect(items.map((x) => x.key)).toEqual(['proposal:2:countersign', 'proposal:4:approved', 'proposal:3:request', 'proposal:1:followup']);
-    expect(items[1].reason).toContain('Hassan Balaghi');
+    expect(items.map((x) => x.key)).toEqual(['proposal:4:approved', 'proposal:2:countersign', 'proposal:3:request', 'proposal:1:followup']);
+    expect(items[0].reason).toContain('Hassan Balaghi');
     expect(items[3].reason).toBe('Sent 43 days ago, no answer · Payroll');
   });
 
@@ -73,7 +73,7 @@ describe('attention', () => {
     expect(group?.children).toHaveLength(5);
     expect(items.find((x) => x.key === 'group:opportunity')?.title).toBe('4 opportunities with no next step');
     expect(items.some((x) => x.key === 'proposal:9:followup')).toBe(true);
-    expect(items[0].key).toBe('proposal:9:followup');
+    expect(items.map((x) => x.key)).toEqual(['group:opportunity', 'proposal:9:followup', 'group:followup-old']);
   });
 
   it('flags renewals, unprepared client meetings and hides snoozed items', () => {
@@ -87,7 +87,7 @@ describe('attention', () => {
     });
     const keys = buildAttention(base).map((x) => x.key);
     expect(keys).toEqual(['agreement:1:renewal', 'meeting:1:prepare']);
-    expect(buildAttention(base)[0].reason).toBe('Ends in 18 days — plan the renewal; notice due in 3 days');
+    expect(buildAttention(base)[0].reason).toBe('Decide by 16 Sept — in 3 days: renew it or let it end on 1 Oct');
     // Once the renewal is decided there is nothing to plan; it comes back on the end date, to mark the service ended.
     const decided = (renewalDecision: 'renew' | 'changes' | 'end', endDate: string) => buildAttention(input({ agreements: [agreement({ serviceStatus: 'Active', endDate, noticeDays: 15, renewalDecision })] }));
     expect(decided('end', '2026-10-01')).toEqual([]);
@@ -170,19 +170,21 @@ describe('commitments and waiting in My Day', () => {
   });
 
   it('an opportunity with us says for how long', () => {
-    const items = buildAttention(input({ opportunities: [opp({ id: 7, nextAction: 'x', waitingOn: 'us', waitingSince: '2026-09-09' })] }));
+    const items = buildAttention(input({ opportunities: [opp({ id: 7, nextAction: 'x', waitingOn: 'us', waitingSince: '2026-09-01' })] }));
     const row = items.find((x) => x.key === 'opportunity:7:with-us')!;
-    expect(row.reason).toBe('With you for 4 days — the next move is yours');
+    expect(row.reason).toBe('With you for 12 days — the next move is yours');
+    // With you for a week or less is not raised yet.
+    expect(buildAttention(input({ opportunities: [opp({ id: 7, nextAction: 'x', waitingOn: 'us', waitingSince: '2026-09-09' })] }))).toEqual([]);
   });
 
-  it('our overdue promise sits just under a countersignature; due soon is medium', () => {
+  it('our own promises lead: overdue, then due soon, above a countersignature', () => {
     const items = buildAttention(input({
       proposals: [proposal({ id: 1, status: 'Signed by Client', dateSigned: '2026-09-12' })],
       commitments: [commitment({ id: 1, dueDate: '2026-09-10' }), commitment({ id: 2, dueDate: '2026-09-14', sourceKey: 'b' }), commitment({ id: 3, dueDate: '2026-09-20', sourceKey: 'c' })],
     }));
-    expect(items.map((x) => x.key)).toEqual(['proposal:1:countersign', 'commitment:1:overdue', 'commitment:2:due']);
-    expect(items[1]).toMatchObject({ tone: 'red', action: { kind: 'mark_kept', label: 'Mark kept' }, reason: 'You promised this for 10 Sept — 3 days late' });
-    expect(items[2].reason).toBe('You promised this for tomorrow');
+    expect(items.map((x) => x.key)).toEqual(['commitment:1:overdue', 'commitment:2:due', 'proposal:1:countersign']);
+    expect(items[0]).toMatchObject({ tone: 'red', action: { kind: 'mark_kept', label: 'Mark kept' }, reason: 'You promised this for 10 Sept — 3 days late' });
+    expect(items[1].reason).toBe('You promised this for tomorrow');
   });
 
   it("the client's overdue promises fold into one row", () => {

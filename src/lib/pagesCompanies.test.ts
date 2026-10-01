@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
-// Companies in My Day's language (1.59 "pages"): agreement runway and notice window, in flight, gone quiet, the strip.
+// Companies in My Day's language (1.59 "pages"): agreement runway and notice window, in flight, to decide, the strip.
 import { describe, expect, it } from 'vitest';
 
-import { companiesStrip, companyBuckets, goneQuiet, inFlight, runway, runwayNote, type CompanyFigures } from './pagesCompanies';
+import { companiesStrip, companyBuckets, decideDates, inFlight, runway, runwayNote, type CompanyFigures } from './pagesCompanies';
 
 const T = '2026-10-01';
 
@@ -22,13 +22,19 @@ describe('agreement runway', () => {
   });
 });
 
-describe('gone quiet', () => {
-  it('clients and companies in discussion after 30 days without contact; prospects never', () => {
-    expect(goneQuiet('Active client', '2026-08-31', T)).toBe(31);
-    expect(goneQuiet('Active client', '2026-09-10', T)).toBeNull();
-    expect(goneQuiet('In discussion', '2026-08-01', T)).toBe(61);
-    expect(goneQuiet('Prospect', '2026-01-01', T)).toBeNull();
-    expect(goneQuiet('Active client', null, T)).toBeNull();
+describe('to decide in 90 days (1.64: in place of "gone quiet")', () => {
+  const A = (over: object) => ({ status: 'Signed', serviceStatus: 'Active', endDate: null, noticeDays: null, renewalType: null, renewalDecision: null, ...over }) as never;
+  it('the decide-by dates of live agreements within 90 days, soonest first; a passed one counts while the term runs', () => {
+    expect(decideDates([A({ endDate: '2027-01-31', noticeDays: 60 }), A({ endDate: '2026-12-31', noticeDays: 90 }), A({ endDate: '2026-11-15', noticeDays: 60 })], T))
+      .toEqual(['2026-09-16', '2026-10-02', '2026-12-02']);
+    // With no notice period recorded the date is the end itself.
+    expect(decideDates([A({ endDate: '2026-11-30' })], T)).toEqual(['2026-11-30']);
+  });
+  it('not when it is far off, decided, past term, ended, open-ended or cancelled', () => {
+    expect(decideDates([
+      A({ endDate: '2027-06-30', noticeDays: 30 }), A({ endDate: '2026-12-31', noticeDays: 90, renewalDecision: 'renew' }), A({ endDate: '2026-08-31' }),
+      A({ endDate: '2026-12-31', noticeDays: 90, serviceStatus: 'Ended' }), A({ renewalType: 'open_ended' }), A({ endDate: '2026-12-31', noticeDays: 90, status: 'Canceled' }),
+    ], T)).toEqual([]);
   });
 });
 
@@ -48,25 +54,34 @@ describe('in flight', () => {
 });
 
 describe('the strip', () => {
-  const F = (over: Partial<CompanyFigures>): CompanyFigures => ({ name: 'X', relationship: 'Active client', mrr: {}, renewal: null, proposed: {}, firstMet: null, quietDays: null, ...over });
+  const F = (over: Partial<CompanyFigures>): CompanyFigures => ({ name: 'X', relationship: 'Active client', mrr: {}, renewal: null, proposed: {}, firstMet: null, decide: [], ...over });
   const rows = [
     F({ name: 'Acme Holdings', mrr: { SAR: 15000 }, renewal: '2027-01-31' }),
-    F({ name: 'Elite HR', mrr: { SAR: 3000 }, renewal: '2027-03-04', quietDays: 31 }),
-    F({ name: 'Globex', mrr: { SAR: 4000 }, renewal: '2026-12-31' }),
+    F({ name: 'Elite HR', mrr: { SAR: 3000 }, renewal: '2027-03-04' }),
+    F({ name: 'Globex', mrr: { SAR: 4000 }, renewal: '2026-12-31', decide: ['2026-10-02'] }),
     F({ name: 'Northwind Trading', relationship: 'In discussion', proposed: { SAR: 11500 } }),
     F({ name: 'Red Sea Global', relationship: 'In discussion', proposed: { SAR: 12000 } }),
     F({ name: 'Northwind', relationship: 'Prospect', firstMet: '2026-10-01' }),
   ];
-  it('monthly from clients with the next renewal, discussion worth, the newest prospect, the longest quiet', () => {
+  it('monthly from clients with the next renewal, discussion worth, the newest prospect, what is to decide', () => {
     expect(companiesStrip(rows).map((p) => [p.key, p.n, p.label, p.detail])).toEqual([
       ['all', 'SAR 22,000', 'a month from 3 active clients', '31 Dec · Globex'],
       ['discussion', '2', 'in discussion', 'SAR 23,500 /mo in proposals'],
       ['prospect', '1', 'prospect', '1 Oct · Northwind'],
-      ['quiet', '1', 'gone quiet', '31 days · Elite HR'],
+      ['decide', '1', 'to decide in 90 days', '2 Oct · Globex'],
     ]);
+    // A decide-by date already passed (the term still running) says so.
+    expect(companiesStrip(rows, '2026-10-05')[3].lead).toBe('was due');
+    expect(companiesStrip(rows, T)[3].lead).toBe('soonest');
+    const decide = companiesStrip(rows)[3];
+    expect([decide.tone, decide.action, decide.keepZero]).toEqual(['amber', "navToModule('agreements')", true]);
+    // None to decide: the panel stays, at 0 and neutral. No company is ever counted for a lack of contact.
+    const none = companiesStrip(rows.map((r) => ({ ...r, decide: [] })))[3];
+    expect([none.n, none.label, none.detail, none.tone]).toEqual(['0', 'to decide in 90 days', '', 'grey']);
+    expect(companiesStrip(rows).some((p) => /quiet|contact/i.test(`${p.key} ${p.label} ${p.lead} ${p.detail}`))).toBe(false);
   });
-  it('buckets: relationship, plus quiet', () => {
-    expect(companyBuckets(rows[1])).toEqual(['client', 'quiet']);
+  it('buckets: the relationship only', () => {
+    expect(companyBuckets(rows[1])).toEqual(['client']);
     expect(companyBuckets(rows[5])).toEqual(['prospect']);
   });
 });

@@ -13,7 +13,7 @@ import { liveThreads, companyRecords, companyContact, relationshipStatus, type B
 import { inFlightRows, standHeadline, STAND_TONE, type StandInput } from '../lib/recordCompany';
 import { companyServiceRows } from '../lib/companyServices';
 import { teamMember, defaultReviewer } from '../lib/commercial';
-import { needsFollowUp } from '../core/proposals';
+import { needsFollowUp, nudgeTipFor } from '../core/proposals';
 import { proposalStaleMonths } from '../lib/pagesQueues';
 import { followUpCount } from '../lib/followup';
 import { opportunityHealth } from '../lib/pipeline';
@@ -44,9 +44,11 @@ export function renderDossierState(key: Key): void {
     ? ` <button class="co-stand-dormant" onclick="openCleanup(${queues.length === 1 && queues[0] ? `'${queues[0]}'` : ''})">${dormant.length} dormant — review in Clean-up</button>`
     : '';
   const r = companyRecords(input);
+  const meets = companyContact(input, r);
   const stand: StandInput = {
     today: input.today, clientAgreements: r.clientAgreements, proposals: r.proposals, opportunities: r.opportunities, commitments: r.commitments,
-    relationship: relationshipStatus(r).label, lastContact: companyContact(input, r).lastContact, threads: threads.filter((t) => !t.dormant).length,
+    relationship: relationshipStatus(r).label, lastMeeting: meets.lastMeeting?.meetingDate?.slice(0, 10) ?? null, nextMeeting: meets.next?.meetingDate?.slice(0, 10) ?? null,
+    threads: threads.filter((t) => !t.dormant).length,
   };
   const card = (c: BriefClause) => {
     const label = STAND_LABEL[c.key];
@@ -109,7 +111,7 @@ export function renderDossierFlight(key: Key): void {
     <div class="rk-row-main"><div class="rk-row-t">${escHtml(r.title)}</div><div class="rk-row-s">${escHtml(r.sub)}</div></div>
     <span class="pk-stage t-${r.chip.tone}"><i></i>${escHtml(r.chip.text)}</span>
     <span class="pk-age-sm t-${r.tone}">${r.days == null ? '' : `${r.days} ${r.days === 1 ? 'day' : 'days'}`}</span>
-    <button class="btn-secondary btn-sm" onclick="event.stopPropagation();${r.kind === 'proposal' && r.action.kind !== 'open' ? `dbAct(event, ${r.id}, '${r.action.kind}')` : `openRecord('${r.kind}', ${r.id})`}">${escHtml(r.action.label)}</button>
+    <button class="btn-secondary btn-sm" onclick="event.stopPropagation();${r.kind === 'proposal' && r.action.kind !== 'open' ? `dbAct(event, ${r.id}, '${r.action.kind}')` : `openRecord('${r.kind}', ${r.id})`}"${r.kind === 'proposal' && r.action.kind === 'nudge' ? ` data-tip="${escHtml(nudgeTipFor(r.id))}"` : ''}>${escHtml(r.action.label)}</button>
   </div>`).join('');
 }
 

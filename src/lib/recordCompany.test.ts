@@ -46,11 +46,13 @@ describe('owed and stand headlines', () => {
     expect(owedHeadline([], T)).toBeNull();
   });
   it('each card has a headline', () => {
-    const i = { today: T, clientAgreements: [agr()], proposals: [], opportunities: [], commitments: owes, relationship: 'Active client', lastContact: T, threads: 3 };
+    const i = { today: T, clientAgreements: [agr()], proposals: [], opportunities: [], commitments: owes, relationship: 'Active client', lastMeeting: T, nextMeeting: null, threads: 3 };
     expect(standHeadline('relationship', i)).toBe('Client since Feb 2026');
     expect(standHeadline('inflight', i)).toBe('3 open');
-    expect(standHeadline('rhythm', i)).toBe('Today');
-    expect(standHeadline('rhythm', { ...i, lastContact: '2026-09-22' })).toBe('9 days ago');
+    // Meetings: the next one when there is one, else the last — a date, never an age.
+    expect(standHeadline('rhythm', i)).toBe('Last today');
+    expect(standHeadline('rhythm', { ...i, lastMeeting: '2026-07-19' })).toBe('Last 19 Jul');
+    expect(standHeadline('rhythm', { ...i, lastMeeting: '2026-07-19', nextMeeting: '2026-10-13' })).toBe('Next 13 Oct');
     expect(standHeadline('commitments', i)).toBe('1 each way');
     expect(standHeadline('relationship', { ...i, clientAgreements: [], relationship: 'Prospect' })).toBe('Prospect');
   });

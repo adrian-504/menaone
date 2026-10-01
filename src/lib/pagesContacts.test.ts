@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// Contacts in My Day's language (1.60 "pages-2"): when you last spoke, what is open with each person, the strip.
+// Contacts in My Day's language (1.60 "pages-2"): the last contact as a plain fact, what is open with each person, the strip.
 import { describe, expect, it } from 'vitest';
 
 import { contactBuckets, contactsStrip, lastSpokeByContact, openWith, spokeCell, type ContactFigures } from './pagesContacts';
@@ -25,12 +25,13 @@ describe('last spoke', () => {
     expect(m.get(6)).toEqual({ date: '2026-07-19', channel: 'email', subject: 'Payroll cut-off dates' });
     expect(m.has(9)).toBe(false);
   });
-  it('the cell: Today / N days with the channel and subject; amber "gone quiet" at 60 days', () => {
-    expect(spokeCell({ date: T, channel: 'meeting', subject: 'Renewal terms' }, T)).toEqual({ headline: 'Today', sub: '◎ Renewal terms', quiet: false, days: 0 });
-    expect(spokeCell({ date: '2026-09-22', channel: 'email', subject: 'Revision 2 request' }, T)).toMatchObject({ headline: '9 days', sub: '✉ Revision 2 request', quiet: false });
-    expect(spokeCell({ date: '2026-07-19', channel: 'email', subject: 'x' }, T)).toEqual({ headline: '74 days', sub: '✉ 19 Jul · gone quiet', quiet: true, days: 74 });
-    expect(spokeCell({ date: '2026-08-02', channel: 'call', subject: 'x' }, T).quiet).toBe(true); // exactly 60
-    expect(spokeCell(undefined, T)).toMatchObject({ headline: '—', quiet: false, days: null });
+  it('the cell: a plain date with the channel and subject, never coloured or flagged however long ago', () => {
+    expect(spokeCell({ date: T, channel: 'meeting', subject: 'Renewal terms' }, T)).toEqual({ headline: 'Today', sub: '◎ Renewal terms', days: 0 });
+    expect(spokeCell({ date: '2026-09-22', channel: 'email', subject: 'Revision 2 request' }, T)).toEqual({ headline: '22 Sept', sub: '✉ Revision 2 request', days: 9 });
+    const old = spokeCell({ date: '2026-07-19', channel: 'email', subject: 'x' }, T);
+    expect(old).toEqual({ headline: '19 Jul', sub: '✉ x', days: 74 });
+    expect(JSON.stringify(old)).not.toMatch(/quiet/);
+    expect(spokeCell(undefined, T)).toEqual({ headline: '—', sub: '', days: null });
   });
 });
 
@@ -53,19 +54,23 @@ describe('open with them', () => {
 describe('the strip', () => {
   const F = (id: number, name: string, company: string, dm: boolean, date: string | null): ContactFigures => ({ id, name, company, decisionMaker: dm, last: date ? { date, channel: 'email', subject: 's' } : undefined });
   const rows = [F(1, 'Jane Doe', 'Acme Holdings', true, T), F(2, 'Omar Haddad', 'Acme Holdings', false, T), F(3, 'Lina Saleh', 'Northwind Trading', true, '2026-09-24'), F(6, 'Sara Al-Otaibi', 'Elite HR', false, '2026-07-19'), F(7, 'New Person', 'Globex', false, null)];
-  it('people and companies, decision makers and where, the longest quiet, and who to review from meetings', () => {
-    const s = contactsStrip(rows, T, 1);
+  it('people and companies, decision makers and where, companies with no contact person, and who to review from meetings', () => {
+    const s = contactsStrip(rows, T, 1, ['Initech', 'Umbrella', 'Hooli']);
     expect(s.map((p) => [p.key, p.n, p.label, p.detail])).toEqual([
       ['all', '5 people', 'across 4 companies', '2'],
       ['dm', '2', 'decision makers', 'Acme Holdings, Northwind Trading'],
-      ['quiet', '1', 'not spoken in 60 days', 'Sara Al-Otaibi · 74 days'],
+      ['noperson', '3', 'companies with no contact person', 'Initech, Umbrella +1'],
       ['meetings', '1', 'from meetings, not yet a contact', 'Outlook invites · Review'],
     ]);
+    expect(s[2].action).toBe("openCleanup('company-contacts')");
     expect(s[3].action).toBe('openPeopleFromMeetings()');
+    // Nobody is counted for a lack of contact: Sara, last heard from 74 days ago, is in no panel.
+    expect(contactsStrip(rows, T, 0).some((p) => /quiet|not spoken/i.test(`${p.key} ${p.label} ${p.detail}`))).toBe(false);
+    expect(contactsStrip(rows, T, 0, ['Initech'])[2].label).toBe('company with no contact person');
   });
-  it('buckets: decision makers, and those gone quiet (never those with no contact on record)', () => {
-    expect(contactBuckets(rows[0], T)).toEqual(['dm']);
-    expect(contactBuckets(rows[3], T)).toEqual(['quiet']);
-    expect(contactBuckets(rows[4], T)).toEqual([]);
+  it('buckets: decision makers only', () => {
+    expect(contactBuckets(rows[0])).toEqual(['dm']);
+    expect(contactBuckets(rows[3])).toEqual([]);
+    expect(contactBuckets(rows[4])).toEqual([]);
   });
 });

@@ -10,8 +10,9 @@ import type { Agreement, SignatureStatus } from './types';
 import { endedByDecision, stillInvoiced } from './commercial';
 import { daysBetween } from './pipeline';
 import { fmtDate, fmtDateShort } from './dates';
-import { plural } from './pageKit';
 
+// Its own plural: this file stays free of the page kit (and the DOM), so My Day's rules can read it.
+const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 const iso = (s: string | null | undefined) => (s ? s.slice(0, 10) : null);
 const addDays = (d: string, n: number) => { const x = new Date(`${d}T12:00:00Z`); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().slice(0, 10); };
 

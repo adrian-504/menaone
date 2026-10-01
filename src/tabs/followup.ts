@@ -1,4 +1,5 @@
 import { createListNav } from '../lib/listNav';
+import { keepPlace } from '../lib/keepPlace';
 import { PS, proposalSentDate } from '../lib/commercial';
 import { S } from '../lib/state';
 import { emptyState } from '../lib/ui';
@@ -9,7 +10,8 @@ import { bucketOf, clearBucket, groupHeadHtml, registerStrip, stripHtml } from '
 import { pricingShape } from '../lib/pricingShape';
 import { cardFor } from '../lib/linesEditor';
 import { closedThisMonth, followRow, followStrip, inBucket, type FollowRow, type Trail } from '../lib/pagesQueues';
-import { queueRowHtml, whoOf } from './pending';
+import { queueRowHtml } from './pending';
+import { proposalContact } from '../lib/pagePeople';
 import { registerTabRenderer, refreshAll } from '../lib/registry';
 import { persistProposals } from '../lib/persist';
 import { getFollowups, getSnoozed, isSnoozed, proposalLastTouch } from '../core/proposals';
@@ -48,7 +50,12 @@ function rowFor(p: Proposal): FollowRow | null {
   return followRow(p, { today: today(), touch: proposalLastTouch(p), followUps: followUpCount(p, S.touches), touches: S.touches, shape: pricingShape(p.lines, cardFor) });
 }
 
+/** Redrawn in place: the page keeps its scroll position and the focus stays on the row acted on. */
 export function renderFollowup(): void {
+  keepPlace(drawFollowup);
+}
+
+function drawFollowup(): void {
   (window as any).renderProposalViews?.();
   const el = document.getElementById('fu-list');
   if (!el) return;
@@ -116,7 +123,8 @@ export function trailHtml(t: Trail, due: boolean): string {
 }
 
 function fuRowHtml(r: FollowRow, primary: boolean, p = S.proposals.find((x) => x.id === r.id)!): string {
-  return queueRowHtml(r, { primary, who: whoOf(p), below: trailHtml(r.trail, r.bucket === 'due') });
+  // The trail sits in the middle of the row, where the contact was; the contact's name closes the meta line (1.64).
+  return queueRowHtml(r, { primary, who: '', middle: trailHtml(r.trail, r.bucket === 'due'), metaLast: proposalContact(p)?.name || undefined });
 }
 
 /** A sent proposal waiting for an answer, as a row; archived ones get Unarchive. */

@@ -3,6 +3,10 @@
 One entry per install, newest first: the version, the day it was installed, and in two lines what changed.
 Settings → Data shows the last five. `scripts/release-check.mjs` refuses a build whose version has no entry here.
 
+## 1.64 — 2026-10-01
+Your notes on 1.63: My Day always shows the proposals with Hassan, and Needs your attention lists only what you can move today, in a fixed order, seven rows at most; nothing anywhere flags a client or a person for a lack of contact (Companies counts agreements to decide instead, Contacts the companies with no contact person).
+Tasks' groups sit on faint bands, Projects are compact cards (five on a screen), Meetings has a Past meetings header, Contacts has a Position column, Follow-up rows are half as tall, Generate proposal leads a proposal with no deck, a row action keeps your place on the page, and every notice is the same card as an undo.
+
 ## 1.63 — 2026-10-01
 Files and Settings join the new look: client folders as tiles in their company's colour with the matching shown as progress, files as cards with a cover by type; Settings as cards, with the tint, the team, a missing signature, Outlook and the last backup said in its navigation.
 Every pop-up is redrawn: a grouped New menu you can type to filter; one dialog shape for every "New …", where a task is typed in one line and ⌘⇧↵ creates and starts the next; ⌘K with a preview and quick actions for the selected result; menus that name the record; undo toasts that show the time left; and delete confirmations that list what else goes.

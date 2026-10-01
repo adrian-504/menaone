@@ -25,7 +25,7 @@ import { isMeetingOver, previewLines, writeUpState } from '../lib/meetingRecap';
 import { meetingExcerpt } from '../lib/meetingExcerpt';
 import { durationLabel, isRunning, meetingDays, meetingOutcomes, nextMeeting, nowLineAfter, placeLabel } from '../lib/meetingsList';
 import { nowLineHtml } from '../lib/timeline';
-import { tileHtml } from '../lib/pageKit';
+import { groupHeadHtml, tileHtml } from '../lib/pageKit';
 import { attendeeName } from '../lib/pagePeople';
 import { meetingHead } from '../lib/recordMeeting';
 import { personAvatar } from '../core/contacts';
@@ -105,7 +105,10 @@ function renderMeetingList(): void {
       const at = nowLineAfter(g.meetings, now);
       rows.splice(at, 0, nowLineHtml(fmtTime(now.toISOString()), 'pk-nowbar'));
     }
-    return `<section class="pk-mday${g.today ? ' is-today' : ''}">
+    // Where upcoming turns into past: a full group header, as Pending's groups have (1.64).
+    const pastHead = g.pastCount && meetingWhen !== 'past' && meetingWhen !== 'writeup'
+      ? `<div class="pk-mpast">${groupHeadHtml({ tone: 'grey', name: 'Past meetings', count: g.pastCount, note: 'newest first' })}</div>` : '';
+    return `${pastHead}<section class="pk-mday${g.today ? ' is-today' : ''}">
       <div class="pk-medal">${g.eyebrow ? `<em>${escHtml(g.eyebrow)}</em>` : ''}<b>${escHtml(g.day)}</b><span>${escHtml(g.weekdayMonth)}</span></div>
       <div class="pk-mday-rows">${rows.join('')}</div>
     </section>`;

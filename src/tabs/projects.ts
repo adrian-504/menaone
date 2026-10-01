@@ -33,7 +33,7 @@ import type { Project, Milestone, Note, Todo } from '../lib/types';
 import { statusTone, toneVar } from '../lib/statusTone';
 import { renderCommitmentSection } from './commitments';
 import { currentUser, matchesOwnerFilter, ownerFilterOptions, isAgreementActive } from '../lib/commercial';
-import { tileHtml } from '../lib/pageKit';
+import { plural, tileHtml } from '../lib/pageKit';
 import { nextMilestoneKey, projectFigures as trackFigures, projectTrack, ringDash, ringProgress } from '../lib/pagesProjects';
 import { fmtDateShort } from '../lib/dates';
 
@@ -139,6 +139,13 @@ function projectServices(p: Project): string[] {
   return [...new Set(S.agreements.filter((a) => inCompany(ref, a.companyId, a.client) && isAgreementActive(a, t)).flatMap((a) => (a.lines?.length ? a.lines.map((l) => l.serviceName) : [a.type || ''])).filter(Boolean))];
 }
 
+/** How wide a milestone's label may be, as a share of the track: the distance to its nearest neighbour, so two
+ * labels never overlap however close their dates. */
+function labelRoom(pos: number[], i: number): number {
+  const near = Math.min(i > 0 ? pos[i] - pos[i - 1] : Infinity, i < pos.length - 1 ? pos[i + 1] - pos[i] : Infinity);
+  return Number.isFinite(near) ? Math.max(4, Math.round((near - 1) * 10) / 10) : 40;
+}
+
 /** A project as a card with its milestone track (1.59 pages): the list's unit. */
 function projectCard(p: Project): string {
   const list = milestonesByProject.get(p.id) || [];
@@ -155,19 +162,19 @@ function projectCard(p: Project): string {
     <svg class="pk-ring" viewBox="0 0 36 36" role="img" aria-label="${ring.pct}% ${ring.of === 'milestones' ? 'of milestones done' : ring.of === 'tasks' ? 'of tasks done' : 'done'}"><circle cx="18" cy="18" r="15" fill="none" class="pk-ring-bg" stroke-width="4"/>${ring.pct > 0 ? `<circle cx="18" cy="18" r="15" fill="none" class="pk-ring-fg" stroke-width="4" stroke-dasharray="${ringDash(ring.pct)}" transform="rotate(-90 18 18)" stroke-linecap="round"/>` : ''}<text x="18" y="21.5" text-anchor="middle">${ring.pct}%</text></svg>`;
   const trackHtml = track.points.length
     ? `<div class="pk-track"><div class="pk-track-line"></div><div class="pk-track-done" style="width:${track.done}%"></div>${track.today != null ? `<div class="pk-track-today" style="left:${track.today}%"><span>today</span></div>` : ''}
-        ${track.points.map((x) => `<div class="pk-ms is-${x.state}" style="left:${x.pos}%"><i></i><b title="${escHtml(x.name)}">${escHtml(x.name)}</b><span>${escHtml(x.dateLabel)}</span></div>`).join('')}</div>`
-    : `<div class="pk-track-none">No milestones yet · <button class="rlink" onclick="event.stopPropagation();openRecord('project', ${p.id})">Add milestone</button></div>`;
+        ${track.points.map((x, i) => `<div class="pk-ms is-${x.state}" style="left:${x.pos}%;--w:${labelRoom(track.points.map((y) => y.pos), i)}%"><i></i><b title="${escHtml(x.name)}">${escHtml(x.name)}</b><span>${escHtml(x.dateLabel)}</span></div>`).join('')}</div>`
+    : '';
   const open = p.taskCount - p.taskDoneCount;
-  const lastMeeting = S.meetings.filter((m) => m.projectId === p.id && m.meetingDate && m.meetingDate <= t && !m.isCancelled).sort((a, b) => (b.startAt || b.meetingDate!).localeCompare(a.startAt || a.meetingDate!))[0];
-  const foot = [
-    f.next ? `<span>Next: <b>${escHtml(f.next.name)}</b>${f.next.days != null ? ` · ${f.next.days < 0 ? `${-f.next.days} days late` : f.next.days === 0 ? 'today' : `${f.next.days} ${f.next.days === 1 ? 'day' : 'days'}`}` : ''}</span>` : '',
-    p.taskCount ? `<span>${open} ${open === 1 ? 'task' : 'tasks'} open</span>` : `<span>No tasks yet · <button class="rlink" onclick="event.stopPropagation();projectAddTask(${p.id})">Add the first task</button></span>`,
-    lastMeeting ? `<span>Last meeting <b>${lastMeeting.meetingDate === t ? 'today' : escHtml(fmtDateShort(lastMeeting.meetingDate!, true))}</b> · ${escHtml(lastMeeting.title)}</span>` : '',
-  ].filter(Boolean).join('');
+  const late = f.next?.days != null && f.next.days < 0;
+  // The footer folded into the track's row (1.64): the next milestone and the tasks at the left, Open project at the right.
+  const next = f.next
+    ? `<div class="pk-proj-nx is-next${late ? ' t-red' : ''}"><span>Next <b>${escHtml(f.next.name)}</b></span>${f.next.days != null ? `<em>· ${late ? `${plural(-f.next.days, 'day')} late` : f.next.days === 0 ? 'today' : plural(f.next.days, 'day')}</em>` : ''}</div>`
+    : track.points.length ? '<div class="pk-proj-nx">All milestones done</div>'
+    : `<div class="pk-proj-nx">No milestones yet · <button class="rlink" onclick="event.stopPropagation();openRecord('project', ${p.id})">Add milestone</button></div>`;
+  const tasks = p.taskCount ? `<div class="pk-proj-nx">${plural(open, 'task')} open</div>` : `<div class="pk-proj-nx">No tasks yet · <button class="rlink" onclick="event.stopPropagation();projectAddTask(${p.id})">Add the first task</button></div>`;
   return `<article class="pk-proj pj-row${internal ? ' is-internal' : ''}" data-project-id="${p.id}" tabindex="0" onclick="if(!event.target.closest('a,button'))openRecord('project', ${p.id})" onkeydown="if(event.key==='Enter'&&event.target===this)this.click()" oncontextmenu="projectContextMenu(event,${p.id})">
-    <div class="pk-proj-hd">${tile}<div class="pk-proj-tt"><h3>${escHtml(p.name)}</h3><div class="pk-proj-s">${sub}${sub ? ' · ' : ''}<span class="pk-stage t-${PROJECT_STAGE_TONE[p.status] || 'grey'}"><i></i>${escHtml(p.status)}</span></div></div><div class="pk-figs">${figs}</div></div>
-    ${trackHtml}
-    <div class="pk-proj-foot">${foot}<button class="rlink pk-proj-open" onclick="event.stopPropagation();openRecord('project', ${p.id})">Open project</button></div>
+    <div class="pk-proj-hd">${tile}<h3>${escHtml(p.name)}</h3><span class="pk-stage t-${PROJECT_STAGE_TONE[p.status] || 'grey'}"><i></i>${escHtml(p.status)}</span>${sub ? `<span class="pk-proj-s">${sub}</span>` : ''}<div class="pk-figs">${figs}</div></div>
+    <div class="pk-proj-row${track.points.length ? '' : ' no-track'}"><div class="pk-proj-next">${next}${tasks}</div>${trackHtml}<button class="rlink pk-proj-open" onclick="event.stopPropagation();openRecord('project', ${p.id})">Open project</button></div>
   </article>`;
 }
 

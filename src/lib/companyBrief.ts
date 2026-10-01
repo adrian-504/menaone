@@ -12,8 +12,6 @@ import type { RecordKind } from './navHistory';
 import type { Agreement, Commitment, Contact, EmailRecord, Meeting, Touch } from './types';
 import { fmtDate, fmtDateShort, fmtMonth } from './dates';
 
-/** An active client with no meeting or email for longer than this is flagged. */
-export const NEGLECT_DAYS = 45;
 /** How many live engagements the "In flight" clause names before "and N more". */
 export const IN_FLIGHT_SHOWN = 3;
 /** Pinned notes quoted in the brief before "+N pinned". */
@@ -335,8 +333,8 @@ function inFlightClause(all: CompanyThread[], form: 'short' | 'long', proposals:
   return { key: 'inflight', text, links, tone };
 }
 
-/** The company's last meeting, email (either way) and call, and the latest of them — the brief's
- * rhythm line and My Day's gone-quiet rule read this one calculation. */
+/** The company's last meeting, email (either way) and call, and the latest of them: plain facts for the pages that
+ * show a last contact. Nothing reads this to raise a lack of contact. */
 export function companyContact(i: CompanyBriefInput, r: Records = companyRecords(i)) {
   const now = i.now || `${i.today}T12:00:00`;
   const past = r.meetings.filter((m) => m.meetingDate && happened(m, i.today, now)).sort((a, b) => (b.startAt || b.meetingDate!).localeCompare(a.startAt || a.meetingDate!));
@@ -350,25 +348,22 @@ export function companyContact(i: CompanyBriefInput, r: Records = companyRecords
   return { lastMeeting, next, lastEmail, lastCall, lastContact: lastContact ? lastContact.slice(0, 10) : null };
 }
 
-function rhythmClause(i: CompanyBriefInput, r: Records, isClient: boolean): BriefClause | null {
-  const { lastMeeting, next, lastEmail, lastCall, lastContact } = companyContact(i, r);
-  const gap = lastContact ? daysBetween(lastContact, i.today) : null;
-  const neglected = isClient && (gap == null || gap > NEGLECT_DAYS);
+/** Meetings (1.64; it was "Last contact"): the last meeting and the next one, as plain facts. It says nothing about
+ * how long it has been, and never flags a client for a lack of contact (owner, 1-Oct-2026). Null with no meetings. */
+function rhythmClause(i: CompanyBriefInput, r: Records): BriefClause | null {
+  const { lastMeeting, next } = companyContact(i, r);
   const links: BriefLink[] = [];
   const bits: string[] = [];
-  if (neglected) bits.push(gap == null ? 'No meeting or email on record.' : `No meeting or email for ${gap} days.`);
   if (lastMeeting) {
     links.push({ kind: 'meeting', id: lastMeeting.id, label: lastMeeting.title });
-    bits.push(`Last meeting ${fmtDate(lastMeeting.meetingDate)}, {${links.length - 1}}${lastEmail && lastEmail > lastMeeting.meetingDate! ? `; last email ${fmtDate(lastEmail)}` : ''}${lastCall && lastCall > lastMeeting.meetingDate! ? `; last call ${fmtDate(lastCall)}` : ''}.`);
-  } else if (lastEmail || lastCall) {
-    bits.push([lastEmail ? `Last email ${fmtDate(lastEmail)}` : '', lastCall ? `${lastEmail ? 'last' : 'Last'} call ${fmtDate(lastCall)}` : ''].filter(Boolean).join('; ') + '.');
+    bits.push(`Last meeting ${fmtDate(lastMeeting.meetingDate)}, {${links.length - 1}}.`);
   }
   if (next) {
     links.push({ kind: 'meeting', id: next.id, label: next.title });
     bits.push(`Next meeting ${next.meetingDate === i.today ? 'today' : fmtDate(next.meetingDate)}, {${links.length - 1}}.`);
   }
   if (!bits.length) return null;
-  return { key: 'rhythm', text: bits.join(' '), links, tone: neglected ? 'amber' : null };
+  return { key: 'rhythm', text: bits.join(' '), links, tone: null };
 }
 
 function commitmentsClause(i: CompanyBriefInput, r: Records): BriefClause | null {
@@ -407,7 +402,7 @@ export function buildCompanyState(i: CompanyBriefInput, opts: { inFlight?: 'shor
   return [
     relationshipClause(i, r),
     inFlightClause(liveThreads(i, r), opts.inFlight ?? 'short', i.proposals),
-    rhythmClause(i, r, r.clientAgreements.length > 0),
+    rhythmClause(i, r),
     commitmentsClause(i, r),
     pinnedClause(i),
   ].filter((c): c is BriefClause => !!c);

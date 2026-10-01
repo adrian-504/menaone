@@ -21,9 +21,9 @@ describe('header figures', () => {
       ['SAR 15,000', 'a month at their company', 'green'],
     ]);
   });
-  it('when only they owe, says so in amber; quiet for 60 days is amber', () => {
+  it('when only they owe, says so in amber; the last contact is a plain date, never amber', () => {
     const f = contactHeaderFigures({ today: T, last: { date: '2026-07-19', channel: 'email', subject: 'Cut-off' }, commitments: [{ direction: 'theirs', status: 'open', dueDate: null, text: 'October headcount' }], meetingDates: [], companyMonthly: '' });
-    expect(f.map((x) => [x.value, x.tone])).toEqual([['74 days', 'amber'], ['Owes us 1', 'amber']]);
+    expect(f.map((x) => [x.value, x.tone])).toEqual([['19 Jul', undefined], ['Owes us 1', 'amber']]);
   });
 });
 

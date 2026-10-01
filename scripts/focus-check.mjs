@@ -5,7 +5,8 @@
 // blue (primary) buttons. Fails when a view shows more than one primary, a
 // select sits in a list row, an empty text box comes first, or a page is over
 // its targets, a view shifts layout after it opens (CLS > 0.01 in 1.5 s), or a
-// list loses its scroll position when you leave and come back.
+// list loses its scroll position when you leave and come back, or a row action
+// (Follow-up, Pending, Proposals) moves the page or drops the keyboard focus.
 //
 // By default it builds the app once (with the sample data compiled in) and
 // serves that build with `vite preview` on port 1430, so nothing re-bundles or
@@ -48,9 +49,9 @@ const VIEWS = [
   ['Companies', "switchTab('companies')", { filters: 3 }],
   ['Contacts', "switchTab('contacts')", { filters: 3 }],
   ['Opportunities', "switchTab('opportunities')", { filters: 3 }],
-  ['Pending', "switchTab('pending')", { filters: 3 }],
-  ['Follow-up', "switchTab('followup')", {}],
-  ['Proposals', "switchTab('database')", { filters: 3 }],
+  ['Pending', "switchTab('pending')", { filters: 3, rowKeep: 'renderPending()' }],
+  ['Follow-up', "switchTab('followup')", { rowKeep: "logTouch(ID, 'email_out')" }],
+  ['Proposals', "switchTab('database')", { filters: 3, rowKeep: 'renderDB()' }],
   ['Agreements', "switchTab('agreements')", { filters: 3 }],
   ['Services', "navToModule('pricing')", {}],
   ['Files', "switchTab('files')", {}],
@@ -90,7 +91,7 @@ const VIEWS = [
 ];
 const COUNT = `(() => {
   const H = innerHeight, W = innerWidth;
-  const chrome = '.sidebar, #sidebar, #loc-bar, #record-rail, .modal-ov:not(.open), .toast-stack, #toast-stack';
+  const chrome = '.sidebar, #sidebar, #loc-bar, #record-rail, .modal-ov:not(.open), .toast-stack, #toast-stack, .undo-stack';
   const vis = (el) => { const r = el.getBoundingClientRect(); if (r.width < 2 || r.height < 2 || r.bottom <= 0 || r.top >= H || r.right <= 0 || r.left >= W) return false;
     const s = getComputedStyle(el); if (s.visibility === 'hidden' || s.display === 'none' || +s.opacity === 0) return false;
     // Hidden by an ancestor too (row actions that only show on hover sit in a wrapper at opacity 0).
@@ -188,6 +189,26 @@ for (const [name, js, t] of views) {
     const y1 = await evalJs(`(${js}), new Promise(r => setTimeout(() => r(window.scrollY), 600))`);
     c.scroll = y0 > 0 ? `${y0}→${y1}` : 'short';
     if (y0 > 0 && Math.abs(y1 - y0) > 2) c.scrollLost = true;
+    // A row action redraws the list: the page stays where it is and the focus stays on the row (1.64).
+    if (t.rowKeep) {
+      const out = JSON.parse(await evalJs(`(async () => {
+        const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+        const rows = [...document.querySelectorAll('[data-row-id], tr[data-proposal-id]')].filter((r) => r.offsetParent);
+        const row = rows[rows.length - 1];
+        if (!row) return JSON.stringify({ none: true });
+        const id = row.dataset.rowId || row.dataset.proposalId;
+        const ctl = [...row.querySelectorAll('button:not([disabled])')].filter((b) => b.offsetParent).pop();
+        window.scrollTo(0, 160); await wait(150);
+        ctl.focus({ preventScroll: true });
+        const y0 = window.scrollY;
+        await (${JSON.stringify(t.rowKeep)}.includes('ID') ? eval(${JSON.stringify(t.rowKeep)}.replace('ID', id)) : eval(${JSON.stringify(t.rowKeep)}));
+        await wait(500);
+        const a = document.activeElement, r = a && a.closest('[data-row-id], tr[data-proposal-id]');
+        return JSON.stringify({ y0, y1: window.scrollY, focus: !!r && a.isConnected && (r.dataset.rowId || r.dataset.proposalId) === id });
+      })()`));
+      c.rowKeep = out.none ? 'no rows' : `${out.y0}→${out.y1}${out.focus ? '' : ', focus lost'}`;
+      if (!out.none && (out.y0 <= 0 || Math.abs(out.y1 - out.y0) > 2 || !out.focus)) c.rowKeepLost = true;
+    }
     await send('Emulation.setDeviceMetricsOverride', { width: vw, height: vh, deviceScaleFactor: 1, mobile: false });
   }
   const problems = [];
@@ -201,6 +222,7 @@ for (const [name, js, t] of views) {
   if (c.cls > 0.01) problems.push(`layout shift ${c.cls}`);
   if (c.isNew) problems.push(`${c.isNew} .is-new on a cold render`);
   if (c.scrollLost) problems.push(`scroll not kept (${c.scroll})`);
+  if (c.rowKeepLost) problems.push(`a row action lost the place (${c.rowKeep})`);
   if (t.activeShown && !c.activeShown) problems.push('the open module has no visible sidebar item');
   if (c.errorToasts.length) problems.push(`error toast: ${c.errorToasts.join(' | ')}`);
   if (t.noPopover && c.popover) problems.push('the company suggestion list is still open');
@@ -208,7 +230,7 @@ for (const [name, js, t] of views) {
 }
 return results;
 }
-const line = (r) => `${r.problems.length ? '✗' : '✓'} ${r.name.padEnd(22)} inputs ${String(r.inputs).padStart(2)} · buttons ${String(r.buttons).padStart(2)} · blue ${r.primary}${r.filters ? ` · filters ${r.filters}` : ''}${r.eyebrows != null ? ` · eyebrows ${r.eyebrows}` : ''} · shift ${r.cls}${r.scroll ? ` · scroll ${r.scroll}` : ''}${r.problems.length ? `  — ${r.problems.join(', ')}` : ''}`;
+const line = (r) => `${r.problems.length ? '✗' : '✓'} ${r.name.padEnd(22)} inputs ${String(r.inputs).padStart(2)} · buttons ${String(r.buttons).padStart(2)} · blue ${r.primary}${r.filters ? ` · filters ${r.filters}` : ''}${r.eyebrows != null ? ` · eyebrows ${r.eyebrows}` : ''} · shift ${r.cls}${r.scroll ? ` · scroll ${r.scroll}` : ''}${r.rowKeep ? ` · row action ${r.rowKeep}` : ''}${r.problems.length ? `  — ${r.problems.join(', ')}` : ''}`;
 const done = (code) => { ws.close(); chrome.kill(); preview?.kill(); process.exit(code); };
 
 if (STABLE) {

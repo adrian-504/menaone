@@ -4,6 +4,7 @@
 // tabs/cleanup.ts draws it; the queues themselves are lib/cleanup.ts.
 
 import type { Agreement, Company, Contact, Opportunity, Proposal, Todo, Touch } from './types';
+import { nudgeTip } from './pagesQueues';
 import { proposalSentDate } from './commercial';
 import { daysBetween } from './pipeline';
 import { followUpCount, touchesOf } from './followup';
@@ -34,7 +35,7 @@ export const QUEUE_KIND: Record<QueueId, { glyph: string; tone: Tone }> = {
 /** What each choice does, under its name on the card. */
 export const ACTION_HINT: Record<CleanupAction, string> = {
   lost: 'Close it with a reason', withdrawn: 'We pulled it', won: 'Create the agreement', keep: 'Hide it here for 30 days', snooze_followup: 'Snooze for 30 days',
-  approve: 'The reviewer said yes', changes: 'Back to you to edit', back_to_drafting: 'Reopen the draft', nudge: 'Log a reminder, look again in a week',
+  approve: 'The reviewer said yes', changes: 'Back to you to edit', back_to_drafting: 'Reopen the draft', nudge: 'Records that you nudged the reviewer',
   agreement_active: 'It counts towards the monthly total', agreement_not_started: 'Clear the start date', agreement_ended: 'It stops counting',
   opportunity_details: 'Value, next step, close date', opportunity_lost: 'Take it off the pipeline',
   set_industry: 'Pick from the list', set_owner: 'Who looks after it', add_contact: 'The person you deal with',
@@ -96,7 +97,7 @@ function proposalCard(q: QueueId, p: Proposal, i: CardInput): CardView {
     const reviewer = i.reviewerOf?.(p) || 'the reviewer';
     return {
       meta, panels: [{ value: days(daysBetween(since, i.today)), caption: `in review since ${fmtDateShort(since, true)}`, warn: true }, { value: first(reviewer), caption: 'has it for review' }, fee, rel],
-      recommend: { action: 'nudge', hint: `Remind ${first(reviewer)} first` },
+      recommend: { action: 'nudge', hint: nudgeTip(reviewer) },
     };
   }
   if (q === 'client-signed') {

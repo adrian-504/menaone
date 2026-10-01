@@ -70,7 +70,7 @@ export function owedHeadline(commitments: Pick<Commitment, 'direction' | 'status
   return { headline, caption: lateDays ? `${plural(lateDays, 'day')} late` : theirsLate ? 'theirs is late' : 'nothing late', late: lateDays > 0 };
 }
 
-export interface StandInput extends CompanyHeaderInput { relationship: string; lastContact: string | null; threads: number }
+export interface StandInput extends CompanyHeaderInput { relationship: string; /** The last meeting's day and the next one's, for the Meetings card. */ lastMeeting: string | null; nextMeeting: string | null; threads: number }
 
 /** The headline on each "Where we stand" card. Pure. */
 export function standHeadline(key: ClauseKey, i: StandInput): string {
@@ -79,10 +79,10 @@ export function standHeadline(key: ClauseKey, i: StandInput): string {
     return i.relationship === 'Active client' && since ? `Client since ${fmtMonth(since, 'short')}` : i.relationship;
   }
   if (key === 'inflight') return i.threads ? `${i.threads} open` : 'Nothing open';
+  // Meetings: the next one when there is one, else the last — a date, never how long it has been.
   if (key === 'rhythm') {
-    if (!i.lastContact) return 'No contact yet';
-    const d = Math.max(0, daysBetween(i.lastContact, i.today) ?? 0);
-    return d === 0 ? 'Today' : d === 1 ? 'Yesterday' : `${plural(d, 'day')} ago`;
+    if (i.nextMeeting) return `Next ${i.nextMeeting === i.today ? 'today' : fmtDateShort(i.nextMeeting, true)}`;
+    return i.lastMeeting ? `Last ${i.lastMeeting === i.today ? 'today' : fmtDateShort(i.lastMeeting, true)}` : 'None yet';
   }
   if (key === 'commitments') return owedHeadline(i.commitments, i.today)?.headline || 'Tasks overdue';
   return '';

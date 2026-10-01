@@ -1,4 +1,5 @@
 import { rangeIds } from '../lib/bulkProposals';
+import { keepPlace } from '../lib/keepPlace';
 import { requestGroupIds, requestSiblings } from '../lib/proposalGroups';
 import { proposalBulkActions } from '../core/proposalBulk';
 import { pricingShape } from '../lib/pricingShape';
@@ -24,7 +25,7 @@ import { createListNav } from '../lib/listNav';
 import { saveCsv } from '../lib/files';
 import { renderBulkBar, hideBulkBar } from '../lib/bulkBar';
 import { toast } from '../lib/ui';
-import { changeProposalStatus } from '../core/proposals';
+import { changeProposalStatus, nudgeTipFor } from '../core/proposals';
 import { refreshAll } from '../lib/registry';
 import { today } from '../lib/utils';
 import type { Proposal } from '../lib/types';
@@ -63,7 +64,12 @@ export function dbGetFiltered(withBucket = true): Proposal[] {
 
 const currentStatusFilter = () => (document.getElementById('db-status') as HTMLSelectElement | null)?.value || '';
 
+/** Redrawn in place: the page keeps its scroll position and the focus stays on the row acted on. */
 export function renderDB(): void {
+  keepPlace(drawDB);
+}
+
+function drawDB(): void {
   renderProposalViews();
   // The pipeline strip: on the All view, from what the filters leave (before a panel narrows it).
   const strip = document.getElementById('db-strip');
@@ -96,7 +102,7 @@ export function renderDB(): void {
     const agreementId = S.agreements.find((a) => a.proposalId === p.id)?.id ?? null;
     const c = tableCells(p, { today: t, reviewer: reviewer(p), due: fu, stale, agreementId, shape: pricingShape(p.lines, cardFor) });
     const services = p.lines?.length ? lineTotals(p.lines, p.contractMonths).serviceNames : (p.type && p.type !== '—' ? [p.type] : []);
-    const act = c.action ? `<button class="rlink pk-act" onclick="event.stopPropagation();dbAct(event, ${p.id}, '${c.action.kind}')"${c.action.kind === 'followed_up' ? ' aria-haspopup="menu"' : ''}>${escHtml(c.action.label)}</button>` : '';
+    const act = c.action ? `<button class="rlink pk-act" onclick="event.stopPropagation();dbAct(event, ${p.id}, '${c.action.kind}')"${c.action.kind === 'followed_up' ? ' aria-haspopup="menu"' : ''}${c.action.kind === 'nudge' ? ` data-tip="${escHtml(nudgeTipFor(p.id))}"` : ''}>${escHtml(c.action.label)}</button>` : '';
     return `<tr data-proposal-id="${p.id}" class="rec-tr${p.archived ? ' archived-row' : ''}${dbSelected.has(p.id) ? ' is-selected' : ''}" onclick="if(!event.target.closest('a,button,select,input'))openRecord('proposal', ${p.id})" oncontextmenu="proposalRowMenu(event, ${p.id})">
       <td class="td-chk"><input type="checkbox" ${dbSelected.has(p.id) ? 'checked' : ''} onclick="dbCheckClick(event, ${p.id})" aria-label="Select SL# ${p.id}"></td>
       <td class="pk-td-co"><div class="pk-co">${tileHtml(p.client, 'pk-tile sm')}<div class="pk-co-t">${companyLink(p.companyId, p.client)}<span class="pk-svc">— ${escHtml(services.join(', ') || 'to be confirmed')}</span>${p.archived ? ' <span class="pk-chip t-grey">Archived</span>' : ''}</div></div></td>

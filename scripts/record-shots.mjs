@@ -19,6 +19,7 @@ const THEME = process.env.THEME || 'light';
 const CLOCK = '2026-10-01T14:05:00';
 const SHOTS = [
   ['company', CLOCK, "openRecord('company', 1)"],
+  ['proposal-request', CLOCK, "openRecord('proposal', 6)"],
   ['proposal-review', CLOCK, "openRecord('proposal', 2)"],
   ['proposal-sent', CLOCK, "openRecord('proposal', 3)"],
   ['proposal-signed', CLOCK, "openRecord('proposal', 9)"],

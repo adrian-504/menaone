@@ -20,7 +20,7 @@ import { statusBadge } from '../lib/statusTone';
 import { blockSummary, blocksToSave, emptyBlock, proposalsFromBlocks, type ProposalBlock, type SharedProposalFields } from '../lib/proposalBlocks';
 import { proposalDeckRows } from '../lib/proposalDocuments';
 import { deckVersion, matchDecks } from '../lib/deckMatch';
-import { proposalNextStep } from '../lib/proposalSteps';
+import { generateIsFeatured, proposalNextStep } from '../lib/proposalSteps';
 import { latestRevision, lineWasNote, parseSnapshot, removedServices, revisionFact, revisionOf } from '../lib/revisions';
 import { companyFromForm, contextFromOpportunity } from '../lib/workGraph';
 import { S } from '../lib/state';
@@ -180,10 +180,13 @@ export function renderActions(p: Proposal): void {
   const primary = dueNow ? null : step.primary;
   const secondary = dueNow ? { label: 'Client asked for changes', run: `openRevisionDialog(${p.id})` } : step.secondary;
   const tool = dueNow ? null : contextualTool(p);
+  // No deck yet while requested or drafting: Generate proposal is the page's one blue button, the status step beside it.
+  const featured = generateIsFeatured(p, hasDeck(p));
   el.innerHTML = [
-    tool ? `<button class="btn-secondary" onclick="${tool.run}">${escHtml(tool.label)}</button>` : '',
+    tool && !featured ? `<button class="btn-secondary" onclick="${tool.run}">${escHtml(tool.label)}</button>` : '',
     secondary ? `<button class="btn-secondary" onclick="${secondary.run}">${escHtml(secondary.label)}</button>` : '',
-    primary ? `<button class="btn-primary" onclick="${primary.run}">${escHtml(primary.label)}</button>` : '',
+    primary ? `<button class="${featured ? 'btn-secondary' : 'btn-primary'}" onclick="${primary.run}">${escHtml(primary.label)}</button>` : '',
+    featured ? `<button class="btn-primary" onclick="openGenerateProposal(${p.id})">${icon('bolt', 13)} Generate proposal</button>` : '',
     dueNow ? `<button class="btn-primary" onclick="followUpMenu(event, ${p.id})" aria-haspopup="menu">Followed up ${icon('chevronDown', 11)}</button>` : '',
     `<button class="loc-nav rec-more" onclick="proposalMoreMenu(event)" data-tip="More" aria-label="More">${icon('more', 16)}</button>`,
   ].join('');
@@ -346,6 +349,11 @@ function latestDeck(p: Proposal, folder: ProposalFolder | null): { path: string;
   const decks = (folder?.files || []).filter((f) => !f.isFolder && /\.pptx$/i.test(f.name) && /proposal/i.test(f.name))
     .sort((a, b) => (b.modifiedAt || '').localeCompare(a.modifiedAt || ''));
   return decks.length ? { path: decks[0].path, name: decks[0].name } : null;
+}
+
+/** Is there a deck: one recorded on the proposal, or a proposal deck in the client folder. */
+function hasDeck(p: Proposal): boolean {
+  return !!latestDeck(p, folderCache?.proposalId === p.id ? folderCache.info : null);
 }
 
 /** Document tools live in the header ("Open PowerPoint" / "Generate proposal") and in "…";
@@ -700,9 +708,13 @@ function renderDeckHistory(p: Proposal): void {
   if (!el) return;
   const decks = (p.documents || []).filter((d) => d.kind === 'proposal');
   const count = document.getElementById('prd-decks-count'); if (count) count.textContent = decks.length ? String(decks.length) : '';
+  // No deck yet while requested or drafting: generating it is the section's feature card, and the header's blue button.
+  const featured = generateIsFeatured(p, hasDeck(p));
+  const sectionBtn = document.getElementById('prd-gen-btn'); if (sectionBtn) sectionBtn.hidden = featured;
   if (!decks.length) {
-    // Nothing generated yet: the section's own "Generate proposal" is the whole story.
-    el.innerHTML = '';
+    el.innerHTML = featured ? `<div class="deck-feature"><span class="deck-feature-tile" aria-hidden="true">${icon('bolt', 18)}</span>
+      <div class="deck-feature-t"><b>Generate the deck</b><span>A PowerPoint in the MENA BIG design with this proposal’s services, prices and term, saved in the client folder as V1.</span></div>
+      <button class="btn-secondary btn-sm" onclick="generateCurrentProposal()">Generate proposal</button></div>` : '';
     return;
   }
   const paths = decks.map((d) => d.path).filter((x): x is string => !!x);

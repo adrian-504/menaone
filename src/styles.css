@@ -795,7 +795,6 @@ button.rlink{background:none;border:0;padding:0;font:inherit;line-height:inherit
 .rlink-preview-hint{margin-top:10px;font-size:var(--type-meta);color:var(--muted)}
 
 /* ═══════════════ Design system: toasts ═══════════════ */
-.toast-stack{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:9999;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none}
 .toast{pointer-events:auto;display:flex;align-items:center;gap:10px;min-width:260px;max-width:min(560px,calc(100vw - 40px));background:var(--text);color:var(--surface);border-radius:var(--radius-sm);padding:9px 8px 9px 14px;box-shadow:0 10px 30px rgba(20,18,40,.28);font-size:var(--type-secondary);animation:toast-in var(--dur-slow) var(--ease-out)}
 .toast.leaving{animation:toast-out var(--dur-base) var(--ease-out) forwards}
 .toast-body{flex:1;min-width:0}
@@ -2148,6 +2147,8 @@ body.dnd-active .opp-board .board-column.stage-hidden{display:flex}
 .mdy-empty svg{flex:none;color:var(--accent);margin-top:1px}
 .mdy-empty strong{color:var(--text)}
 .mdy-empty.compact{padding:8px 0}
+/* 1.64: nothing needs you — one line, no more space than that. */
+.mdy-none{padding:2px 0;font-size:var(--type-secondary);color:var(--muted)}
 
 /* Today */
 .mdy-group-hd{display:flex;align-items:center;gap:8px;margin:10px 0 2px;font-size:var(--type-meta);font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--sub)}
@@ -2349,8 +2350,6 @@ main.with-rail > .record-rail{display:flex;flex-direction:column;grid-column:1;g
 .bulk-clear{font-size:var(--type-large);line-height:1;padding:4px 9px}
 .td-chk{width:28px}
 tr.is-selected > td{background:var(--selected)}
-.toast-stack{transition:none}
-body:has(.bulk-bar.open) .toast-stack{bottom:76px}
 
 /* Settings: section list + pane, like System Settings */
 .settings-layout{display:grid;grid-template-columns:210px minmax(0,760px);gap:28px;align-items:start}
@@ -3337,6 +3336,12 @@ body.dnd-active [data-sort-shift] .dnd-source{opacity:0}
 /* Deck versions as objects (studio slice): a card each, the brand mini-cover, latest first. */
 .deck-tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
 .deck-tiles:empty{display:none}
+/* 1.64: no deck yet — generating it is the section's feature card. */
+.deck-feature{grid-column:1/-1;display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:13px;background:var(--panel-bg);border:1px solid var(--hairline)}
+.deck-feature-tile{flex:none;width:40px;height:40px;border-radius:9px;display:grid;place-items:center;background:var(--navy);color:var(--on-tile)}
+.deck-feature-t{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.deck-feature-t b{font:600 15px/1.25 var(--font-display);color:var(--navy)}
+.deck-feature-t span{font-size:var(--type-secondary);color:var(--sub)}
 .deck-tile{position:relative;display:flex;flex-direction:column;gap:6px;padding:8px;border-radius:13px;border:1px solid var(--hairline);background:var(--surface);box-shadow:var(--shadow-xs);cursor:pointer;transition:box-shadow var(--dur-fast) var(--ease-out),border-color var(--dur-fast) var(--ease-out),transform var(--dur-fast) var(--ease-out)}
 .deck-tile:hover{box-shadow:var(--shadow-sm);border-color:var(--border2)}
 .deck-tile:active{transform:scale(.98)}
@@ -3506,7 +3511,10 @@ button.pk-st:focus-visible{outline:none;box-shadow:var(--shadow-focus)}
 .pk-group.is-archived{opacity:.75}
 .pk-list{container-type:inline-size}
 .pq-row.pk-row{display:grid;grid-template-columns:36px minmax(0,1fr) 200px 112px 104px 236px 28px;gap:16px;align-items:center;padding:12px 8px;border-radius:0;border-bottom:1px solid var(--hairline);box-shadow:none;transition:background-color var(--dur-fast) var(--ease-out)}
-#tab-followup .pq-row.pk-row{grid-template-columns:36px minmax(0,1fr) 180px 112px 110px 300px 28px}
+/* Follow-up (1.64): the contact trail in the middle of the row, so a row is about 70 px, not 125. */
+#tab-followup .pq-row.pk-row{grid-template-columns:36px minmax(0,1fr) minmax(200px,270px) 112px 110px 300px 28px}
+.pk-mid{min-width:0;padding:0 26px}
+.pk-mid .pk-trail{max-width:none;margin:6px 0 0}
 .pq-row.pk-row:hover{background:var(--hover)}
 .pq-row.pk-row:active{background:var(--surface-pressed)}
 .pq-row.pk-row:focus-visible{outline:none;box-shadow:var(--shadow-focus)}
@@ -3546,6 +3554,13 @@ button.pk-st:focus-visible{outline:none;box-shadow:var(--shadow-focus)}
   .pq-row.pk-row,#tab-followup .pq-row.pk-row{grid-template-columns:36px minmax(0,1fr) 104px 96px 28px;gap:6px 14px}
   .pk-who{display:none}
   .pk-row .pk-acts{grid-column:2 / 5;grid-row:2;justify-content:flex-start}
+  /* Follow-up: three lines — title, meta, then the trail (half its height, without its dates) with the buttons at
+     its right. The value and age columns size to fit the buttons under them. */
+  #tab-followup .pq-row.pk-row.has-mid{grid-template-columns:36px minmax(0,1fr) auto auto 28px}
+  .pk-row .pk-mid{grid-column:2;grid-row:2;align-self:center;padding:0 6px}
+  .pk-mid .pk-trail{height:14px;max-width:520px;margin:0}
+  .pk-mid .pk-pt span{display:none}
+  .pk-row.has-mid .pk-acts{grid-column:3 / 6;grid-row:2;justify-content:flex-end}
   .pk-row .pk-more{grid-column:5;grid-row:1}
 }
 @container (max-width:620px){
@@ -3553,6 +3568,9 @@ button.pk-st:focus-visible{outline:none;box-shadow:var(--shadow-focus)}
   .pk-val{display:none}
   .pk-row .pk-acts{grid-column:2 / 4}
   .pk-row .pk-more{grid-column:4}
+  #tab-followup .pq-row.pk-row.has-mid{grid-template-columns:36px minmax(0,1fr) 96px 28px}
+  .pk-row .pk-mid{grid-column:2 / 4}
+  .pk-row.has-mid .pk-acts{grid-column:2 / 4;grid-row:3;justify-content:flex-start}
 }
 @media (max-width:1280px){.pk-st-d{white-space:normal}}
 
@@ -3665,7 +3683,7 @@ button.pk-st:focus-visible{outline:none;box-shadow:var(--shadow-focus)}
 .pk-table .pk-flags{margin:6px 0 0 44px}
 .pk-next{display:flex;gap:5px;align-items:baseline}.pk-next .rlink{min-width:0}
 
-/* Companies: services as pills (green under an active agreement), the agreement's runway, gone quiet. */
+/* Companies: services as pills (green under an active agreement), the agreement's runway. */
 .pk-svcs{display:flex;flex-wrap:wrap;gap:4px}
 .pk-svc-pill{display:inline-block;font-size:11px;padding:2px 7px;border-radius:6px;background:var(--surface-2);color:var(--sub);white-space:nowrap}
 .pk-svc-pill.is-on{background:var(--green-bg);color:var(--green)}
@@ -3678,8 +3696,6 @@ button.pk-st:focus-visible{outline:none;box-shadow:var(--shadow-focus)}
 .pk-runway.is-soon .pk-runway-bar i{background:var(--amber)}
 .pk-flight{font-size:12px;color:var(--text)}
 .pk-flight .t-red{color:var(--red)}.pk-flight .t-amber{color:var(--amber)}
-.pk-quiet{display:inline-flex;gap:6px;align-items:center;font-size:12px;color:var(--amber);white-space:nowrap}
-.pk-quiet i{width:7px;height:7px;border-radius:50%;border:1.5px dashed var(--amber)}
 .pk-gaps .rlink{color:var(--blue);font-weight:500}
 .pk-cofigs{display:flex;flex-direction:column;gap:6px;margin-top:10px;padding-top:10px;border-top:1px solid var(--hairline)}
 .pk-cofig{display:flex;align-items:baseline;gap:6px}
@@ -3692,11 +3708,14 @@ button.pk-st:focus-visible{outline:none;box-shadow:var(--shadow-focus)}
 .co-search-bar .rcnt.pk-gaps{margin-left:4px}
 #co-list-table .pk-td-co{width:24%;min-width:210px}
 @media (max-width:1280px){#co-list-table .pk-narrow-hide{display:none}}
-@media (max-width:1280px){.pk-quiet{white-space:normal}}
 
 /* Meetings: a date medallion per day, a coral now-line, the next meeting in a panel. */
 .pk-mday{display:grid;grid-template-columns:72px minmax(0,1fr);gap:20px;padding:16px 0;border-bottom:1px solid var(--hairline)}
 .pk-mday:first-of-type{border-top:1px solid var(--hairline)}
+/* 1.64: where upcoming turns into past, a full group header with 28 px above it. */
+.pk-mpast{margin-top:28px}
+.pk-mpast .pk-gh{margin:0}
+.pk-mpast:first-child{margin-top:0}
 .pk-medal{text-align:center;padding-top:4px}
 .pk-medal em{display:block;font-style:normal;font:600 10px var(--font-text);letter-spacing:.14em;text-transform:uppercase;color:var(--coral-text);margin-bottom:4px}
 .pk-medal b{display:block;font:600 34px/1 var(--font-display);color:var(--navy)}
@@ -3745,56 +3764,63 @@ a.btn-primary,a.btn-secondary{text-decoration:none}
 .pk-mmain .mt-purpose::after{content:"\201D"}
 
 /* Projects: a card per project with a 3px top edge (client blue, internal coral) and its milestone track. */
-.pk-proj{position:relative;--c:var(--blue);border-radius:13px;padding:20px 22px 16px;background:var(--surface);border:1px solid var(--hairline);box-shadow:var(--shadow-sm);margin-bottom:16px;overflow:hidden;cursor:pointer;transition:box-shadow var(--dur-fast) var(--ease-out)}
+/* 1.64: a compact card, about 135 px, so five fit at 1,680×1,020 and four at 1,080×940: the tile, title, stage and
+   figures on one line; under it the next milestone, the track with one-line labels, and Open project. */
+.pk-proj{position:relative;--c:var(--blue);border-radius:13px;padding:14px 18px 12px;background:var(--surface);border:1px solid var(--hairline);box-shadow:var(--shadow-sm);margin-bottom:10px;overflow:hidden;cursor:pointer;transition:box-shadow var(--dur-fast) var(--ease-out)}
 .pk-proj.is-internal{--c:var(--coral)}
 .pk-proj::before{content:"";position:absolute;left:0;top:0;right:0;height:3px;background:var(--c)}
 .pk-proj:hover{box-shadow:var(--shadow-md)}
 .pk-proj:active{box-shadow:var(--shadow-xs)}
 .pk-proj:focus-visible{outline:none;box-shadow:var(--shadow-focus)}
-.pk-proj-hd{display:flex;gap:14px;align-items:center}
-.pk-tile.lg{width:40px;height:40px;border-radius:9px;font-size:13px}
-.pk-proj-tt{min-width:0}
-.pk-proj-tt h3{margin:0;font:600 20px/1.2 var(--font-display);color:var(--navy);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.pk-proj-s{margin-top:3px;font-size:12.5px;color:var(--sub)}
+.pk-proj-hd{display:flex;gap:12px;align-items:center;min-height:36px}
+.pk-tile.lg{width:32px;height:32px;border-radius:9px;font-size:11.5px}
+.pk-proj-hd h3{flex:0 1 auto;min-width:0;margin:0;font:600 17px/1.2 var(--font-display);color:var(--navy);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pk-proj-hd .pk-stage{flex:none}
+.pk-proj-s{flex:0 10 auto;min-width:0;font-size:12.5px;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pk-stage.t-red{background:var(--red-bg);color:var(--red)}
-.pk-figs{margin-left:auto;display:flex;gap:28px;align-items:flex-end;flex:none}
-.pk-fig b{display:block;font:600 22px/1 var(--font-display);color:var(--navy);text-align:right;white-space:nowrap}
-.pk-fig span{display:block;margin-top:3px;font-size:var(--type-meta);color:var(--muted);text-align:right;white-space:nowrap}
+.pk-figs{margin-left:auto;display:flex;gap:20px;align-items:center;flex:none}
+.pk-fig{display:flex;align-items:baseline;gap:6px;white-space:nowrap}
+.pk-fig b{font:600 16px/1 var(--font-display);color:var(--navy)}
+.pk-fig span{font-size:var(--type-meta);color:var(--muted)}
 .pk-fig.t-red b{color:var(--red)}
-.pk-ring{width:56px;height:56px;flex:none}
+.pk-ring{width:36px;height:36px;flex:none}
 .pk-ring-bg{stroke:var(--surface-2)}
 .pk-ring-fg{stroke:var(--c)}
-.pk-ring text{font:600 10px var(--font-display);fill:var(--navy)}
-.pk-track{position:relative;height:58px;margin:26px 0 4px}
-.pk-track-line{position:absolute;left:0;right:0;top:9px;height:3px;border-radius:6px;background:var(--surface-2)}
-.pk-track-done{position:absolute;left:0;top:9px;height:3px;border-radius:6px;background:var(--c)}
-.pk-track-today{position:absolute;top:-2px;width:2px;height:24px;margin-left:-1px;background:var(--coral)}
-.pk-track-today span{position:absolute;top:-16px;left:50%;transform:translateX(-50%);font:500 10px var(--font-mono);color:var(--coral-text)}
-.pk-ms{position:absolute;top:2px;width:124px;margin-left:-62px;text-align:center}
-.pk-ms i{display:block;width:16px;height:16px;margin:0 auto;border-radius:50%;background:var(--surface);border:2.5px solid var(--border)}
+.pk-ring text{font:600 10.5px var(--font-display);fill:var(--navy)}
+.pk-proj-row{display:grid;grid-template-columns:minmax(0,230px) minmax(0,1fr) auto;gap:20px;align-items:center;margin-top:10px}
+.pk-proj-row.no-track{grid-template-columns:minmax(0,1fr) auto}
+.pk-proj-next{min-width:0;font-size:12px;line-height:1.55;color:var(--sub)}
+.pk-proj-nx{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pk-proj-nx.is-next{display:flex;gap:4px}
+.pk-proj-nx.is-next span{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.pk-proj-nx em{flex:none;font-style:normal}
+.pk-proj-nx b{font-weight:500;color:var(--text)}
+.pk-proj-nx.t-red em{color:var(--red)}
+.pk-proj-next .rlink{color:var(--blue);font-weight:500;font-size:inherit;text-decoration-color:transparent}
+.pk-proj-next .rlink:hover{text-decoration-color:currentColor}
+.pk-proj-open{font-size:12px}
+.pk-track{position:relative;height:46px;margin:16px 44px 0}
+.pk-track-line{position:absolute;left:0;right:0;top:7px;height:3px;border-radius:6px;background:var(--surface-2)}
+.pk-track-done{position:absolute;left:0;top:7px;height:3px;border-radius:6px;background:var(--c)}
+.pk-track-today{position:absolute;top:-2px;width:2px;height:20px;margin-left:-1px;background:var(--coral)}
+.pk-track-today span{position:absolute;top:-15px;left:50%;transform:translateX(-50%);font:500 10px var(--font-mono);color:var(--coral-text)}
+.pk-ms{position:absolute;top:1px;width:var(--w);max-width:124px;min-width:56px;transform:translateX(-50%);text-align:center}
+.pk-ms i{display:block;width:14px;height:14px;margin:0 auto;border-radius:50%;background:var(--surface);border:2.5px solid var(--border)}
 .pk-ms.is-done i{background:var(--c);border-color:var(--c)}
 .pk-ms.is-next i{border-color:var(--c);box-shadow:0 0 0 4px color-mix(in srgb,var(--c) 14%,transparent)}
-.pk-ms b{display:block;margin-top:6px;font-size:11.5px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.pk-ms span{display:block;font:500 10.5px var(--font-mono);color:var(--muted)}
-.pk-track-none{margin:18px 0 4px;padding:12px 14px;border:1px dashed var(--border);border-radius:9px;font-size:var(--type-secondary);color:var(--sub)}
-.pk-track-none .rlink,.pk-proj-foot .rlink{color:var(--blue);font-weight:500;font-size:inherit;text-decoration-color:transparent}
-.pk-track-none .rlink:hover,.pk-proj-foot .rlink:hover{text-decoration-color:currentColor}
-.pk-proj-foot{display:flex;gap:18px;align-items:baseline;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:1px solid var(--hairline);font-size:12px;color:var(--sub)}
-.pk-proj-foot b{font-weight:500;color:var(--text)}
-.pk-proj-open{margin-left:auto}
+.pk-ms b{display:block;margin-top:4px;font-size:11.5px;line-height:1.3;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pk-ms span{display:block;font:500 10.5px/1.2 var(--font-mono);color:var(--muted)}
 @media (max-width:1280px){
-  .pk-proj-hd{flex-wrap:wrap}
-  .pk-figs{margin-left:54px;gap:20px}
-  .pk-ms{width:92px;margin-left:-46px}
+  .pk-proj-s{display:none}
+  .pk-figs{gap:14px}
+  .pk-proj-row{grid-template-columns:minmax(0,190px) minmax(0,1fr) auto;gap:10px}
+  .pk-track{margin:16px 30px 0}
 }
 
 /* 1.59 audit: narrow windows. */
 .pk-strip.is-pipe .pk-st-l{display:block}
 /* Proposals: the view tabs line up with the search row when the toolbar wraps. */
 #pr-list-view .pk-tools{align-items:flex-start}
-/* Projects: a milestone's name may take two lines. */
-.pk-track{height:74px}
-.pk-ms b{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-height:1.25}
 @media (max-width:1280px){
   /* Companies list: no sideways scroll. */
   #co-list-table th.th-sortable,#co-list-table th,#co-list-table td{padding-left:6px;padding-right:6px}
@@ -3816,12 +3842,13 @@ a.btn-primary,a.btn-secondary{text-decoration:none}
 .pk-lc{display:flex;flex-direction:column;min-width:0}
 .pk-lc b{font:600 15px var(--font-display);color:var(--sub);white-space:nowrap}
 .pk-lc span{font-size:var(--type-meta);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px}
-.pk-lc.is-quiet b{color:var(--amber)}
 .pk-owes{display:flex;gap:6px;flex-wrap:wrap}
 .pk-owes span{font-size:var(--type-meta);padding:2px 7px;border-radius:6px;white-space:nowrap}
 .pk-owes .t-red{background:var(--red-bg);color:var(--red)}
 .pk-owes .t-amber{background:var(--amber-bg);color:var(--amber)}
 #ct-table .pk-td-co{width:24%;min-width:190px}
+#ct-table .pk-td-pos{max-width:0;width:22%}
+.pk-pos{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--sub)}
 #ct-table .ct-mail-link{color:var(--sub);text-decoration:none}
 #ct-table .ct-mail-link:hover{color:var(--blue)}
 #ct-table .ct-copy{opacity:0;transition:opacity var(--dur-fast) var(--ease-out)}
@@ -4485,7 +4512,8 @@ a.rk-snote:hover{text-decoration-color:currentColor}
 .task-prog-bar i{display:block;height:100%;width:var(--p);background:var(--green);border-radius:6px}
 .task-prog-note{flex:none;white-space:nowrap;font:500 11.5px var(--font-mono);color:var(--sub)}
 .task-group{margin-bottom:0}
-.task-group-hd{align-items:center;gap:10px;margin:20px 0 4px;padding:0 0 8px;border-bottom:1px solid var(--hairline)}
+/* 1.64: a group's header sits on a faint band the width of the list, so the sections read apart without boxes. */
+.task-group-hd{align-items:center;gap:10px;min-height:32px;margin:20px 0 4px;padding:0 12px;border-bottom:none;border-radius:6px;background:var(--panel-bg)}
 .task-group-hd i{flex:none;width:8px;height:8px;border-radius:50%;background:var(--c)}
 .task-group-hd b{font:600 15px/1.2 var(--font-display);color:var(--navy)}
 .task-group-hint{font:500 11.5px var(--font-mono);color:var(--muted)}
@@ -4908,10 +4936,17 @@ a.rk-snote:hover{text-decoration-color:currentColor}
 .ctx-menu-item kbd{flex:none;margin-left:16px;font:500 11px var(--font-mono);color:var(--muted)}
 .ctx-menu-sep{background:var(--hairline);margin:5px 6px}
 /* Undo toasts: navy cards, bottom-left, three at most, with the time left as a coral bar */
-.toast-undo{position:relative;align-items:center;gap:12px;min-width:340px;padding:12px 10px 14px 14px;border-radius:13px;background:var(--tile-3);color:var(--on-tile);box-shadow:var(--shadow-md);overflow:hidden}
+/* One toast style (1.64): a notice is the same navy card as an undo, in the same stack at the bottom left. */
+.toast-card{position:relative;align-items:center;gap:12px;min-width:340px;padding:12px 10px 12px 14px;border-radius:13px;background:var(--tile-3);color:var(--on-tile);box-shadow:var(--shadow-md);overflow:hidden}
+.toast-undo{padding-bottom:14px}
 .undo-tile{flex:none;width:28px;height:28px;border-radius:6px;display:grid;place-items:center;background:color-mix(in srgb,var(--green) 28%,transparent);color:var(--on-tile)}
 .undo-tile.is-coral{background:color-mix(in srgb,var(--coral) 32%,transparent)}
-.toast-undo .toast-msg{font-weight:600}
+.undo-tile.is-neutral{background:color-mix(in srgb,var(--blue-100) 26%,transparent)}
+.undo-tile.is-error{background:var(--red);color:var(--on-tile)}
+.toast-card.toast-error{background:var(--tile-3)}
+.toast-card.toast-success .toast-msg::before{content:none}
+.toast-card .toast-go{color:var(--coral);text-decoration:none;font-weight:600}
+.toast-card .toast-detail{opacity:.78;font-size:var(--type-secondary);margin-top:1px}
 .toast-undo .toast-detail{opacity:.78;font-size:var(--type-secondary);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:320px}
 .toast-undo .toast-undo-btn{color:var(--coral);text-decoration:none;font-weight:600}
 .toast-undo .toast-action kbd{font:500 11px var(--font-mono);opacity:.7;margin-left:6px;color:var(--on-tile)}

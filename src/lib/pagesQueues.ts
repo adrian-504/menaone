@@ -14,6 +14,13 @@ import { ageTone, moneyTotal, plural, type StripPanel, type Tone } from './pageK
 // ── Shared ──────────────────────────────────────────────────────────────────
 
 export interface MetaBit { text: string; tone?: 'red' | 'amber'; chip?: boolean }
+/** What Nudge does, for its tooltip: it only records, for yourself, that you reminded the reviewer (owner, 1-Oct-2026:
+ * "only recording that I nudged Hassan for myself"). It sends nothing. Pure. */
+export function nudgeTip(reviewer: string | null | undefined): string {
+  const name = (reviewer || '').trim();
+  return `Records that you nudged ${!name || name.toLowerCase() === 'the reviewer' ? 'the reviewer' : name.split(/\s+/)[0]}`;
+}
+
 export type RowActionKind = 'draft' | 'generate' | 'review' | 'nudge' | 'record' | 'mark_sent' | 'changes' | 'followed_up' | 'mark_lost';
 export interface RowAction { kind: RowActionKind; label: string }
 

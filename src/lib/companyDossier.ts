@@ -13,7 +13,7 @@ import { fmtDateShort } from './dates';
 
 /** Where we stand, as labelled lines; the pinned clause is the Remember panel instead. */
 export const STAND_LABEL: Partial<Record<ClauseKey, string>> = {
-  relationship: 'Relationship', inflight: 'In flight', rhythm: 'Last contact', commitments: 'Owed',
+  relationship: 'Relationship', inflight: 'In flight', rhythm: 'Meetings', commitments: 'Owed',
 };
 
 export const NEXT_LIMIT = 5;

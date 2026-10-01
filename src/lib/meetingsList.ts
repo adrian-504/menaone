@@ -118,8 +118,10 @@ export function placeLabel(m: Pick<Meeting, 'location' | 'isOnlineMeeting'>): st
 export interface MeetingDay<T> {
   key: string;
   date: string | null;
-  /** "Today", "Tomorrow", "Earlier" on the first past day; '' otherwise. */
+  /** "Today" or "Tomorrow"; '' otherwise. */
   eyebrow: string;
+  /** On the first past day: how many past meetings follow, for the "Past meetings" header drawn above it (1.64). */
+  pastCount?: number;
   /** The day of the month, large. */
   day: string;
   /** "Thu Oct"; "Wed Apr 2025" in another year. */
@@ -132,7 +134,8 @@ export interface MeetingDay<T> {
 const SHORT_WD = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const SHORT_MO = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sept', 'Oct', 'Nov', 'Dec'];
 
-/** One group per day with a date medallion: today onward soonest first, then earlier days newest first. Pure. */
+/** One group per day with a date medallion: today onward soonest first, then earlier days newest first; the first
+ * past day says how many past meetings there are. A meeting of today that has finished stays under Today. Pure. */
 export function meetingDays<T extends ListMeeting>(meetings: T[], now: Date): MeetingDay<T>[] {
   const today = localIso(now);
   const tomorrow = addDaysIso(today, 1);
@@ -148,11 +151,11 @@ export function meetingDays<T extends ListMeeting>(meetings: T[], now: Date): Me
       const past = date < today;
       g = {
         key: date, date, today: date === today, earlier: past, meetings: [],
-        eyebrow: date === today ? 'Today' : date === tomorrow ? 'Tomorrow' : past && firstEarlier ? 'Earlier' : '',
+        eyebrow: date === today ? 'Today' : date === tomorrow ? 'Tomorrow' : '',
         day: String(d.getDate()),
         weekdayMonth: `${SHORT_WD[d.getDay()]} ${SHORT_MO[d.getMonth()]}${d.getFullYear() !== now.getFullYear() ? ` ${d.getFullYear()}` : ''}`,
       };
-      if (past) firstEarlier = false;
+      if (past && firstEarlier) { g.pastCount = earlier.length; firstEarlier = false; }
       out.push(g);
     }
     g.meetings.push(m);

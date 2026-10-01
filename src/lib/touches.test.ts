@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { followUpCount, lastTouch, touchDoing, touchLabel, touchWhat } from './followup';
 import { buildAttention, type MyDayInput } from './myday';
-import { buildCompanyState, clauseText, lastContactByPerson, type CompanyBriefInput } from './companyBrief';
+import { buildCompanyState, clauseText, companyContact, lastContactByPerson, type CompanyBriefInput } from './companyBrief';
 import type { Contact, Proposal, Touch } from './types';
 
 const touch = (id: number, over: Partial<Touch>): Touch => ({
@@ -74,9 +74,10 @@ describe('the company brief sees our emails and calls', () => {
   });
   it('a logged email or call is the last contact, for the company and for the person', () => {
     const rhythm = (touches: Touch[]) => buildCompanyState(input(touches)).find((c) => c.key === 'rhythm');
+    // The company's Meetings line is about meetings only (1.64); a logged email or call is still its last contact.
     expect(rhythm([])).toBeUndefined();
-    expect(clauseText(rhythm([touch(1, { at: '2026-09-20' })])!)).toBe('Last email 20 Sept 2026.');
-    expect(clauseText(rhythm([touch(1, { at: '2026-09-20' }), touch(2, { kind: 'call', at: '2026-09-22' })])!)).toBe('Last email 20 Sept 2026; last call 22 Sept 2026.');
+    expect(rhythm([touch(1, { at: '2026-09-20' })])).toBeUndefined();
+    expect(companyContact(input([touch(1, { at: '2026-09-20' }), touch(2, { kind: 'call', at: '2026-09-22' })])).lastContact).toBe('2026-09-22');
     expect(lastContactByPerson(input([touch(1, { kind: 'call', contactId: 5, at: '2026-09-22' })])).get(5)).toEqual({ date: '2026-09-22', label: 'You called', kind: 'touch', id: 1 });
     expect(lastContactByPerson(input([touch(1, { companyId: 2, contactId: 5 })])).has(5)).toBe(false);
   });

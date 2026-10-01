@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { buildInPlay, buildComingUpFocus, playRow, regulatoryNotes, stageOf } from './mydayFocus';
-import { buildAttention, buildIndex, personName, QUIET_DAYS, type MyDayInput } from './myday';
+import { buildAttention, buildIndex, personName, type MyDayInput } from './myday';
 import type { Agreement, Commitment, IntelligenceItem, Meeting, Proposal } from './types';
 
 const TODAY = '2026-09-30';
@@ -49,7 +49,7 @@ describe('proposals in play', () => {
     expect(exp.meta).toBe('Sent 26 Sept · offer expires 26 Oct');
   });
 
-  it('shows the six that waited longest, in stage order, and counts the rest', () => {
+  it('gives each stage its own share of rows, in stage order, and counts the rest', () => {
     const ps = [
       ...[1, 2, 3].map((n) => proposal({ id: n, status: 'Proposal Request Received', dateAdded: `2026-09-2${n}` })),
       ...[4, 5].map((n) => proposal({ id: n, status: 'In Internal Review', reviewRequestedAt: `2026-09-0${n}` })),
@@ -58,10 +58,31 @@ describe('proposals in play', () => {
     const p = buildInPlay(ps, ctx);
     expect(p.total).toBe(8);
     expect(p.stages.map((s) => [s.stage, s.count])).toEqual([['draft', 3], ['hassan', 2], ['client', 3]]);
-    expect(p.rows).toHaveLength(6);
-    expect(p.rows.map((r) => r.stage)).toEqual([...p.rows.map((r) => r.stage)].sort((a, b) => ['draft', 'hassan', 'client'].indexOf(a) - ['draft', 'hassan', 'client'].indexOf(b)));
-    expect(p.hidden.draft).toBe(2);
+    expect(p.rows.map((r) => r.id)).toEqual([1, 2, 4, 5, 6, 7, 8]);
+    expect(p.hidden).toEqual({ draft: 1, hassan: 0, client: 0 });
     expect(buildInPlay([], ctx).stages).toEqual([]);
+  });
+
+  it('a long queue with clients never pushes the ones with Hassan off the list', () => {
+    const ps = [
+      ...Array.from({ length: 58 }, (_, n) => proposal({ id: n + 1, status: 'Sent to Client', dateSentToClient: '2026-06-01' })),
+      ...[101, 102, 103, 104, 105].map((id, n) => proposal({ id, status: 'In Internal Review', reviewRequestedAt: `2026-09-2${n + 1}` })),
+      proposal({ id: 200, status: 'Proposal Request Received', dateAdded: '2026-09-29' }),
+    ];
+    const p = buildInPlay(ps, ctx);
+    expect(p.rows.map((r) => r.stage)).toEqual(['draft', 'hassan', 'hassan', 'hassan', 'client', 'client', 'client']);
+    expect(p.rows.filter((r) => r.stage === 'hassan').map((r) => r.id)).toEqual([101, 102, 103]);
+    expect(p.hidden).toEqual({ draft: 0, hassan: 2, client: 55 });
+  });
+
+  it('within a stage the urgent come first, then the oldest', () => {
+    const ps = [
+      proposal({ id: 1, status: 'In Internal Review', reviewRequestedAt: '2026-09-01' }),
+      proposal({ id: 2, status: 'In Internal Review', reviewRequestedAt: '2026-09-10' }),
+      proposal({ id: 3, status: 'In Internal Review', reviewRequestedAt: '2026-09-20' }),
+      proposal({ id: 4, status: 'In Internal Review', reviewRequestedAt: '2026-09-28', reviewStatus: 'approved' }),
+    ];
+    expect(buildInPlay(ps, ctx).rows.map((r) => r.id)).toEqual([4, 1, 2]);
   });
 
   it('the index row counts proposals in play at 04', () => {
@@ -102,7 +123,7 @@ describe('regulatory', () => {
   });
 });
 
-describe('needs your attention: write-ups and quiet clients', () => {
+describe('needs your attention: write-ups', () => {
   const input = (over: Partial<MyDayInput>): MyDayInput => ({
     today: TODAY, now: new Date('2026-09-30T18:00:00'), proposals: [], opportunities: [], pipelineFacts: [], agreements: [], meetings: [],
     todos: [], projects: [], emails: [], inboxCount: 0, reviewerName: () => 'Hassan', ownDomains: new Set(['menabig.com']), snoozed: {}, ...over,
@@ -115,17 +136,6 @@ describe('needs your attention: write-ups and quiet clients', () => {
     expect(keys).toContain('meeting:5:writeup');
     expect(keys).not.toContain('meeting:6:writeup');
     expect(keys).not.toContain('meeting:7:writeup');
-  });
-  it('an active client with no contact for a month has gone quiet', () => {
-    const items = buildAttention(input({ quietClients: [
-      { companyId: 1, name: 'Elite HR', lastContact: '2026-08-30', days: 31, service: 'payroll' },
-      { companyId: 2, name: 'Acme', lastContact: '2026-09-25', days: 5, service: 'payroll' },
-    ] }));
-    const quiet = items.filter((a) => a.kind === 'quiet');
-    expect(quiet.map((a) => a.title)).toEqual(['Elite HR has gone quiet']);
-    expect(quiet[0].reason).toBe('Active client · last contact 30 Aug · payroll');
-    expect(quiet[0].action.kind).toBe('email_company');
-    expect(QUIET_DAYS).toBe(30);
   });
 });
 
@@ -143,7 +153,7 @@ describe('the rail owns proposal-stage work', () => {
       proposal({ id: 5, status: 'Sent to Client', dateSentToClient: '2026-08-20' }),
       proposal({ id: 6, status: 'Drafting', dateAdded: '2026-09-01' }),
     ];
-    const rail = new Set(buildInPlay(proposals, ctx, 99).rows.map((r) => r.id));
+    const rail = new Set(buildInPlay(proposals, ctx, { draft: 99, hassan: 99, client: 99 }).rows.map((r) => r.id));
     const attention = buildAttention(input({ proposals, railOwnsProposals: true })).flatMap((a) => [a, ...(a.children ?? [])]).filter((a) => a.record?.kind === 'proposal');
     const both = attention.filter((a) => rail.has(a.record!.id));
     expect(both.map((a) => a.key)).toEqual(['proposal:2:promise']);

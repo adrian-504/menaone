@@ -1,4 +1,5 @@
 import { rangeIds } from '../lib/bulkProposals';
+import { keepPlace } from '../lib/keepPlace';
 import { requestGroupIds, requestSiblings } from '../lib/proposalGroups';
 import { proposalBulkActions } from '../core/proposalBulk';
 import { renderBulkBar, hideBulkBar } from '../lib/bulkBar';
@@ -11,7 +12,7 @@ import { today, fmtDate, escHtml, expose, showConfirm } from '../lib/utils';
 import { matchesProposalPeriod } from '../lib/period';
 import { registerTabRenderer, registerBadgeUpdater, refreshAll, getActiveTabId } from '../lib/registry';
 import { persistProposals } from '../lib/persist';
-import { changeProposalStatus, snoozeProposal, snoozeCustom, archiveProposal, openNotesModal, openRevisionDialog, openWlModal, nudgeReview, followUpMenu } from '../core/proposals';
+import { changeProposalStatus, snoozeProposal, snoozeCustom, archiveProposal, openNotesModal, openRevisionDialog, openWlModal, nudgeReview, nudgeTipFor, followUpMenu } from '../core/proposals';
 import { showContextMenu, menuHead } from '../lib/contextMenu';
 import { icon } from '../lib/icons';
 import { PS, teamMember, defaultReviewer, ownerName } from '../lib/commercial';
@@ -61,7 +62,12 @@ const reviewerName = (p?: Proposal) => teamMember(p?.reviewerId)?.name || defaul
 /** The latest proposal deck on file (its version), for "deck V1 in folder". */
 const latestDeck = (p: Proposal) => Math.max(0, ...(p.documents || []).filter((d) => d.kind === 'proposal').map((d) => d.version ?? 1)) || null;
 
+/** Redrawn in place: the page keeps its scroll position and the focus stays on the row acted on. */
 export function renderPending(): void {
+  keepPlace(drawPending);
+}
+
+function drawPending(): void {
   (window as any).renderProposalViews?.();
   const search = ((document.getElementById('wq-search') as HTMLInputElement | null)?.value || '').toLowerCase().trim();
   const sort = (document.getElementById('wq-sort') as HTMLSelectElement | null)?.value || 'age';
@@ -188,20 +194,20 @@ export function whoOf(p: Proposal, reviewer = false): string {
 }
 
 /** One queue row (Pending, Follow-up): tile, client — service and SL#, one meta line, who, value, age, actions and "…". */
-export function queueRowHtml(r: QueueRow, o: { primary: boolean; who: string; below?: string; /** Pending: the row can be ticked (its checkbox sits over the tile). */ selected?: boolean }): string {
-  const meta = r.meta.map((m) => (m.chip ? `<span class="pk-chip t-${m.tone || 'amber'}">${escHtml(m.text)}</span>` : m.tone ? `<span class="t-${m.tone}">${escHtml(m.text)}</span>` : escHtml(m.text))).join('<span class="pk-sep">·</span>');
+export function queueRowHtml(r: QueueRow, o: { primary: boolean; who: string; below?: string; /** Follow-up (1.64): what sits in the middle of the row in place of the person — the contact trail. */ middle?: string; /** A last, plain entry on the meta line (Follow-up: the contact's name). */ metaLast?: string; /** Pending: the row can be ticked (its checkbox sits over the tile). */ selected?: boolean }): string {
+  const meta = r.meta.map((m) => (m.chip ? `<span class="pk-chip t-${m.tone || 'amber'}">${escHtml(m.text)}</span>` : m.tone ? `<span class="t-${m.tone}">${escHtml(m.text)}</span>` : escHtml(m.text))).concat(o.metaLast ? [escHtml(o.metaLast)] : []).join('<span class="pk-sep">·</span>');
   const acts = r.actions.map((a, i) => {
     const blue = o.primary && i === r.actions.length - 1;
     const chevron = a.kind === 'followed_up' ? ` ${icon('chevronDown', 11)}` : '';
-    return `<button class="${blue ? 'btn-primary' : 'btn-secondary'} btn-sm" onclick="event.stopPropagation();queueAct(event, ${r.id}, '${a.kind}')"${a.kind === 'followed_up' ? ' aria-haspopup="menu"' : ''}>${escHtml(a.label)}${chevron}</button>`;
+    return `<button class="${blue ? 'btn-primary' : 'btn-secondary'} btn-sm" onclick="event.stopPropagation();queueAct(event, ${r.id}, '${a.kind}')"${a.kind === 'followed_up' ? ' aria-haspopup="menu"' : ''}${a.kind === 'nudge' ? ` data-tip="${escHtml(nudgeTipFor(r.id))}"` : ''}>${escHtml(a.label)}${chevron}</button>`;
   }).join('');
-  return `<div class="pq-row pk-row${o.below ? ' has-below' : ''}${o.selected ? ' is-selected' : ''}" data-row-id="${r.id}" onclick="if(!event.target.closest('a,button,input,label'))openRecord('proposal', ${r.id})" oncontextmenu="pqMenu(event, ${r.id})">
+  return `<div class="pq-row pk-row${o.below ? ' has-below' : ''}${o.middle != null ? ' has-mid' : ''}${o.selected ? ' is-selected' : ''}" data-row-id="${r.id}" onclick="if(!event.target.closest('a,button,input,label'))openRecord('proposal', ${r.id})" oncontextmenu="pqMenu(event, ${r.id})">
     ${o.selected != null ? `<label class="pk-chk"><input type="checkbox" ${o.selected ? 'checked' : ''} onclick="pqCheckClick(event, ${r.id})" aria-label="Select SL# ${r.id}"></label>` : ''}${tileHtml(r.client)}
     <div class="pk-main">
       <div class="pk-title">${companyLink(r.companyId, r.client)}<span class="pk-svc">— ${escHtml(r.service)}</span><span class="pk-sl">SL# ${r.id}</span></div>
       <div class="pk-meta">${meta}</div>${o.below || ''}
     </div>
-    <div class="pk-who">${o.who}</div>
+    ${o.middle != null ? `<div class="pk-mid">${o.middle}</div>` : `<div class="pk-who">${o.who}</div>`}
     ${valueHtml(r.amount, r.amountCaption, r.amountShape)}
     ${ageHtml(r.age, r.ageCaption, r.tone)}
     <div class="pk-acts">${acts}</div>

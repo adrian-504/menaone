@@ -1,6 +1,6 @@
 import { createListNav } from '../lib/listNav';
 import { bucketOf, clearBucket, registerStrip, stripHtml, tileHtml } from '../lib/pageKit';
-import { companiesStrip, companyBuckets, goneQuiet, inFlight, runway, runwayNote, RELATIONSHIP_TONE, type CompanyBucket, type CompanyFigures, type Runway } from '../lib/pagesCompanies';
+import { companiesStrip, companyBuckets, decideDates, inFlight, runway, runwayNote, RELATIONSHIP_TONE, type CompanyBucket, type CompanyFigures, type Runway } from '../lib/pagesCompanies';
 import { companyContact } from '../lib/companyBrief';
 import { needsFollowUp } from '../core/proposals';
 import { PS } from '../lib/commercial';
@@ -18,7 +18,7 @@ import { renderCompanyCommitments } from './commitments';
 import { COMPANIES_VIEW_KEY, initialCompaniesView } from '../lib/companiesView';
 import { companyNavItems, groupRequestedTogether, layoutCompanyRecords, type RecordCounts } from '../lib/companyRecords';
 import { today, fmtDate, escHtml, expose, showConfirm, statusDot, showTextPrompt, getClients, companyRef, inCompany, daysSince, daysUntil, strColor, type CompanyRef, fmtDateShort } from '../lib/utils';
-import { shownColumns, sortState, setSort, sortRows, headerCells, openColumnPicker, agoLabel, type Column, type SortState } from '../lib/tableColumns';
+import { shownColumns, sortState, setSort, sortRows, headerCells, openColumnPicker, type Column, type SortState } from '../lib/tableColumns';
 import { companyLists, companyNamesInList, contactsInCompanyList, contactsAtCompanies, createSavedList, renameSavedList, removeSavedList, updateSmartListFilters, addCompaniesToList, removeCompaniesFromList, addToCompanyListChoices, exportToActiveCampaign, listById, sameFilters, cleanFilters, listChipLabel, listsForCompany } from '../core/lists';
 import { emptyState } from '../lib/ui';
 import { recordLink } from '../lib/links';
@@ -756,7 +756,6 @@ function buildCoRow(name: string, byName: Map<string, Company>, listsByName: Map
   open.forEach((p) => { if (p.monthlyFee) proposed[currencyOf(p)] = (proposed[currencyOf(p)] || 0) + p.monthlyFee; });
   const firstMet = S.meetings.filter((m) => inCompany(ref, m.companyId, m.companyName) && m.meetingDate && !m.isCancelled).map((m) => m.meetingDate!.slice(0, 10)).sort()[0] || co?.createdAt?.slice(0, 10) || null;
   const next = contact.next;
-  const quietDays = goneQuiet(rel.label, contact.lastContact, todayIso);
   return {
     name, co, d, rel, industry: co?.industries[0] || null, activeServices, otherServices,
     mrr: Object.keys(d.activeMrr).length ? toReporting(d.activeMrr) ?? null : null,
@@ -778,14 +777,18 @@ function buildCoRow(name: string, byName: Map<string, Company>, listsByName: Map
       openOpps: opps.filter((o) => o.status === 'Open').length,
       nextMeeting: next?.meetingDate ? { date: next.meetingDate.slice(0, 10), time: next.startAt ? fmtTime(next.startAt) : null } : null,
     }, todayIso),
-    figures: { name, relationship: rel.label, mrr: d.activeMrr, renewal, proposed, firstMet, quietDays },
+    figures: { name, relationship: rel.label, mrr: d.activeMrr, renewal, proposed, firstMet, decide: decideDates(d.agreements, todayIso) },
   };
 }
 
 const muted = '<span class="t-muted">—</span>';
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
-export const COMPANY_COLUMNS: Column<CoRow>[] = [
+export /** Where this table's column choice and sort are kept. Renamed in 1.64, when Last contact went off by default, so a
+ * choice saved before starts from the new default once. */
+const CO_TABLE = 'companies-2';
+
+const COMPANY_COLUMNS: Column<CoRow>[] = [
   { key: 'company', label: 'Company', shown: true, fixed: true, sort: (r) => r.name.toLowerCase(), className: 'pk-td-co',
     cell: (r) => {
       const place = [r.co?.city].filter(Boolean).join('');
@@ -816,8 +819,10 @@ export const COMPANY_COLUMNS: Column<CoRow>[] = [
     cell: (r) => (r.flight.text || r.flight.urgent ? `<span class="pk-flight">${escHtml(r.flight.text)}${r.flight.urgent ? `${r.flight.text ? ' · ' : ''}<span class="t-${r.flight.urgent.tone}">${escHtml(r.flight.urgent.text)}</span>` : ''}</span>` : muted) },
   { key: 'contacts', label: 'Contacts', shown: false, sort: (r) => r.d.contacts.length, descFirst: true, className: 'td-num',
     cell: (r) => (r.d.contacts.length ? String(r.d.contacts.length) : '<span class="t-amber">None</span>') },
-  { key: 'activity', label: 'Last contact', shown: true, sort: (r) => r.lastContact, descFirst: true,
-    cell: (r) => (r.figures.quietDays != null ? `<span class="pk-quiet"><i></i>${escHtml(plural(r.figures.quietDays, 'day', 'days'))} · gone quiet</span>` : `<span class="pk-flight">${agoLabel(r.lastContact)}</span>`) },
+  // A plain date where there is one, off by default (1.64): no age colouring and no flag — a long time without
+  // contact is not something to raise.
+  { key: 'activity', label: 'Last contact', shown: false, sort: (r) => r.lastContact, descFirst: true,
+    cell: (r) => (r.lastContact ? `<span class="pk-flight">${escHtml(fmtDateShort(r.lastContact.slice(0, 10), true))}</span>` : muted) },
   { key: 'owner', label: 'Owner', shown: false, sort: (r) => r.co?.owner || '', cell: (r) => (r.co?.owner ? escHtml(r.co.owner) : muted) },
   { key: 'location', label: 'Location', shown: false, sort: (r) => locationOf(r.co), cell: (r) => escHtml(locationOf(r.co)) || muted },
   { key: 'website', label: 'Website', shown: false, sort: (r) => r.co?.website || '', cell: (r) => (r.co?.website ? escHtml(r.co.website.replace(/^https?:\/\//, '')) : muted) },
@@ -831,7 +836,7 @@ export const COMPANY_COLUMNS: Column<CoRow>[] = [
 const COMPANY_SORT_DEFAULT: SortState = { key: 'relationship', dir: 'asc' };
 
 export function sortCompanies(key: string): void {
-  setSort('companies', COMPANY_COLUMNS, key, COMPANY_SORT_DEFAULT);
+  setSort(CO_TABLE, COMPANY_COLUMNS, key, COMPANY_SORT_DEFAULT);
   renderCompanyList();
 }
 expose('sortCompanies', sortCompanies);
@@ -839,15 +844,15 @@ expose('sortCompanies', sortCompanies);
 /** The sort menu (for the grid) picks a column and its natural direction. */
 export function sortCompaniesFromSelect(key: string): void {
   const col = COMPANY_COLUMNS.find((c) => c.key === key);
-  const cur = sortState('companies', COMPANY_COLUMNS, COMPANY_SORT_DEFAULT);
-  if (col && cur.key !== key) setSort('companies', COMPANY_COLUMNS, key, COMPANY_SORT_DEFAULT);
+  const cur = sortState(CO_TABLE, COMPANY_COLUMNS, COMPANY_SORT_DEFAULT);
+  if (col && cur.key !== key) setSort(CO_TABLE, COMPANY_COLUMNS, key, COMPANY_SORT_DEFAULT);
   renderCompanyList();
 }
 expose('sortCompaniesFromSelect', sortCompaniesFromSelect);
 
 export function openCompanyColumns(e: MouseEvent): void {
   e.stopPropagation();
-  openColumnPicker(e.currentTarget as HTMLElement, 'companies', COMPANY_COLUMNS, () => renderCompanyList());
+  openColumnPicker(e.currentTarget as HTMLElement, CO_TABLE, COMPANY_COLUMNS, () => renderCompanyList());
 }
 expose('openCompanyColumns', openCompanyColumns);
 
@@ -895,14 +900,14 @@ export function renderCompanyList(): void {
 
   const listsByName = new Map<string, string[]>();
   for (const l of companyLists()) for (const n of companyNamesInList(l)) listsByName.set(n, [...(listsByName.get(n) || []), l.name]);
-  const sort = sortState('companies', COMPANY_COLUMNS, COMPANY_SORT_DEFAULT);
+  const sort = sortState(CO_TABLE, COMPANY_COLUMNS, COMPANY_SORT_DEFAULT);
   const sortSel = document.getElementById('co-sort') as HTMLSelectElement | null;
   if (sortSel) sortSel.value = sort.key;
   const built = sortRows(names.map((n) => buildCoRow(n, byName, listsByName, services)), COMPANY_COLUMNS, sort);
   // The strip sums what the filters leave; a panel narrows the list to its bucket.
   if (bucketOf('companies') && !built.some((r) => companyBuckets(r.figures).includes(bucketOf('companies') as CompanyBucket))) clearBucket('companies');
   const stripEl = document.getElementById('co-strip');
-  if (stripEl) stripEl.innerHTML = built.length ? stripHtml('companies', companiesStrip(built.map((r) => r.figures))) : '';
+  if (stripEl) stripEl.innerHTML = built.length ? stripHtml('companies', companiesStrip(built.map((r) => r.figures), today())) : '';
   const bucket = bucketOf('companies') as CompanyBucket | null;
   const rows = bucket ? built.filter((r) => companyBuckets(r.figures).includes(bucket)) : built;
 
@@ -910,7 +915,7 @@ export function renderCompanyList(): void {
   if (cntEl) cntEl.textContent = `${rows.length} compan${rows.length === 1 ? 'y' : 'ies'}${list ? ` in ${list.name}` : ''}`;
   const grid = document.getElementById('co-grid');
   if (!grid) return;
-  const columns = shownColumns('companies', COMPANY_COLUMNS);
+  const columns = shownColumns(CO_TABLE, COMPANY_COLUMNS);
   const thead = document.getElementById('co-thead');
   if (thead) thead.innerHTML = `<tr><th class="td-chk"><input type="checkbox" id="co-select-all" onchange="coSelectAll(this.checked)" aria-label="Select all"></th>${headerCells(columns, sort, 'sortCompanies')}</tr>`;
   coVisibleNames = rows.map((r) => r.name);
@@ -947,7 +952,7 @@ export function renderCompanyList(): void {
         ${mrrStr ? `<div class="pk-cofig"><span class="pk-mrr">${escHtml(fmtMoneyByCurrency(d.activeMrr))}</span><span class="pk-cofig-l">a month</span></div>` : ''}
         ${w ? `<div class="pk-runway${w.soon ? ' is-soon' : ''}"><b>${escHtml(fmtDate(w.end))}</b> <span>${escHtml(runwayNote(w))}</span><div class="pk-runway-bar"><i style="width:${w.pct}%"></i></div></div>` : ''}
         ${flight.text || flight.urgent ? `<div class="pk-flight">${escHtml(flight.text)}${flight.urgent ? `${flight.text ? ' · ' : ''}<span class="t-${flight.urgent.tone}">${escHtml(flight.urgent.text)}</span>` : ''}</div>` : ''}
-        <div class="pk-flight">${figures.quietDays != null ? `<span class="pk-quiet"><i></i>${figures.quietDays} days · gone quiet</span>` : `Last contact ${agoLabel(lastContact)}`}</div>
+        ${lastContact ? `<div class="pk-flight">Last contact ${escHtml(fmtDateShort(lastContact.slice(0, 10), true))}</div>` : ''}
       </div>
       <div class="co-footer"><span class="co-state tone-${rel.tone}">${escHtml(rel.label)}</span></div>
     </div>`;

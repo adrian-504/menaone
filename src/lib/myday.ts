@@ -1,9 +1,11 @@
 // My Day: what needs doing today, as data. Pure — the tab renders it.
 //
-// - Attention: one list ranked by urgency, built from fixed rules across
-//   proposals, opportunities, agreements, meetings, projects, emails and the
-//   inbox. Kinds that would flood the list (e.g. forty old follow-ups) collapse
-//   into one group row.
+// - Attention: what only you can move today and is not already in Today or
+//   the rail, in a fixed order (TIER below), from fixed rules across promises,
+//   proposals, agreements, meetings, opportunities, projects and the inbox.
+//   Kinds that would flood the list collapse into one group row. It never
+//   lists a client for a lack of contact (owner, 1-Oct-2026: not knowing is
+//   not the same as quiet, and the app is not a contact log).
 // - Timeline: today's meetings and timed tasks in order, with overdue and
 //   untimed tasks around them.
 // - Coming up: the next seven days, grouped by day.
@@ -12,6 +14,7 @@ import { PS, proposalSentDate } from './commercial';
 import { draftingSince, openRevision } from './revisions';
 import { lastTouch, touchWhat } from './followup';
 import { daysBetween, isOpenOpportunity, opportunityHealth } from './pipeline';
+import { decideBy, pastTermActive, serviceLive } from './agreementTerms';
 import type { Agreement, Commitment, EmailRecord, Meeting, Opportunity, PipelineFact, Project, Proposal, Todo, Touch } from './types';
 import type { RecordKind } from './navHistory';
 import { localIsoDate } from './outlookTime';
@@ -47,10 +50,11 @@ export interface MyDayInput {
   ownDomains: Set<string>;
   /** Item keys hidden until a date (inclusive of that date's start). */
   snoozed: Record<string, string>;
-  /** Active clients with no contact for a while (worked out by the tab from each company's brief; see quietItems). */
-  quietClients?: QuietClient[];
   /** My Day's rail shows proposals in play (1.57): their stage rows leave this list; a late promise stays. */
   railOwnsProposals?: boolean;
+  /** The proposals the rail shows as rows right now. A review outcome waiting on you (approved, changes asked) is
+   * listed here only when the rail is not already showing it. */
+  railShown?: Set<number>;
   /** An attendee as a person's name (the contact's, when we have them). */
   nameOf?: (attendee: string) => string;
   /** Attention rows actually on screen (not snoozed, not behind "Show N more").
@@ -63,12 +67,12 @@ export interface MyDayInput {
 export type AttentionAction =
   | 'open' | 'prepare' | 'follow_up' | 'send_to_client' | 'start_drafting'
   | 'open_followups' | 'open_action_required' | 'open_inbox' | 'open_opportunities' | 'open_review_queue' | 'open_cleanup'
-  | 'mark_kept' | 'toggle_group' | 'open_data_settings' | 'write_up' | 'email_company' | 'nudge';
+  | 'mark_kept' | 'toggle_group' | 'open_data_settings' | 'write_up' | 'nudge';
 
 export interface AttentionItem {
   key: string;
   /** Section the rule belongs to — used for the icon and for grouping. */
-  kind: 'proposal' | 'review' | 'followup' | 'opportunity' | 'agreement' | 'meeting' | 'project' | 'email' | 'inbox' | 'commitment' | 'system' | 'writeup' | 'quiet';
+  kind: 'proposal' | 'review' | 'followup' | 'opportunity' | 'agreement' | 'meeting' | 'project' | 'email' | 'inbox' | 'commitment' | 'system' | 'writeup';
   score: number;
   tone: 'red' | 'amber' | 'accent';
   title: string;
@@ -84,6 +88,41 @@ export interface AttentionItem {
   /** The commitment a row is about (for Mark kept). */
   commitmentId?: number;
 }
+
+/** The order of Needs your attention, top to bottom (owner, 1-Oct-2026). A row's score is its tier plus up to 99 for
+ * how pressing it is inside the tier, so nothing in a lower tier ever sits above a higher one. */
+export const TIER = {
+  /** The database check at launch failed: above everything. */
+  system: 1000,
+  /** 1. A promise of yours that is late, or due today or tomorrow (a proposal you promised for a date counts). */
+  ownPromise: 900,
+  /** 2. A review outcome waiting on you: approved and not yet sent, or changes asked. */
+  reviewOutcome: 800,
+  /** 3. Signed by the client, waiting for MENA's signature. */
+  countersign: 700,
+  /** 4. A promise owed to you that is late. */
+  owedLate: 600,
+  /** 5. Signed by both for a week or more with the service not started, or with no agreement yet. */
+  afterSigned: 500,
+  /** 6. An agreement whose decide-by date has passed or falls within 30 days, or that is past term and still active. */
+  agreement: 400,
+  /** 7. A meeting today or tomorrow with no agenda; meetings to write up. */
+  meeting: 300,
+  /** 8. An opportunity at risk, or with you for more than a week (and those with no next step, folded). */
+  opportunity: 200,
+  /** Not in the owner's list, kept below it: a project at risk or near its date, a kickoff that was due, a flagged
+   * email that is due; and, only when My Day has no rail, the proposal stages the rail would show. */
+  other: 100,
+  /** 9. The Inbox count, last. */
+  inbox: 0,
+} as const;
+/** Days a signed proposal may sit before its missing service start or agreement is raised. */
+export const AFTER_SIGNED_DAYS = 7;
+/** An agreement's decide-by date is raised this many days ahead. */
+export const DECIDE_AHEAD_DAYS = 30;
+/** An opportunity is raised once it has been with you longer than this. */
+export const WITH_YOU_DAYS = 7;
+const within = (n: number) => Math.max(0, Math.min(99, n));
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 const days = (n: number) => plural(n, 'day');
@@ -119,32 +158,41 @@ export function promisedRank(promisedBy: string | null | undefined, today: strin
 
 function proposalItems(i: MyDayInput): AttentionItem[] {
   const out: AttentionItem[] = [];
+  const linked = new Set(i.agreements.map((a) => a.proposalId).filter((x) => x != null));
   for (const p of i.proposals) {
     if (p.archived) continue;
     const base = { record: { kind: 'proposal' as RecordKind, id: p.id }, companyId: p.companyId ?? null, companyName: p.client, title: p.client };
     const services = p.type ? ` · ${p.type}` : '';
     if (p.status === PS.CLIENT_SIGNED) {
       const d = daysBetween(p.dateSigned || proposalSentDate(p), i.today);
-      // A signature from months ago is a record nobody updated, not today's job.
+      // A signature from months ago is a record nobody updated, not today's job: last in its tier.
       const stale = d != null && d > 30;
-      out.push({ ...base, key: `proposal:${p.id}:countersign`, kind: 'proposal', score: stale ? 44 : 92 + Math.min(d ?? 0, 7), tone: stale ? 'amber' : 'red',
+      out.push({ ...base, key: `proposal:${p.id}:countersign`, kind: 'proposal', score: TIER.countersign + (stale ? 0 : 50 + within(d ?? 0)), tone: stale ? 'amber' : 'red',
         reason: stale ? `Still marked "Signed by Client" — countersign it or update the status${services}` : `Signed by the client — countersign it${services}`,
         when: d != null ? days(d) : undefined, action: { kind: 'open', label: 'Open' } });
+    } else if (p.status === PS.WON) {
+      // Signed by both a week or more ago and the last steps are not taken (1.61's fields).
+      const signed = p.dblSignedDate || p.dateSigned;
+      const d = daysBetween(signed, i.today);
+      if (d == null || d < AFTER_SIGNED_DAYS) continue;
+      if (!p.serviceStartedAt) out.push({ ...base, key: `proposal:${p.id}:not-started`, kind: 'proposal', score: TIER.afterSigned + 50 + within(d / 4), tone: 'amber',
+        reason: `Signed by both ${days(d)} ago — the service has not started${services}`, when: days(d), action: { kind: 'open', label: 'Open' } });
+      else if (!linked.has(p.id)) out.push({ ...base, key: `proposal:${p.id}:no-agreement`, kind: 'proposal', score: TIER.afterSigned + within(d / 8), tone: 'accent',
+        reason: `Signed by both on ${shortDate(signed!)} — no agreement yet${services}`, when: days(d), action: { kind: 'open', label: 'Open' } });
     } else if (p.status === PS.REVIEW && p.reviewStatus === 'changes_requested') {
-      out.push({ ...base, key: `proposal:${p.id}:changes`, kind: 'review', score: 88, tone: 'red',
+      out.push({ ...base, key: `proposal:${p.id}:changes`, kind: 'review', score: TIER.reviewOutcome + 50, tone: 'red',
         reason: `${i.reviewerName(p)} asked for changes${p.reviewNote ? `: ${p.reviewNote}` : ''}`, action: { kind: 'open', label: 'Open' } });
     } else if (p.status === PS.REVIEW && p.reviewStatus === 'approved') {
-      out.push({ ...base, key: `proposal:${p.id}:approved`, kind: 'review', score: 86, tone: 'amber',
+      out.push({ ...base, key: `proposal:${p.id}:approved`, kind: 'review', score: TIER.reviewOutcome + 40, tone: 'amber',
         reason: `Approved by ${i.reviewerName(p)} — send it to the client${services}`, action: { kind: 'send_to_client', label: 'Mark as sent' } });
     } else if (p.status === PS.REVIEW) {
       const d = daysBetween(p.reviewRequestedAt || p.dateSentToHassan, i.today) ?? 0;
-      if (d >= 3) out.push({ ...base, key: `proposal:${p.id}:waiting-review`, kind: 'review', score: 38 + Math.min(d, 20) / 2, tone: d > 14 ? 'amber' : 'accent',
+      if (d >= 3) out.push({ ...base, key: `proposal:${p.id}:waiting-review`, kind: 'review', score: TIER.other + 20 + Math.min(d, 20) / 2, tone: d > 14 ? 'amber' : 'accent',
         reason: `Waiting for ${i.reviewerName(p)}'s review${services}`, when: days(d), action: { kind: 'open', label: 'Open' } });
     } else if (p.status === PS.REQUEST) {
       const d = daysBetween(p.dateAdded, i.today) ?? 0;
-      const score = 70 + Math.min(d, 20);
       const promised = promisedRank(p.promisedBy, i.today);
-      out.push({ ...base, key: `proposal:${p.id}:request`, kind: 'proposal', score: score + (promised?.late ? 20 : 0), tone: promised?.tone ?? (d > 3 ? 'red' : 'amber'),
+      out.push({ ...base, key: `proposal:${p.id}:request`, kind: 'proposal', score: TIER.other + 60 + Math.min(d, 20) / 2 + (promised?.late ? 20 : 0), tone: promised?.tone ?? (d > 3 ? 'red' : 'amber'),
         reason: `Proposal requested — not started${services}`, when: promised?.when ?? (d ? days(d) : 'Today'), action: { kind: 'start_drafting', label: 'Start drafting' } });
     } else if (p.status === PS.DRAFTING) {
       const d = daysBetween(draftingSince(p), i.today) ?? 0;
@@ -152,7 +200,7 @@ function proposalItems(i: MyDayInput): AttentionItem[] {
       const revising = openRevision(p);
       const what = revising ? `Revision ${revising.number} in drafting` : 'Still drafting';
       const promised = revising ? null : promisedRank(p.promisedBy, i.today);
-      const score = 46 + Math.min(d, 30) / 3;
+      const score = TIER.other + 46 + Math.min(d, 30) / 3;
       if (promised) out.push({ ...base, key: `proposal:${p.id}:drafting`, kind: 'proposal', score: score + (promised.late ? 20 : 0), tone: promised.tone,
         reason: `${what}${services}`, when: promised.when, action: { kind: 'open', label: 'Open' } });
       else if (d > 7) out.push({ ...base, key: `proposal:${p.id}:drafting`, kind: 'proposal', score, tone: 'amber',
@@ -164,7 +212,7 @@ function proposalItems(i: MyDayInput): AttentionItem[] {
       if (d == null || d <= 10) continue;
       if (p.snoozedUntil && p.snoozedUntil >= i.today) continue;
       const validPassed = p.validUntil && p.validUntil < i.today;
-      out.push({ ...base, key: `proposal:${p.id}:followup`, kind: 'followup', score: d <= 45 ? 62 + Math.min(d, 45) / 5 : 18, tone: d <= 45 ? 'amber' : 'accent',
+      out.push({ ...base, key: `proposal:${p.id}:followup`, kind: 'followup', score: TIER.other + (d <= 45 ? 40 + Math.min(d, 45) / 5 : 8), tone: d <= 45 ? 'amber' : 'accent',
         reason: validPassed ? `No answer, and the offer expired on ${shortDate(p.validUntil!)}${services}` : touch && touch.kind !== 'sent' ? `No answer — ${touchWhat(touch)}${services}` : `Sent ${days(d)} ago, no answer${services}`,
         when: days(d), action: { kind: 'follow_up', label: 'Follow up' } });
     }
@@ -181,7 +229,7 @@ function latePromiseItems(i: MyDayInput): AttentionItem[] {
     if (d > 0) continue;
     const services = p.type ? ` · ${p.type}` : '';
     out.push({ key: `proposal:${p.id}:promise`, kind: 'commitment', record: { kind: 'proposal', id: p.id }, companyId: p.companyId ?? null, companyName: p.client,
-      title: `${p.client} proposal`, score: 94 + Math.min(-d, 6), tone: 'red',
+      title: `${p.client} proposal`, score: TIER.ownPromise + 50 + within(-d), tone: 'red',
       reason: `You promised it for ${shortDate(p.promisedBy)}${d < 0 ? ` — ${days(-d)} late` : ' — due today'}${services}`, when: d < 0 ? days(-d) : 'Today',
       action: p.status === PS.REQUEST ? { kind: 'start_drafting', label: 'Start drafting' } : { kind: 'open', label: 'Open' } });
   }
@@ -204,22 +252,23 @@ function opportunityItems(i: MyDayInput): AttentionItem[] {
     const h = opportunityHealth(o, facts.get(o.id), i.today, { openWork: hasOpenWork(o, i) });
     const base = { record: { kind: 'opportunity' as RecordKind, id: o.id }, companyId: o.companyId, companyName: o.companyName, title: o.name };
     if (h.closeOverdue || h.tone === 'red') {
-      out.push({ ...base, key: `opportunity:${o.id}:risk`, kind: 'opportunity', score: 56 + (h.closeOverdue ? 6 : 0), tone: 'red',
+      out.push({ ...base, key: `opportunity:${o.id}:risk`, kind: 'opportunity', score: TIER.opportunity + 60 + (h.closeOverdue ? 6 : 0), tone: 'red',
         reason: `At risk — ${h.reasons[0] || 'needs attention'}`, action: { kind: 'open', label: 'Open' } });
     } else if (h.waiting?.on === 'us') {
+      // With you for a week or less is not yet something to raise.
       const d = h.waiting.days ?? 0;
-      out.push({ ...base, key: `opportunity:${o.id}:with-us`, kind: 'opportunity', score: 50 + Math.min(d, 30) / 3, tone: d > 7 ? 'amber' : 'accent',
+      if (d > WITH_YOU_DAYS) out.push({ ...base, key: `opportunity:${o.id}:with-us`, kind: 'opportunity', score: TIER.opportunity + 30 + Math.min(d, 30) / 3, tone: 'amber',
         reason: `With you for ${days(d)} — the next move is yours${o.waitingNote ? `: ${o.waitingNote}` : ''}`, when: days(d), action: { kind: 'open', label: 'Open' } });
     } else if (h.noNextAction) {
-      out.push({ ...base, key: `opportunity:${o.id}:next`, kind: 'opportunity', score: 32, tone: 'accent',
+      out.push({ ...base, key: `opportunity:${o.id}:next`, kind: 'opportunity', score: TIER.opportunity + 10, tone: 'accent',
         reason: `${o.stage} · no next step set`, action: { kind: 'open', label: 'Set next step' } });
     }
   }
   return out;
 }
 
-/** Promises: ours overdue (just under a countersignature), ours due today or
- * tomorrow, and the client's overdue ones folded into one row. */
+/** Promises: ours overdue first, then ours due today or tomorrow (tier 1), and the client's overdue ones folded
+ * into one row (tier 4). */
 function commitmentItems(i: MyDayInput): AttentionItem[] {
   const tomorrow = addDays(i.today, 1);
   const out: AttentionItem[] = [];
@@ -233,13 +282,13 @@ function commitmentItems(i: MyDayInput): AttentionItem[] {
     const base = { kind: 'commitment' as const, title: c.text, record, companyId: c.companyId, companyName: company, commitmentId: c.id };
     const late = daysBetween(c.dueDate, i.today) ?? 0;
     if (c.direction === 'ours' && c.dueDate < i.today) {
-      out.push({ ...base, key: `commitment:${c.id}:overdue`, score: 90, tone: 'red',
+      out.push({ ...base, key: `commitment:${c.id}:overdue`, score: TIER.ownPromise + 50 + within(late), tone: 'red',
         reason: `You promised this for ${shortDate(c.dueDate)} — ${days(late)} late`, when: days(late), action: { kind: 'mark_kept', label: 'Mark kept' } });
     } else if (c.direction === 'ours' && (c.dueDate === i.today || c.dueDate === tomorrow)) {
-      out.push({ ...base, key: `commitment:${c.id}:due`, score: 60, tone: 'amber',
+      out.push({ ...base, key: `commitment:${c.id}:due`, score: TIER.ownPromise + (c.dueDate === i.today ? 20 : 10), tone: 'amber',
         reason: `You promised this for ${c.dueDate === i.today ? 'today' : 'tomorrow'}`, when: c.dueDate === i.today ? 'Today' : 'Tomorrow', action: { kind: 'mark_kept', label: 'Mark kept' } });
     } else if (c.direction === 'theirs' && c.dueDate < i.today) {
-      out.push({ ...base, key: `commitment:${c.id}:owed`, score: 24, tone: 'accent',
+      out.push({ ...base, key: `commitment:${c.id}:owed`, score: TIER.owedLate + within(late), tone: 'accent',
         reason: `Promised to you for ${shortDate(c.dueDate)} — chase it or mark it kept`, when: days(late), action: { kind: 'mark_kept', label: 'Mark kept' } });
     }
   }
@@ -262,24 +311,34 @@ function agreementItems(i: MyDayInput): AttentionItem[] {
   for (const a of i.agreements) {
     if (a.status === 'Canceled') continue;
     const base = { record: { kind: 'agreement' as RecordKind, id: a.id }, companyId: a.companyId ?? null, companyName: a.client, title: a.client || a.agrRef || 'Agreement' };
-    if (a.serviceStatus === 'Active' && a.endDate) {
-      const { daysToEnd, daysToNotice: notice } = agreementRenewal(a, i.today);
-      const d = daysToEnd!;
-      if (d > 90 || d < -7) continue;
+    const end = a.endDate ? a.endDate.slice(0, 10) : null;
+    if (serviceLive(a) && end) {
       // The renewal is decided (1.61): nothing to plan. It comes back on the end date, to mark the service ended.
       if (a.renewalDecision) {
-        if (d > 0) continue;
+        const d = daysBetween(i.today, end)!;
+        if (d > 0 || d < -7) continue;
         const how = a.renewalDecision === 'end' ? '' : a.renewalDecision === 'renew' ? ' (the renewal is drafted)' : ' (renewing with changes)';
-        out.push({ ...base, key: `agreement:${a.id}:renewal`, kind: 'agreement', score: 60, tone: 'amber',
-          reason: `${d === 0 ? 'Ends today' : `Ended ${days(-d)} ago`} — mark the service ended${how}`, when: shortDate(a.endDate), action: { kind: 'open', label: 'Open' } });
+        out.push({ ...base, key: `agreement:${a.id}:renewal`, kind: 'agreement', score: TIER.agreement + 30, tone: 'amber',
+          reason: `${d === 0 ? 'Ends today' : `Ended ${days(-d)} ago`} — mark the service ended${how}`, when: shortDate(end), action: { kind: 'open', label: 'Open' } });
         continue;
       }
-      out.push({ ...base, key: `agreement:${a.id}:renewal`, kind: 'agreement', score: d < 0 ? 84 : 80 - d / 3 + (notice != null && notice <= 7 ? 8 : 0), tone: d <= 30 ? 'red' : 'amber',
-        reason: d < 0 ? `Past term for ${days(-d)}, still active — renew it or end it${a.autoRenew ? ' (set to auto-renew)' : ''}`
-          : `Ends in ${days(d)} — plan the renewal${notice != null && notice <= 14 ? `; notice due ${notice <= 0 ? 'now' : `in ${days(notice)}`}` : ''}`,
-        when: shortDate(a.endDate), action: { kind: 'open', label: 'Open' } });
+      // Past its term and still served and invoiced: the renewal paperwork is missing.
+      if (pastTermActive(a, i.today)) {
+        const d = daysBetween(end, i.today) ?? 0;
+        out.push({ ...base, key: `agreement:${a.id}:renewal`, kind: 'agreement', score: TIER.agreement + 70 + within(d / 30), tone: 'red',
+          reason: `Past term since ${shortDate(end)}, still active — renew it or end it${a.autoRenew ? ' (set to auto-renew)' : ''}`, when: shortDate(end), action: { kind: 'open', label: 'Open' } });
+        continue;
+      }
+      // The last day to decide: the end less its notice period (the end itself when the notice was never recorded).
+      const by = decideBy(a, i.today);
+      if (!by || by.days > DECIDE_AHEAD_DAYS) continue;
+      const notice = by.noticeKnown ? '' : ' (notice period not recorded)';
+      if (by.days < 0) out.push({ ...base, key: `agreement:${a.id}:renewal`, kind: 'agreement', score: TIER.agreement + 60, tone: 'red',
+        reason: `The last day to decide was ${shortDate(by.date)} — it ends ${shortDate(end)}; renew it or let it end`, when: shortDate(end), action: { kind: 'open', label: 'Open' } });
+      else out.push({ ...base, key: `agreement:${a.id}:renewal`, kind: 'agreement', score: TIER.agreement + 50 - by.days, tone: by.days <= 7 ? 'red' : 'amber',
+        reason: `Decide by ${shortDate(by.date)}${by.days === 0 ? ' — today' : ` — in ${days(by.days)}`}: renew it or let it end on ${shortDate(end)}${notice}`, when: shortDate(by.date), action: { kind: 'open', label: 'Open' } });
     } else if (a.serviceStatus === 'Kickoff scheduled' && a.startDate && a.startDate <= i.today) {
-      out.push({ ...base, key: `agreement:${a.id}:kickoff`, kind: 'agreement', score: 50, tone: 'amber',
+      out.push({ ...base, key: `agreement:${a.id}:kickoff`, kind: 'agreement', score: TIER.other + 50, tone: 'amber',
         reason: `Kickoff was due ${a.startDate === i.today ? 'today' : shortDate(a.startDate)} — mark the service active`, action: { kind: 'open', label: 'Open' } });
     }
   }
@@ -296,7 +355,7 @@ function meetingItems(i: MyDayInput): AttentionItem[] {
     if (m.meetingDate === i.today && m.startAt && new Date(m.startAt) < i.now) continue;
     const isToday = m.meetingDate === i.today;
     out.push({ key: `meeting:${m.id}:prepare`, kind: 'meeting', record: { kind: 'meeting', id: m.id }, companyId: m.companyId ?? null, companyName: m.companyName,
-      title: m.title, score: isToday ? 76 : 64, tone: isToday ? 'red' : 'amber',
+      title: m.title, score: TIER.meeting + (isToday ? 60 : 50), tone: isToday ? 'red' : 'amber',
       reason: m.companyName ? 'No agenda yet — check the client brief' : 'No agenda yet',
       when: `${isToday ? 'Today' : 'Tomorrow'}${m.startAt ? ` ${timeLabel(m.startAt)}` : ''}`, action: { kind: 'prepare', label: 'Prepare' } });
   }
@@ -323,24 +382,11 @@ function writeUpItems(i: MyDayInput): AttentionItem[] {
     const who = guest ? (i.nameOf ? i.nameOf(guest) : personName(guest)) : '';
     const isToday = m.meetingDate === i.today;
     out.push({ key: `meeting:${m.id}:writeup`, kind: 'writeup', record: { kind: 'meeting', id: m.id }, companyId: m.companyId ?? null, companyName: m.companyName,
-      title: `Write up ${m.title}`, score: isToday ? 74 : 66, tone: 'amber',
+      title: `Write up ${m.title}`, score: TIER.meeting + (isToday ? 30 : 20), tone: 'amber',
       reason: [m.endAt ? `Ended ${timeLabel(m.endAt)}` : 'Ended', 'no notes yet', who || ''].filter(Boolean).join(' · '),
       when: isToday ? 'today' : 'yesterday', action: { kind: 'write_up', label: 'Write up' } });
   }
   return out;
-}
-
-export interface QuietClient { companyId: number; name: string; lastContact: string | null; days: number | null; service: string | null }
-/** Days without a meeting, email or call before an active client counts as gone quiet. */
-export const QUIET_DAYS = 30;
-
-function quietItems(i: MyDayInput): AttentionItem[] {
-  return (i.quietClients || []).filter((c) => c.days == null || c.days >= QUIET_DAYS).map((c) => ({
-    key: `company:${c.companyId}:quiet`, kind: 'quiet' as const, record: { kind: 'company' as RecordKind, id: c.companyId }, companyId: c.companyId, companyName: c.name,
-    title: `${c.name} has gone quiet`, score: 40 + Math.min(c.days ?? 60, 60) / 6, tone: 'accent' as const,
-    reason: ['Active client', c.lastContact ? `last contact ${shortDate(c.lastContact)}` : 'no contact on record', c.service || ''].filter(Boolean).join(' · '),
-    when: c.days != null ? days(c.days) : undefined, action: { kind: 'email_company' as AttentionAction, label: 'Email' },
-  }));
 }
 
 function projectItems(i: MyDayInput): AttentionItem[] {
@@ -349,9 +395,9 @@ function projectItems(i: MyDayInput): AttentionItem[] {
     if (p.archived || p.status === 'Completed' || p.status === 'Cancelled') continue;
     const base = { record: { kind: 'project' as RecordKind, id: p.id }, companyId: p.companyId ?? null, companyName: p.companyName, title: p.name };
     const d = p.targetDate ? daysBetween(i.today, p.targetDate)! : null;
-    if (p.status === 'At Risk') out.push({ ...base, key: `project:${p.id}:risk`, kind: 'project', score: 58, tone: 'red', reason: 'Marked at risk', action: { kind: 'open', label: 'Open' } });
-    else if (d != null && d < 0) out.push({ ...base, key: `project:${p.id}:late`, kind: 'project', score: 54, tone: 'red', reason: `Target date passed ${days(-d)} ago · ${p.computedProgress ?? 0}% done`, action: { kind: 'open', label: 'Open' } });
-    else if (d != null && d <= 7) out.push({ ...base, key: `project:${p.id}:due`, kind: 'project', score: 48, tone: 'amber', reason: `Due ${d === 0 ? 'today' : `in ${days(d)}`} · ${p.computedProgress ?? 0}% done`, action: { kind: 'open', label: 'Open' } });
+    if (p.status === 'At Risk') out.push({ ...base, key: `project:${p.id}:risk`, kind: 'project', score: TIER.other + 58, tone: 'red', reason: 'Marked at risk', action: { kind: 'open', label: 'Open' } });
+    else if (d != null && d < 0) out.push({ ...base, key: `project:${p.id}:late`, kind: 'project', score: TIER.other + 54, tone: 'red', reason: `Target date passed ${days(-d)} ago · ${p.computedProgress ?? 0}% done`, action: { kind: 'open', label: 'Open' } });
+    else if (d != null && d <= 7) out.push({ ...base, key: `project:${p.id}:due`, kind: 'project', score: TIER.other + 48, tone: 'amber', reason: `Due ${d === 0 ? 'today' : `in ${days(d)}`} · ${p.computedProgress ?? 0}% done`, action: { kind: 'open', label: 'Open' } });
   }
   return out;
 }
@@ -363,12 +409,12 @@ function emailItems(i: MyDayInput): AttentionItem[] {
   const due = flagged.filter((e) => e.flagDueAt && new Date(e.flagDueAt) <= endOfToday);
   const out: AttentionItem[] = due.map((e) => ({
     key: `email:${e.id}:due`, kind: 'email' as const, title: e.subject || '(No subject)', companyId: e.companyId ?? null, companyName: e.companyName,
-    score: 72, tone: new Date(e.flagDueAt!) < i.now ? 'red' as const : 'amber' as const,
+    score: TIER.other + 72, tone: new Date(e.flagDueAt!) < i.now ? 'red' as const : 'amber' as const,
     reason: `Flagged email from ${e.senderName || e.senderEmail || 'someone'}`, when: e.flagDueAt!.slice(0, 10) < i.today ? 'Overdue' : 'Due today',
     action: { kind: 'open_action_required' as const, label: 'Open' },
   }));
   const rest = flagged.length - due.length;
-  if (rest > 0) out.push({ key: 'email:flagged', kind: 'email', title: `${plural(rest, 'flagged email')} in Outlook`, score: 14, tone: 'accent',
+  if (rest > 0) out.push({ key: 'email:flagged', kind: 'email', title: `${plural(rest, 'flagged email')} in Outlook`, score: TIER.other + 1, tone: 'accent',
     reason: 'No due date — go through them when you have a moment', action: { kind: 'open_action_required', label: 'Review' } });
   return out;
 }
@@ -394,6 +440,14 @@ const GROUPS: GroupRule[] = [
   { over: 0, folds: (x) => x.key.endsWith(':owed'),
     make: (items) => ({ key: 'group:owed', kind: 'commitment', tone: 'accent', title: `Owed to you (${items.length})`,
       reason: 'Clients promised these and the date has passed', action: { kind: 'toggle_group', label: 'Show' } }) },
+  // Meetings to write up: one row once there are more than two.
+  { over: 2, folds: (x) => x.key.endsWith(':writeup'),
+    make: (items) => ({ key: 'group:writeup', kind: 'writeup', tone: 'amber', title: `${plural(items.length, 'meeting')} to write up`,
+      reason: 'Ended with nothing written yet', action: { kind: 'toggle_group', label: 'Show' } }) },
+  // Signed by both, no agreement yet: one row once there are more than two.
+  { over: 2, folds: (x) => x.key.endsWith(':no-agreement'),
+    make: (items) => ({ key: 'group:no-agreement', kind: 'proposal', tone: 'accent', title: `${plural(items.length, 'signed proposal')} with no agreement yet`,
+      reason: 'Signed by both a week or more ago — draft the agreement, or link the one that exists', action: { kind: 'toggle_group', label: 'Show' } }) },
   { folds: (x) => x.key.endsWith(':next'),
     make: (items) => ({ key: 'group:opportunity', kind: 'opportunity', tone: 'accent', title: `${plural(items.length, 'opportunity', 'opportunities')} with no next step`,
       reason: 'Decide the next step for each, or close it', action: { kind: 'open_cleanup', label: 'Clean up', queue: 'opportunity-incomplete' } }) },
@@ -415,20 +469,25 @@ export function requestGroupReason(statuses: string[]): string {
 
 const snoozedNow = (i: MyDayInput, key: string) => !!i.snoozed[key] && i.snoozed[key] > i.today;
 
-/** Everything that needs attention, most urgent first. */
 /** Proposal-stage rows the rail's Proposals in play already shows with its own action (1.57):
  * requests and drafts, waiting for review (and the reviewer's answer), and sent with no answer. */
 export function inRail(key: string): boolean {
   return /^proposal:\d+:(request|drafting|waiting-review|changes|approved|followup)$/.test(key);
 }
 
+/** A review outcome waiting on you: it is raised here unless the rail is showing that proposal's row. */
+const isReviewOutcome = (key: string) => /^proposal:\d+:(changes|approved)$/.test(key);
+
+/** Everything that needs you, in the order of TIER; inside a tier, the most pressing first. Nothing here is also a
+ * row in the rail, and no client is listed for a lack of contact. */
 export function buildAttention(i: MyDayInput): AttentionItem[] {
+  const ownedByRail = (x: AttentionItem) => inRail(x.key) && !(isReviewOutcome(x.key) && i.railShown && !i.railShown.has(x.record!.id));
   let items = [
-    ...(i.railOwnsProposals ? [...proposalItems(i).filter((x) => !inRail(x.key)), ...latePromiseItems(i)] : proposalItems(i)), ...opportunityItems(i), ...commitmentItems(i), ...agreementItems(i), ...meetingItems(i), ...writeUpItems(i), ...quietItems(i), ...projectItems(i), ...emailItems(i),
+    ...(i.railOwnsProposals ? [...proposalItems(i).filter((x) => !ownedByRail(x)), ...latePromiseItems(i)] : proposalItems(i)), ...opportunityItems(i), ...commitmentItems(i), ...agreementItems(i), ...meetingItems(i), ...writeUpItems(i), ...projectItems(i), ...emailItems(i),
   ];
   // The launch check found a problem: one red row, nothing done automatically.
-  if (i.integrityFailed) items.push({ key: 'db:integrity', kind: 'system', title: 'Database check failed — back up and tell Ahmad', score: 200, tone: 'red', reason: 'Settings → Data has the details and the backups', action: { kind: 'open_data_settings', label: 'Open' } });
-  if (i.inboxCount > 0) items.push({ key: 'inbox', kind: 'inbox', title: `${plural(i.inboxCount, 'item')} in your Inbox`, score: 30, tone: 'accent', reason: 'Captured but not sorted yet', action: { kind: 'open_inbox', label: 'Sort' } });
+  if (i.integrityFailed) items.push({ key: 'db:integrity', kind: 'system', title: 'Database check failed — back up and tell Ahmad', score: TIER.system, tone: 'red', reason: 'Settings → Data has the details and the backups', action: { kind: 'open_data_settings', label: 'Open' } });
+  if (i.inboxCount > 0) items.push({ key: 'inbox', kind: 'inbox', title: `${plural(i.inboxCount, 'item')} in your Inbox`, score: TIER.inbox, tone: 'accent', reason: 'Captured but not sorted yet', action: { kind: 'open_inbox', label: 'Sort' } });
   items = items.filter((x) => !snoozedNow(i, x.key));
 
   const groups: AttentionItem[] = [];
