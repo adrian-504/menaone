@@ -417,7 +417,7 @@ function renderProgress(list: string): void {
   const p = todayProgress(S.todos, S.commitments, todayIso());
   el.hidden = list === 'completed' || list === 'promises' || (!p.total && !p.note);
   if (el.hidden) return;
-  el.innerHTML = `<b>${p.done} of ${p.total}</b><span>done today</span>
+  el.innerHTML = `<span class="task-prog-lead"><b>${p.done} of ${p.total}</b> done today</span>
     <span class="task-prog-bar" role="img" aria-label="${p.pct}% of today done"><i style="--p:${p.pct}%"></i></span>
     ${p.note ? `<span class="task-prog-note">${escHtml(p.note)}</span>` : ''}`;
 }
@@ -470,7 +470,7 @@ function renderListView(list: string): string {
     const isDay = !!g.dropDate;
     const hd = groupHeadHtml(g);
     const body = g.tasks.length || g.owed?.length ? g.tasks.map((t) => taskRowHtml(t, { list, underProject: g.key.startsWith('p:') })).join('') + (g.owed ?? []).map(owedRowHtml).join('')
-      : `<div class="task-group-empty">${list === 'upcoming' ? 'Drop a task here to schedule it' : 'Nothing due today — enjoy the space.'}</div>`;
+      : `<div class="task-group-empty">${list === 'upcoming' ? 'Drop a task here to schedule it' : total ? 'Nothing else due today.' : 'Nothing due today — enjoy the space.'}</div>`;
     const groupValue = isDay ? `date:${g.dropDate}` : g.key.startsWith('sec:') ? `section:${g.key.slice(4)}` : '';
     html += `<section class="task-group" id="tg-${escHtml(g.key)}" data-sort="task-order" data-drop-value="${escHtml(groupValue)}">${hd}${body}</section>`;
   }

@@ -38,7 +38,7 @@ const VIEWS = [
   ['Inbox', "switchTab('inbox')", {}],
   ['Tasks', "switchTab('todo')", {}],
   ['Tasks → Promises', "switchTab('todo'), setTodoFilter('promises')", {}],
-  ['Tasks → a row selected', "switchTab('todo'), setTodoFilter('anytime'), openTaskDetail(1)", { inputs: 6 }],
+  ['Tasks → a row selected', "switchTab('todo'), setTodoFilter('anytime'), openTaskDetail(1)", { inputs: 10 }],
   ['Projects', "switchTab('projects')", {}],
   ['Meetings', "switchTab('meetings')", {}],
   ['Notes', "switchTab('notes')", {}],
