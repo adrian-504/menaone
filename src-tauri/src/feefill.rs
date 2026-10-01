@@ -67,7 +67,7 @@ fn placeholder_regex() -> &'static Regex {
     re(r"(?i)(SAR|USD|EUR|\$|€)\s*_{2,}", &R)
 }
 
-fn percent_regex() -> &'static Regex {
+pub(crate) fn percent_regex() -> &'static Regex {
     static R: OnceLock<Regex> = OnceLock::new();
     re(r"(\d{1,2}(?:[.,]\d+)?)\s*%", &R)
 }
@@ -76,7 +76,7 @@ fn is_data_row(text: &str) -> bool {
     money_regex().is_match(text) || placeholder_regex().is_match(text)
 }
 
-fn number_text(v: f64) -> String {
+pub(crate) fn number_text(v: f64) -> String {
     if v.fract() == 0.0 { format!("{}", v as i64) } else { format!("{v}") }
 }
 
@@ -627,7 +627,7 @@ fn remove_paragraphs(xml: &str, pred: impl Fn(&str) -> bool) -> (String, usize) 
 }
 
 /// "45,000 SAR" → 45000; "3.550 SAR" (dot thousands) → 3550.
-fn parse_amount(s: &str) -> Option<f64> {
+pub(crate) fn parse_amount(s: &str) -> Option<f64> {
     let digits: String = s.chars().filter(|c| c.is_ascii_digit() || *c == '.' || *c == ',').collect();
     static DOT: OnceLock<Regex> = OnceLock::new();
     let normal = if re(r"^\d{1,3}(\.\d{3})+$", &DOT).is_match(&digits) { digits.replace('.', "") } else { digits.replace(',', "") };

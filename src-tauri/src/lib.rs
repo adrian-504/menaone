@@ -28,6 +28,7 @@ pub mod pptx_import;
 pub mod proposal_library;
 pub mod smartfill;
 pub mod pricing;
+pub mod reprice;
 pub mod revisions;
 pub mod sendcheck;
 pub mod touches;
@@ -302,6 +303,7 @@ pub fn run() {
             commitments::upsert_commitments,
             commitments::delete_commitments,
             sendcheck::proposal_send_check,
+            generator::proposal_revise_prices,
             localfiles::files_fingerprints,
             touches::get_touches,
             touches::touches_add,

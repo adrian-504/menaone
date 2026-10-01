@@ -548,7 +548,8 @@ export async function installDevMockIfNeeded(): Promise<void> {
           const named = Number((r.fileName.match(/_V(\d+)\.pptx$/i) || [])[1] || 0);
           const version = Math.max(recorded + 1, named);
           const id = 900 + generatedDecks.length + 1;
-          const document = { id, kind: 'proposal', version, fileName: r.fileName, path: built.path, url: null, notes: `Generated from ${built.baseTemplate || 'Standard deck'}`, createdAt: new Date().toISOString().slice(0, 10) };
+          const document = { id, kind: 'proposal', version, fileName: r.fileName, path: built.path, url: null, notes: `Generated from ${built.baseTemplate || 'Standard deck'}`, createdAt: new Date().toISOString().slice(0, 10),
+            round: r.round ?? null, roundReason: r.roundReason ?? null, carriedFromVersion: r.notCarriedFrom ?? null, notCarried: r.notCarriedFrom != null, generatedSha256: `mock:${built.path}` };
           generatedDecks.push({ proposalId: r.proposalId, fileName: r.fileName, version });
           return { ...built, errors: [], document };
         }
@@ -935,6 +936,26 @@ export async function installDevMockIfNeeded(): Promise<void> {
             companiesStore = companiesStore.filter((c) => c.id !== oldCo.id);
           }
           return null;
+        }
+        // Revise prices: the Acme draft takes its new prices in place; a Northwind deck has a price with no row, so
+        // it offers to regenerate.
+        case 'proposal_revise_prices': {
+          const r = (_payload as any).request;
+          const p = SAMPLE.proposals.find((x: any) => x.id === r.proposalId) as any;
+          const src = (p?.documents || []).find((d: any) => d.id === r.documentId);
+          if (!p || !src) throw 'That version is not one of this proposal\u2019s decks.';
+          const from = `V${src.version}`;
+          const stuck = /Northwind/.test(src.fileName);
+          const report = stuck
+            ? { amounts: 0, amountSlides: [], termSlides: [], dateSlides: [1, 2], rowsFound: 1, unplaced: ['Payroll: 16\u201330 employees'], blocked: [], checks: [], termsStated: [12] }
+            : { amounts: 3, amountSlides: [9, 10], termSlides: [], dateSlides: [1, 2], rowsFound: 4, unplaced: [], blocked: [], checks: [], termsStated: [12] };
+          const line = `Prices revised from ${from}: 3 amounts updated on slides 9 and 10; dates on slides 1 and 2`;
+          const base = { report, canSave: !stuck, reason: stuck ? `One price has no row in ${from}: Payroll: 16\u201330 employees.` : '', line, fromVersion: src.version, fileName: r.fileName, path: null, document: null };
+          if (r.dryRun || stuck) return base;
+          const version = Math.max(0, ...(p.documents || []).filter((d: any) => d.kind === 'proposal').map((d: any) => d.version || 0), ...generatedDecks.filter((d) => d.proposalId === r.proposalId).map((d) => d.version)) + 1;
+          const path = `${String(src.path).split('/').slice(0, -1).join('/')}/${r.fileName}`;
+          generatedDecks.push({ proposalId: r.proposalId, fileName: r.fileName, version });
+          return { ...base, path, document: { id: 950 + generatedDecks.length, kind: 'proposal', version, fileName: r.fileName, path, url: null, notes: line, createdAt: new Date().toISOString().slice(0, 10), round: r.round ?? null, roundReason: r.roundReason ?? null, carriedFromVersion: src.version, notCarried: false, generatedSha256: `mock:${path}` } };
         }
         // The check before sending: the Acme draft still has things to fix; any other sample deck is clean.
         case 'proposal_send_check': {

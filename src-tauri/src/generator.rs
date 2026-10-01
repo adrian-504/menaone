@@ -518,7 +518,7 @@ pub fn proposal_library(state: State<DbState>) -> CmdResult<LibraryInfo> {
     Ok(LibraryInfo { dir: Some(dir.to_string_lossy().to_string()), templates, master, ignored })
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct GenerateRequest {
     pub proposal_id: i64,
@@ -540,6 +540,14 @@ pub struct GenerateRequest {
     /// Build from the 2026 proposal master (tagged slides and fields).
     #[serde(default)]
     pub from_master: bool,
+    /// The review round the new version belongs to (1.66): internal or client, and a client revision's one line.
+    #[serde(default)]
+    pub round: Option<String>,
+    #[serde(default)]
+    pub round_reason: Option<String>,
+    /// Regenerated instead of revising this version in place: its hand edits are not carried, and the record says so.
+    #[serde(default)]
+    pub not_carried_from: Option<i64>,
 }
 
 #[derive(Debug, Clone, Serialize, Default)]
@@ -562,7 +570,7 @@ pub struct GenerateResult {
     pub services_title: Option<String>,
 }
 
-fn safe_file_name(name: &str) -> String {
+pub(crate) fn safe_file_name(name: &str) -> String {
     let cleaned: String = name.chars().map(|c| if matches!(c, '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|') { ' ' } else { c }).collect();
     let trimmed = cleaned.split_whitespace().collect::<Vec<_>>().join(" ");
     if trimmed.to_lowercase().ends_with(".pptx") { trimmed } else { format!("{trimmed}.pptx") }
@@ -935,7 +943,8 @@ pub fn generate_proposal(db: &Mutex<Connection>, request: &GenerateRequest, poli
     let folder_text = folder.to_string_lossy().to_string();
     let path_text = out.to_string_lossy().to_string();
     let recorded = db.lock().map_err(err).and_then(|mut conn| {
-        record_generated_document(&mut conn, proposal.id, &file_name, &path_text, &notes, &request.date, &folder_text).map_err(err)
+        let marks = DocumentMarks { round: request.round.clone(), round_reason: request.round_reason.clone(), carried_from_version: request.not_carried_from, not_carried: request.not_carried_from.is_some() };
+        record_generated_document_with(&mut conn, proposal.id, &file_name, &path_text, &notes, &request.date, &folder_text, &marks).map_err(err)
     });
     let document = match recorded {
         Ok(d) => d,
@@ -950,6 +959,134 @@ pub fn generate_proposal(db: &Mutex<Connection>, request: &GenerateRequest, poli
     result.path = Some(path_text);
     result.document = Some(document);
     result.report = Some(report);
+    Ok(result)
+}
+
+// ═══════════════ Revise prices ═══════════════
+
+#[derive(Debug, Clone, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct ReviseRequest {
+    pub proposal_id: i64,
+    /// The version to revise: one of the proposal's decks.
+    pub document_id: i64,
+    /// YYYY-MM-DD in the user's time zone: the new version's cover and letter date.
+    pub date: String,
+    pub file_name: String,
+    #[serde(default)]
+    pub round: Option<String>,
+    #[serde(default)]
+    pub round_reason: Option<String>,
+    /// Read the deck and say what would change; nothing is written.
+    #[serde(default)]
+    pub dry_run: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct ReviseResult {
+    pub report: crate::reprice::RepriceReport,
+    /// Every price found its row, nothing else stands in the way, and something changed.
+    pub can_save: bool,
+    /// Why not, in one sentence; empty when it can be saved.
+    pub reason: String,
+    /// The line kept in the new version's notes.
+    pub line: String,
+    pub from_version: Option<i64>,
+    pub file_name: String,
+    pub path: Option<String>,
+    pub document: Option<ProposalDocument>,
+}
+
+/// The proposal's lines as the fee rewrite needs them (their rate cards say how each is priced), and the rate
+/// cards' standards for prices a deck quotes without a line.
+pub fn fee_lines(conn: &Connection, proposal: &Proposal, services: &[crate::commercial::Service]) -> rusqlite::Result<(Vec<crate::smartfill::SmartLine>, crate::feefill::Standards)> {
+    let rate_cards = crate::commercial::read_rate_cards(conn)?;
+    let card_of = |s: &crate::commercial::Service| s.rate_card_id.and_then(|id| rate_cards.iter().find(|r| r.id == id)).and_then(|r| crate::pricing::Card::from_json(&r.pricing));
+    let months = proposal.contract_months.filter(|m| *m > 0);
+    let lines = proposal.lines.iter().map(|l| {
+        let by_id = l.service_id.and_then(|id| services.iter().find(|s| s.id == id));
+        let service = by_id.or_else(|| services.iter().find(|s| s.name.eq_ignore_ascii_case(l.service_name.trim())));
+        let category = by_id.and_then(|s| s.category.clone());
+        crate::smartfill::SmartLine {
+            months: (l.billing != "one_time").then(|| months.unwrap_or(12) as f64),
+            ..smart_line(l, service.and_then(card_of).as_ref(), category.as_deref())
+        }
+    }).collect();
+    let standard_of = |name: &str| services.iter().find(|s| s.name.eq_ignore_ascii_case(name)).and_then(card_of).and_then(|c| c.standard_price());
+    let standards = crate::feefill::Standards { constitution: standard_of("Business Setup").or_else(|| standard_of("Company Constitution")), maintenance: standard_of("Company Maintenance") };
+    Ok((lines, standards))
+}
+
+#[tauri::command]
+pub fn proposal_revise_prices(state: State<DbState>, request: ReviseRequest) -> CmdResult<ReviseResult> {
+    revise_prices(&state.0, &request, OutputPolicy::OneDriveOnly)
+}
+
+/// "Revise prices": the next version of a deck with only its prices, the price sentences, the term wording and
+/// the two dates changed (see reprice.rs), so the hand edits in the version before are kept. The version it is
+/// made from is only read. Nothing is written or recorded on a dry run, or when the revision cannot be done in
+/// place: the result says why, and the caller offers to regenerate instead.
+pub fn revise_prices(db: &Mutex<Connection>, request: &ReviseRequest, policy: OutputPolicy) -> CmdResult<ReviseResult> {
+    let (proposal, source, lines, standards) = {
+        let conn = db.lock().map_err(err)?;
+        let data = read_all_data(&conn).map_err(err)?;
+        let proposal = data.proposals.into_iter().find(|p| p.id == request.proposal_id).ok_or("Proposal not found.")?;
+        let source = proposal.documents.iter().find(|d| d.id == request.document_id && d.kind == "proposal").cloned().ok_or("That version is not one of this proposal's decks.")?;
+        let (lines, standards) = fee_lines(&conn, &proposal, &data.services).map_err(err)?;
+        (proposal, source, lines, standards)
+    };
+    let from = format!("V{}", source.version.unwrap_or(1));
+    let path = PathBuf::from(source.path.clone().filter(|p| !p.trim().is_empty()).ok_or(format!("{from} has no file to revise."))?);
+    if !policy.allows(&path) {
+        return Err(format!("{from} is outside OneDrive, so it wasn't read."));
+    }
+    if !path.extension().map(|e| e.to_string_lossy().eq_ignore_ascii_case("pptx")).unwrap_or(false) {
+        return Err(format!("{from} is not a PowerPoint file, so its prices can't be revised."));
+    }
+    if !path.is_file() {
+        return Err(format!("{} is not in the client folder any more.", source.file_name));
+    }
+    let mut pkg = Package::read(&path)?;
+    let currency = proposal.currency.clone().unwrap_or_else(|| "SAR".into());
+    let report = crate::reprice::reprice(&mut pkg, &crate::reprice::RepriceInput { lines: &lines, currency: &currency, months: proposal.contract_months, date_iso: &request.date, standards: &standards });
+    let file_name = safe_file_name(&request.file_name);
+    let mut result = ReviseResult { can_save: report.can_save(), reason: report.reason(&from), line: report.line(&from), from_version: source.version, file_name: file_name.clone(), report, ..Default::default() };
+    if request.dry_run || !result.can_save {
+        return Ok(result);
+    }
+
+    let folder = path.parent().map(Path::to_path_buf).ok_or("The client folder couldn't be found.")?;
+    if !policy.allows(&folder) {
+        return Err(format!("The client folder {} is outside OneDrive, so the proposal wasn't saved.", folder.to_string_lossy()));
+    }
+    let out = folder.join(&file_name);
+    if out.exists() {
+        return Err(format!("{file_name} already exists in the client folder. Choose another name."));
+    }
+    let tmp = folder.join(format!(".{file_name}.partial"));
+    if let Err(e) = pkg.write(&tmp) {
+        let _ = std::fs::remove_file(&tmp);
+        return Err(e);
+    }
+    if let Err(e) = std::fs::rename(&tmp, &out) {
+        let _ = std::fs::remove_file(&tmp);
+        return Err(format!("Could not save the proposal: {e}"));
+    }
+    let folder_text = folder.to_string_lossy().to_string();
+    let path_text = out.to_string_lossy().to_string();
+    let marks = DocumentMarks { round: request.round.clone(), round_reason: request.round_reason.clone(), carried_from_version: source.version, not_carried: false };
+    let recorded = db.lock().map_err(err).and_then(|mut conn| {
+        record_generated_document_with(&mut conn, proposal.id, &file_name, &path_text, &result.line, &request.date, &folder_text, &marks).map_err(err)
+    });
+    match recorded {
+        Ok(d) => result.document = Some(d),
+        Err(e) => {
+            let _ = std::fs::remove_file(&out);
+            return Err(format!("The proposal couldn't be recorded, so the file was not kept: {e}"));
+        }
+    }
+    result.path = Some(path_text);
     Ok(result)
 }
 

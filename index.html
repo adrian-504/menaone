@@ -2290,6 +2290,35 @@
   </div>
 </div>
 
+<div class="modal-ov" id="modal-revise" onclick="if(event.target===this)closeRevisePrices()">
+  <div class="modal modal-sm">
+    <div class="modal-hd"><div class="modal-title" id="revise-title">Revise prices</div><button class="modal-close" onclick="closeRevisePrices()">×</button></div>
+    <div class="modal-sub" id="revise-sub"></div>
+    <div class="revise-result" id="revise-result" aria-live="polite"></div>
+    <div id="revise-form">
+      <div class="fgrp">
+        <div class="seg-btns entry-seg" id="revise-round" role="radiogroup" aria-label="Review round">
+          <button type="button" class="seg-btn" role="radio" data-round="internal" onclick="reviseRound('internal')">Internal round</button>
+          <button type="button" class="seg-btn" role="radio" data-round="client" onclick="reviseRound('client')">Client revision</button>
+        </div>
+      </div>
+      <div class="fgrp" id="revise-reason-grp">
+        <label class="flbl" for="revise-reason">What the client asked for (one line)</label>
+        <input type="text" class="finp" id="revise-reason" maxlength="120" placeholder="Price for 40 employees">
+      </div>
+      <div class="fgrp">
+        <label class="flbl" for="revise-file">File name</label>
+        <input type="text" class="finp" id="revise-file">
+      </div>
+    </div>
+    <div class="fact">
+      <button class="btn-secondary" onclick="closeRevisePrices()" id="revise-cancel">Cancel</button>
+      <button class="btn-secondary" id="revise-regen" onclick="reviseRegenerate()" hidden>Regenerate instead</button>
+      <button class="btn-primary" id="revise-save" onclick="saveRevisePrices()">Save</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-ov" id="modal-wl" onclick="if(event.target===this)closeWlModal()">
   <div class="modal modal-sm">
     <div class="modal-hd"><div class="modal-title" id="wl-title">Close Proposal</div><button class="modal-close" onclick="closeWlModal()">×</button></div>

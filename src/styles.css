@@ -3402,6 +3402,13 @@ body.dnd-active [data-sort-shift] .dnd-source{opacity:0}
 .deck-check-list li.t-grey b{color:var(--sub)}
 .deck-check-note{margin:0;flex:1;font-size:var(--type-secondary);color:var(--sub)}
 .deck-check-ft{display:flex;align-items:center;justify-content:space-between;gap:10px}
+/* 1.66: Revise prices — what the next version changes, or why it cannot be done in place. */
+.revise-wait{margin:0 0 14px;font-size:var(--type-secondary);color:var(--sub)}
+.revise-box{margin:0 0 14px;padding:12px 14px;border-radius:9px;background:var(--panel-bg);border:1px solid var(--hairline);font-size:var(--type-secondary);color:var(--text)}
+.revise-box b{display:block;font-weight:600;color:var(--navy)}
+.revise-box ul{margin:8px 0 0;padding:0 0 0 18px;display:flex;flex-direction:column;gap:3px;color:var(--sub)}
+.revise-box.is-stop{background:color-mix(in srgb,var(--amber) 9%,var(--surface));border-color:color-mix(in srgb,var(--amber) 35%,var(--hairline))}
+.revise-box.is-stop b{color:var(--text)}
 .deck-tile-acts{position:absolute;top:12px;right:12px;display:flex;gap:2px;padding:2px;border-radius:9px;background:var(--surface);box-shadow:var(--shadow-sm);opacity:0;transition:opacity var(--dur-fast) var(--ease-out)}
 .deck-tile:hover .deck-tile-acts,.deck-tile:focus-within .deck-tile-acts{opacity:1}
 .prb-folder .pr-folder-line{display:flex;flex-wrap:nowrap;align-items:flex-start;gap:6px}.prb-folder .pr-folder-line .icon{margin-top:2px}

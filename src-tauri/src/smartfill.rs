@@ -340,7 +340,7 @@ pub struct SmartLine {
 /// the row ("Company Maintenance Fees"), or every meaningful word of the
 /// service name is ("Business Setup and Maintenance Package" ↔ "Business
 /// Setup and Company Maintenance").
-fn row_names_line(row_text: &str, line: &SmartLine) -> bool {
+pub(crate) fn row_names_line(row_text: &str, line: &SmartLine) -> bool {
     let lower = row_text.to_lowercase();
     let verbatim = [line.description.as_deref().unwrap_or(""), line.service.as_str()]
         .iter()
@@ -356,12 +356,12 @@ fn row_names_line(row_text: &str, line: &SmartLine) -> bool {
     name_words.len() >= 2 && name_words.iter().all(|w| row_words.contains(w))
 }
 
-fn row_label(row_text: &str) -> String {
+pub(crate) fn row_label(row_text: &str) -> String {
     money_regex().replace_all(row_text, " ").split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
 /// The row's label (its text without amounts) names one of the line's template modules.
-fn row_module_matches(row_text: &str, line: &SmartLine) -> bool {
+pub(crate) fn row_module_matches(row_text: &str, line: &SmartLine) -> bool {
     let label = money_regex().replace_all(row_text, " ");
     crate::proposal_library::modules_in(&label).iter().any(|m| line.modules.contains(m))
 }
@@ -372,7 +372,7 @@ fn total_row_regex() -> &'static Regex {
 }
 
 /// Modules a fee slide is for: the line under its first "Project Fees" heading.
-fn fee_slide_modules(texts: &[String]) -> Vec<&'static str> {
+pub(crate) fn fee_slide_modules(texts: &[String]) -> Vec<&'static str> {
     texts
         .iter()
         .enumerate()

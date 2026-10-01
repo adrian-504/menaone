@@ -105,6 +105,8 @@ export function deckStatusLine(d: ProposalDocument, held: ProposalDocument | nul
   return (d.version ?? 0) > (held.version ?? 0) ? 'draft' : 'earlier version';
 }
 
+const isPptx = (name: string) => /\.pptx$/i.test(name);
+
 /** The "Proposal documents" section (studio slice): each version a card with the brand mini-cover. The version sent
  * to the client leads; the rest follow newest first. */
 export function proposalDeckRows(p: Pick<Proposal, 'documents'> & Partial<Pick<Proposal, 'client' | 'status' | 'dateSentToClient' | 'lastSentAt' | 'sentDate'>>, files: FileStatus, prints: Fingerprints = new Map(), panel: { afterId: number; html: string } | null = null): string {
@@ -135,6 +137,7 @@ export function proposalDeckRows(p: Pick<Proposal, 'documents'> & Partial<Pick<P
         ${canOpen ? `<button class="rec-icon-btn" onclick="event.stopPropagation();proposalOpenFile('${path}')" data-tip="Open" aria-label="Open ${escHtml(d.fileName)}">${icon('document', 13)}</button>
         <button class="rec-icon-btn" onclick="event.stopPropagation();proposalRevealFile('${path}')" data-tip="Show in Finder" aria-label="Show ${escHtml(d.fileName)} in Finder">${icon('folder', 13)}</button>
         <button class="rec-icon-btn" onclick="event.stopPropagation();quickLookPath('${path}')" data-tip="Quick Look" aria-label="Quick Look ${escHtml(d.fileName)}">${icon('eye', 13)}</button>` : ''}
+        ${canOpen && latest && isPptx(d.fileName) ? `<button class="rec-icon-btn" onclick="event.stopPropagation();proposalRevisePrices(${d.id})" data-tip="Revise prices: the next version, only the prices and dates changed" aria-label="Revise prices from ${escHtml(d.fileName)}">${icon('dollar', 13)}</button>` : ''}
         <button class="rec-icon-btn" onclick="event.stopPropagation();proposalMarkSentVersion(${d.id})" data-tip="${isSent ? 'Not the one sent to the client' : 'This is the one sent to the client'}" aria-label="${isSent ? 'Unmark' : 'Mark'} ${escHtml(d.fileName)} as sent to the client" aria-pressed="${isSent}">${icon('mail', 13)}</button>
         <button class="rec-icon-btn" onclick="event.stopPropagation();proposalRemoveDocument(${d.id})" data-tip="Remove from this proposal (the file stays)" aria-label="Remove ${escHtml(d.fileName)} from this proposal">${icon('close', 13)}</button>
       </div>

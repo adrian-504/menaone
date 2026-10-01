@@ -112,6 +112,13 @@ describe('the sent file is the record (1.66)', () => {
     expect(proposalDeckRows({ documents: [v(2, 2, { notes: report, round: 'internal', carriedFromVersion: 1 })] }, new Map())).toContain('9 amounts updated on slides 14, 15');
   });
 
+  it('Revise prices is offered on the latest PowerPoint only', () => {
+    const html = proposalDeckRows({ documents: [v(1, 1), v(2, 2)] }, new Map());
+    expect(html.match(/proposalRevisePrices\(/g)).toHaveLength(1);
+    expect(html).toContain('proposalRevisePrices(2)');
+    expect(proposalDeckRows({ documents: [{ ...v(3, 3), fileName: 'Deck.pdf' }] }, new Map())).not.toContain('proposalRevisePrices');
+  });
+
   it('any version can be marked as the one sent', () => {
     const html = proposalDeckRows({ documents: [v(1, 1), v(2, 2, { sentToClientAt: '2026-10-02' })] }, new Map());
     expect(html.match(/proposalMarkSentVersion\(/g)).toHaveLength(2);

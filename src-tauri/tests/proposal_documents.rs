@@ -65,7 +65,7 @@ fn setup(tag: &str) -> Setup {
 }
 
 fn request(s: &Setup, template_id: i64, file_name: &str, dry_run: bool) -> GenerateRequest {
-    GenerateRequest { proposal_id: s.proposal, template_id, date: "2026-09-15".into(), file_name: file_name.into(), keep: None, logo_path: None, dry_run, from_library: false, from_master: false }
+    GenerateRequest { proposal_id: s.proposal, template_id, date: "2026-09-15".into(), file_name: file_name.into(), keep: None, logo_path: None, dry_run, from_library: false, from_master: false, ..Default::default() }
 }
 
 fn documents(s: &Setup) -> Vec<(i64, i64, String, String)> {
@@ -241,7 +241,7 @@ fn real_proposal_workflow_on_a_database_copy() {
     let db = Mutex::new(conn);
     let services: String = { db.lock().unwrap().query_row("SELECT COALESCE(group_concat(service_name, ' & '), 'Services') FROM proposal_lines WHERE proposal_id = ?1", params![proposal_id], |r| r.get(0)).unwrap() };
     let name = |suffix: &str| format!("{client}_{services} Proposal_15.09.2026{suffix}.pptx");
-    let req = |file: String, dry_run: bool| GenerateRequest { proposal_id, template_id: 0, date: "2026-09-15".into(), file_name: file, keep: None, logo_path: None, dry_run, from_library: master.is_none(), from_master: master.is_some() };
+    let req = |file: String, dry_run: bool| GenerateRequest { proposal_id, template_id: 0, date: "2026-09-15".into(), file_name: file, keep: None, logo_path: None, dry_run, from_library: master.is_none(), from_master: master.is_some(), ..Default::default() };
 
     let preview = generate_proposal(&db, &req(name(""), true), OutputPolicy::AnyFolder).unwrap();
     println!("preview: {} slides kept, errors {:?}\nwarnings {:#?}", preview.slides.iter().filter(|s| s.included).count(), preview.errors, preview.warnings);

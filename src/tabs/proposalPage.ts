@@ -44,6 +44,7 @@ import { renderFeed } from '../lib/activityFeed';
 import { renderRecordTimeline, renderThreadStrip } from './recordThread';
 import { endPropsEdit, mountPropsList, propsEditButton, propsListHtml, resetPropsLists, type PropField } from '../lib/propsList';
 import { renderIcons } from '../core/chrome';
+import './revisePrices';
 import { ST, LEAD_SOURCES } from '../lib/constants';
 import { renderLinesEditor, lineForService } from '../lib/linesEditor';
 import { needsFollowUp, proposalLastTouch, snapshotProposal, changeProposalStatus, contactFirstName, recordReview, undoReview, openRevisionDialog, openWlModal, updateStatus, archiveProposal, unarchiveProposal, snoozeProposal, isSnoozed } from '../core/proposals';
