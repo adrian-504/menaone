@@ -216,7 +216,10 @@ export function buildRequest(members: Proposal[], ctx: RequestContext): FollowRe
   const expiring = left != null && left <= EXPIRING_DAYS;
 
   // The offer's expiry comes right after the send: on a narrow row the end of the line is what gets cut.
-  const meta: MetaBit[] = [{ text: `Sent ${fmtDateShort(sent, true)}` }];
+  // Sent by someone other than its owner: said on the row (when the proposals of the request agree on who).
+  const senders = [...new Set(ps.map((p) => (p.sentById != null && p.sentById !== p.ownerId ? p.sentById : null)))];
+  const sentBy = senders.length === 1 && senders[0] != null ? ctx.memberName?.(senders[0]) ?? null : null;
+  const meta: MetaBit[] = [{ text: `Sent ${fmtDateShort(sent, true)}${sentBy ? ` by ${sentBy}` : ''}` }];
   if (expiring) meta.push({ text: `◷ offer expires ${left === 0 ? 'today' : fmtDateWeekday(validUntil!)}`, tone: 'red', chip: true });
   if (followUps) meta.push({ text: plural(followUps, 'follow-up') });
   if (lastBy) meta.push({ text: `last ${lastBy.who ? `by ${lastBy.who}, ` : ''}${lastBy.how} ${fmtDateShort(lastBy.date, true)}` });

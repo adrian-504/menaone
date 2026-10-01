@@ -88,6 +88,12 @@ describe('the log of a request', () => {
     expect(r.word.map((m) => m.text)).toEqual(['“Reviewing with finance” · 20 Sept']);
   });
 
+  it('says who sent it when it was not its owner', () => {
+    expect(buildRequest([proposal({ ownerId: 1, sentById: 2 })], ctx()).meta[0].text).toBe('Sent 15 Sept by Hassan');
+    expect(buildRequest([proposal({ ownerId: 1, sentById: 1 })], ctx()).meta[0].text).toBe('Sent 15 Sept');
+    expect(buildRequest([proposal({ ownerId: 1, sentById: 2 }), proposal({ id: 2, ownerId: 1 })], ctx()).meta[0].text).toBe('Sent 15 Sept');
+  });
+
   it('never replied says so; a request with no contact person says that in amber', () => {
     const r = buildRequest([proposal({})], ctx({ hasContact: () => false }));
     expect(r.lastWord).toBeNull();

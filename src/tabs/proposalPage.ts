@@ -26,6 +26,7 @@ import { companyFromForm, contextFromOpportunity } from '../lib/workGraph';
 import { S } from '../lib/state';
 import { touchDoing, touchesOf } from '../lib/followup';
 import { entryLine } from '../lib/followRequests';
+import { sentByOther } from '../lib/bulkProposals';
 import { escHtml, expose, fmtDate, today, nextId, nextCtId, showConfirm, showTextPrompt, showDatePrompt, debounce, strColor, fmtDateShort } from '../lib/utils';
 import { icon } from '../lib/icons';
 import { companyLink, recordLink } from '../lib/links';
@@ -131,12 +132,14 @@ export function renderProposalPage(): void {
   const siblings = requestSiblings(p, S.proposals);
   const cells = tableCells(p, { today: t, reviewer: teamMember(p.reviewerId)?.name || defaultReviewer()?.name || 'the reviewer', due });
   const contact = p.primaryContactId != null ? S.contacts.find((c) => c.id === p.primaryContactId)?.name : null;
+  // Who sent it, said only when it was not its owner.
+  const sender = proposalSentDate(p) ? sentByOther(p, (id) => (teamMember(id)?.name || '').trim().split(/\s+/)[0] || null) : null;
   if (badges) badges.innerHTML = [
     `<span class="pk-stage t-${cells.chip.tone}"><i></i>${escHtml(p.status === PS.SENT ? 'With the client' : cells.chip.text)}</span>`,
     due ? '<span class="pk-chip is-text t-amber">Follow-up due</span>' : '',
     p.archived ? '<span class="pk-chip t-grey">Archived</span>' : '',
     isSnoozed(p) ? `<span class="pk-chip t-amber">Snoozed until ${fmtDate(p.snoozedUntil)}</span>` : '',
-    `<span class="rec-meta">${escHtml([entity?.name, currencyOf(p), owner ? `owner ${owner}` : '', contact ? `contact ${contact}` : ''].filter(Boolean).join(' · '))}</span>`,
+    `<span class="rec-meta">${escHtml([entity?.name, currencyOf(p), owner ? `owner ${owner}` : '', sender ? `sent by ${sender}` : '', contact ? `contact ${contact}` : ''].filter(Boolean).join(' · '))}</span>`,
     promisedByFact(p),
     revisionFact(p) ? `<span class="rec-meta">${escHtml(revisionFact(p)!)}</span>` : '',
     siblings.length ? `<span class="rec-meta rk-with">sent with ${siblings.map((x) => recordLink('proposal', x.id, `${x.type || 'Proposal'} · SL# ${x.id}`)).join(', ')}</span>` : '',

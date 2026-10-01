@@ -2596,6 +2596,10 @@
       <input type="text" class="finp" id="text-prompt-input" onkeydown="if(event.key==='Enter'){event.preventDefault();resolveTextPrompt(this.value)}else if(event.key==='Escape'){event.preventDefault();resolveTextPrompt(null)}">
       <div class="prompt-note" id="text-prompt-note" role="status" hidden></div>
     </div>
+    <div class="fgrp" id="text-prompt-choice-row" hidden>
+      <label class="flbl" id="text-prompt-choice-label" for="text-prompt-choice"></label>
+      <select class="finp" id="text-prompt-choice"></select>
+    </div>
     <div class="fact">
       <button class="btn-secondary" onclick="resolveTextPrompt(null)">Cancel</button>
       <button class="btn-primary" id="text-prompt-ok" onclick="resolveTextPrompt(document.getElementById('text-prompt-input').value)">OK</button>

@@ -156,8 +156,29 @@ export function showDatePrompt(opts: { title: string; label?: string; defaultVal
   return showTextPrompt({ title: opts.title, label: opts.label, defaultValue: opts.defaultValue }).then((v) => (v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null));
 }
 
+/** A date and one choice from a list under it, in the same dialog ("the day it was sent" and "sent by"). Resolves to
+ * both, or null when cancelled. */
+export function showDateChoicePrompt(opts: Parameters<typeof showDatePrompt>[0] & { choice: { label: string; options: { value: string; label: string }[]; value?: string } }): Promise<{ date: string; choice: string } | null> {
+  const row = document.getElementById('text-prompt-choice-row');
+  const label = document.getElementById('text-prompt-choice-label');
+  const select = document.getElementById('text-prompt-choice') as HTMLSelectElement | null;
+  if (row && label && select) {
+    label.textContent = opts.choice.label;
+    select.innerHTML = opts.choice.options.map((o) => `<option value="${escHtml(o.value)}">${escHtml(o.label)}</option>`).join('');
+    select.value = opts.choice.value ?? '';
+    row.hidden = false;
+  }
+  return showDatePrompt(opts).then((date) => (date ? { date, choice: lastPromptChoice } : null));
+}
+
+/** The choice as it stood when the dialog closed. */
+let lastPromptChoice = '';
+
 export function resolveTextPrompt(value: string | null): void {
   document.getElementById('modal-text-prompt')?.classList.remove('open');
+  const choiceRow = document.getElementById('text-prompt-choice-row');
+  lastPromptChoice = (document.getElementById('text-prompt-choice') as HTMLSelectElement | null)?.value ?? '';
+  if (choiceRow) choiceRow.hidden = true;
   // Back to a plain text box for the next question.
   const input = document.getElementById('text-prompt-input') as HTMLInputElement | null;
   if (input) input.type = 'text';

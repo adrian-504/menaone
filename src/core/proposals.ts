@@ -1,18 +1,18 @@
 import { proposalCascade } from '../lib/chromeKit';
 import { nudgeTip } from '../lib/pagesQueues';
-import { applyStatus } from '../lib/bulkProposals';
+import { applyStatus, defaultSender } from '../lib/bulkProposals';
 import { collapseRow, collapseRows } from '../lib/motion';
 import { backInDays, lastTouch, FOLLOW_UP_AFTER_DAYS, WAIT_LONGER_DAYS, type LastTouch } from '../lib/followup';
 import { ownDomains } from '../lib/clientMatch';
 import { S } from '../lib/state';
 import { STATUSES, WIN_REASONS, LOSS_REASONS } from '../lib/constants';
-import { today, fmtDate, daysSince, daysUntil, escHtml, expose, showTextPrompt, showConfirm, localIsoDate } from '../lib/utils';
+import { today, fmtDate, daysSince, daysUntil, escHtml, expose, showTextPrompt, showConfirm, showDateChoicePrompt, localIsoDate } from '../lib/utils';
 import { matchesProposalPeriod } from '../lib/period';
 import { persistProposals, saved } from '../lib/persist';
 import { registerBadgeUpdater, refreshAll, getActiveTabId, renderTab } from '../lib/registry';
 import { toast, undoToast } from '../lib/ui';
 import { draftAgreementsFromProposals } from './agreements';
-import { PS, stageIndex, isLost, isWithdrawn, defaultReviewer, teamMember, renewalsDue, activeMrr, pipelineMonthly, fmtMoneyByCurrency } from '../lib/commercial';
+import { PS, stageIndex, isLost, isWithdrawn, defaultReviewer, teamMember, activeTeam, renewalsDue, activeMrr, pipelineMonthly, fmtMoneyByCurrency } from '../lib/commercial';
 import { applyRevisionRequest, applyRevisionSent } from '../lib/revisions';
 import { activityForget, activityLog, activityRemove } from '../lib/db';
 import { showMenuAt, type ContextMenuItem } from '../lib/contextMenu';
@@ -147,11 +147,11 @@ registerBadgeUpdater(updateBadge);
 
 /** Records a status change with the dates and review state that go with it.
  * No questions asked — use changeProposalStatus from the UI. */
-export function updateStatus(id: number, newStatus: string): void {
+export function updateStatus(id: number, newStatus: string, o: { date?: string; sentById?: number | null } = {}): void {
   const p = S.proposals.find((x) => x.id === id);
   if (!p || p.status === newStatus) return;
   // What the status sets (review asked, the day sent, the day signed) is one rule, shared with the batch change.
-  const { revisionSent } = applyStatus(p, newStatus, today(), { defaultReviewerId: defaultReviewer()?.id ?? null });
+  const { revisionSent } = applyStatus(p, newStatus, o.date || today(), { defaultReviewerId: defaultReviewer()?.id ?? null, explicit: !!o.date, sentById: o.sentById });
   persistProposals();
   updateBadge();
   refreshAll();
@@ -176,8 +176,26 @@ export async function changeProposalStatus(id: number, newStatus: string): Promi
     const ok = await showConfirm(`${reviewer} hasn't approved this proposal in MENA One yet. Every proposal is reviewed before it goes to the client.\n\nMark it as sent anyway?`, { title: 'Not reviewed yet', confirmLabel: 'Mark as sent' });
     if (!ok) return false;
   }
+  // Marking it sent asks the day (today unless back-dated) and who sent it (its owner unless said).
+  if (newStatus === PS.SENT) {
+    const sent = await askSent({ title: `${p.client} — sent to the client`, label: `The day ${p.type || 'it'} was sent`, confirmLabel: 'Mark as sent' }, [p]);
+    if (!sent) return false;
+    updateStatus(id, newStatus, sent);
+    return true;
+  }
   updateStatus(id, newStatus);
   return true;
+}
+
+/** "The day it was sent" and "Sent by" in one question, for one proposal or a batch. Null when cancelled. */
+export async function askSent(q: { title: string; label: string; confirmLabel: string; note?: string | null }, picked: Pick<Proposal, 'ownerId'>[]): Promise<{ date: string; sentById: number | null } | null> {
+  const team = activeTeam();
+  const pick = defaultSender(picked, S.currentUserId);
+  const answer = await showDateChoicePrompt({
+    ...q, defaultValue: today(),
+    choice: { label: 'Sent by', options: [{ value: '', label: 'Not recorded' }, ...team.map((m) => ({ value: String(m.id), label: m.name }))], value: pick != null && team.some((m) => m.id === pick) ? String(pick) : '' },
+  });
+  return answer ? { date: answer.date, sentById: answer.choice ? Number(answer.choice) : null } : null;
 }
 expose('changeProposalStatus', changeProposalStatus);
 
