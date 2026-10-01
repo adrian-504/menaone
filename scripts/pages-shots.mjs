@@ -29,6 +29,7 @@ const SHOTS = [
   // 1.60 "pages-2"
   ['contacts', CLOCK, "navToModule('contacts')"],
   ['agreements', CLOCK, "navToModule('agreements')"],
+  ['agreements-noterm', CLOCK, "navToModule('agreements'), setTimeout(() => { document.getElementById('agr-noterm')?.scrollIntoView({ block: 'start' }); scrollBy(0, -80); }, 700)"],
   ['cleanup', CLOCK, "navToModule('cleanup')"],
   ['services', CLOCK, "navToModule('pricing'), setServicesView('catalog')"],
   ['services-rates', CLOCK, "navToModule('pricing'), setServicesView('rates')"],

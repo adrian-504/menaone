@@ -5,7 +5,7 @@
 // is a Vite compile-time constant, so `vite build` dead-code-eliminates this
 // entire branch and the real Tauri IPC bridge is untouched in the shipped app.
 import catalogSeed from '../../src-tauri/src/catalog_seed.json';
-import type { CommercialSetup, AppData, Project, Area, Meeting, InboxItem, NoteTemplate, Milestone, NoteRef, EmailRecord, EmailCompletedRecord, IntelligenceItem, Company, Opportunity, OpportunityActivity, ProjectActivity, EntityLink, ReviewQueueEntry, SavedList , Touch, EmailTemplate } from './types';
+import type { Agreement, CommercialSetup, AppData, Project, Area, Meeting, InboxItem, NoteTemplate, Milestone, NoteRef, EmailRecord, EmailCompletedRecord, IntelligenceItem, Company, Opportunity, OpportunityActivity, ProjectActivity, EntityLink, ReviewQueueEntry, SavedList , Touch, EmailTemplate } from './types';
 
 const SAMPLE: AppData = {
   proposals: [
@@ -95,6 +95,36 @@ const SAMPLE: AppData = {
       monthlyFee: 6500, contractMonths: 12, proposalId: null, hubspot: null, docLink: null, actionDate: null, remarks: null, createdAt: '2026-09-28', businessEntityId: 1, currency: 'SAR', startDate: '2026-11-01', endDate: '2027-10-31', serviceStatus: 'Not started', autoRenew: false, noticeDays: 60, preparedById: 1,
       lines: [{ id: 41, serviceId: 15, serviceName: 'GM Representative', description: null, billing: 'monthly', quantity: 1, unitPrice: 6500, commission: false, sortOrder: 0 }],
     },
+    // The real mix (1.61): a few more with a term, each ending differently, and many with no term recorded.
+    ...([
+      // Open-ended, ending with its project, past its term and still active, the day to decide already passed, notice never recorded.
+      [5, 'ACME_CON_002_0325', 'Acme Holdings', 1, 'Consultancy', 'Signed', 'Active', 5000, '2025-03-10', null, null, { renewalType: 'open_ended' }],
+      [6, 'RSG_CC_001_0626', 'Red Sea Global', 4, 'Company Constitution', 'Signed', 'Active', null, '2026-06-01', null, null, { renewalType: 'project' }],
+      [7, 'EHR_ADM_002_0925', 'Elite HR', 5, 'Administration', 'Signed', 'Active', 2500, '2025-09-01', '2026-08-31', 30, {}],
+      [8, 'RSG_WF_002_1125', 'Red Sea Global', 4, 'Workforce', 'Signed', 'Active', 9000, '2025-11-16', '2026-11-15', 60, {}],
+      [9, 'NWT_ACC_002_0426', 'Northwind Trading', 2, 'Accountancy', 'Signed', 'Active', 1800, '2026-04-01', '2027-03-31', null, {}],
+      // No term recorded, in the statuses the real ones are in.
+      [10, 'ACME_WF_003_0224', 'Acme Holdings', 1, 'Workforce', 'Signed', null, 12000, null, null, null, {}],
+      [11, 'GLX_ACC_002_0524', 'Globex', 3, 'Accountancy', 'Signed', null, 2200, null, null, null, {}],
+      [12, 'RSG_ADM_003_0724', 'Red Sea Global', 4, 'Administration', 'Signed', null, 4000, null, null, null, {}],
+      [13, 'EHR_CM_003_0125', 'Elite HR', 5, 'Company Maintenance', 'Signed', null, 1500, null, null, null, {}],
+      [14, 'NWT_WF_003_0325', 'Northwind Trading', 2, 'Workforce', 'Client Review', null, 7000, null, null, null, {}],
+      [15, 'GLX_CON_003_0625', 'Globex', 3, 'Consultancy', 'Client Review', 'Active', 3000, null, null, null, {}],
+      [16, 'ACME_ACC_004_0825', 'Acme Holdings', 1, 'Accountancy', 'In Preparation', null, 2600, null, null, null, {}],
+      [17, 'RSG_CM_004_0925', 'Red Sea Global', 4, 'Company Maintenance', 'In Preparation', null, 1500, null, null, null, {}],
+      [18, 'EHR_WF_004_1025', 'Elite HR', 5, 'Workforce', 'In Preparation', 'Active', 6000, null, null, null, {}],
+      [19, 'NWT_ADM_004_1125', 'Northwind Trading', 2, 'Administration', 'In Preparation', null, null, null, null, null, {}],
+      [20, 'GLX_WF_004_0126', 'Globex', 3, 'Workforce', 'In Preparation', null, 8500, null, null, null, {}],
+      [21, 'ACME_CM_005_0226', 'Acme Holdings', 1, 'Company Maintenance', 'In Preparation', null, 1500, null, null, null, {}],
+      [22, 'RSG_ACC_005_0326', 'Red Sea Global', 4, 'Accountancy', 'In Preparation', null, 2400, null, null, null, {}],
+      [23, 'EHR_CON_005_0426', 'Elite HR', 5, 'Consultancy', 'On Hold', null, 3500, null, null, null, {}],
+      [24, 'NWT_CM_005_0526', 'Northwind Trading', 2, 'Company Maintenance', 'Canceled', null, 1500, null, null, null, {}],
+    ] as [number, string, string, number, string, string, string | null, number | null, string | null, string | null, number | null, Partial<Agreement>][]).map(([id, agrRef, client, companyId, type, status, serviceStatus, monthlyFee, startDate, endDate, noticeDays, over]): Agreement => ({
+      id, agrRef, client, companyId, type, status, preparedBy: 'Hassan Balaghi', datePrepared: null, dateSentToClient: null, dateClientSigned: null, dateMenaSigned: null, dateFiled: null,
+      monthlyFee, contractMonths: startDate && endDate ? 12 : null, proposalId: null, hubspot: null, docLink: null, actionDate: null, remarks: null, createdAt: '2026-05-21', businessEntityId: 1, currency: 'SAR',
+      startDate, endDate, serviceStatus: serviceStatus as Agreement['serviceStatus'], autoRenew: false, noticeDays, preparedById: 1,
+      lines: monthlyFee ? [{ id: 500 + id, serviceId: null, serviceName: type, description: null, billing: 'monthly', quantity: 1, unitPrice: monthlyFee, commission: false, sortOrder: 0 }] : [], ...over,
+    })),
   ],
   todos: [
     { id: 1, title: 'Follow up on Acme proposal', type: 'client', client: 'Acme Holdings', priority: 'High', dueDate: '2026-09-10', status: 'Pending', description: null, createdAt: '2026-09-01', completedAt: null, projectId: null, parentId: null, areaId: null, section: null, sortOrder: 1, recurrenceRule: null, meetingId: null, tags: ['urgent'] },
