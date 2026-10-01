@@ -734,7 +734,38 @@ const CODE_MIGRATIONS: &[(i64, fn(&Connection) -> rusqlite::Result<()>)] = &[
     // "will revert after"; on proposals who sent it, accepted, engagement letter, the lost date and to whom, and
     // Follow-up's "keep, with a reason".
     (45, migrate_follow_up_entries),
+    // The generator (1.66): the proposal a new one was started from; on a proposal's documents the review round and
+    // its reason, the version sent to the client, the file's fingerprint when it was written, the version a price
+    // revision was made from and whether hand edits were not carried; a custom line's unit.
+    (46, migrate_generator_records),
 ];
+
+/// Columns migration 46 adds. All nullable, nothing is backfilled: NULL means "not recorded" (every catalogue line
+/// has no unit; a document recorded before has no round and no fingerprint, so it is never called edited).
+pub const MIGRATION_46_COLUMNS: &[(&str, &str, &str)] = &[
+    ("proposals", "based_on_id", "INTEGER REFERENCES proposals(id) ON DELETE SET NULL"),
+    ("proposal_documents", "round", "TEXT"),
+    ("proposal_documents", "round_reason", "TEXT"),
+    ("proposal_documents", "sent_to_client_at", "TEXT"),
+    ("proposal_documents", "generated_sha256", "TEXT"),
+    ("proposal_documents", "carried_from_version", "INTEGER"),
+    ("proposal_documents", "not_carried", "INTEGER"),
+    ("proposal_lines", "unit", "TEXT"),
+    ("agreement_lines", "unit", "TEXT"),
+];
+
+/// Adds the columns (only the missing ones). No existing row is touched.
+fn migrate_generator_records(conn: &Connection) -> rusqlite::Result<()> {
+    let mut added = 0;
+    for (table, column, kind) in MIGRATION_46_COLUMNS {
+        if !column_exists(conn, table, column)? {
+            conn.execute(&format!("ALTER TABLE {table} ADD COLUMN {column} {kind}"), [])?;
+            added += 1;
+        }
+    }
+    log::info!("migration 46: {added} columns added (proposals: based on; documents: round, reason, sent to client, fingerprint, carried from, not carried; lines: unit)");
+    Ok(())
+}
 
 /// Columns migration 45 adds. All nullable, nothing is backfilled: NULL means "not recorded" (a one-click
 /// "Followed up" still writes none of them; `sent_by_id` NULL reads as the owner).
