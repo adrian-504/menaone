@@ -55,6 +55,7 @@ const VIEWS = [
   ['Company', "openRecord('company', 1)", {}],
   ['Contact', "openRecord('contact', 1)", { inputs: 1 }],
   ['Opportunity', "openRecord('opportunity', 1)", { inputs: 1 }],
+  ['Opportunity (no next step)', "openRecord('opportunity', 2)", { inputs: 2 }],
   ['Proposal (in review)', "openRecord('proposal', 2)", { inputs: 2, buttons: 8 }],
   ['Proposal (sent)', "openRecord('proposal', 3)", { inputs: 2, buttons: 8 }],
   ['Agreement', "openRecord('agreement', 1)", { inputs: 1 }],
@@ -73,7 +74,10 @@ const COUNT = `(() => {
   const H = innerHeight, W = innerWidth;
   const chrome = '.sidebar, #sidebar, #loc-bar, #record-rail, .modal-ov:not(.open), .toast-stack, #toast-stack';
   const vis = (el) => { const r = el.getBoundingClientRect(); if (r.width < 2 || r.height < 2 || r.bottom <= 0 || r.top >= H || r.right <= 0 || r.left >= W) return false;
-    const s = getComputedStyle(el); if (s.visibility === 'hidden' || s.display === 'none' || +s.opacity === 0) return false; return !el.closest(chrome); };
+    const s = getComputedStyle(el); if (s.visibility === 'hidden' || s.display === 'none' || +s.opacity === 0) return false;
+    // Hidden by an ancestor too (row actions that only show on hover sit in a wrapper at opacity 0).
+    for (let p = el.parentElement; p; p = p.parentElement) if (+getComputedStyle(p).opacity === 0) return false;
+    return !el.closest(chrome); };
   // With a dialog or sheet open, only what's in it counts (the page behind is dimmed).
   const dialog = [...document.querySelectorAll('.modal-ov.open')].pop();
   const inScope = (el) => !dialog || dialog.contains(el);
