@@ -55,5 +55,6 @@ describe('Generate proposal as the featured action (1.64)', () => {
     expect(generateIsFeatured(p('Drafting'), true)).toBe(false);
     expect(generateIsFeatured(p('In Internal Review'), false)).toBe(false);
     expect(generateIsFeatured(p('Sent to Client'), false)).toBe(false);
+    expect(generateIsFeatured(p('Drafting', { revisions: [rev()] }), false)).toBe(false);
   });
 });

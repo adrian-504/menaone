@@ -43,7 +43,8 @@ export function proposalNextStep(p: Pick<Proposal, 'id' | 'status' | 'reviewStat
 
 /** Is "Generate proposal" the page's featured action? While the proposal is requested or being drafted and has no
  * deck yet: then it is the header's one blue button and a feature card in Proposal documents; the status step sits
- * beside it as a secondary button. Once there is a deck it is a secondary button again. Pure. */
-export function generateIsFeatured(p: Pick<Proposal, 'status'>, hasDeck: boolean): boolean {
-  return !hasDeck && (p.status === PS.REQUEST || p.status === PS.DRAFTING);
+ * beside it as a secondary button. Once there is a deck, or while a revision is open, it is a secondary button. Pure. */
+export function generateIsFeatured(p: Pick<Proposal, 'status' | 'revisions'>, hasDeck: boolean): boolean {
+  // A revision the client asked for was already sent once: its step (Mark revision sent) stays the blue button.
+  return !hasDeck && !openRevision(p) && (p.status === PS.REQUEST || p.status === PS.DRAFTING);
 }
