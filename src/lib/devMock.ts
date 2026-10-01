@@ -228,7 +228,9 @@ function todaysMockMeetings(): Meeting[] {
   });
   return [
     make(11, 'Proposals review', -2, 30, { attendeeEmails: ['hassan@menabig.test'], attendees: ['Hassan Balaghi'], organizerEmail: 'ahmad@menabig.test' }),
-    make(12, 'Acme — renewal terms', -0.2, 45, { companyName: 'Acme Holdings', companyId: 1, attendeeEmails: ['jane@acme.test'], attendees: ['Jane Doe'], onlineMeetingUrl: 'https://teams.microsoft.com/l/meetup-join/demo' }),
+    make(12, 'Acme — renewal terms', -0.2, 45, { companyName: 'Acme Holdings', companyId: 1, attendeeEmails: ['jane@acme.test'], attendees: ['Jane Doe'], onlineMeetingUrl: 'https://teams.microsoft.com/l/meetup-join/demo', location: 'Microsoft Teams Meeting',
+      agenda: '- Renewal from 1 Feb: term and monthly fee\n- Recruitment for the Riyadh site — status of SL# 2\n- Our late item: the revised quote for three people',
+      decisions: '>> Send the revised quote for three people by Friday\n<< Omar to share the October headcount' }),
     make(13, 'GM Representative', 2, 30, { companyName: 'Northwind', attendeeEmails: ['lina@northwind.test'], attendees: ['Lina Saleh'], isOnlineMeeting: false, location: 'Riyadh office' }),
     // Ended earlier today with nothing written (My Day's write-up prompt), and one tomorrow (Coming up).
     make(14, 'Payroll questions — Acme', -3.5, 30, { companyName: 'Acme Holdings', companyId: 1, attendeeEmails: ['omar@acme.test'], attendees: ['omar@acme.test'] }),

@@ -536,9 +536,9 @@
 <div id="tab-meetings" class="tab">
   <div id="meeting-detail" class="proj-detail record-page">
     <header class="rec-header">
-      <div class="rec-avatar rec-avatar-icon"><span data-icon="meeting" data-icon-size="24"></span></div>
+      <div class="rec-avatar rk-when" id="md-avatar"></div>
       <div class="rec-head-main">
-        <div class="rec-eyebrow">Meeting</div>
+        <div class="rec-eyebrow" id="md-eyebrow">Meeting</div>
         <h1 class="rec-title" id="md-title"></h1>
         <div class="rec-badges" id="md-badges"></div>
       </div>
@@ -550,26 +550,26 @@
         <button class="loc-nav rec-more" onclick="meetingMoreMenu(event)" data-tip="More" aria-label="More"><span data-icon="more" data-icon-size="16"></span></button>
       </div>
     </header>
-    <div class="rec-layout">
+    <div class="ctd-grid rk-grid md-grid">
+    <aside class="rk-side">
+      <!-- The client beside the notes (tabs/meetingContext.ts): where we stand, open promises, who is in the room, last time. -->
+      <div class="md-context" id="md-context" hidden></div>
+      <section class="rk-panel">
+        <div class="rec-section-hd"><h2 class="rk-panel-h">Details</h2><div class="rec-section-actions" id="md-props-act"></div></div>
+        <dl class="rec-props" id="md-props"></dl>
+        <div class="rec-side-extra" id="md-outlook-card" style="display:none"><div id="md-outlook-info"></div></div>
+      </section>
+      <section class="rk-panel md-invite" id="md-invite" hidden></section>
+    </aside>
     <div class="rec-main" id="md-main">
     <!-- The meeting's notes, in the order that suits the moment: prep and
          notes before and during the meeting, the outcome first afterwards
          (meetings.ts renderMeetingNotes). -->
-    <section class="sec rec-section md-notes" id="md-notes"></section>
+    <section class="rec-section md-notes" id="md-notes" aria-label="Meeting notes"></section>
     <section class="sec rec-section" id="md-commitments" hidden></section>
     <section class="sec rec-section md-client" id="md-client"></section>
     <section class="sec rec-section md-people" id="md-people" hidden></section>
     </div>
-    <aside class="rec-side">
-      <!-- The client beside the notes (tabs/meetingContext.ts): where we stand, who is in the room, last time, open promises. -->
-      <div class="md-context" id="md-context" hidden></div>
-      <section class="sec rec-side-card">
-        <div class="rec-section-hd"><h2>Details</h2><div class="rec-section-actions" id="md-props-act"></div></div>
-        <dl class="rec-props" id="md-props"></dl>
-        <div class="rec-side-extra" id="md-outlook-card" style="display:none"><div id="md-outlook-info"></div></div>
-      </section>
-      <section class="sec rec-side-card md-invite" id="md-invite" hidden></section>
-    </aside>
     </div>
   </div>
 

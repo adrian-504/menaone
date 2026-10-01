@@ -198,6 +198,20 @@ function buildDecorations(view: EditorView, resolveWikilink: (t: string) => numb
     }
   }
 
+  // A promise marker reads as a tag: ">>" what we owe, "<<" what the client owes (styled where promises are read).
+  for (const { from, to } of view.visibleRanges) {
+    for (let pos = from; pos <= to;) {
+      const line = view.state.doc.lineAt(pos);
+      const owe = /^(\s*(?:[-*+]\s+(?:\[[ xX]\]\s+)?)?)(>>|<<)/.exec(line.text);
+      if (owe) {
+        // One mark per character: a longer one would be split by the quote marks under it, and say its word twice.
+        const at = line.from + owe[1].length, who = owe[2] === '>>' ? 'is-ours' : 'is-theirs';
+        addMark(at, at + 1, `cm-md-owe ${who} is-start`);
+        addMark(at + 1, at + 2, `cm-md-owe ${who} is-end`);
+      }
+      pos = line.to + 1;
+    }
+  }
   marks.sort((a, b) => a.from - b.from || a.to - b.to);
   for (const { from, to, deco } of marks) builder.add(from, to, deco);
   return builder.finish();

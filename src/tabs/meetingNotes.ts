@@ -27,6 +27,9 @@ const PLACEHOLDER: Record<NoteField, string> = {
   followUp: 'What happens next. >> something we owe, << something the client owes',
 };
 
+/** The headings on the page: Decisions is where promises are written (>> and <<), and says so. Search keeps the short labels. */
+const PAGE_LABEL: Record<SectionKey, string> = { ...SECTION_LABEL, decisions: 'Decisions and promises' };
+
 const editors = new Map<NoteField, EditorView>();
 /** Sections opened with "+ Add" on this visit to this meeting. */
 let opened = new Set<SectionKey>();
@@ -74,21 +77,21 @@ export function renderMeetingNotes(m: Meeting, focus?: SectionKey): void {
   const section = (k: SectionKey) => {
     if (k === 'actions') {
       return `<div class="md-sec" data-sec="actions">
-        <div class="md-sec-hd"><h3>${SECTION_LABEL.actions}</h3><span class="md-sec-count" id="md-actions-count"></span></div>
+        <div class="md-sec-hd"><h3>${PAGE_LABEL.actions}</h3><span class="md-sec-count" id="md-actions-count"></span></div>
         <div id="md-tasks-list" class="md-tasks-list"></div>
         ${actionAddRow(m)}
         ${m.actionItems?.trim() ? `<div class="rec-legacy-text">From before action items were tasks:\n${escHtml(m.actionItems)}</div>` : ''}
       </div>`;
     }
     return `<div class="md-sec" data-sec="${k}">
-      <div class="md-sec-hd"><h3>${SECTION_LABEL[k]}</h3></div>
+      <div class="md-sec-hd"><h3>${PAGE_LABEL[k]}</h3></div>
       <div class="md-editor notes-editor" id="md-ed-${k}"></div>
     </div>`;
   };
 
-  el.innerHTML = `<div class="rec-section-hd"><h2>${title}</h2></div>
-    <div class="md-doc">${shown.map(section).join('')}</div>
-    ${addable.length ? `<div class="md-add-row">${addable.map((k) => `<button class="md-add-sec" onclick="openMeetingSection('${k}')">${icon('plus', 12)} ${SECTION_LABEL[k]}</button>`).join('')}</div>` : ''}
+  el.setAttribute('aria-label', title);
+  el.innerHTML = `<div class="md-doc">${shown.map(section).join('')}</div>
+    ${addable.length ? `<div class="md-add-row">${addable.map((k) => `<button class="md-add-sec" onclick="openMeetingSection('${k}')">${icon('plus', 12)} ${PAGE_LABEL[k]}</button>`).join('')}</div>` : ''}
     ${nextMeetingRow(m)}`;
 
   for (const k of shown) {

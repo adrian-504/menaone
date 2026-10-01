@@ -4234,3 +4234,46 @@ a.btn-primary,a.btn-secondary{text-decoration:none}
   .rk-pm.is-alt em{order:1}
   .rk-tbar{width:80px}
 }
+
+/* Meeting: the time on a navy medallion, numbered notes, promises as tags, the client beside them. */
+.rec-avatar.rk-when{width:76px;height:76px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:var(--tile-3);color:var(--on-tile)}
+.rk-when span{font:600 10px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--coral)}
+.rk-when b{font:600 22px/1 var(--font-display)}
+.rk-avs{display:inline-flex;margin-left:4px}
+.rk-avs .pk-pav{width:24px;height:24px;font-size:9px;margin-left:-6px;box-shadow:0 0 0 2px var(--surface)}
+.rk-avs .pk-pav:first-child{margin-left:0}
+.md-grid.rk-grid{grid-template-columns:minmax(0,1fr) 400px}
+.md-context{gap:12px;margin-bottom:0}
+.md-notes{background:var(--surface);border:1px solid var(--hairline);border-radius:13px;box-shadow:var(--shadow-xs);padding:8px 24px 18px;margin-bottom:22px}
+.md-notes .md-doc{counter-reset:mdsec}
+.md-notes .md-sec{counter-increment:mdsec;padding:16px 0;border-top-color:var(--hairline)}
+.md-notes .md-sec-hd h3{font:600 16px/1.2 var(--font-display);letter-spacing:0;text-transform:none;color:var(--navy)}
+.md-notes .md-sec-hd h3::before{content:counter(mdsec,decimal-leading-zero);margin-right:10px;font:500 11px var(--font-mono);color:var(--coral-text);vertical-align:1px}
+.md-notes .cm-md-owe{font:500 11px var(--font-mono);padding:2px 0}
+.md-notes .cm-md-owe.is-start{padding-left:7px;border-radius:6px 0 0 6px}
+.md-notes .cm-md-owe.is-end::after{padding:2px 7px 2px 0;margin-right:6px;border-radius:0 6px 6px 0;font:500 11px var(--font-mono)}
+.md-notes .cm-md-owe.is-ours,.md-notes .cm-md-owe.is-ours::after{background:var(--red-bg);color:var(--red)}
+.md-notes .cm-md-owe.is-theirs,.md-notes .cm-md-owe.is-theirs::after{background:var(--amber-bg);color:var(--amber)}
+.md-notes .cm-md-owe.is-ours.is-end::after{content:" we owe"}
+.md-notes .cm-md-owe.is-theirs.is-end::after{content:" they owe"}
+.rk-mfigs{display:flex;flex-wrap:wrap;gap:6px 24px;margin:2px 0 10px}
+.rk-mfigs b{display:block;font:600 19px/1.1 var(--font-display);color:var(--navy)}
+.rk-mfigs b.t-green{color:var(--green)}.rk-mfigs b.t-amber{color:var(--amber)}.rk-mfigs b.t-red{color:var(--red)}
+.rk-mfigs span{font-size:var(--type-meta);color:var(--sub)}
+.md-ctx-panel .md-ctx-act{color:var(--blue);font-weight:500;text-decoration-color:transparent}
+.md-ctx-panel .md-ctx-act:hover{text-decoration-color:currentColor}
+.md-ctx-panel .md-ctx-text{font-size:var(--type-secondary);line-height:1.55;color:var(--text)}
+.rk-promise{display:flex;gap:10px;align-items:center;padding:8px 0}
+.rk-promise + .rk-promise{border-top:1px solid var(--hairline)}
+.rk-promise-t{display:block;font-weight:500;color:var(--text);font-size:var(--type-secondary)}
+.rk-promise .rk-row-s{white-space:normal}
+.rk-row-s.t-red{color:var(--red)}.rk-row-s.t-amber{color:var(--amber)}
+.rk-linkbtn{font:inherit;font-size:var(--type-secondary);font-weight:500;background:none;border:none;padding:4px 2px;cursor:pointer;margin-left:auto}
+.rk-linkbtn:hover{text-decoration:underline}
+.rk-linkbtn:active{opacity:.7}
+.rk-person.is-plain{cursor:default}
+.rk-person.is-plain:hover .rk-row-t{color:var(--text)}
+.pk-pav.is-internal{background:var(--tile-1)!important}
+.rk-last{margin-top:10px;padding-top:12px;border-top:1px solid var(--hairline)}
+.rk-last .rec-eyebrow{margin-bottom:4px}
+@media (max-width:1280px){.md-grid.rk-grid{grid-template-columns:minmax(0,1fr)}}
