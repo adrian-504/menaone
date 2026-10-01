@@ -4485,7 +4485,8 @@ a.rk-snote:hover{text-decoration-color:currentColor}
 .task-prog-bar i{display:block;height:100%;width:var(--p);background:var(--green);border-radius:6px}
 .task-prog-note{flex:none;white-space:nowrap;font:500 11.5px var(--font-mono);color:var(--sub)}
 .task-group{margin-bottom:0}
-.task-group-hd{align-items:center;gap:10px;margin:20px 0 4px;padding:0 0 8px;border-bottom:1px solid var(--hairline)}
+/* 1.64: a group's header sits on a faint band the width of the list, so the sections read apart without boxes. */
+.task-group-hd{align-items:center;gap:10px;min-height:32px;margin:20px 0 4px;padding:0 12px;border-bottom:none;border-radius:6px;background:var(--panel-bg)}
 .task-group-hd i{flex:none;width:8px;height:8px;border-radius:50%;background:var(--c)}
 .task-group-hd b{font:600 15px/1.2 var(--font-display);color:var(--navy)}
 .task-group-hint{font:500 11.5px var(--font-mono);color:var(--muted)}
