@@ -109,6 +109,26 @@ pub struct Proposal {
     /// The day the service started (migration 44). None = not started yet.
     #[serde(default)]
     pub service_started_at: Option<String>,
+    /// Who sent it to the client (migration 45). None reads as the owner.
+    #[serde(default)]
+    pub sent_by_id: Option<i64>,
+    /// The day the client said yes, before any signature (migration 45).
+    #[serde(default)]
+    pub accepted_at: Option<String>,
+    /// The day the engagement letter went out (migration 45).
+    #[serde(default)]
+    pub engagement_letter_sent_at: Option<String>,
+    /// The day it was lost — back-datable (migration 45). The reason stays in `win_loss_reason`.
+    #[serde(default)]
+    pub lost_at: Option<String>,
+    /// Who it was lost to, when known (migration 45).
+    #[serde(default)]
+    pub lost_to: Option<String>,
+    /// Follow-up's "Keep with a reason": why, and the day it may be asked about again (migration 45).
+    #[serde(default)]
+    pub keep_reason: Option<String>,
+    #[serde(default)]
+    pub keep_until: Option<String>,
     #[serde(default)]
     pub revisions: Vec<ProposalRevision>,
 }

@@ -797,9 +797,18 @@ export async function installDevMockIfNeeded(): Promise<void> {
           const t = (_payload as any)?.touch;
           const direction: Touch['direction'] = t.kind === 'email_in' ? 'in' : t.kind === 'email_out' || t.kind === 'meeting' ? 'out' : t.direction === 'in' ? 'in' : 'out';
           const companyId = t.companyId ?? SAMPLE.proposals.find((p) => p.id === t.proposalId)?.companyId ?? null;
-          const row: Touch = { id: ++nextTouchId, companyId, proposalId: t.proposalId ?? null, kind: t.kind, direction, at: t.at, subject: t.subject ?? null, contactId: t.contactId ?? null, source: 'manual', sourceId: null, createdAt: new Date().toISOString() };
+          const row: Touch = { id: ++nextTouchId, companyId, proposalId: t.proposalId ?? null, kind: t.kind, direction, at: t.at, subject: t.subject ?? null, contactId: t.contactId ?? null, source: 'manual', sourceId: null, createdAt: new Date().toISOString(),
+            byMemberId: t.byMemberId ?? null, note: (t.note || '').trim() || null, batchId: t.batchId ?? null, revertAfter: direction === 'in' ? t.revertAfter || null : null };
           touchesStore.push(row);
           return row;
+        }
+        case 'touches_update': {
+          const { id, change: c } = _payload as any;
+          const row = touchesStore.find((t) => t.id === id && t.source === 'manual');
+          if (!row) throw new Error('That entry is no longer there.');
+          const direction: Touch['direction'] = c.kind === 'email_in' ? 'in' : c.kind === 'email_out' || c.kind === 'meeting' ? 'out' : c.direction === 'in' ? 'in' : 'out';
+          Object.assign(row, { kind: c.kind, direction, at: c.at, byMemberId: c.byMemberId ?? null, note: (c.note || '').trim() || null, revertAfter: direction === 'in' ? c.revertAfter || null : null });
+          return { ...row };
         }
         case 'activity_forget': return 0;
         case 'rebuild_search_index': return null;

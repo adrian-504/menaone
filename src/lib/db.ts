@@ -48,9 +48,12 @@ export async function commitmentsAdd(items: NewCommitment[]): Promise<{ commitme
 export async function upsertCommitments(items: Commitment[]): Promise<RecordCompanyLink[]> { return (await invoke<RecordCompanyLink[] | null>('upsert_commitments', { items })) ?? []; }
 export async function deleteCommitments(ids: number[]): Promise<void> { await invoke('delete_commitments', { ids }); }
 // Follow-up touches (touches.rs): logged one at a time, read all at start-up.
-export interface NewTouch { companyId?: number | null; proposalId?: number | null; kind: TouchKind; direction?: 'out' | 'in'; at: string; subject?: string | null; contactId?: number | null }
+export interface NewTouch { companyId?: number | null; proposalId?: number | null; kind: TouchKind; direction?: 'out' | 'in'; at: string; subject?: string | null; contactId?: number | null; byMemberId?: number | null; note?: string | null; batchId?: string | null; revertAfter?: string | null }
+/** What can be changed on an entry afterwards (touches.rs `TouchChange`). */
+export interface TouchChange { kind: TouchKind; direction?: 'out' | 'in'; at: string; byMemberId?: number | null; note?: string | null; revertAfter?: string | null }
 export async function getTouches(): Promise<Touch[]> { return invoke<Touch[]>('get_touches'); }
 export async function touchesAdd(touch: NewTouch): Promise<Touch> { return invoke<Touch>('touches_add', { touch }); }
+export async function touchesUpdate(id: number, change: TouchChange): Promise<Touch> { return invoke<Touch>('touches_update', { id, change }); }
 export async function touchesDelete(id: number): Promise<void> { await invoke('touches_delete', { id }); }
 /** Undo: the timeline rows written for one record since `since` (UTC ISO) go. */
 export async function activityForget(entityType: string, entityId: number, since: string): Promise<number> { return invoke<number>('activity_forget', { entityType, entityId, since }); }
