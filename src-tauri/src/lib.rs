@@ -29,6 +29,7 @@ pub mod proposal_library;
 pub mod smartfill;
 pub mod pricing;
 pub mod revisions;
+pub mod sendcheck;
 pub mod touches;
 pub mod feefill;
 pub mod master;
@@ -300,6 +301,7 @@ pub fn run() {
             commitments::commitments_add,
             commitments::upsert_commitments,
             commitments::delete_commitments,
+            sendcheck::proposal_send_check,
             localfiles::files_fingerprints,
             touches::get_touches,
             touches::touches_add,

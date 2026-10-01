@@ -18,7 +18,8 @@ import { registerDragSource, registerDropTarget } from '../lib/dnd';
 import { arrive, settleNew, shake } from '../lib/motion';
 import { statusBadge } from '../lib/statusTone';
 import { blockSummary, blocksToSave, emptyBlock, proposalsFromBlocks, type ProposalBlock, type SharedProposalFields } from '../lib/proposalBlocks';
-import { markSentVersion, proposalDeckRows, sentDayFor, type Fingerprints } from '../lib/proposalDocuments';
+import { draftDeck, markSentVersion, proposalDeckRows, sendCheckHtml, sentDayFor, type Fingerprints } from '../lib/proposalDocuments';
+import type { SendCheck } from '../lib/sendCheck';
 import { deckVersion, matchDecks } from '../lib/deckMatch';
 import { generateIsFeatured, proposalNextStep } from '../lib/proposalSteps';
 import { latestRevision, lineWasNote, parseSnapshot, removedServices, revisionFact, revisionOf } from '../lib/revisions';
@@ -34,7 +35,7 @@ import { companyLink, recordLink } from '../lib/links';
 import { emptyState, toast, undoToast } from '../lib/ui';
 import { persistProposals, persistContacts } from '../lib/persist';
 import { notifyNavigated, refreshAll, refreshCompanyViewIfOpen } from '../lib/registry';
-import { saveOpportunity, filesOpen, filesRevealInFinder, filesStatPaths, filesFingerprints, proposalFolderLookup, proposalFolderCreate } from '../lib/db';
+import { saveOpportunity, filesOpen, filesRevealInFinder, filesStatPaths, filesFingerprints, proposalSendCheck, proposalFolderLookup, proposalFolderCreate } from '../lib/db';
 import { attachCompanySelector } from '../lib/companySelector';
 import { breadcrumb, cardLine } from '../lib/studio';
 import { initialsOf } from '../lib/appearance';
@@ -770,7 +771,7 @@ async function renderDocuments(p: Proposal): Promise<void> {
 
 /** Which decks' files are still in place, and the fingerprints of the ones MENA One wrote, per proposal (read once
  * per set of paths, and again when the window comes back from PowerPoint). */
-let deckFiles: { key: string; status: Map<string, boolean>; prints: Fingerprints } | null = null;
+let deckFiles: { key: string; status: Map<string, boolean>; prints: Fingerprints; /** The check before sending, per file read; null while it is being read. */ checks: Map<string, SendCheck | null> } | null = null;
 let deckFilesReadAt = 0;
 window.addEventListener('focus', () => {
   const p = currentProposal();
@@ -797,9 +798,25 @@ function renderDeckHistory(p: Proposal): void {
   const key = `${p.id}:${paths.join('|')}`;
   const fresh = deckFiles?.key !== key;
   // On a re-read the last answers stay on screen until the new ones are in.
-  const state = fresh ? { key, status: new Map(deckFiles?.status), prints: new Map(deckFiles?.prints) as Fingerprints } : deckFiles!;
-  const draw = () => { el.innerHTML = proposalDeckRows(p, state.status, state.prints); renderIcons(el); };
+  const state = fresh ? { key, status: new Map(deckFiles?.status), prints: new Map(deckFiles?.prints) as Fingerprints, checks: new Map(deckFiles?.checks) } : deckFiles!;
+  // The check before sending sits beside the latest version while the client does not have it. It reads the file
+  // once per visit (and again when the window comes back, or on "Check again"), and changes nothing.
+  const draft = draftDeck(p);
+  const toCheck = draft?.path && state.status.get(draft.path) !== false ? draft : null;
+  const draw = () => {
+    const panel = toCheck ? { afterId: toCheck.id, html: sendCheckHtml(toCheck, state.checks.get(toCheck.path!) ?? null, { narrow: decks.length > 1 }) } : null;
+    el.innerHTML = proposalDeckRows(p, state.status, state.prints, panel);
+    renderIcons(el);
+  };
   draw();
+  if (toCheck && (fresh || !state.checks.has(toCheck.path!))) {
+    const path = toCheck.path!;
+    if (!state.checks.has(path)) state.checks.set(path, null);
+    void proposalSendCheck(path)
+      .then((c) => state.checks.set(path, c))
+      .catch((e) => state.checks.set(path, { fileName: toCheck.fileName, checked: false, note: `Not checked: ${String(e)}`, lines: [], slideCount: 0 }))
+      .then(() => { if (S.currentProposalId === p.id && deckFiles === state) draw(); });
+  }
   if (!fresh) return;
   deckFiles = state;
   deckFilesReadAt = Date.now();
@@ -826,6 +843,34 @@ export function proposalMarkSentVersion(id: number): void {
   commit(p);
 }
 expose('proposalMarkSentVersion', proposalMarkSentVersion);
+
+/** "Check again" on the check before sending: the file is read afresh. */
+export function proposalRecheck(): void {
+  const p = currentProposal();
+  if (!p) return;
+  deckFiles = null;
+  renderDeckHistory(p);
+}
+expose('proposalRecheck', proposalRecheck);
+
+/** "Mark as sent" beside the check: the proposal is marked as sent (one click, as everywhere: today, by its owner,
+ * with Undo and "Change day or sender") and this version as the one the client has. On a proposal the client
+ * already has, a later version went today. The check never stands in the way. */
+export async function proposalSendVersion(id: number): Promise<void> {
+  const p = currentProposal();
+  const d = (p?.documents || []).find((x) => x.id === id);
+  if (!p || !d) return;
+  if (stageIndex(p.status) < stageIndex(PS.SENT)) {
+    if (await changeProposalStatus(p.id, PS.SENT, { sentDocId: id })) renderProposalPage();
+    return;
+  }
+  const restore = snapshotProposal(p);
+  markSentVersion(p, id, today());
+  if (p.status === PS.SENT) p.lastSentAt = today();
+  commit(p);
+  undoToast(`${p.client}: V${d.version ?? '?'} sent today`, restore);
+}
+expose('proposalSendVersion', proposalSendVersion);
 
 export function generateCurrentProposal(): void {
   if (S.currentProposalId != null) void (window as any).openGenerateProposal?.(S.currentProposalId);

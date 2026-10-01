@@ -8,6 +8,7 @@ import { miniCoverHtml } from './studio';
 import { icon } from './icons';
 import { proposalDecks } from './commercial';
 import type { Proposal, ProposalDocument } from './types';
+import { CHECK_GLYPH, CHECK_TONE, checkSummary, type SendCheck } from './sendCheck';
 
 /** Whether each deck's file is still at its path: true, false, or unknown (not checked yet / outside OneDrive). */
 export type FileStatus = Map<string, boolean>;
@@ -42,8 +43,6 @@ export function orderedDecks(p: Pick<Proposal, 'documents'>): ProposalDocument[]
   return sent ? [sent, ...decks.filter((d) => d.id !== sent.id)] : decks;
 }
 
-/** The deck the check before sending reads: the one marked as sent, else the latest. */
-export const leadDeck = (p: Pick<Proposal, 'documents'>): ProposalDocument | null => orderedDecks(p)[0] ?? null;
 
 /** The day a version went to the client, when it is marked now: the proposal's latest send if the version was there
  * by then, else today (a version made after the send went later). */
@@ -108,7 +107,7 @@ export function deckStatusLine(d: ProposalDocument, held: ProposalDocument | nul
 
 /** The "Proposal documents" section (studio slice): each version a card with the brand mini-cover. The version sent
  * to the client leads; the rest follow newest first. */
-export function proposalDeckRows(p: Pick<Proposal, 'documents'> & Partial<Pick<Proposal, 'client' | 'status' | 'dateSentToClient' | 'lastSentAt' | 'sentDate'>>, files: FileStatus, prints: Fingerprints = new Map()): string {
+export function proposalDeckRows(p: Pick<Proposal, 'documents'> & Partial<Pick<Proposal, 'client' | 'status' | 'dateSentToClient' | 'lastSentAt' | 'sentDate'>>, files: FileStatus, prints: Fingerprints = new Map(), panel: { afterId: number; html: string } | null = null): string {
   const decks = orderedDecks(p);
   const sent = sentDeck(p);
   const held = heldDeck(p);
@@ -139,6 +138,25 @@ export function proposalDeckRows(p: Pick<Proposal, 'documents'> & Partial<Pick<P
         <button class="rec-icon-btn" onclick="event.stopPropagation();proposalMarkSentVersion(${d.id})" data-tip="${isSent ? 'Not the one sent to the client' : 'This is the one sent to the client'}" aria-label="${isSent ? 'Unmark' : 'Mark'} ${escHtml(d.fileName)} as sent to the client" aria-pressed="${isSent}">${icon('mail', 13)}</button>
         <button class="rec-icon-btn" onclick="event.stopPropagation();proposalRemoveDocument(${d.id})" data-tip="Remove from this proposal (the file stays)" aria-label="Remove ${escHtml(d.fileName)} from this proposal">${icon('close', 13)}</button>
       </div>
-    </div>`;
+    </div>${panel?.afterId === d.id ? panel.html : ''}`;
   }).join('');
+}
+
+/** The deck the check before sending reads: the latest version while the client does not have it yet (a draft).
+ * Null once the latest is the one that went, or when there is no deck. */
+export function draftDeck(p: Pick<Proposal, 'documents'> & SentFacts): ProposalDocument | null {
+  const latest = proposalDecks(p)[0] ?? null;
+  const held = heldDeck(p);
+  return latest && (!held || (latest.version ?? 0) > (held.version ?? 0)) ? latest : null;
+}
+
+/** The check before sending, beside the version it read: its five lines, and "Mark as sent" (which also marks this
+ * version as the one the client has). It warns and never blocks. `check` null: still reading. `narrow`: one card
+ * wide, when other versions share the row, so the section stays one row tall. */
+export function sendCheckHtml(d: Pick<ProposalDocument, 'id' | 'version' | 'fileName'>, check: SendCheck | null, o: { canSend?: boolean; narrow?: boolean } = {}): string {
+  const head = `<div class="deck-check-hd"><b>Before sending</b><span>V${d.version ?? '?'}</span>${check ? `<em class="t-${checkSummary(check).tone}">${escHtml(checkSummary(check).text)}</em>` : '<em>Reading the file…</em>'}</div>`;
+  const lines = !check ? '' : !check.checked ? `<p class="deck-check-note">${escHtml(check.note)}</p>`
+    : `<ul class="deck-check-list">${check.lines.map((l) => `<li class="t-${CHECK_TONE[l.status]}"><i aria-hidden="true">${CHECK_GLYPH[l.status]}</i><span><b>${escHtml(l.label)}</b>${l.detail ? `<small>${escHtml(l.detail)}</small>` : ''}</span></li>`).join('')}</ul>`;
+  const send = o.canSend !== false ? `<button class="btn-secondary btn-sm" onclick="proposalSendVersion(${d.id})" data-tip="Marks the proposal as sent and this version as the one the client has">Mark as sent</button>` : '';
+  return `<div class="deck-check${o.narrow ? ' is-narrow' : ''}" data-check-for="${d.id}">${head}${lines}<div class="deck-check-ft"><button class="rlink" onclick="proposalRecheck()">Check again</button>${send}</div></div>`;
 }

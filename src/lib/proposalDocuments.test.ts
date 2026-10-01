@@ -4,7 +4,7 @@
 // flagged, and the proposal keeps its client folder.
 import { describe, it, expect } from 'vitest';
 import { applyGeneratedDocument, nextDeckFileName } from './commercial';
-import { proposalDeckRows, deckMarks, deckStatus, deckStatusLine, editedSince, heldDeck, leadDeck, markSentVersion, orderedDecks, revisionReport, sentDayFor, sentDeck } from './proposalDocuments';
+import { proposalDeckRows, deckMarks, deckStatus, deckStatusLine, draftDeck, editedSince, heldDeck, markSentVersion, orderedDecks, revisionReport, sendCheckHtml, sentDayFor, sentDeck } from './proposalDocuments';
 import type { Proposal, ProposalDocument } from './types';
 
 const deck = (id: number, version: number, fileName: string, notes = 'Generated from Standard deck'): ProposalDocument =>
@@ -72,11 +72,10 @@ describe('the sent file is the record (1.66)', () => {
     const p = { documents: [v(1, 1), v(2, 2, { sentToClientAt: '2026-10-02' }), v(3, 3)] };
     expect(orderedDecks(p).map((d) => d.version)).toEqual([2, 3, 1]);
     expect(sentDeck(p)?.version).toBe(2);
-    expect(leadDeck(p)?.version).toBe(2);
-    // Nothing marked: newest first, and the check reads the latest.
+    // Nothing marked: newest first.
     const none = { documents: [v(1, 1), v(3, 3), v(2, 2)] };
     expect(orderedDecks(none).map((d) => d.version)).toEqual([3, 2, 1]);
-    expect([sentDeck(none), leadDeck(none)?.version]).toEqual([null, 3]);
+    expect(sentDeck(none)).toBeNull();
     const html = proposalDeckRows({ ...p, client: 'Contoso', status: 'Sent to Client', dateSentToClient: '2026-10-02' }, new Map());
     expect(versions(html)).toEqual(['V2', 'V3', 'V1']);
     // The mark says which one the client has; "Latest" stays on the newest; no other card says sent.
@@ -131,5 +130,42 @@ describe('the sent file is the record (1.66)', () => {
     expect(sentDayFor({ dateSentToClient: '2026-09-02', lastSentAt: '2026-09-20' }, { createdAt: '2026-09-15' }, '2026-10-01')).toBe('2026-09-20');
     expect(sentDayFor({ dateSentToClient: '2026-09-02' }, { createdAt: '2026-09-28' }, '2026-10-01')).toBe('2026-10-01');
     expect(sentDayFor({}, { createdAt: '2026-09-28' }, '2026-10-01')).toBe('2026-10-01');
+  });
+
+  it('the check reads the latest version while the client does not have it', () => {
+    // Nothing sent: the latest draft.
+    expect(draftDeck({ status: 'In Internal Review', documents: [v(1, 1), v(2, 2)] })?.version).toBe(2);
+    // The latest is the one that went: nothing to check.
+    expect(draftDeck({ status: 'Sent to Client', dateSentToClient: '2026-10-02', documents: [v(1, 1), v(2, 2)] })).toBeNull();
+    expect(draftDeck({ documents: [v(1, 1, { sentToClientAt: '2026-10-02' })] })).toBeNull();
+    // A version made after the one the client has: that draft.
+    expect(draftDeck({ documents: [v(1, 1, { sentToClientAt: '2026-09-02' }), v(2, 2)] })?.version).toBe(2);
+    expect(draftDeck({ documents: [] })).toBeNull();
+    // The panel sits right after the card it read.
+    const html = proposalDeckRows({ documents: [v(1, 1, { sentToClientAt: '2026-09-02' }), v(2, 2)] }, new Map(), new Map(), { afterId: 2, html: '<div class="deck-check"></div>' });
+    expect(html.indexOf('deck-check')).toBeGreaterThan(html.indexOf('data-doc-id="2"'));
+    expect(html.match(/deck-check/g)).toHaveLength(1);
+  });
+
+  it('the check sits beside the version it read: five lines, a summary, and Mark as sent', () => {
+    const lines = [
+      { key: 'highlights', label: 'Highlights left', status: 'fail' as const, detail: 'Text still highlighted on slide 5', slides: [5] },
+      { key: 'marks', label: 'Red text: check these', status: 'check' as const, detail: 'Text in red on slide 6', slides: [6] },
+      { key: 'placeholders', label: 'No placeholder text', status: 'pass' as const, detail: '', slides: [] },
+      { key: 'dates', label: 'Cover and letter dates match', status: 'pass' as const, detail: '1 October 2026', slides: [1, 2] },
+      { key: 'agenda', label: 'Agenda: not found, not checked', status: 'not_checked' as const, detail: 'No agenda slide', slides: [] },
+    ];
+    const el = document.createElement('div');
+    el.innerHTML = sendCheckHtml(v(2, 2), { fileName: 'Deck_V2.pptx', checked: true, note: '', slideCount: 12, lines }, { canSend: true });
+    expect(el.querySelector('.deck-check-hd')!.textContent).toBe('Before sendingV21 to fix · 1 to check · 1 not checked');
+    expect([...el.querySelectorAll('.deck-check-list li')].map((li) => li.className)).toEqual(['t-red', 't-amber', 't-green', 't-green', 't-grey']);
+    expect(el.querySelector('.deck-check-list li small')!.textContent).toBe('Text still highlighted on slide 5');
+    // It warns and never blocks: Mark as sent is there whatever the list says.
+    expect(el.querySelector('.deck-check-ft .btn-secondary')!.getAttribute('onclick')).toBe('proposalSendVersion(2)');
+    el.innerHTML = sendCheckHtml(v(2, 2), { fileName: 'Deck.pdf', checked: false, note: 'Not a PowerPoint file, not checked', slideCount: 0, lines: [] }, { canSend: false });
+    expect(el.querySelector('.deck-check-note')!.textContent).toBe('Not a PowerPoint file, not checked');
+    expect(el.querySelector('.deck-check-ft .btn-secondary')).toBeNull();
+    el.innerHTML = sendCheckHtml(v(2, 2), null, { canSend: true });
+    expect(el.querySelector('.deck-check-hd em')!.textContent).toBe('Reading the file…');
   });
 });

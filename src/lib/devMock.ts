@@ -936,6 +936,20 @@ export async function installDevMockIfNeeded(): Promise<void> {
           }
           return null;
         }
+        // The check before sending: the Acme draft still has things to fix; any other sample deck is clean.
+        case 'proposal_send_check': {
+          const path = String((_payload as any)?.path || '');
+          const fileName = path.split('/').pop() || path;
+          if (!/\.pptx$/i.test(fileName)) return { fileName, checked: false, note: 'Not a PowerPoint file, not checked', lines: [], slideCount: 0 };
+          const rough = /Acme_Recruitment/.test(fileName);
+          return { fileName, checked: true, note: '', slideCount: 14, lines: [
+            rough ? { key: 'highlights', label: 'Highlights left', status: 'fail', detail: 'Text still highlighted on slides 9 and 10', slides: [9, 10] } : { key: 'highlights', label: 'No highlights left', status: 'pass', detail: '', slides: [] },
+            rough ? { key: 'marks', label: 'Red text: check these', status: 'check', detail: 'Text in red on slide 6', slides: [6] } : { key: 'marks', label: 'No review marks', status: 'pass', detail: '', slides: [] },
+            { key: 'placeholders', label: 'No placeholder text', status: 'pass', detail: '', slides: [] },
+            { key: 'dates', label: 'Cover and letter dates match', status: 'pass', detail: rough ? '12 September 2026' : '28 September 2026', slides: [1, 2] },
+            rough ? { key: 'agenda', label: 'Agenda: not found, not checked', status: 'not_checked', detail: 'No agenda slide with a page number for each section', slides: [] } : { key: 'agenda', label: 'Agenda page numbers match', status: 'pass', detail: '', slides: [] },
+          ] };
+        }
         // A file's fingerprint in the preview is its path: a sample deck "edited by hand" simply recorded another one.
         case 'files_fingerprints':
           return (((_payload as any)?.paths ?? []) as string[]).map((path) => ({ path, exists: true, sha256: `mock:${path}` }));
