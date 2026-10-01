@@ -18,6 +18,7 @@ import { activityForget, activityLog, activityRemove } from '../lib/db';
 import { showMenuAt, type ContextMenuItem } from '../lib/contextMenu';
 import type { Proposal, TouchKind } from '../lib/types';
 import { logEntry, withSentWith } from './followLog';
+import { buildRequest, requestKey, sentWith, type RequestBucket } from '../lib/followRequests';
 
 // ═══════════════ PERSISTENCE / LOAD ═══════════════
 
@@ -86,11 +87,17 @@ export function followUpMenu(e: MouseEvent, target: number | number[]): void {
 }
 expose('followUpMenu', followUpMenu);
 
-/** Sent to the client, and nothing with them for over 10 days. */
+/** Where a sent proposal's request sits on Follow-up (lib/followRequests.ts): to decide, due a follow-up, or
+ * waiting. Null when it is not with the client. One rule for the page, the badge, the proposal's header and lists. */
+export function followBucketOf(p: Proposal): RequestBucket | null {
+  if (p.archived || p.status !== PS.SENT) return null;
+  return buildRequest([p, ...sentWith(p, S.proposals)], { today: today(), emails: S.emails, meetings: S.meetings, ownDomains: ownDomains(), touches: S.touches, contactName: contactFirstName }).bucket;
+}
+
+/** Due a follow-up: over ten days since the last contact, and the last word was ours. Not while the client's reply
+ * stands, they said they will revert, a meeting is booked, or the request is up for a decision. */
 export function needsFollowUp(p: Proposal): boolean {
-  if (p.archived || p.status !== PS.SENT) return false;
-  const t = proposalLastTouch(p);
-  return !!t && t.days > FOLLOW_UP_AFTER_DAYS;
+  return followBucketOf(p) === 'due';
 }
 
 /** Sent proposals put aside until a date — including ones just logged, whose
@@ -113,7 +120,10 @@ export function updateBadge(): void {
   const fu = getFollowups();
   const el = document.getElementById('fu-badge');
   const al = document.getElementById('fu-alert');
-  if (el) { el.textContent = String(fu.length); el.style.display = fu.length > 0 ? '' : 'none'; }
+  // The sidebar counts what Follow-up asks for: the requests due a follow-up and the ones to decide (a request of
+  // three proposals is one).
+  const asking = new Set(S.proposals.filter((p) => !isSnoozed(p) && matchesProposalPeriod(p) && ['due', 'decide'].includes(followBucketOf(p) ?? '')).map(requestKey)).size;
+  if (el) { el.textContent = String(asking); el.style.display = asking > 0 ? '' : 'none'; }
   if (al) {
     if (fu.length > 0) {
       al.style.display = '';

@@ -80,6 +80,10 @@ const VIEWS = [
   ['Palette with a query', "switchTab('myday'), openCommandPalette(), onPaletteInput('acme'), new Promise(r => setTimeout(r, 500))", { inputs: 1 }],
   ['Context menu', "switchTab('todo'), setTodoFilter('anytime'), todoContextMenu(new MouseEvent('contextmenu', { clientX: 700, clientY: 400, bubbles: true }), 1)", {}],
   ['Undo toast', "switchTab('todo'), setTodoFilter('anytime'), moveOverdueToToday()", {}],
+  // Following up (1.65): a request opened to show its proposals, requests ticked with the bar, the optional details.
+  ['Follow-up → a request opened', "switchTab('followup'), fuToggle(10)", {}],
+  ['Follow-up → two ticked', "switchTab('followup'), [...document.querySelectorAll('#fu-list .fr-row .pk-chk input')].slice(0, 2).forEach((b) => b.click())", {}],
+  ['Follow-up → entry details', "switchTab('followup'), openEntryDialog([10])", { inputs: 6 }],
   // Identity: Agreements is hidden in the sidebar by default; while it's open its item shows, highlighted.
   ['Sidebar → hidden module active', "navToModule('agreements')", { activeShown: true }],
   // Studio: the Generate sheet over a proposal (counted inside the sheet), and the builder's

@@ -19,6 +19,9 @@ const CLOCK = '2026-10-01T14:05:00';
 const SHOTS = [
   ['pending', CLOCK, "navToModule('pending')"],
   ['followup', CLOCK, "navToModule('followup')"],
+  ['followup-open', CLOCK, "navToModule('followup'), new Promise(r => setTimeout(r, 300)).then(() => fuToggle(10))"],
+  ['followup-ticked', CLOCK, "navToModule('followup'), new Promise(r => setTimeout(r, 300)).then(() => [...document.querySelectorAll('#fu-list .fr-row .pk-chk input')].slice(1, 3).forEach((b) => b.click()))"],
+  ['followup-details', CLOCK, "navToModule('followup'), new Promise(r => setTimeout(r, 300)).then(() => { openEntryDialog([10]); entryDirection('in'); })"],
   ['proposals', CLOCK, "navToModule('database')"],
   ['opportunities', CLOCK, "navToModule('opportunities')"],
   ['companies', CLOCK, "navToModule('companies'), setCoListView('list')"],
