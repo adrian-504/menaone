@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { proposalNextStep } from './proposalSteps';
+import { generateIsFeatured, proposalNextStep } from './proposalSteps';
 import type { Proposal, ProposalRevision } from './types';
 
 const rev = (over: Partial<ProposalRevision> = {}) => ({ id: 1, number: 2, requestedAt: '2026-09-20', sentAt: null, reason: 'Price on three people', ...over }) as ProposalRevision;
@@ -45,5 +45,15 @@ describe('the proposal header step', () => {
     expect(proposalNextStep(p('Signed by Both Parties'), []).primary).toEqual({ label: 'Mark service started', run: 'proposalMarkServiceStarted()' });
     expect(labels(proposalNextStep(p('Signed by Both Parties', { serviceStartedAt: '2026-10-12' }), agreements))).toEqual([null, 'Open agreement']);
     expect(labels(proposalNextStep(p('Signed by Both Parties', { serviceStartedAt: '2026-10-12' }), []))).toEqual([null, null]);
+  });
+});
+
+describe('Generate proposal as the featured action (1.64)', () => {
+  it('is featured while requested or drafting with no deck, and only then', () => {
+    expect(generateIsFeatured(p('Proposal Request Received'), false)).toBe(true);
+    expect(generateIsFeatured(p('Drafting'), false)).toBe(true);
+    expect(generateIsFeatured(p('Drafting'), true)).toBe(false);
+    expect(generateIsFeatured(p('In Internal Review'), false)).toBe(false);
+    expect(generateIsFeatured(p('Sent to Client'), false)).toBe(false);
   });
 });
