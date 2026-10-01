@@ -139,16 +139,19 @@ export function renewalFor(a: RenewalInput, today: string): Renewal | null {
   const cards: RenewalCard[] = [
     { key: 'renew', title: 'Renew as is', body: `${term}${monthly ? `, ${fmtMoney(monthly, currencyOf(a as Agreement))} a month` : ''}. Drafts the renewal agreement.`, chosen: a.renewalDecision === 'renew' },
     { key: 'changes', title: 'Renew with changes', body: 'Opens a proposal from this agreement’s lines.', chosen: a.renewalDecision === 'changes' },
-    { key: 'end', title: 'Let it end', body: `Records the decision; My Day reminds you on ${fmtDateShort(end, true)} to mark the service ended.`, chosen: a.renewalDecision === 'end' },
+    // Past its term there is no day left to be reminded on: the choice is to end it now.
+    end < today
+      ? { key: 'end', title: 'End it', body: 'Records the service as ended.', chosen: a.renewalDecision === 'end' }
+      : { key: 'end', title: 'Let it end', body: `Records the decision; My Day reminds you on ${fmtDateShort(end, true)} to mark the service ended.`, chosen: a.renewalDecision === 'end' },
   ];
   return { deadline, tone: decided ? null : left < 0 ? 'red' : left <= 30 ? 'amber' : null, cards, decided };
 }
 
 /** What a decided renewal says in a chip: on the page, in the Agreements list and on My Day. Null while undecided. Pure. */
-export function decisionChip(a: Pick<Agreement, 'renewalDecision' | 'endDate'>): { text: string; tone: 'green' | 'blue' | 'grey' } | null {
+export function decisionChip(a: Pick<Agreement, 'renewalDecision' | 'endDate'>, today?: string): { text: string; tone: 'green' | 'blue' | 'grey' } | null {
   if (a.renewalDecision === 'renew') return { text: 'Renewal drafted', tone: 'green' };
   if (a.renewalDecision === 'changes') return { text: 'Renewing with changes', tone: 'blue' };
-  if (a.renewalDecision === 'end') return { text: `Ending ${a.endDate ? fmtDateShort(a.endDate, true) : 'at term'}`, tone: 'grey' };
+  if (a.renewalDecision === 'end') return { text: `${today && a.endDate && a.endDate.slice(0, 10) < today ? 'Ended' : 'Ending'} ${a.endDate ? fmtDateShort(a.endDate, true) : 'at term'}`, tone: 'grey' };
   return null;
 }
 

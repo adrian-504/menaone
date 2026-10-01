@@ -144,10 +144,13 @@ export function showTextPrompt(opts: { title: string; label?: string; defaultVal
 
 /** One date, asked in the same dialog: pre-filled, back-datable, with the button saying what it does. Resolves to the
  * date (YYYY-MM-DD) or null when cancelled or cleared. */
-export function showDatePrompt(opts: { title: string; label?: string; defaultValue?: string; confirmLabel?: string }): Promise<string | null> {
+export function showDatePrompt(opts: { title: string; label?: string; defaultValue?: string; confirmLabel?: string; note?: string | null }): Promise<string | null> {
   const input = document.getElementById('text-prompt-input') as HTMLInputElement;
   const ok = document.getElementById('text-prompt-ok');
   input.type = 'date';
+  // One amber line under the date, for what the question does not stop to ask.
+  const note = document.getElementById('text-prompt-note');
+  if (note) { note.textContent = opts.note || ''; note.hidden = !opts.note; }
   if (ok) ok.textContent = opts.confirmLabel || 'OK';
   return showTextPrompt({ title: opts.title, label: opts.label, defaultValue: opts.defaultValue }).then((v) => (v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null));
 }
@@ -158,6 +161,7 @@ export function resolveTextPrompt(value: string | null): void {
   const input = document.getElementById('text-prompt-input') as HTMLInputElement | null;
   if (input) input.type = 'text';
   const ok = document.getElementById('text-prompt-ok'); if (ok) ok.textContent = 'OK';
+  const note = document.getElementById('text-prompt-note'); if (note) { note.textContent = ''; note.hidden = true; }
   const resolve = textPromptResolve;
   textPromptResolve = null;
   resolve?.(value === null ? null : value.trim());

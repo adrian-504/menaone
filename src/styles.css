@@ -46,7 +46,7 @@ body{font-family:var(--font-text);font-variant-numeric:tabular-nums;background:v
      one hover tint for rows and flat buttons. */
   --hairline:#E1E3E5;
   --surface-flat:#F0F1F2; /* a pressed secondary button; panels use --panel-bg (they follow the shell tint) */
-  --hover:rgba(1,75,140,.05);
+  --hover:rgba(1,75,140,.05);--hover-solid:color-mix(in srgb,#014B8C 5%,#FFFFFF);
   /* Interaction states, one set for every control and row (docs/ux-conventions.md, "Craft"). */
   --surface-hover:var(--hover);--surface-pressed:rgba(1,75,140,.10);--surface-selected:var(--accent-bg);
   --accent-hover:#072F52;--accent-pressed:#072F52;
@@ -147,7 +147,7 @@ body{font-family:var(--font-text);font-variant-numeric:tabular-nums;background:v
   --blue:#6FA3DD;--blue-hover:#8DB8E8;--navy:#DCE7F3;--blue-50:#1C2633;--blue-100:#243447;--blue-500:#6FA3DD;
   --coral:#F07058;--coral-text:#F58C78;
   --tile-1:#2F6FAE;--tile-2:#3F86C6;--tile-3:#34506E;--tile-4:#D8604A;--tile-5:#2E8A5C;--tile-6:#5E6266;
-  --hairline:#2C3036;--surface-flat:#222529;--hover:rgba(255,255,255,.05);
+  --hairline:#2C3036;--surface-flat:#222529;--hover:rgba(255,255,255,.05);--hover-solid:color-mix(in srgb,#FFFFFF 5%,var(--surface));
   --surface-pressed:rgba(255,255,255,.09);--accent-hover:#8DB8E8;--accent-pressed:#8DB8E8;
   --selected:rgba(111,163,221,.16);--selected-strong:rgba(111,163,221,.24);
   --chart-1:#5B82E0;--chart-2:#9488DD;--chart-3:#4FB5A4;--chart-4:#D79E52;--chart-5:#D8725F;
@@ -168,7 +168,7 @@ body{font-family:var(--font-text);font-variant-numeric:tabular-nums;background:v
   --blue:#8E8E93;--blue-hover:#AEAEB2;--navy:#E8E8EA;--blue-50:#2C2C2E;--blue-100:#3A3A3C;--blue-500:#8E8E93;
   --coral:#F07058;--coral-text:#F58C78;
   --tile-1:#4A4A4E;--tile-2:#5E5E63;--tile-3:#3A3A3E;--tile-4:#B0584A;--tile-5:#3E7A5A;--tile-6:#6A6A6F;--info:#8E8E93;--info-bg:#2C2C2E;
-  --hairline:#333336;--surface-flat:#2A2A2C;--hover:rgba(255,255,255,.05);
+  --hairline:#333336;--surface-flat:#2A2A2C;--hover:rgba(255,255,255,.05);--hover-solid:color-mix(in srgb,#FFFFFF 5%,var(--surface));
   --surface-pressed:rgba(255,255,255,.09);--accent-hover:#9C9CA1;--accent-pressed:#7D7D83;
   --selected:rgba(142,142,147,.18);--selected-strong:rgba(142,142,147,.28);
   --chart-1:#5B82E0;--chart-2:#9488DD;--chart-3:#4FB5A4;--chart-4:#D79E52;--chart-5:#D8725F;
@@ -4523,3 +4523,12 @@ a.rk-snote:hover{text-decoration-color:currentColor}
 .task-check::before{content:none}
 .task-group-empty{padding:10px 37px}
 .task-board .board-card .task-row,.rk-tgroup .task-row,.co-dossier .co-records .task-row{border-bottom:none}
+
+/* Records fixes (audit of 1.61) */
+.prompt-note{margin-top:8px;font-size:var(--type-secondary);font-weight:500;color:var(--amber-deep)}
+/* A lane's end-date label sits on the row's own background, so the today line passes behind it. */
+.pk-grow{--row-bg:var(--surface)}
+.pk-grow:hover{--row-bg:var(--hover-solid)}
+.pk-lane-end{z-index:3;padding:0 3px;margin-left:3px;background:var(--row-bg,var(--surface))}
+/* The stepper's end note rides in its last step, so the two wrap together. */
+.rk-sp .rk-snote{margin-left:14px}

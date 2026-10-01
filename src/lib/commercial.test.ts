@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { S } from './state';
 import { nextDeckFileName, proposalDecks,
-  lineTotals, syncProposalTotals, isAgreementActive, activeMrr, toReporting, fmtMoneyByCurrency, missingRates,
+  lineTotals, syncProposalTotals, isAgreementActive, stillInvoiced, endedByDecision, activeMrr, toReporting, fmtMoneyByCurrency, missingRates,
   suggestedFileName, latestVersion, contractEndDate, isClosed, isInPreparation, PS, applyGeneratedDocument, agreementMonthly, syncAgreementTotals,
 } from './commercial';
 import type { Agreement, CommercialLine, Proposal } from './types';
@@ -40,7 +40,7 @@ describe('commercial rules', () => {
     S.agreements = [
       agreement({ id: 1, serviceStatus: 'Active', currency: 'SAR', lines: [line('Payroll', 'monthly', 4000)] }),
       agreement({ id: 2, serviceStatus: 'Active', currency: 'EUR', monthlyFee: 1000 }),
-      agreement({ id: 3, serviceStatus: 'Active', currency: 'SAR', monthlyFee: 9999, endDate: '2020-01-01' }),
+      agreement({ id: 3, serviceStatus: 'Ended', currency: 'SAR', monthlyFee: 9999, endDate: '2020-01-01' }),
       agreement({ id: 4, serviceStatus: 'Kickoff scheduled', currency: 'SAR', monthlyFee: 5000 }),
       agreement({ id: 5, serviceStatus: 'Active', status: 'Canceled', currency: 'SAR', monthlyFee: 5000 }),
     ];
@@ -51,6 +51,26 @@ describe('commercial rules', () => {
     expect(toReporting(mrr)).toBeNull();
     expect(missingRates(mrr)).toEqual(['EUR']);
     expect(toReporting(mrr, { EUR: 4.2 })).toBeCloseTo(8200);
+  });
+
+  it('past its term and still invoiced counts; the exits are the service not Active, cancelled, and "Let it end" once the end has passed', () => {
+    const T = '2026-10-01';
+    const past = (over: Partial<Agreement>) => agreement({ serviceStatus: 'Active', currency: 'SAR', monthlyFee: 2500, endDate: '2026-08-31', ...over });
+    // Still invoiced (service Active): live, with the renewal paperwork missing.
+    expect(isAgreementActive(past({}), T)).toBe(true);
+    expect(stillInvoiced(past({}))).toBe(true);
+    // Nothing says it is still invoiced: the service is blank, or not started.
+    expect(isAgreementActive(past({ serviceStatus: null }), T)).toBe(false);
+    expect(isAgreementActive(past({ serviceStatus: 'Not started' }), T)).toBe(false);
+    // The three exits.
+    expect(isAgreementActive(past({ serviceStatus: 'Ended' }), T)).toBe(false);
+    expect(isAgreementActive(past({ status: 'Canceled' }), T)).toBe(false);
+    expect(isAgreementActive(past({ renewalDecision: 'end' }), T)).toBe(false);
+    // "Let it end" decided while the term still runs: active until the end date passes.
+    expect(isAgreementActive(past({ renewalDecision: 'end', endDate: '2026-12-31' }), T)).toBe(true);
+    expect([endedByDecision(past({ renewalDecision: 'end' }), T), endedByDecision(past({ renewalDecision: 'renew' }), T), endedByDecision(past({ renewalDecision: 'end', endDate: '2026-12-31' }), T)]).toEqual([true, false, false]);
+    S.agreements = [past({ id: 1 }), past({ id: 2, serviceStatus: null }), past({ id: 3, renewalDecision: 'end' }), agreement({ id: 4, serviceStatus: 'Active', currency: 'SAR', monthlyFee: 1000, endDate: '2099-01-01' })];
+    expect(activeMrr()).toEqual({ SAR: 3500 });
   });
 
   it('names proposal files like the client folders already do', () => {

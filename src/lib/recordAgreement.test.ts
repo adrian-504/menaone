@@ -125,6 +125,10 @@ describe('the renewal', () => {
     expect(decisionChip(A({ renewalDecision: 'renew' }))).toEqual({ text: 'Renewal drafted', tone: 'green' });
     expect(decisionChip(A({ renewalDecision: 'changes' }))).toEqual({ text: 'Renewing with changes', tone: 'blue' });
     expect(decisionChip(A({ renewalDecision: 'end' }))).toEqual({ text: 'Ending 31 Dec', tone: 'grey' });
+    // Once the end date has passed it reads as ended.
+    expect(decisionChip(A({ renewalDecision: 'end', endDate: '2026-08-31' }), T)).toEqual({ text: 'Ended 31 Aug', tone: 'grey' });
+    // Past its term there is no day left to be reminded on: the third choice ends it now.
+    expect(renewalFor(A({ endDate: '2026-08-31' }), T)!.cards.map((c) => [c.key, c.title, c.body])[2]).toEqual(['end', 'End it', 'Records the service as ended.']);
   });
 });
 

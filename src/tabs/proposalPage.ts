@@ -52,7 +52,6 @@ import type { Proposal, CommercialLine, ProposalFolder, Opportunity, LocalFileIt
 const w = window as any;
 
 
-const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((x) => x[0]).join('').toUpperCase() || '?';
 const currentProposal = (): Proposal | undefined => S.proposals.find((p) => p.id === S.currentProposalId);
 const CURRENCIES = () => [...new Set(['SAR', 'EUR', 'USD', ...S.businessEntities.map((e) => e.currency)])];
 
@@ -115,7 +114,7 @@ export function renderProposalPage(): void {
   if (!p) return;
   const page = document.getElementById('pr-detail');
   const avatar = document.getElementById('prd-avatar');
-  if (avatar) { avatar.textContent = initials(p.client); avatar.style.background = strColor(p.client); }
+  if (avatar) { avatar.textContent = initialsOf(p.client || '') || '?'; avatar.style.background = strColor(p.client); }
   const eyebrow = document.getElementById('prd-eyebrow'); if (eyebrow) eyebrow.innerHTML = `Proposal · SL# ${p.id}<button class="rec-icon-btn rec-eyebrow-copy" onclick="copyText('SL# ${p.id}','Reference copied')" data-tip="Copy reference" aria-label="Copy reference">${icon('copy', 11)}</button>`;
   const title = document.getElementById('prd-title');
   if (title) title.innerHTML = `${companyLink(p.companyId, p.client)}<span class="pr-title-services"> — ${escHtml(lineTotals(p.lines, p.contractMonths).serviceNames.join(' + ') || p.type || 'Services to be confirmed')}</span>`;

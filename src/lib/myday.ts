@@ -275,7 +275,7 @@ function agreementItems(i: MyDayInput): AttentionItem[] {
         continue;
       }
       out.push({ ...base, key: `agreement:${a.id}:renewal`, kind: 'agreement', score: d < 0 ? 84 : 80 - d / 3 + (notice != null && notice <= 7 ? 8 : 0), tone: d <= 30 ? 'red' : 'amber',
-        reason: d < 0 ? `Ended ${days(-d)} ago — renew or close it${a.autoRenew ? ' (set to auto-renew)' : ''}`
+        reason: d < 0 ? `Past term for ${days(-d)}, still active — renew it or end it${a.autoRenew ? ' (set to auto-renew)' : ''}`
           : `Ends in ${days(d)} — plan the renewal${notice != null && notice <= 14 ? `; notice due ${notice <= 0 ? 'now' : `in ${days(notice)}`}` : ''}`,
         when: shortDate(a.endDate), action: { kind: 'open', label: 'Open' } });
     } else if (a.serviceStatus === 'Kickoff scheduled' && a.startDate && a.startDate <= i.today) {

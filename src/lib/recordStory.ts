@@ -114,13 +114,15 @@ export function signatureStepper(a: Pick<Agreement, 'datePrepared' | 'dateSentTo
 export function stepperHtml(s: Stepper, opts: { tone?: 'blue' | 'green'; compact?: boolean } = {}): string {
   const n = s.steps.length;
   const compact = !!opts.compact || n > 7;
+  // The end note rides in the last step, so on a narrow page the two wrap together.
+  const note = s.endNote ? (s.endNote.link
+    ? `<a href="#" class="rlink rk-snote" onclick="event.preventDefault();openRecord('${s.endNote.link.kind}', ${s.endNote.link.id})">→ ${escHtml(s.endNote.text)}</a>`
+    : `<span class="rk-snote${s.endNote.tone ? ` t-${s.endNote.tone}` : ''}">${escHtml(s.endNote.text)}</span>`) : '';
   return `<ol class="rk-stepper${opts.tone === 'green' ? ' t-green' : ''}${compact ? ' is-compact' : ''}">${s.steps.map((st, i) => {
     const mark = st.state === 'done' ? '✓' : st.state === 'ended' ? '×' : String(i + 1).padStart(2, '0');
     const line = i < n - 1 ? `<span class="rk-sline is-${st.state === 'done' ? 'done' : st.state === 'current' ? 'cur' : 'todo'}">${st.state === 'current' && s.currentNote ? `<span>${escHtml(s.currentNote)}</span>` : ''}</span>` : '';
-    return `<li class="rk-sp is-${st.state}"${st.state === 'current' ? ' aria-current="step"' : ''}${compact && st.state === 'todo' ? ` data-tip="${escHtml(st.label)}"` : ''}><i aria-hidden="true">${mark}</i><span class="rk-sp-t"><b>${escHtml(st.label)}</b>${st.sub ? `<span>${escHtml(st.sub)}</span>` : ''}</span></li>${line}`;
-  }).join('')}</ol>${s.endNote ? (s.endNote.link
-    ? `<a href="#" class="rlink rk-snote" onclick="event.preventDefault();openRecord('${s.endNote.link.kind}', ${s.endNote.link.id})">→ ${escHtml(s.endNote.text)}</a>`
-    : `<span class="rk-snote${s.endNote.tone ? ` t-${s.endNote.tone}` : ''}">${escHtml(s.endNote.text)}</span>`) : ''}`;
+    return `<li class="rk-sp is-${st.state}"${st.state === 'current' ? ' aria-current="step"' : ''}${compact && st.state === 'todo' ? ` data-tip="${escHtml(st.label)}"` : ''}><i aria-hidden="true">${mark}</i><span class="rk-sp-t"><b>${escHtml(st.label)}</b>${st.sub ? `<span>${escHtml(st.sub)}</span>` : ''}</span>${i === n - 1 ? note : ''}</li>${line}`;
+  }).join('')}</ol>`;
 }
 
 // ── Proposal header ─────────────────────────────────────────────────────────

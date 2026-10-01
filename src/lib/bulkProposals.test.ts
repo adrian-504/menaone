@@ -1,7 +1,8 @@
 // Changing several proposals at once: what a status sets, the one date for the batch, shift-click ranges.
 import { describe, expect, it } from 'vitest';
 
-import { applyStatus, batchStartDate, BULK_STATUSES, rangeIds, statusDateLabel, statusNeedsDate } from './bulkProposals';
+import { applyStatus, batchStartDate, BULK_STATUSES, rangeIds, statusDateLabel, statusNeedsDate, unreviewedNote } from './bulkProposals';
+import { PS } from './commercial';
 import type { Proposal } from './types';
 
 const P = (over: Partial<Proposal> = {}): Proposal => ({
@@ -41,6 +42,20 @@ describe('one date for the batch', () => {
     const b = P({ status: 'Sent to Client', dateSigned: '2026-09-18' });
     applyStatus(b, 'Signed by Client', '2026-10-01');
     expect(b.dateSigned).toBe('2026-09-18');
+  });
+});
+
+describe('sending several without the review question', () => {
+  const m = (status: string, reviewStatus: Proposal['reviewStatus'] = null) => ({ status, reviewStatus });
+  it('the date question says how many have not been reviewed', () => {
+    expect(unreviewedNote([m(PS.DRAFTING), m(PS.REVIEW, 'pending'), m(PS.REVIEW, 'approved')], PS.SENT)).toBe('2 of these haven’t been reviewed');
+    expect(unreviewedNote([m(PS.DRAFTING), m(PS.REVIEW, 'approved')], PS.SENT)).toBe('1 of these hasn’t been reviewed');
+    expect(unreviewedNote([m(PS.REVIEW, 'changes_requested')], PS.SENT)).toBe('This one hasn’t been reviewed');
+  });
+  it('says nothing when all were reviewed, for one already past sending, or for another status', () => {
+    expect(unreviewedNote([m(PS.REVIEW, 'approved'), m(PS.REVIEW, 'approved')], PS.SENT)).toBeNull();
+    expect(unreviewedNote([m(PS.CLIENT_SIGNED)], PS.SENT)).toBeNull();
+    expect(unreviewedNote([m(PS.DRAFTING)], PS.WON)).toBeNull();
   });
 });
 

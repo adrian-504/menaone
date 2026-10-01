@@ -2,7 +2,7 @@
 // What an agreement's term says: how it ends, the day to decide, and that unknown is not none.
 import { describe, expect, it } from 'vitest';
 
-import { decideBy, endFact, hasTerm, noticeFact, pastTermActive, renewalFact, signatureOf, termKind } from './agreementTerms';
+import { decideBy, endFact, hasTerm, noticeFact, pastTermActive, pastTermUnset, renewalFact, signatureOf, termKind } from './agreementTerms';
 
 const T = '2026-10-01';
 
@@ -61,6 +61,17 @@ describe('past term, still active', () => {
     expect(pastTermActive({ ...a, status: 'Canceled' }, T)).toBe(false);
     expect(pastTermActive({ ...a, endDate: '2026-12-31' }, T)).toBe(false);
     expect(pastTermActive({ ...a, endDate: null, renewalType: 'open_ended' as const }, T)).toBe(false);
+    // "Let it end" was recorded: it is over, not past term.
+    expect(pastTermActive({ ...a, renewalDecision: 'end' as const }, T)).toBe(false);
+  });
+  it('the end has passed and the service was never set: the page asks for it', () => {
+    const a = { endDate: '2026-08-31', renewalType: null, status: 'Signed', serviceStatus: null };
+    expect(pastTermUnset(a, T)).toBe(true);
+    expect(pastTermUnset({ ...a, serviceStatus: 'Not started' as const }, T)).toBe(true);
+    expect(pastTermUnset({ ...a, serviceStatus: 'Active' as const }, T)).toBe(false);
+    expect(pastTermUnset({ ...a, serviceStatus: 'Ended' as const }, T)).toBe(false);
+    expect(pastTermUnset({ ...a, status: 'Canceled' }, T)).toBe(false);
+    expect(pastTermUnset({ ...a, endDate: '2026-12-31' }, T)).toBe(false);
   });
 });
 

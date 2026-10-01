@@ -140,7 +140,8 @@ describe('the strip', () => {
   const noTerm = A({ id: 10, client: 'Acme Holdings', startDate: null, endDate: null, dateClientSigned: null, serviceStatus: null, noticeDays: null });
   it('monthly and yearly under signed agreements; to decide in 90 days; past term, still active; with no term recorded', () => {
     expect(agreementsStrip([glx, acme, ehr, nwt, past, noTerm], T).map((p) => [p.key, p.n, p.label, p.lead, p.detail])).toEqual([
-      ['all', 'SAR 22,000', 'a month under 3 signed agreements', 'a year', 'SAR 264,000'],
+      // The past-term one is still served and invoiced: it is in the total.
+      ['all', 'SAR 24,500', 'a month under 4 signed agreements', 'a year', 'SAR 294,000'],
       ['decide', '2', 'to decide in 90 days', 'tomorrow', '2 Oct · Globex'],
       ['past', '1', 'past term, still active', 'since', '31 Aug · Elite HR'],
       ['noterm', '1', 'with no term recorded', 'listed', 'below, without a lane'],
