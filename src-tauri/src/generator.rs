@@ -996,6 +996,25 @@ pub fn version_in_name(file_name: &str) -> Option<i64> {
 /// earlier versions are never touched. Also remembers the client folder when
 /// the proposal has none yet.
 pub fn record_generated_document(conn: &mut Connection, proposal_id: i64, file_name: &str, path: &str, notes: &str, date: &str, folder: &str) -> rusqlite::Result<ProposalDocument> {
+    record_generated_document_with(conn, proposal_id, file_name, path, notes, date, folder, &DocumentMarks::default())
+}
+
+/// What a recorded version says about itself beyond its file (migration 46): the review round it belongs to and why,
+/// the version a price revision was made from, and whether hand edits were left behind by regenerating.
+#[derive(Debug, Clone, Default)]
+pub struct DocumentMarks {
+    pub round: Option<String>,
+    pub round_reason: Option<String>,
+    pub carried_from_version: Option<i64>,
+    pub not_carried: bool,
+}
+
+/// The same, with the version's marks. The file's fingerprint is taken as it is on disk now, so a later edit shows.
+#[allow(clippy::too_many_arguments)]
+pub fn record_generated_document_with(conn: &mut Connection, proposal_id: i64, file_name: &str, path: &str, notes: &str, date: &str, folder: &str, marks: &DocumentMarks) -> rusqlite::Result<ProposalDocument> {
+    let sha = crate::localfiles::sha256_of(Path::new(path));
+    let round = marks.round.as_deref().filter(|r| *r == "internal" || *r == "client").map(str::to_string);
+    let reason = marks.round_reason.as_deref().map(str::trim).filter(|r| !r.is_empty()).map(str::to_string);
     let tx = conn.transaction()?;
     let exists: bool = tx.query_row("SELECT EXISTS(SELECT 1 FROM proposals WHERE id = ?1)", params![proposal_id], |r| r.get(0))?;
     if !exists {
@@ -1005,14 +1024,16 @@ pub fn record_generated_document(conn: &mut Connection, proposal_id: i64, file_n
     let id: i64 = tx.query_row("SELECT COALESCE(MAX(id), 0) + 1 FROM proposal_documents", [], |r| r.get(0))?;
     let created_at = date.get(0..10).unwrap_or(date).to_string();
     tx.execute(
-        "INSERT INTO proposal_documents (id, proposal_id, kind, version, file_name, path, url, notes, created_at) VALUES (?1, ?2, 'proposal', ?3, ?4, ?5, NULL, ?6, ?7)",
-        params![id, proposal_id, version, file_name, path, notes, created_at],
+        "INSERT INTO proposal_documents (id, proposal_id, kind, version, file_name, path, url, notes, created_at, round, round_reason, generated_sha256, carried_from_version, not_carried)
+         VALUES (?1, ?2, 'proposal', ?3, ?4, ?5, NULL, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+        params![id, proposal_id, version, file_name, path, notes, created_at, round, reason, sha, marks.carried_from_version, marks.not_carried.then_some(1i64)],
     )?;
     tx.execute("UPDATE proposals SET folder_path = ?2 WHERE id = ?1 AND (folder_path IS NULL OR folder_path = '')", params![proposal_id, folder])?;
     // A first deck means the proposal is being drafted; it never moves a proposal back.
     tx.execute("UPDATE proposals SET status = ?2 WHERE id = ?1 AND status = ?3", params![proposal_id, crate::commercial::STATUS_DRAFTING, crate::commercial::STATUS_REQUEST])?;
     tx.commit()?;
-    Ok(ProposalDocument { id, kind: "proposal".into(), version: Some(version), file_name: file_name.to_string(), path: Some(path.to_string()), url: None, notes: Some(notes.to_string()), created_at: Some(created_at), ..Default::default() })
+    Ok(ProposalDocument { id, kind: "proposal".into(), version: Some(version), file_name: file_name.to_string(), path: Some(path.to_string()), url: None, notes: Some(notes.to_string()), created_at: Some(created_at),
+        round, round_reason: reason, generated_sha256: sha, carried_from_version: marks.carried_from_version, not_carried: marks.not_carried, sent_to_client_at: None })
 }
 
 #[cfg(test)]

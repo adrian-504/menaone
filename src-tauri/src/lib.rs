@@ -300,6 +300,7 @@ pub fn run() {
             commitments::commitments_add,
             commitments::upsert_commitments,
             commitments::delete_commitments,
+            localfiles::files_fingerprints,
             touches::get_touches,
             touches::touches_add,
             touches::touches_for_proposal,

@@ -120,6 +120,29 @@ fn generating_records_v1_then_a_separate_v2() {
 }
 
 #[test]
+fn a_generated_deck_is_recorded_with_its_fingerprint_so_a_later_edit_shows() {
+    use menabig_tracker_lib::localfiles::sha256_of;
+    let s = setup("fingerprint");
+    let first = generate_proposal(&s.db, &request(&s, 1, V1, false), OutputPolicy::AnyFolder).unwrap();
+    let doc = first.document.clone().expect("recorded");
+    let path = PathBuf::from(first.path.clone().unwrap());
+    let written = sha256_of(&path).expect("the file can be read");
+    assert_eq!(written.len(), 64);
+    assert_eq!(doc.generated_sha256.as_deref(), Some(written.as_str()), "the fingerprint of the file as MENA One wrote it");
+    // It is on the record, and a plain generation carries no round, no "carried from" and no "not carried".
+    let data = { let conn = s.db.lock().unwrap(); read_all_data(&conn).unwrap() };
+    let saved = &data.proposals[0].documents[0];
+    assert_eq!((saved.generated_sha256.as_deref(), saved.round.as_deref(), saved.carried_from_version, saved.not_carried, saved.sent_to_client_at.as_deref()), (Some(written.as_str()), None, None, false, None));
+    // Unchanged file: same fingerprint. Edited by hand afterwards: it differs.
+    assert_eq!(sha256_of(&path).as_deref(), Some(written.as_str()));
+    let mut bytes = std::fs::read(&path).unwrap();
+    bytes.extend_from_slice(b"edited");
+    std::fs::write(&path, bytes).unwrap();
+    assert_ne!(sha256_of(&path).as_deref(), Some(written.as_str()));
+    assert_eq!(sha256_of(&s.dir.join("not-there.pptx")), None);
+}
+
+#[test]
 fn failed_generations_record_nothing_and_keep_earlier_versions() {
     let s = setup("failures");
     generate_proposal(&s.db, &request(&s, 1, V1, false), OutputPolicy::AnyFolder).unwrap();

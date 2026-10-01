@@ -18,7 +18,7 @@ import { registerDragSource, registerDropTarget } from '../lib/dnd';
 import { arrive, settleNew, shake } from '../lib/motion';
 import { statusBadge } from '../lib/statusTone';
 import { blockSummary, blocksToSave, emptyBlock, proposalsFromBlocks, type ProposalBlock, type SharedProposalFields } from '../lib/proposalBlocks';
-import { proposalDeckRows } from '../lib/proposalDocuments';
+import { markSentVersion, proposalDeckRows, sentDayFor, type Fingerprints } from '../lib/proposalDocuments';
 import { deckVersion, matchDecks } from '../lib/deckMatch';
 import { generateIsFeatured, proposalNextStep } from '../lib/proposalSteps';
 import { latestRevision, lineWasNote, parseSnapshot, removedServices, revisionFact, revisionOf } from '../lib/revisions';
@@ -34,7 +34,7 @@ import { companyLink, recordLink } from '../lib/links';
 import { emptyState, toast, undoToast } from '../lib/ui';
 import { persistProposals, persistContacts } from '../lib/persist';
 import { notifyNavigated, refreshAll, refreshCompanyViewIfOpen } from '../lib/registry';
-import { saveOpportunity, filesOpen, filesRevealInFinder, filesStatPaths, proposalFolderLookup, proposalFolderCreate } from '../lib/db';
+import { saveOpportunity, filesOpen, filesRevealInFinder, filesStatPaths, filesFingerprints, proposalFolderLookup, proposalFolderCreate } from '../lib/db';
 import { attachCompanySelector } from '../lib/companySelector';
 import { breadcrumb, cardLine } from '../lib/studio';
 import { initialsOf } from '../lib/appearance';
@@ -72,6 +72,7 @@ export function openProposalPage(id: number): void {
   const changed = S.currentProposalId !== id;
   if (changed) { resetPropsLists('prd-'); linesEditing = null; }
   S.currentProposalId = id;
+  deckFiles = null;
   S.proposalBuilderOpen = false;
   showView('detail');
   if (changed) window.scrollTo(0, 0);
@@ -767,8 +768,16 @@ async function renderDocuments(p: Proposal): Promise<void> {
   renderIcons(folderEl);
 }
 
-/** Which generated decks' files are still in place, per proposal (checked once per render of their paths). */
-let deckFiles: { key: string; status: Map<string, boolean> } | null = null;
+/** Which decks' files are still in place, and the fingerprints of the ones MENA One wrote, per proposal (read once
+ * per set of paths, and again when the window comes back from PowerPoint). */
+let deckFiles: { key: string; status: Map<string, boolean>; prints: Fingerprints } | null = null;
+let deckFilesReadAt = 0;
+window.addEventListener('focus', () => {
+  const p = currentProposal();
+  if (!p || !deckFiles || Date.now() - deckFilesReadAt < 5000 || !document.getElementById('prd-decks')?.offsetParent) return;
+  deckFiles = null;
+  renderDeckHistory(p);
+});
 
 function renderDeckHistory(p: Proposal): void {
   const el = document.getElementById('prd-decks');
@@ -786,17 +795,37 @@ function renderDeckHistory(p: Proposal): void {
   }
   const paths = decks.map((d) => d.path).filter((x): x is string => !!x);
   const key = `${p.id}:${paths.join('|')}`;
-  const status = deckFiles?.key === key ? deckFiles.status : new Map<string, boolean>();
-  el.innerHTML = proposalDeckRows(p, status);
-  renderIcons(el);
-  if (deckFiles?.key !== key) {
-    deckFiles = { key, status };
-    void filesStatPaths(paths).then((items) => {
-      for (const it of items) status.set(it.path, it.exists);
-      if (S.currentProposalId === p.id && deckFiles?.key === key) { el.innerHTML = proposalDeckRows(p, status); renderIcons(el); }
-    }).catch(() => { /* unknown status: rows stay openable */ });
-  }
+  const fresh = deckFiles?.key !== key;
+  // On a re-read the last answers stay on screen until the new ones are in.
+  const state = fresh ? { key, status: new Map(deckFiles?.status), prints: new Map(deckFiles?.prints) as Fingerprints } : deckFiles!;
+  const draw = () => { el.innerHTML = proposalDeckRows(p, state.status, state.prints); renderIcons(el); };
+  draw();
+  if (!fresh) return;
+  deckFiles = state;
+  deckFilesReadAt = Date.now();
+  const redraw = () => { if (S.currentProposalId === p.id && deckFiles === state) draw(); };
+  void filesStatPaths(paths).then((items) => {
+    for (const it of items) state.status.set(it.path, it.exists);
+    redraw();
+  }).catch(() => { /* unknown status: rows stay openable */ });
+  // Only a file MENA One wrote has a fingerprint to compare with.
+  const written = decks.filter((d) => !!d.path && !!d.generatedSha256).map((d) => d.path!);
+  void filesFingerprints(written).then((items) => {
+    for (const it of items) state.prints.set(it.path, it.sha256);
+    if (items.length) redraw();
+  }).catch(() => { /* not read: nothing is called edited */ });
 }
+
+/** "This is the one sent to the client" on a version, generated or attached: the mark moves to it and the version
+ * leads the section; on the marked one it takes the mark off. The proposal's status is not touched. */
+export function proposalMarkSentVersion(id: number): void {
+  const p = currentProposal();
+  const d = (p?.documents || []).find((x) => x.id === id);
+  if (!p || !d) return;
+  markSentVersion(p, d.sentToClientAt ? null : id, sentDayFor(p, d, today()));
+  commit(p);
+}
+expose('proposalMarkSentVersion', proposalMarkSentVersion);
 
 export function generateCurrentProposal(): void {
   if (S.currentProposalId != null) void (window as any).openGenerateProposal?.(S.currentProposalId);

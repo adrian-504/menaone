@@ -331,6 +331,8 @@ export async function filesGetByIds(ids: number[]): Promise<LocalFileItem[]> {
 export async function filesResolveCompanyId(name: string): Promise<number> { return invoke<number>('files_resolve_company_id', { name }); }
 export async function filesListLinked(): Promise<LinkedFileEntry[]> { return invoke<LinkedFileEntry[]>('files_list_linked'); }
 export async function filesStatPaths(paths: string[]): Promise<LocalFileItem[]> { return paths.length ? invoke<LocalFileItem[]>('files_stat_paths', { paths }) : Promise.resolve([]); }
+/** The files' fingerprints as they are now (1.66): to say a deck MENA One wrote was edited since. */
+export async function filesFingerprints(paths: string[]): Promise<{ path: string; exists: boolean; sha256: string | null }[]> { return paths.length ? invoke('files_fingerprints', { paths }) : Promise.resolve([]); }
 
 // ═══════════════ Intelligence (Regulatory Watch / Business Watch) ═══════════════
 

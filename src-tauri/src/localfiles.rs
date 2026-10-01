@@ -381,6 +381,39 @@ pub fn files_list_linked(state: State<DbState>) -> CmdResult<Vec<LinkedFileEntry
 /// lenient than `validate_within_onedrive`, which errors on a path that no
 /// longer exists; a recent-but-now-missing file should still show up with
 /// `exists: false`, not silently vanish from the list.
+/// A file's SHA-256, in hex. None when it cannot be read.
+pub fn sha256_of(path: &Path) -> Option<String> {
+    use sha2::{Digest, Sha256};
+    use std::io::Read;
+    let mut file = std::fs::File::open(path).ok()?;
+    let mut hasher = Sha256::new();
+    let mut buf = [0u8; 64 * 1024];
+    loop {
+        let n = file.read(&mut buf).ok()?;
+        if n == 0 { break; }
+        hasher.update(&buf[..n]);
+    }
+    Some(hasher.finalize().iter().map(|b| format!("{b:02x}")).collect())
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FileFingerprint {
+    pub path: String,
+    pub exists: bool,
+    pub sha256: Option<String>,
+}
+
+/// The fingerprints of files in OneDrive, as they are now: to say that a deck MENA One wrote has been edited since
+/// (generator, 1.66). A path outside OneDrive is left out.
+#[tauri::command]
+pub fn files_fingerprints(paths: Vec<String>) -> CmdResult<Vec<FileFingerprint>> {
+    Ok(paths.into_iter().filter(|p| is_within_onedrive(Path::new(p))).map(|p| {
+        let path = Path::new(&p);
+        FileFingerprint { exists: path.is_file(), sha256: sha256_of(path), path: p }
+    }).collect())
+}
+
 #[tauri::command]
 pub fn files_stat_paths(paths: Vec<String>) -> CmdResult<Vec<LocalFileItem>> {
     let mut out = Vec::new();
