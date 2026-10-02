@@ -1,6 +1,6 @@
 // Opt-in: combines real proposal templates. Point MENA_TEMPLATE_DIR at a
 // folder of template copies (never the OneDrive originals):
-//   MENA_TEMPLATE_DIR=/tmp/templates cargo test --test pptx_import_real -- --ignored --nocapture
+//   MENA_TEMPLATE_DIR=/tmp/templates cargo test --profile realtests --test pptx_import_real -- --ignored --nocapture
 use menabig_tracker_lib::pptx::{inspect, Package};
 use menabig_tracker_lib::pptx_import::import_slides;
 use std::path::PathBuf;

@@ -1,7 +1,7 @@
 // The check before sending, against the team's real templates (a template is
 // a deck nobody has filled in, so it should fail on highlights or placeholders
 // and find the cover, letter and agenda). Opt-in, on a COPY of the folder:
-//   MENA_TEMPLATE_DIR=/scratch/templates cargo test --test send_check_real -- --ignored --nocapture
+//   MENA_TEMPLATE_DIR=/scratch/templates cargo test --profile realtests --test send_check_real -- --ignored --nocapture
 // Prints file names, statuses and slide numbers; never slide text. Reads only.
 use menabig_tracker_lib::sendcheck::check_file;
 
