@@ -67,6 +67,8 @@ fn a_revised_deck_reads_like_one_generated_at_the_new_prices() {
     // Custom lines beside a catalogue service, and on their own (the 2026 design only: the current one starts from a service's template).
     sets.push(vec!["Payroll".into(), "custom:Visa processing|per_visa|1500".into(), "custom:Market study|per_month|4000".into(), "custom:Executive search|percent_of_annual_package|12".into()]);
     sets.push(vec!["custom:Market study|one_time|9000".into(), "custom:On-site HR|per_person_per_month|150".into()]);
+    // A deck whose fee slide has no "Project Fees" title box (the GM Representative template): the added slides draw their own titles.
+    sets.push(vec!["GM Representative".into(), "custom:Visa processing|per_visa|1500".into()]);
     // A custom line (1.66): "custom:<name>|<unit>|<price>", a service outside the catalogue with a short scope.
     let custom_line = |id: i64, spec: &str, step: f64| -> CommercialLine {
         let mut it = spec.trim_start_matches("custom:").split('|');

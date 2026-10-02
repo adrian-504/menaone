@@ -367,7 +367,20 @@ fn rewrite_plain(xml: &str, slide: &ExtraSlide, size: (i64, i64)) -> Option<Stri
         kept.push_str(&if band(t) { t.to_string() } else { with_text(t, &["Project Fees", &slide.title]) });
         if let Some((_, top, _, cy)) = offset(t) { y = y.max(top + cy + scale(285_750)); }
     }
-    if titles.iter().all(|t| band(t)) {
+    if titles.is_empty() {
+        // A deck whose fee slide has no "Project Fees" boxes (the GM Representative template titles it its own way):
+        // the two are drawn where the other templates have them — the band's at the top left, the service's centred.
+        let (band_x, band_y) = (w * 298_174 / 12_192_000, h * 220_010 / 6_858_000);
+        let title_y = h * 890_731 / 6_858_000;
+        let title_h = h * 569_387 / 6_858_000;
+        let lines = |second: &str, align: &str| format!(
+            r#"<a:p><a:pPr algn="{align}"/>{}</a:p><a:p><a:pPr algn="{align}"/><a:r><a:rPr lang="en-US" sz="{}" i="1" dirty="0">{INK}</a:rPr><a:t>{}</a:t></a:r></a:p>"#,
+            run("Project Fees", font(2700), true, INK), font(2100), xml_escape(second)
+        );
+        kept.push_str(&text_box("Band title", band_x, band_y, w * 9_652_071 / 12_192_000, title_h, &lines("Fees and Payment Terms", "l")));
+        kept.push_str(&text_box("Title", margin, title_y, width, title_h, &lines(&slide.title, "ctr")));
+        y = title_y + title_h + scale(285_750);
+    } else if titles.iter().all(|t| band(t)) {
         kept.push_str(&text_box("Title", margin, y, width, scale(600_000), &format!("<a:p>{}</a:p>", run(&slide.title, font(3200), true, INK))));
         y += scale(800_000);
     }
@@ -420,7 +433,15 @@ pub fn donor_in(pkg: &Package) -> Option<(usize, bool)> {
     if let Some(i) = xmls.iter().position(|x| is_master_fee_slide(x)) {
         return Some((i + 1, true));
     }
-    xmls.iter().position(|x| shape_regex().find_iter(x).any(|s| is_title_box(s.as_str()))).map(|i| (i + 1, false))
+    if let Some(i) = xmls.iter().position(|x| shape_regex().find_iter(x).any(|s| is_title_box(s.as_str()))) {
+        return Some((i + 1, false));
+    }
+    // No "Project Fees" box anywhere (a GM Representative deck): the deck's fee slide still gives the layout and
+    // the table's header colour; the titles are drawn.
+    let roles = crate::proposal_library::classify(&pptx::inspect(pkg));
+    roles.iter().position(|s| s.role == crate::proposal_library::Role::Fees)
+        .or_else(|| xmls.iter().position(|x| x.contains("<a:tbl>") && crate::smartfill::money_regex().is_match(&paragraph_texts(x).join(" "))))
+        .map(|i| (i + 1, false))
 }
 
 /// Adds the slides at `at` (0-based, in deck order), each a rewritten copy of the donor slide: slide `donor.0` of
@@ -589,6 +610,29 @@ mod tests {
         let (x, y, cx, _) = { let c = regex::Regex::new(r#"<a:off x="(\d+)" y="(\d+)"/><a:ext cx="(\d+)" cy="(\d+)""#).unwrap().captures(frame.as_str()).unwrap(); (c[1].parse::<i64>().unwrap(), c[2].parse::<i64>().unwrap(), c[3].parse::<i64>().unwrap(), 0) };
         assert_eq!((x, cx), (975_360, 12_192_000 - 2 * 975_360));
         assert!(y > 1_300_000 && y < 6_858_000);
+    }
+
+    #[test]
+    fn a_deck_with_no_project_fees_box_gets_the_titles_drawn() {
+        // The GM Representative template titles its fee slide its own way: none of its boxes says "Project Fees".
+        let band = sp(5, "TextBox 5", 342244, 350364, "Temporary GM Services");
+        let table = r#"<p:graphicFrame><p:nvGraphicFramePr><p:cNvPr id="7" name="Table 7"/></p:nvGraphicFramePr><p:xfrm><a:off x="1" y="1"/><a:ext cx="1" cy="1"/></p:xfrm><a:graphic><a:graphicData><a:tbl><a:tr h="1"><a:tc><a:txBody><a:p><a:r><a:t>Category</a:t></a:r></a:p></a:txBody><a:tcPr><a:solidFill><a:srgbClr val="005EA8"/></a:solidFill></a:tcPr></a:tc></a:tr><a:tr h="1"><a:tc><a:txBody><a:p><a:r><a:t>Temporary GM Representative 6,500 SAR</a:t></a:r></a:p></a:txBody><a:tcPr/></a:tc></a:tr></a:tbl></a:graphicData></a:graphic></p:graphicFrame>"#;
+        let xml = format!(r#"<p:sld><p:cSld><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/></p:nvGrpSpPr><p:grpSpPr/>{band}{table}</p:spTree></p:cSld></p:sld>"#);
+        let scope = custom_slide(&custom("Visa processing", "one_time", Some(9000.0), None, "Work visas"), "SAR");
+        let out = rewrite_plain(&xml, &scope, (12_192_000, 6_858_000)).unwrap();
+        // The other service's own title is not carried onto this slide; the two usual titles are drawn instead.
+        assert_eq!(paragraph_texts(&out), vec!["Project Fees", "Fees and Payment Terms", "Project Fees", "Visa processing", "Category", "One-time fee", "Visa processing", "9,000 SAR", "SCOPE", "Work visas"]);
+        assert!(!out.contains("Temporary GM"));
+        assert!(out.contains(r#"<a:off x="298174" y="220010"/>"#) && out.contains(r#"<a:pPr algn="ctr"/>"#));
+        assert_eq!(out.matches(r#"<a:srgbClr val="005EA8"/>"#).count(), 2);
+        // The fee slide is found without the box: by the table that prices something.
+        let mut parts = crate::pptx::Parts::new();
+        parts.insert("ppt/presentation.xml".into(), br#"<p:presentation><p:sldIdLst><p:sldId id="256" r:id="rId2"/><p:sldId id="257" r:id="rId3"/></p:sldIdLst></p:presentation>"#.to_vec());
+        parts.insert("ppt/_rels/presentation.xml.rels".into(), br#"<Relationships><Relationship Id="rId2" Type="x/slide" Target="slides/slide1.xml"/><Relationship Id="rId3" Type="x/slide" Target="slides/slide2.xml"/></Relationships>"#.to_vec());
+        parts.insert("ppt/slides/slide1.xml".into(), format!(r#"<p:sld><p:cSld><p:spTree>{}</p:spTree></p:cSld></p:sld>"#, sp(2, "Title", 1, 1, "Proposal")).into_bytes());
+        parts.insert("ppt/slides/slide2.xml".into(), xml.into_bytes());
+        let pkg = Package { order: parts.keys().cloned().collect(), parts };
+        assert_eq!(donor_in(&pkg), Some((2, false)));
     }
 
     #[test]
