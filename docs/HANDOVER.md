@@ -128,7 +128,7 @@ git merge --no-ff <branch> -m "Merge branch '<branch>' (1.N)"          # one per
 npx tsc --noEmit && npx vitest run && node scripts/motion-check.mjs && node scripts/release-check.mjs
 git push origin main
 
-# 2. Build (about 5 minutes at full power with the dependencies cached; about 25 in gentle mode: fat LTO, one codegen unit)
+# 2. Build (about 2 minutes at full power with the dependencies cached; see "The release build" below)
 CARGO_BUILD_JOBS=8 npm run tauri build
 APP="src-tauri/target/release/bundle/macos/MENA One.app"
 
@@ -153,6 +153,8 @@ ls -t "$D/backups" | head -2                                           # the app
 ```
 
 Then compare the real data with the pre-install backup: row counts, every existing column of every touched table unchanged (dump `SELECT <old columns> … ORDER BY id` from both and compare), every new column empty. Report to Ahmad, the review session and the workshop: the merged head and its checks, both backups, the schema, the counts.
+
+**The release build** uses thin LTO and 16 codegen units (`[profile.release]` in `src-tauri/Cargo.toml`; Ahmad's decision, 2 October 2026, after measuring). At full power with the dependencies cached, as at an install, it takes about 2 minutes (2 min 3 s measured; the earlier profile, fat LTO with one codegen unit, took 4 min 40 s, and "about 25 minutes" was that profile in gentle mode: it no longer applies). The first build after a change to the profile or to a dependency rebuilds every dependency: about 4 minutes, once. The app's binary is 15.8 MB. What the app does at launch was measured the same under both profiles (`cargo test --release --test launch_work -- --ignored --nocapture` on a database copy: about 380 ms, nearly all of it SQLite rebuilding the search index); `scripts/launch-check.mjs` measures the front end only and never runs the binary.
 
 `codesign -v` on the app prints "code has no resources but signature indicates they must be present". It always has (the build is ad-hoc signed); it is not a fault.
 
@@ -218,9 +220,6 @@ Waiting on others, do not start:
 9. **Phone sync**: branch `phone-sync`, paused 24 September (it made the Mac lag). On resume: off by default until turned on in Settings, and its migration needs the next free number.
 10. **Department modules** (Recruitment, Admin and PRO, Finance, Payroll): exploration only.
 11. Everything under "Waiting on someone else" in `docs/PLAN.md`.
-
-A decision waiting for Ahmad:
-- **The release build profile.** Measured on 2 October at full power, dependencies cached, as at an install: the current profile (fat LTO, one codegen unit) builds in 4 min 40 s, the app's binary is 13.8 MB; thin LTO with 16 codegen units builds in 2 min 3 s, 15.8 MB (its first build, every dependency, took 4 min). The work the app does at launch on a copy of the real database (`cargo test --release --test launch_work -- --ignored --nocapture`: open, read everything, hand it over as JSON, rebuild the search index) took about 388 ms against 374 ms, no real difference; the front end's own launch check (`scripts/launch-check.mjs`, median 166 ms) never runs the binary and is the same for both. Nothing was changed: `[profile.release]` in `src-tauri/Cargo.toml` is as it was until he decides. To try the other profile without editing it: `CARGO_PROFILE_RELEASE_LTO=thin CARGO_PROFILE_RELEASE_CODEGEN_UNITS=16` with its own `CARGO_TARGET_DIR`.
 
 Small and loose:
 12. `git status` in the main repo shows an untracked `target/` (the test build folder). Leave it.
