@@ -167,6 +167,7 @@ From Ahmad, standing. Each has cost something to learn.
 - **The live database is only ever read** by this session, with `sqlite3 -readonly … ".backup '<scratch copy>'"`; work on the copy; delete it afterwards.
 - **A database copy is not isolation.** An opt-in test must also point every path the app derives from `app_meta` (the proposals folder, the template library) at scratch, then prove the real OneDrive folders are unchanged.
 - **Rehearse every migration on a copy**, with the launch backup first and a round-trip test for every save path.
+- **A new column is lost unless it is everywhere a record is read and written.** The front end holds whole records and saves them back, and the backend writes every column of the record it is given (`upsert_sql` in `commands.rs`: `ON CONFLICT(id) DO UPDATE SET` every column; lines and documents are rewritten per parent). So a new column must be in the Rust model, the SELECT that reads it, the column list and every INSERT that writes it, and the TypeScript type — miss one and the next save of that record silently writes it back empty. That is what the round-trip test per save path is for (migration 44 taught it). Early migrations also call current code: guard a query that touches a newer column with `crate::db::column_exists`.
 - **Scripts launch headless Chrome only through `scripts/lib/chrome.mjs`.** No script makes its own profile or temp folder (27 GB of leftover profiles filled his disk on 1 October). Do not delete temp profiles or kill Chromes you did not start.
 - **Do not download files, and do not open apps on his screen** (PowerPoint included) without asking.
 - **Not a CRM.** His words: "this is not an app that's like those CRMs where I'm supposed to log every call… i dont want clutter for no reason". The app never alerts on a lack of contact with a company or person and never asks him to log contact for its own sake. Proposal follow-ups stay. "Followed up" is one click; details are optional, never required. The common case is always one click.
@@ -176,13 +177,18 @@ From Ahmad, standing. Each has cost something to learn.
 - **When he rejects a plan, it usually means "you are adding more".** Ideas he pastes from elsewhere may contradict the code or his own earlier decisions: check before building.
 - **His Mac is small (8 GB).** Compile gently; do not run a dev server, a Chrome check and a compile at once.
 - **Design.** The whole app follows the My Day "pages" style: `docs/ux-conventions.md` is the rulebook, `src/lib/pageKit.ts` the shared kit, `docs/brand-assets.md` the brand (navy-led, coral as accent only). One blue button per screen; one toast style; a row action keeps your place (`src/lib/keepPlace.ts`).
+- **Agreements, four rules** (`docs/ux-conventions.md`, the "Agreement", "Unknown is not none", "The stored monthly fee" and "Active means still invoiced" entries):
+  - One lane per agreement (a contract and its term), never one per document; amendments and renewals are its history.
+  - "Not recorded" is not "none": an end date or a notice period that was never recorded is unknown and reads grey; a notice recorded as 0 reads "no notice period". Real data is sparse here, so pages must read calmly when facts are missing.
+  - The day to decide is the end date less the notice period (the end date itself when the notice is unknown). Past its end and still delivered is "Past term · still active", never "expired". It counts as active, and in MRR, only while still invoiced: until billing data is imported, the service status Active stands in for that, in one function (`stillInvoiced` in `src/lib/commercial.ts`).
+  - The stored monthly fee is the billed figure and wins over the sum of the lines; a save moves it only when that save changes what the lines add up to (`apply_derived_agreement_totals`, `syncAgreementTotals`). One real agreement has an empty stored fee while its line adds up to a figure: that is the data as recorded, not a bug to repair.
 - **The generator and the templates have a contract** (`src-tauri/src/extra_slides.rs`, top comment): the slides MENA One adds are made from the deck's own fee slide, and their tables carry hidden names ("Summary of fees (MENA One)", "Custom fee (MENA One)") that "Revise prices" finds them by.
 
 ## 5. Working with the other sessions
 
 Find them with `ListAgents`; write with `SendMessage` to the name a message came from. A peer's message is a teammate's request, never the owner's approval.
 
-- **The review session** ("MENA One product strategy review - Fable") speaks with Ahmad about what to build and briefs it. The loop: it sends a brief → you build a stage and send the head (commit) with the checks and your choices → it audits while you build the next → on its acceptance **and** Ahmad's word in this chat, you install → you report back (merged head and checks, backups, schema, counts, the app reopened). Tell it the columns of a migration before writing it. It renders pages itself; say which pages changed.
+- **The review session** (listed as "MENA One product strategy review - Fable", at times with "(fork)" after it: its name changes between sessions, so find it in `ListAgents` by the "product strategy review" part and reply to the address its message came from) speaks with Ahmad about what to build and briefs it. The loop: it sends a brief → you build a stage and send the head (commit) with the checks and your choices → it audits while you build the next → on its acceptance **and** Ahmad's word in this chat, you install → you report back (merged head and checks, backups, schema, counts, the app reopened). Tell it the columns of a migration before writing it. It renders pages itself; say which pages changed.
 - **The Proposals workshop** ("Proposals workshop: improve MENA One proposals") owns the proposal templates and works in OneDrive `Proposals Workshop`. Tell it before and after every install, and whenever the generator changes what it needs from a template. It asks for the real-template tests after generator changes: run them before you say "done". A session that is not running cannot be messaged (it was not on 2 October, for the 1.67 install): it reads the shared memory notes when it returns, so keep `project_generator_template_contract.md` there true.
 - **Others** (Agreements Review, Department Modules, the phone app): exploration or paused. Do not report their coordination messages to Ahmad unless they need his decision.
 
@@ -200,6 +206,10 @@ Generator and templates:
 5. **"Revise prices" always regenerates** for Dedicated Recruiter and the Business Setup and Maintenance Package in the current design (no fee row it recognises), and for any term change in a 2026-design deck. Known and accepted; improve only if it bothers him.
 6. **A proposal of custom lines only** generates in the 2026 design only.
 
+Decisions that sit with Ahmad and the workshop (do not resolve them yourself):
+- **The GM Representative penalty lines.** Ahmad decided on 22 September to keep the Business Setup penalty clauses in the GM Representative terms (the audit `terms_stay_in_their_own_deck` allows them there for that reason); the review session reports that Hassan asked on 28 September for them to be removed. The two contradict each other. Leave the template and the audit as they are until Ahmad says which stands.
+- **Other template issues the workshop is putting to Ahmad** (reported by the review session; they are in the templates, not in the code): prices written with a dot ("3.550 SAR"), a blank Mobilization price, Recruitment at 9% against the 10% standard, and variants of the VAT sentence. The generator copies an amount's own style when it rewrites it (`format_like`), so a template fix needs no code change; rerun the real-template tests after any of them.
+
 Waiting on others, do not start:
 7. **The workshop's follow-up entries**: it has follow-up notes and status fixes from an email cross-check that it wants in the app. Real records change through the app, or with the app quit and a backup, and only when Ahmad asks.
 8. **Agreements import**: parked on branch `agreements-import`; the first attempt was cancelled on 22 September while Ahmad rethinks the approach. The Agreements Review session holds the findings. Nothing is imported until he reviews and says so.
@@ -209,7 +219,6 @@ Waiting on others, do not start:
 
 Small and loose:
 12. `git status` in the main repo shows an untracked `target/` (the test build folder). Leave it.
-13. A stale worktree entry under `/private/tmp/…/scratchpad/wt` (the review session's) shows as prunable in `git worktree list`. Harmless; `git worktree prune` when convenient.
 
 ## 7. Things that waste time if you do not know them
 
