@@ -1,11 +1,13 @@
 // Audit: which slides each catalogue service generates, in both designs.
 // Opt-in, on copies of the real templates (never files inside the repository):
 //   MENA_TEMPLATE_DIR=<Proposals New Logo copy> MENA_MASTER=<master copy> MENA_SERVICES="name|category;name|category" \
-//   cargo test --test proposal_audit -- --ignored --nocapture
+//   cargo test --profile realtests --test proposal_audit -- --ignored --nocapture
 use menabig_tracker_lib::master::{choose, MasterLine};
 use menabig_tracker_lib::pptx::{inspect, Package};
 use menabig_tracker_lib::proposal_library::{classify, covered, load_library, modules_for_service, module_name, modules_in, plan, Role};
 use std::path::PathBuf;
+
+mod common;
 
 #[test]
 #[ignore]
@@ -51,7 +53,7 @@ fn prints_how_each_template_is_read() {
 }
 
 // The renamed Workforce categories still receive their prices on the updated template.
-//   MENA_WORKFORCE_TEMPLATE=<copy of the Workforce template> cargo test --test proposal_audit fills -- --ignored --nocapture
+//   MENA_WORKFORCE_TEMPLATE=<copy of the Workforce template> cargo test --profile realtests --test proposal_audit fills -- --ignored --nocapture
 #[test]
 #[ignore]
 fn fills_workforce_prices_under_the_new_category_names() {
@@ -83,7 +85,7 @@ fn fills_workforce_prices_under_the_new_category_names() {
 
 // Every service a template covers keeps at least one terms slide when proposed on its own
 // (a service-specific terms slide naming the wrong service drops the deck's only terms).
-//   MENA_TEMPLATE_DIR=<copy of the templates> cargo test --test proposal_audit keeps_terms -- --ignored --nocapture
+//   MENA_TEMPLATE_DIR=<copy of the templates> cargo test --profile realtests --test proposal_audit keeps_terms -- --ignored --nocapture
 #[test]
 #[ignore]
 fn keeps_terms_for_every_service() {
@@ -104,7 +106,7 @@ fn keeps_terms_for_every_service() {
 
 // Terms written for one service don't sit in another service's deck (clauses copied
 // between decks by mistake: Business Setup penalties in GM Representative, etc.).
-//   MENA_TEMPLATE_DIR=<copy of the templates> cargo test --test proposal_audit terms_stay -- --ignored --nocapture
+//   MENA_TEMPLATE_DIR=<copy of the templates> cargo test --profile realtests --test proposal_audit terms_stay -- --ignored --nocapture
 #[test]
 #[ignore]
 fn terms_stay_in_their_own_deck() {
@@ -175,47 +177,48 @@ fn leftover_placeholders(path: &std::path::Path) -> Vec<String> {
 
 /// Opens a database COPY for end-to-end generation with every path the app derives from
 /// app_meta pointed at scratch: the proposals root (created first — a missing folder makes the
-/// app fall back to the real OneDrive Proposals folder) and the template library. Returns the
-/// connection and a snapshot of the real Proposals folder, to prove afterwards it was not touched.
-fn scratch_generation(db: &str, lib: &str, out: &str) -> (rusqlite::Connection, Option<(PathBuf, Vec<String>)>) {
-    assert!(!db.contains("Application Support"), "use a copy, never the live database");
-    let out_dir = PathBuf::from(out);
-    let cloud = PathBuf::from(std::env::var("HOME").unwrap_or_default()).join("Library/CloudStorage");
-    assert!(!out_dir.starts_with(&cloud), "MENA_OUT must be a scratch folder, not inside OneDrive");
-    std::fs::create_dir_all(&out_dir).unwrap();
-    let conn = menabig_tracker_lib::db::init_connection(&PathBuf::from(db)).unwrap();
-    conn.execute("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('proposals_root', ?1)", [out]).unwrap();
+/// app fall back to the real OneDrive Proposals folder) and the template library. Each test works on its own
+/// copy of MENA_DB_COPY and its own folder under MENA_OUT (`tag`), so the tests can run side by side. Returns the
+/// connection and what `finish_scratch_generation` needs to prove the real Proposals folder was not touched.
+fn scratch_generation(db: &str, lib: &str, out: &str, tag: &str) -> Scratch {
+    let (dir, copy) = common::own_scratch(db, out, tag);
+    let conn = menabig_tracker_lib::db::init_connection(&copy).unwrap();
+    conn.execute("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('proposals_root', ?1)", [dir.to_string_lossy().to_string()]).unwrap();
     conn.execute("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('proposal_library_dir', ?1)", [lib]).unwrap();
     let real = menabig_tracker_lib::commercial::detect_proposals_root().map(|r| {
         let mut names: Vec<String> = std::fs::read_dir(&r).map(|d| d.filter_map(|e| e.ok()).map(|e| e.file_name().to_string_lossy().to_string()).collect()).unwrap_or_default();
         names.sort();
         (r, names)
     });
-    (conn, real)
+    (conn, Finish { real, dir, copy })
 }
 
-/// The real Proposals folder is as it was, and the test's own decks are removed.
-fn finish_scratch_generation(real: Option<(PathBuf, Vec<String>)>, out: &str, written: &[PathBuf]) {
+/// What a test hands back at its end: the real folder's listing as it was, and its own scratch to remove.
+struct Finish {
+    real: Option<(PathBuf, Vec<String>)>,
+    dir: PathBuf,
+    copy: PathBuf,
+}
+type Scratch = (rusqlite::Connection, Finish);
+
+/// The real Proposals folder is as it was, and the test's own decks and database copy are removed.
+fn finish_scratch_generation(finish: Finish, written: &[PathBuf]) {
     for w in written {
-        assert!(w.starts_with(out), "a deck was written outside MENA_OUT: {}", w.display());
+        assert!(w.starts_with(&finish.dir), "a deck was written outside the test's scratch folder: {}", w.display());
     }
-    if let Some((root, before)) = real {
+    if let Some((root, before)) = finish.real {
         let mut after: Vec<String> = std::fs::read_dir(&root).map(|d| d.filter_map(|e| e.ok()).map(|e| e.file_name().to_string_lossy().to_string()).collect()).unwrap_or_default();
         after.sort();
         assert_eq!(before, after, "the real Proposals folder changed");
     }
     // MENA_KEEP_OUTPUT=1 leaves the decks in MENA_OUT (scratch) to look at.
-    if std::env::var("MENA_KEEP_OUTPUT").is_err() {
-        for w in written {
-            if let Some(dir) = w.parent() { let _ = std::fs::remove_dir_all(dir); }
-        }
-    }
+    common::drop_scratch(&finish.dir, &finish.copy);
 }
 
 // End to end on a COPY of a real database and the real template folder: generates an
 // Admin & PRO and a Labour Law proposal (fictional client, 6-month term) into a scratch folder.
 //   MENA_DB_COPY=<copy.sqlite3> MENA_TEMPLATE_DIR=<Proposals New Logo> MENA_OUT=<scratch dir, created if missing> \
-//   cargo test --test proposal_audit generates_real -- --ignored --nocapture
+//   cargo test --profile realtests --test proposal_audit generates_real -- --ignored --nocapture
 #[test]
 #[ignore]
 fn generates_real_decks_on_a_database_copy() {
@@ -223,7 +226,7 @@ fn generates_real_decks_on_a_database_copy() {
     use menabig_tracker_lib::generator::{generate_proposal, GenerateRequest, OutputPolicy};
     use menabig_tracker_lib::models::{CommercialLine, Proposal};
     let (Ok(db), Ok(lib), Ok(out)) = (std::env::var("MENA_DB_COPY"), std::env::var("MENA_TEMPLATE_DIR"), std::env::var("MENA_OUT")) else { return };
-    let (mut conn, real) = scratch_generation(&db, &lib, &out);
+    let (mut conn, real) = scratch_generation(&db, &lib, &out, "audit-generates");
     let mut written = Vec::new();
     let mut highlighted: Vec<String> = Vec::new();
     let service = |name: &str| -> i64 { conn.query_row("SELECT id FROM services WHERE name = ?1", [name], |r| r.get(0)).unwrap() };
@@ -257,7 +260,7 @@ fn generates_real_decks_on_a_database_copy() {
         }
         highlighted.extend(lit.iter().map(|n| format!("{name} slide {n}")));
     }
-    finish_scratch_generation(real, &out, &written);
+    finish_scratch_generation(real, &written);
     assert!(highlighted.is_empty(), "highlighting left in generated decks: {highlighted:?}");
 }
 
@@ -265,7 +268,7 @@ fn generates_real_decks_on_a_database_copy() {
 // DATABASE COPY with the real templates: terms once, one acceptance, dividers and agenda in
 // deck order, no recruitment-only slides for EOR, and the proposal moves to Drafting.
 //   MENA_DB_COPY=<copy.sqlite3> MENA_TEMPLATE_DIR=<Proposals New Logo> MENA_OUT=<scratch dir> [MENA_MASTER_MODE=1] \
-//   cargo test --test proposal_audit mixed_proposal -- --ignored --nocapture
+//   cargo test --profile realtests --test proposal_audit mixed_proposal -- --ignored --nocapture
 #[test]
 #[ignore]
 fn mixed_proposal_is_consistent() {
@@ -274,7 +277,7 @@ fn mixed_proposal_is_consistent() {
     use menabig_tracker_lib::models::{CommercialLine, Proposal};
     let (Ok(db), Ok(lib), Ok(out)) = (std::env::var("MENA_DB_COPY"), std::env::var("MENA_TEMPLATE_DIR"), std::env::var("MENA_OUT")) else { return };
     let master_mode = std::env::var("MENA_MASTER_MODE").is_ok();
-    let (mut conn, real) = scratch_generation(&db, &lib, &out);
+    let (mut conn, real) = scratch_generation(&db, &lib, &out, "audit-mixed");
     let mut written: Vec<PathBuf> = Vec::new();
     let service = |name: &str| -> i64 { conn.query_row("SELECT id FROM services WHERE name = ?1", [name], |r| r.get(0)).unwrap() };
     let line = |id: i64, name: &str, price: f64| CommercialLine { id, service_id: Some(service(name)), service_name: name.into(), billing: "monthly".into(), quantity: 1.0, unit_price: Some(price), ..Default::default() };
@@ -408,13 +411,13 @@ fn mixed_proposal_is_consistent() {
         if status != "Drafting" { problems.push(format!("{tag}: status {status}")); }
     }
     for p in &problems { println!("PROBLEM {p}"); }
-    finish_scratch_generation(real, &out, &written);
+    finish_scratch_generation(real, &written);
     assert!(problems.is_empty(), "{} problems", problems.len());
 }
 
 // Placeholder-like text in the templates that the fill doesn't know (quoted words in capitals,
 // [Client], {Client}, an unquoted Client Name): listed, not failed, to see the long tail.
-//   MENA_TEMPLATE_DIR=<Proposals New Logo> cargo test --test proposal_audit lists_placeholder -- --ignored --nocapture
+//   MENA_TEMPLATE_DIR=<Proposals New Logo> cargo test --profile realtests --test proposal_audit lists_placeholder -- --ignored --nocapture
 #[test]
 #[ignore]
 fn lists_placeholder_like_text() {
@@ -447,7 +450,7 @@ fn lists_placeholder_like_text() {
 
 // The templates carry no highlight marks (they reached generated decks), and the Accountancy
 // scope is the owner's: the blocks he removed by hand (22-Sep-2026) stay out.
-//   MENA_TEMPLATE_DIR=<Proposals New Logo> cargo test --test proposal_audit templates_are_clean -- --ignored --nocapture
+//   MENA_TEMPLATE_DIR=<Proposals New Logo> cargo test --profile realtests --test proposal_audit templates_are_clean -- --ignored --nocapture
 #[test]
 #[ignore]
 fn templates_are_clean() {
@@ -479,7 +482,7 @@ fn templates_are_clean() {
 // The regression matrix: every active service alone and the common combinations, at 6 and 12
 // months, generated on a DATABASE COPY with the real templates (scratch output only).
 //   MENA_DB_COPY=<copy> MENA_TEMPLATE_DIR=<Proposals New Logo> MENA_OUT=<scratch> [MENA_MASTER_MODE=1] \
-//   cargo test --test proposal_audit matrix_is_consistent -- --ignored --nocapture
+//   cargo test --profile realtests --test proposal_audit matrix_is_consistent -- --ignored --nocapture
 #[test]
 #[ignore]
 fn matrix_is_consistent() {
@@ -488,7 +491,7 @@ fn matrix_is_consistent() {
     use menabig_tracker_lib::models::{CommercialLine, Proposal};
     let (Ok(db), Ok(lib), Ok(out)) = (std::env::var("MENA_DB_COPY"), std::env::var("MENA_TEMPLATE_DIR"), std::env::var("MENA_OUT")) else { return };
     let master_mode = std::env::var("MENA_MASTER_MODE").is_ok();
-    let (mut conn, real) = scratch_generation(&db, &lib, &out);
+    let (mut conn, real) = scratch_generation(&db, &lib, &out, "audit-matrix");
     let services: Vec<(i64, String, String)> = conn.prepare("SELECT id, name, COALESCE(category, '') FROM services WHERE active = 1 ORDER BY id").unwrap()
         .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?))).unwrap().map(Result::unwrap).collect();
     // Priced rows as the proposal editor starts them from the service's rate card (distinct test prices).
@@ -532,7 +535,9 @@ fn matrix_is_consistent() {
     let mut written = Vec::new();
     let mut table = Vec::new();
     let mut failures = Vec::new();
-    for (pid, label, months, set) in &plan {
+    // Each proposal's deck is its own file: the cases run side by side, and are reported in the plan's order.
+    let results = common::par_map(&plan, |(pid, label, months, set)| {
+        let mut deck: Option<PathBuf> = None;
         let req = GenerateRequest { proposal_id: *pid, template_id: 0, date: "2026-09-22".into(), file_name: format!("Acme Test Co_matrix_{pid}.pptx"), keep: None, logo_path: None, dry_run: false, from_library: !master_mode, from_master: master_mode, ..Default::default() };
         let mut problems: Vec<String> = Vec::new();
         match generate_proposal(&db, &req, OutputPolicy::AnyFolder) {
@@ -540,7 +545,7 @@ fn matrix_is_consistent() {
             Ok(r) if !r.errors.is_empty() => problems.push(format!("errors: {:?}", r.errors)),
             Ok(r) => {
                 let path = PathBuf::from(r.path.clone().unwrap());
-                written.push(path.clone());
+                deck = Some(path.clone());
                 let pkg = Package::read(&path).unwrap();
                 let para = regex::Regex::new(r"(?s)<a:p>.*?</a:p>").unwrap();
                 let run = regex::Regex::new(r"<a:t>([^<]*)</a:t>").unwrap();
@@ -603,11 +608,16 @@ fn matrix_is_consistent() {
                 if status != "Drafting" { problems.push(format!("status {status}")); }
             }
         }
-        table.push(format!("{:<58} {:>2}m  {}", label, months, if problems.is_empty() { "ok".to_string() } else { format!("{} problem(s)", problems.len()) }));
-        for p in &problems { failures.push(format!("{label} @{months}m: {p}")); }
+        let line = format!("{:<58} {:>2}m  {}", label, months, if problems.is_empty() { "ok".to_string() } else { format!("{} problem(s)", problems.len()) });
+        (deck, line, problems.iter().map(|p| format!("{label} @{months}m: {p}")).collect::<Vec<_>>())
+    });
+    for (deck, line, failed) in results {
+        written.extend(deck);
+        table.push(line);
+        failures.extend(failed);
     }
     println!("\n{}\n", table.join("\n"));
     for f in &failures { println!("  {f}"); }
-    finish_scratch_generation(real, &out, &written);
+    finish_scratch_generation(real, &written);
     assert!(failures.is_empty(), "{} problems", failures.len());
 }

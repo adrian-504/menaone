@@ -71,3 +71,13 @@ lto = true
 opt-level = 3
 panic = "abort"
 strip = true
+
+# The opt-in real-template tests (proposal_audit, reprice_real, pptx_import_real, pptx_real_templates,
+# send_check_real) read and write dozens of decks. Unoptimised they take minutes; with this profile, seconds:
+#   cargo test --profile realtests --test <name> -- --ignored
+# Everyday `cargo test` stays the quick unoptimised build. No LTO here: it is the compile that must stay short.
+[profile.realtests]
+inherits = "dev"
+opt-level = 3
+debug = false
+incremental = false

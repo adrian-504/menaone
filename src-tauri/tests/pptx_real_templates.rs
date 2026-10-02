@@ -1,6 +1,6 @@
 // Runs the deck engine on real templates. Opt-in, and never on files inside
 // the repository: point MENA_TEMPLATE_DIR at a folder of template copies.
-//   MENA_TEMPLATE_DIR=/tmp/templates cargo test --test pptx_real_templates -- --ignored --nocapture
+//   MENA_TEMPLATE_DIR=/tmp/templates cargo test --profile realtests --test pptx_real_templates -- --ignored --nocapture
 use menabig_tracker_lib::pptx::{build_with_smart_fields, inspect, BuildInput, Package};
 use menabig_tracker_lib::smartfill::{read_logo, SmartInput, SmartLine};
 use std::collections::{BTreeSet, HashMap};

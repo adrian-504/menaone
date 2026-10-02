@@ -1,14 +1,14 @@
 # MENA One — the plan
 
-**One page, kept current. Written 20 September 2026.** It replaces the 15–19 week roadmap, the sprint and phase numbering (both restarted twice), and every earlier plan. If something isn't here, it isn't planned.
+**One page, kept current. Written 20 September 2026; the facts below as of 2 October 2026 (1.67).** A session picking the work up reads `docs/HANDOVER.md` first. It replaces the 15–19 week roadmap, the sprint and phase numbering (both restarted twice), and every earlier plan. If something isn't here, it isn't planned.
 
 ## Where the app is
 
 | | |
 |---|---|
-| Runs on | One Mac, one user. Schema 36. Data and backups stay on that Mac |
-| Holds | ~170 companies · 104 contacts · 257 proposals · 107 agreements · 14 opportunities · 10 projects · 476 Watch items · 224 flagged emails |
-| Tests | 141 frontend (Vitest) · 113 backend (Rust). CI green on macOS **and Windows**, and it builds a Windows installer |
+| Runs on | One Mac, one user. Version 1.67, schema 46. Data and backups stay on that Mac |
+| Holds | ~170 companies · 104 contacts · 269 proposals · 107 agreements · 14 opportunities · 10 projects · 476 Watch items · 224 flagged emails |
+| Tests | 899 frontend (Vitest) · 259 backend (Rust), plus opt-in tests on copies of the real templates. CI green on macOS **and Windows**, and it builds a Windows installer |
 | Connected to | Microsoft 365 (flagged mail, calendar, Teams meetings) and OneDrive for client files |
 | Repository | `adrian-504/menaone`, public by the owner's choice. No client data in it, ever |
 
@@ -45,7 +45,12 @@ Client 360 and contact pages · proposals with lines, versions and an internal r
 
 - **Product slices, since 21 September 2026.** A product review with the owner agreed seven slices, each reviewed before the next: 1 visual consolidation (done), 2 commitments and waiting-on (done), 3 engagement thread (done), 4 Company 360 as a briefing (done), then a Focus pass — every page says where to look, mostly by removing (done) — 5 the meetings loop and My Day regrouping, 6 proposals (diff, rhythm, handover), 7 search and sidebar consolidation. Between slices, what irritates in daily use still gets fixed first.
 - **No sprint or phase numbers.** Work is named for what it does.
-- **Every install:** back up the live database first, rehearse migrations on a copy, run the tests, then install and check against real data.
+- **Every install needs the owner's word in the build chat.** A relay from another session is not that. Tell the Proposals workshop before and after.
+- **Light checks every stage, heavy checks once per wave** (agreed 2 October 2026). Every stage: tsc, vitest, motion-check, release-check, and cargo test only when Rust changed. Once per wave, before the install: the full Rust suite, focus-check on the built front end, the full screenshot set, the real-template tests on copies, and the migration rehearsal. The review session audits the same way: per stage only the pages that changed, the full render once before install.
+- **Full install when the schema changes:** back up the live database in three places, rehearse the migration on a copy, install, then compare the real data column by column with the backup (rows unchanged, new columns empty).
+- **Light install when it does not** (agreed 2 October 2026): one pre-install backup with its integrity check, quit, archive the old app, install to the three places, reopen, confirm the version and a quick_check. No column-by-column comparison and no three-place backup copies.
+- **A stage's scope is fixed when it starts** (agreed 2 October 2026). A request that arrives mid-stage goes to the next stage unless the owner says it is urgent; the review session holds them and says which is which.
+- **Not a CRM.** The app never alerts on a lack of contact and never asks for contact to be logged for its own sake; proposal follow-ups stay, and the common case is one click.
 - **Rules, not AI**, everywhere — proposals and Watch included. The owner's standing decision.
 - **No client data in the repository**; fictional names in code, tests and docs.
 
@@ -59,4 +64,4 @@ Client 360 and contact pages · proposals with lines, versions and an internal r
 
 ## Where the detail lives
 
-`docs/system-audit/` — the September audit and its 13 architecture decisions · `docs/data-classification.md` — personal vs shared, draft · `docs/service-catalog-decisions.md` · `docs/work-graph.md` · `docs/ux-conventions.md` · `docs/proposal-template-guide.md` · `docs/sync-architecture.md` · `docs/mobile-skeleton.md` · `ARCHITECTURE.md` · `USER_GUIDE.md`.
+`docs/HANDOVER.md` — where everything is, how to check, build and install, the rules, the open items · `docs/system-audit/` — the September audit and its 13 architecture decisions · `docs/data-classification.md` — personal vs shared, draft · `docs/service-catalog-decisions.md` · `docs/work-graph.md` · `docs/ux-conventions.md` · `docs/proposal-template-guide.md` · `docs/sync-architecture.md` · `docs/mobile-skeleton.md` · `ARCHITECTURE.md` · `USER_GUIDE.md`.

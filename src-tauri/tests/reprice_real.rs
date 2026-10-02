@@ -2,7 +2,7 @@
 // afresh at the new prices (everything but the prices was the same to begin with), or it must refuse.
 // Opt-in, on COPIES (never files inside the repository, never the live database, never OneDrive):
 //   MENA_DB_COPY=<copy.sqlite3> MENA_TEMPLATE_DIR=<Proposals New Logo copy> MENA_OUT=<scratch dir> [MENA_MASTER_MODE=1] [MENA_TERM=12:6] [MENA_ONLY=Payroll] [MENA_KEEP_OUTPUT=1] \
-//   cargo test --test reprice_real -- --ignored --nocapture
+//   cargo test --profile realtests --test reprice_real -- --ignored --nocapture
 // Prints service names, slide numbers and the app's own messages; never slide text beyond a differing line.
 use menabig_tracker_lib::commands::upsert_proposal_rows;
 use menabig_tracker_lib::generator::{generate_proposal, revise_prices, GenerateRequest, OutputPolicy, ReviseRequest};
@@ -11,6 +11,8 @@ use menabig_tracker_lib::pptx::Package;
 use menabig_tracker_lib::pricing::{parse_range, row_kind, Card, RowKind};
 use menabig_tracker_lib::proposal_library::modules_for_service;
 use std::path::PathBuf;
+
+mod common;
 
 fn slide_texts(path: &PathBuf) -> Vec<Vec<String>> {
     let pkg = Package::read(path).unwrap();
@@ -28,13 +30,12 @@ fn a_revised_deck_reads_like_one_generated_at_the_new_prices() {
     let master_mode = std::env::var("MENA_MASTER_MODE").is_ok();
     // MENA_TERM=12:6 — the term moves (here from 12 to 6 months) together with the prices.
     let term_move: Option<(i64, i64)> = std::env::var("MENA_TERM").ok().and_then(|v| { let (a, b) = v.split_once(':')?; Some((a.parse().ok()?, b.parse().ok()?)) });
-    assert!(!db.contains("Application Support"), "use a copy, never the live database");
-    let out_dir = PathBuf::from(&out);
     let cloud = PathBuf::from(std::env::var("HOME").unwrap_or_default()).join("Library/CloudStorage");
-    assert!(!out_dir.starts_with(&cloud) && !PathBuf::from(&lib).starts_with(&cloud), "MENA_OUT and MENA_TEMPLATE_DIR must be scratch folders, not inside OneDrive");
-    std::fs::create_dir_all(&out_dir).unwrap();
-    let mut conn = menabig_tracker_lib::db::init_connection(&PathBuf::from(&db)).unwrap();
-    conn.execute("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('proposals_root', ?1)", [&out]).unwrap();
+    assert!(!PathBuf::from(&lib).starts_with(&cloud), "MENA_TEMPLATE_DIR must be a scratch copy, not inside OneDrive");
+    // Its own folder and its own copy of the database copy: MENA_DB_COPY is only read, and other tests can run beside it.
+    let (out_dir, copy) = common::own_scratch(&db, &out, if master_mode { "reprice-master" } else { "reprice-templates" });
+    let mut conn = menabig_tracker_lib::db::init_connection(&copy).unwrap();
+    conn.execute("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('proposals_root', ?1)", [out_dir.to_string_lossy().to_string()]).unwrap();
     conn.execute("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('proposal_library_dir', ?1)", [&lib]).unwrap();
     conn.execute("DELETE FROM app_meta WHERE key = 'proposal_master_path'", []).unwrap();
     let real = menabig_tracker_lib::commercial::detect_proposals_root().map(|r| {
@@ -99,17 +100,18 @@ fn a_revised_deck_reads_like_one_generated_at_the_new_prices() {
     for p in &rows { menabig_tracker_lib::commercial::save_lines(&conn, "proposal_lines", "proposal_id", p.id, &p.lines).unwrap(); }
     let db = std::sync::Mutex::new(conn);
     let gen = |pid: i64, file: String| GenerateRequest { proposal_id: pid, template_id: 0, date: "2026-09-22".into(), file_name: file, from_library: !master_mode, from_master: master_mode, ..Default::default() };
-    let mut written: Vec<PathBuf> = Vec::new();
-    let (mut same, mut refused, mut wrong) = (0, 0, Vec::new());
-    for (pid, label, months, set) in &plan {
+    // What became of one proposal: the lines to print, the decks it wrote, and how it ended.
+    enum End { NotGenerated, Refused, Same, Differs }
+    // Each proposal has its own client folder and its own decks: they run side by side, and are reported in the plan's order.
+    let results = common::par_map(&plan, |(pid, label, months, set)| -> (Vec<String>, Vec<PathBuf>, End) {
         let v1 = match generate_proposal(&db, &gen(*pid, format!("deck_{pid}_V1.pptx")), OutputPolicy::AnyFolder) {
             Ok(r) if r.errors.is_empty() => r,
-            Ok(r) => { println!("{label:<60} {months:>2} mo  not generated: {:?}", r.errors); continue; }
-            Err(e) => { println!("{label:<60} {months:>2} mo  not generated: {e}"); continue; }
+            Ok(r) => return (vec![format!("{label:<60} {months:>2} mo  not generated: {:?}", r.errors)], vec![], End::NotGenerated),
+            Err(e) => return (vec![format!("{label:<60} {months:>2} mo  not generated: {e}")], vec![], End::NotGenerated),
         };
         let v1_path = PathBuf::from(v1.path.clone().unwrap());
         let v1_bytes = std::fs::read(&v1_path).unwrap();
-        written.push(v1_path.clone());
+        let mut decks = vec![v1_path.clone()];
         // The prices move; nothing else does.
         {
             let conn = db.lock().unwrap();
@@ -121,15 +123,13 @@ fn a_revised_deck_reads_like_one_generated_at_the_new_prices() {
         assert_eq!(std::fs::read(&v1_path).unwrap(), v1_bytes, "{label}: the version it was made from changed");
         if !revised.can_save {
             assert!(revised.path.is_none() && revised.document.is_none(), "{label}: saved a deck it said it could not revise");
-            refused += 1;
-            println!("{label:<60} {months:>2} mo  refused: {} (terms stated {:?})", revised.reason, revised.report.terms_stated);
-            continue;
+            return (vec![format!("{label:<60} {months:>2} mo  refused: {} (terms stated {:?})", revised.reason, revised.report.terms_stated)], decks, End::Refused);
         }
         let v2_path = PathBuf::from(revised.path.clone().unwrap());
-        written.push(v2_path.clone());
+        decks.push(v2_path.clone());
         let fresh = generate_proposal(&db, &gen(*pid, format!("deck_{pid}_fresh.pptx")), OutputPolicy::AnyFolder).unwrap();
         let fresh_path = PathBuf::from(fresh.path.clone().unwrap());
-        written.push(fresh_path.clone());
+        decks.push(fresh_path.clone());
         let (a, b) = (slide_texts(&v2_path), slide_texts(&fresh_path));
         let mut diffs: Vec<String> = Vec::new();
         if a.len() != b.len() { diffs.push(format!("{} slides against {}", a.len(), b.len())); }
@@ -141,25 +141,34 @@ fn a_revised_deck_reads_like_one_generated_at_the_new_prices() {
             }
         }
         if diffs.is_empty() {
-            same += 1;
-            println!("{label:<60} {months:>2} mo  same as fresh · {}{}", revised.line, if revised.report.checks.is_empty() { String::new() } else { format!(" · checks: {:?}", revised.report.checks) });
-        } else {
-            println!("{label:<60} {months:>2} mo  DIFFERS · {} (terms stated {:?})", revised.line, revised.report.terms_stated);
-            for d in diffs.iter().take(8) { println!("      {d}"); }
-            wrong.push(label.clone());
+            return (vec![format!("{label:<60} {months:>2} mo  same as fresh · {}{}", revised.line, if revised.report.checks.is_empty() { String::new() } else { format!(" · checks: {:?}", revised.report.checks) })], decks, End::Same);
+        }
+        let mut lines = vec![format!("{label:<60} {months:>2} mo  DIFFERS · {} (terms stated {:?})", revised.line, revised.report.terms_stated)];
+        lines.extend(diffs.iter().take(8).map(|d| format!("      {d}")));
+        (lines, decks, End::Differs)
+    });
+    let mut written: Vec<PathBuf> = Vec::new();
+    let (mut same, mut refused, mut wrong) = (0, 0, Vec::new());
+    for ((lines, decks, end), (_, label, _, _)) in results.into_iter().zip(plan.iter()) {
+        for l in &lines { println!("{l}"); }
+        written.extend(decks);
+        match end {
+            End::Same => same += 1,
+            End::Refused => refused += 1,
+            End::Differs => wrong.push(label.clone()),
+            End::NotGenerated => {}
         }
     }
     for w in &written {
-        assert!(w.starts_with(&out), "a deck was written outside MENA_OUT: {}", w.display());
+        assert!(w.starts_with(&out_dir), "a deck was written outside the test's scratch folder: {}", w.display());
     }
     if let Some((root, before)) = real {
         let mut after: Vec<String> = std::fs::read_dir(&root).map(|d| d.filter_map(|e| e.ok()).map(|e| e.file_name().to_string_lossy().to_string()).collect()).unwrap_or_default();
         after.sort();
         assert_eq!(before, after, "the real Proposals folder changed");
     }
-    if std::env::var("MENA_KEEP_OUTPUT").is_err() {
-        for w in &written { if let Some(dir) = w.parent() { let _ = std::fs::remove_dir_all(dir); } }
-    }
+    drop(db);
+    common::drop_scratch(&out_dir, &copy);
     println!("\n{} proposals: {same} revised and identical to a fresh deck, {refused} refused, {} differ", plan.len(), wrong.len());
     assert!(wrong.is_empty(), "a revised deck differs from the fresh one: {wrong:?}");
 }
