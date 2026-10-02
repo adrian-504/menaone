@@ -65,9 +65,12 @@ url = "2"
 keyring = { version = "3", features = ["windows-native"] }
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration
+# Thin LTO and 16 codegen units (the owner, 2 October 2026): measured against fat LTO with one unit, the build
+# is 2 min 3 s instead of 4 min 40 s at full power, the binary 15.8 MB instead of 13.8, and the app's launch
+# work is the same (tests/launch_work.rs).
 [profile.release]
-codegen-units = 1
-lto = true
+codegen-units = 16
+lto = "thin"
 opt-level = 3
 panic = "abort"
 strip = true
