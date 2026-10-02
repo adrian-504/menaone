@@ -56,11 +56,13 @@ node scripts/release-check.mjs     # version has a CHANGELOG entry; no script la
 Rust, only when Rust changed, and only the test binaries that matter while working:
 
 ```bash
-cd src-tauri && CARGO_TARGET_DIR=/Volumes/DevSSD/Developer/menabig-tracker/target/test-build \
-  taskpolicy -b nice -n 19 cargo test --test <name>
+cd src-tauri && CARGO_BUILD_JOBS=8 CARGO_TARGET_DIR=/Volumes/DevSSD/Developer/menabig-tracker/target/test-build \
+  cargo test --test <name>
 ```
 
-`CARGO_TARGET_DIR=…/target/test-build` is not optional: a test build and a `tauri build` in the same target folder overwrite each other. Ahmad's Mac has 8 GB: keep `taskpolicy -b nice -n 19` and the 2 jobs set in `~/.cargo/config.toml` unless he says he is not using the Mac (then `CARGO_BUILD_JOBS=8` and no taskpolicy).
+`CARGO_TARGET_DIR=…/target/test-build` is not optional: a test build and a `tauri build` in the same target folder overwrite each other.
+
+**Full power is the default** (Ahmad, 2 October 2026): builds, tests and checks use every core. `~/.cargo/config.toml` still says 2 jobs, so set `CARGO_BUILD_JOBS=8` as above. **Gentle mode only when he says he is working on the Mac at that moment:** then put `taskpolicy -b nice -n 19` in front of the cargo or `npm run tauri build` command and leave the 2 jobs. In both modes the Mac has 8 GB: never a compile, a dev server and a Chrome check at the same time, and if a full-power build starts swapping or fails for memory, lower the job count and say what number holds.
 
 To look at a change: `preview_start` with name `revision-actions-dev` (Vite on port 1423, sample data). Never start a dev server with Bash.
 
@@ -68,8 +70,8 @@ To look at a change: `preview_start` with name `revision-actions-dev` (Vite on p
 
 ```bash
 # 1. The full Rust suite
-cd src-tauri && CARGO_TARGET_DIR=/Volumes/DevSSD/Developer/menabig-tracker/target/test-build \
-  taskpolicy -b nice -n 19 cargo test --no-fail-fast
+cd src-tauri && CARGO_BUILD_JOBS=8 CARGO_TARGET_DIR=/Volumes/DevSSD/Developer/menabig-tracker/target/test-build \
+  cargo test --no-fail-fast
 
 # 2. Focus check on the built front end (55 views; starts its own preview on port 1430)
 npx vite build && node scripts/focus-check.mjs
@@ -90,7 +92,7 @@ cp "$T/MENA BIG Proposal Master 2026.pptx" "$S/Templates/"            # needs On
 sqlite3 -readonly "$HOME/Library/Application Support/com.menabig.tracker/menabig.sqlite3" ".backup '$S/copy.sqlite3'"
 
 cd src-tauri
-export CARGO_TARGET_DIR=/Volumes/DevSSD/Developer/menabig-tracker/target/test-build
+export CARGO_BUILD_JOBS=8 CARGO_TARGET_DIR=/Volumes/DevSSD/Developer/menabig-tracker/target/test-build
 run() { env "$@" MENA_DB_COPY="$S/copy.sqlite3" MENA_TEMPLATE_DIR="$S/Templates/Proposals New Logo" MENA_OUT="$S/out" \
   MENA_MASTER="$S/Templates/MENA BIG Proposal Master 2026.pptx" \
   MENA_WORKFORCE_TEMPLATE="$(ls "$S/Templates/Proposals New Logo"/Workforce*.pptx | head -1)" \
@@ -126,8 +128,8 @@ git merge --no-ff <branch> -m "Merge branch '<branch>' (1.N)"          # one per
 npx tsc --noEmit && npx vitest run && node scripts/motion-check.mjs && node scripts/release-check.mjs
 git push origin main
 
-# 2. Build (about 25 minutes at low priority: fat LTO, one codegen unit)
-taskpolicy -b nice -n 19 npm run tauri build
+# 2. Build (about 5 minutes at full power with the dependencies cached; about 25 in gentle mode: fat LTO, one codegen unit)
+CARGO_BUILD_JOBS=8 npm run tauri build
 APP="src-tauri/target/release/bundle/macos/MENA One.app"
 
 # 3. Quit the app and back up, in three places
@@ -175,7 +177,7 @@ From Ahmad, standing. Each has cost something to learn.
 - **Proposals, his limits:** no version diffs; no price, discount or margin signals; no per-proposal terms field; no inbox parsing; the proposal page must not get longer. Only the final sent deck matters. Nudging Hassan only records the nudge (no email automation).
 - **Kept on purpose, do not propose merging:** Pending and Follow-up; Dashboard, Reports and Analytics. The hidden modules (Action Required, Dashboard, Reports, Analytics, Watch) are out of scope until he says.
 - **When he rejects a plan, it usually means "you are adding more".** Ideas he pastes from elsewhere may contradict the code or his own earlier decisions: check before building.
-- **His Mac is small (8 GB).** Compile gently; do not run a dev server, a Chrome check and a compile at once.
+- **His Mac is small (8 GB), and full power is the default.** Use every core unless he says he is working on the Mac at that moment (then `taskpolicy -b nice -n 19` and 2 jobs). Either way, do not run a dev server, a Chrome check and a compile at once.
 - **Design.** The whole app follows the My Day "pages" style: `docs/ux-conventions.md` is the rulebook, `src/lib/pageKit.ts` the shared kit, `docs/brand-assets.md` the brand (navy-led, coral as accent only). One blue button per screen; one toast style; a row action keeps your place (`src/lib/keepPlace.ts`).
 - **Agreements, four rules** (`docs/ux-conventions.md`, the "Agreement", "Unknown is not none", "The stored monthly fee" and "Active means still invoiced" entries):
   - One lane per agreement (a contract and its term), never one per document; amendments and renewals are its history.
@@ -216,6 +218,9 @@ Waiting on others, do not start:
 9. **Phone sync**: branch `phone-sync`, paused 24 September (it made the Mac lag). On resume: off by default until turned on in Settings, and its migration needs the next free number.
 10. **Department modules** (Recruitment, Admin and PRO, Finance, Payroll): exploration only.
 11. Everything under "Waiting on someone else" in `docs/PLAN.md`.
+
+A decision waiting for Ahmad:
+- **The release build profile.** Measured on 2 October at full power, dependencies cached, as at an install: the current profile (fat LTO, one codegen unit) builds in 4 min 40 s, the app's binary is 13.8 MB; thin LTO with 16 codegen units builds in 2 min 3 s, 15.8 MB (its first build, every dependency, took 4 min). The work the app does at launch on a copy of the real database (`cargo test --release --test launch_work -- --ignored --nocapture`: open, read everything, hand it over as JSON, rebuild the search index) took about 388 ms against 374 ms, no real difference; the front end's own launch check (`scripts/launch-check.mjs`, median 166 ms) never runs the binary and is the same for both. Nothing was changed: `[profile.release]` in `src-tauri/Cargo.toml` is as it was until he decides. To try the other profile without editing it: `CARGO_PROFILE_RELEASE_LTO=thin CARGO_PROFILE_RELEASE_CODEGEN_UNITS=16` with its own `CARGO_TARGET_DIR`.
 
 Small and loose:
 12. `git status` in the main repo shows an untracked `target/` (the test build folder). Leave it.
