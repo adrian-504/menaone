@@ -6,6 +6,10 @@ managed PostgreSQL in the company's Azure tenant, and pulls everyone else's
 changes back. Decide on an off-the-shelf sync service only if the checks in
 "When to revisit" fail.
 
+**3 October 2026:** the design below stands; its scope, build order and estimate are replaced by
+`docs/shared-version-plan.md` (path A: one user first), which also lists what the code
+still lacks.
+
 Status: recommendation for the owner; build scheduled for Sprint 5. Hosting
 region (D1), tenant and billing (D2) are still open and do not change this design.
 
