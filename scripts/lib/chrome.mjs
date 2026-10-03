@@ -28,6 +28,23 @@ export function cachePath(...parts) {
   return join(ROOT, '.cache', ...parts);
 }
 
+/** SAMPLE=scale: the script runs on the sample at the owner's real volumes (src/lib/scaleSample.ts) instead of the
+ * small one. Nothing else turns it on. */
+export const AT_SCALE = process.env.SAMPLE === 'scale';
+
+/** The preview's address for a script: FOCUS_URL, else the dev server; with `?sample=scale` when SAMPLE=scale. */
+export function appUrl(fallback = 'http://localhost:1420/') {
+  const url = new URL(process.env.FOCUS_URL || fallback);
+  if (AT_SCALE) url.searchParams.set('sample', 'scale');
+  return url.href;
+}
+
+/** Where a script's screenshots go: OUT, else .cache/shots/<script>, and <script>-scale for the sample at scale so
+ * the everyday shots are never overwritten. */
+export function shotsPath(script) {
+  return process.env.OUT || cachePath('shots', AT_SCALE ? `${script}-scale` : script);
+}
+
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const sleepSync = (ms) => { Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms); };
 const alive = (pid) => { try { process.kill(pid, 0); return true; } catch (e) { return e.code === 'EPERM'; } };

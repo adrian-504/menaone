@@ -3,15 +3,17 @@
 // language — Pending, Follow-up, Proposals, Opportunities, Companies,
 // Meetings, Projects — on the dev preview's sample data, with the clock fixed
 // at 1 Oct 2026 14:05. SIZE=1680x1020 (default) or 1080x940, THEME=dark,
-// ONLY=pending to take one.
+// ONLY=pending to take one; FULL=1 captures the whole page height. SAMPLE=scale
+// runs on the sample at the owner's real volumes (shots in pages-shots-scale,
+// each with its page height).
 // `FOCUS_URL=http://localhost:1420/ OUT=/tmp/shots node scripts/pages-shots.mjs`
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { cachePath, launchChrome, sleep } from './lib/chrome.mjs';
+import { AT_SCALE, appUrl, launchChrome, shotsPath, sleep } from './lib/chrome.mjs';
 
-const URL = process.env.FOCUS_URL || 'http://localhost:1420/';
+const URL = appUrl();
 const CHROME = process.env.CHROME || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
-const OUT = process.env.OUT || cachePath('shots', 'pages-shots');
+const OUT = shotsPath('pages-shots');
 const THEME = process.env.THEME || 'light';
 
 // [name, clock (local), set-up]
@@ -60,10 +62,11 @@ for (const tint of ['blue']) {
     await send('Page.navigate', { url: URL });
     await sleep(2500);
     await evalJs(`(${setup}), new Promise(r => setTimeout(r, 1500))`);
-    const shot = await send('Page.captureScreenshot', { format: 'png' });
+    const shot = await send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: !!process.env.FULL, ...(process.env.FULL ? { clip: { x: 0, y: 0, width: W, height: Math.min(4000, await evalJs('document.scrollingElement.scrollHeight')), scale: 1 } } : {}) });
     const file = join(OUT, `${W}-${THEME === 'dark' ? 'dark-' : ''}${tint}-${name}.png`);
     writeFileSync(file, Buffer.from(shot.result.data, 'base64'));
-    console.log(file);
+    // At scale, what the brief asks of a page: how tall it is, and whether anything is wider than the window.
+    console.log(AT_SCALE ? `${file}  ${await evalJs(`'page ' + document.scrollingElement.scrollHeight + 'px' + (document.scrollingElement.scrollWidth > innerWidth ? ', wider than the window by ' + (document.scrollingElement.scrollWidth - innerWidth) + 'px' : '')`)}` : file);
   }
 }
 await close();

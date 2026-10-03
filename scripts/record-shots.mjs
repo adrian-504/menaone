@@ -7,11 +7,11 @@
 // `FOCUS_URL=http://localhost:1420/ OUT=/tmp/shots node scripts/record-shots.mjs`
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { cachePath, launchChrome, sleep } from './lib/chrome.mjs';
+import { appUrl, launchChrome, shotsPath, sleep } from './lib/chrome.mjs';
 
-const URL = process.env.FOCUS_URL || 'http://localhost:1420/';
+const URL = appUrl();
 const CHROME = process.env.CHROME || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
-const OUT = process.env.OUT || cachePath('shots', 'record-shots');
+const OUT = shotsPath('record-shots');
 const THEME = process.env.THEME || 'light';
 
 // [name, clock (local), set-up]

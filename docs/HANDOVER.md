@@ -12,7 +12,7 @@ Written 2 October 2026 by the build session that took the app from 1.0 to 1.67, 
 | Code | `main` on GitHub `adrian-504/menaone` (public, by the owner's choice). The installed 1.67 is the merge `fb9553e`; everything after it on `main` is tests and docs |
 | Database | SQLite, **schema 46**, WAL mode, on the Mac only |
 | Real data, roughly | 269 proposals · 107 agreements · 16 proposal documents · 376 service lines · 7 follow-up entries |
-| Tests | 899 frontend (Vitest, 133 files) · 259 backend (cargo), 26 more opt-in |
+| Tests | 906 frontend (Vitest, 134 files) · 259 backend (cargo), 26 more opt-in |
 
 The last wave (1.64 notes, 1.65 follow-up, 1.66 generator, 1.67 a fix) is described in CHANGELOG.md and in `docs/ux-conventions.md` (search "1.65", "1.66").
 
@@ -66,6 +66,8 @@ cd src-tauri && CARGO_BUILD_JOBS=8 CARGO_TARGET_DIR=/Volumes/DevSSD/Developer/me
 
 To look at a change: `preview_start` with name `revision-actions-dev` (Vite on port 1423, sample data). Never start a dev server with Bash.
 
+**The sample at scale** (3 October 2026). The preview's small sample (`src/lib/devMock.ts`) shows one of each case. To see a page at Ahmad's real volumes, add `?sample=scale` to the preview's address (`http://localhost:1423/?sample=scale`): 181 companies, 352 contacts, 270 proposals (46 with clients in 31 requests, 18 of them sent 60 days ago or more; 5 with Hassan; 2 to draft; 63 signed), 107 agreements (5 with an end date, none with a notice period), with the gaps of the real data (no company owner, most proposals without a fee). For the screenshot scripts: `SAMPLE=scale` (pages-shots, myday-shots, record-shots, tools-shots, chrome-shots; the shots go to `.cache/shots/<script>-scale/`, and pages-shots and myday-shots print each page's height). It is opt-in only: the default preview, Vitest, focus-check and the everyday screenshots stay on the small sample and never load it. The data is made by `src/lib/scaleSample.ts` from a fixed seed, with dates counted back from today so the ages stay as designed; every name is invented there from word lists, and only counts were measured from the real database (the table `SCALE` at the top of the file holds them: update it there when the real volumes move). Check a design at both sizes before it goes to Ahmad.
+
 ### Once per wave, before the install (heavy)
 
 ```bash
@@ -79,7 +81,7 @@ npx vite build && node scripts/focus-check.mjs
 
 # 3. Screenshots (output in .cache/shots/<script>/)
 FOCUS_URL=http://localhost:1423/ node scripts/pages-shots.mjs      # also record-shots, myday-shots, tools-shots, chrome-shots
-#    ONLY=name,name  SIZE=1080x940  FULL=1 (whole page height)
+#    ONLY=name,name  SIZE=1080x940  FULL=1 (whole page height)  SAMPLE=scale (the sample at Ahmad's real volumes)
 ```
 
 4. **Real-template tests**, when the generator or anything it calls changed. They are `#[ignore]`d and read their inputs from the environment. Always on copies in the scratchpad:
