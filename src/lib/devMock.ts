@@ -514,9 +514,41 @@ const COMMERCIAL: CommercialSetup = {
   proposalsRoot: '/Users/demo/Library/CloudStorage/OneDrive-MENABIG/MENA BD 2026/Proposals',
 };
 
+/** True once the preview runs on the sample at scale. */
+let atScale = false;
+
+/** `?sample=scale` in the preview's address: the sample at the owner's real volumes (lib/scaleSample.ts, about 180
+ * companies and 270 proposals, with the gaps of the real data) takes the place of the small one. It is loaded on
+ * demand, so the default preview, the tests and the focus check never fetch or build it. */
+async function useScaleSampleIfAsked(): Promise<void> {
+  if (new URLSearchParams(location.search).get('sample') !== 'scale') return;
+  const { buildScaleSample } = await import('./scaleSample');
+  const now = new Date();
+  const s = buildScaleSample(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`);
+  Object.assign(SAMPLE, s.data);
+  companiesStore = s.companies;
+  opportunitiesStore = s.opportunities;
+  projectsStore = s.projects;
+  milestonesStore = s.milestones;
+  meetingsStore = s.meetings;
+  touchesStore = s.touches;
+  COMMERCIAL.teamMembers = s.teamMembers;
+  companyNoteEntriesStore.splice(0, companyNoteEntriesStore.length, ...s.companyNoteEntries);
+  // What the small sample said about its own five companies does not apply: their folders, the files last opened.
+  msFilesStore.length = 0;
+  entityLinksStore = [];
+  appMetaStore.delete('msfiles_recent');
+  // New records made in the preview take ids above the sample's.
+  nextCompanyId = Math.max(nextCompanyId, s.companies.length);
+  nextTouchId = Math.max(nextTouchId, s.touches.length);
+  nextMeetingId = Math.max(nextMeetingId, s.meetings.length);
+  atScale = true;
+}
+
 export async function installDevMockIfNeeded(): Promise<void> {
   if (!import.meta.env.DEV) return;
   if ((window as any).__TAURI_INTERNALS__?.invoke) return; // real Tauri bridge present — never mock it
+  await useScaleSampleIfAsked();
 
   await import('@tauri-apps/api/mocks').then(({ mockIPC }) => {
     mockIPC((cmd: string, _payload: unknown) => {
@@ -681,6 +713,8 @@ export async function installDevMockIfNeeded(): Promise<void> {
           return [agreement];
         }
         case 'get_activity': {
+          // The rows below are about the small sample's records.
+          if (atScale) return [];
           const f = (_payload as any)?.filter ?? {};
           const now = Date.now();
           const rows: { id: number; createdAt: string; actor: null; action: string; entityType: string; entityId: number; entityLabel: string; detail: string | null; companyId: number | null; contactId: number | null; opportunityId: number | null; projectId: number | null }[] = [
@@ -1359,6 +1393,6 @@ export async function installDevMockIfNeeded(): Promise<void> {
           return null;
       }
     });
-    console.info('[devMock] Running with sample data — no Tauri backend detected (plain browser preview).');
+    console.info(`[devMock] Running with ${atScale ? 'the sample at scale (?sample=scale)' : 'sample data'} — no Tauri backend detected (plain browser preview).`);
   });
 }
