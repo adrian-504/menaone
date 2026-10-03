@@ -26,7 +26,7 @@ Client 360 and contact pages · proposals with lines, versions and an internal r
 | Dashboard, Reports, Analytics revamp | The agreements and sales-report data | Rebuild on real figures |
 | Active clients and renewal alerts | The sales report spreadsheet | One-time import |
 | Proposal generator earning its keep | The master deck with tagged slides | Generate a real proposal end to end |
-| Cloud, colleagues, shared data | Azure Saudi Arabia East — **November 2026**, and the legal brief | Identity, API, migration |
+| Cloud, colleagues, shared data | Azure Saudi Arabia East — **November 2026** (Microsoft, 31 August 2026; no day given), the legal brief, and the owner's go-ahead | `docs/shared-version-plan.md`: path A first (his own data on a server, one user); planning may start (owner, 3 October 2026), nothing is built |
 | Phone app (the old skeleton and API contract are in history at 6e45525; the current plan is OneDrive phone sync, branch `phone-sync`, paused) | The cloud | Wrap the screens, TestFlight |
 | Windows rollout | Someone with a Windows PC | Install the CI artefact and test |
 | HR Advisory deck conversion | Owner — parked | — |
@@ -36,7 +36,7 @@ Client 360 and contact pages · proposals with lines, versions and an internal r
 0. **Proposal requests (built 27 Sep, branch `proposal-requests`, awaiting review and install):** a request is a proposal, nothing else — several proposals from one create form (one per block, sharing a request group), `>> Proposal for …` lines that become requests instead of tasks, and a promised-by date on My Day, Coming up and the proposal header.
 
 1. **Owners are empty.** No company, opportunity or project has an owner, so "Mine" shows nothing. A bulk assign fixes it.
-2. **Five questions in `docs/data-classification.md`** — what is personal, what is shared. Shapes the database before the cloud, cheap now and expensive later.
+2. **`docs/data-classification.md`** — what is personal, what is shared. The owner answered four of the five questions on 3 October 2026 (meetings by relevance, tasks personal but assignable and shareable, company notes shared with their author, flagged emails personal); the fifth (templates' file paths) waits on the files decision.
 3. **Code signing** — Apple Developer ID, about $99/year. Removes the Keychain compromise (SECURITY_AUDIT S1) and lets colleagues install without warnings.
 4. **Watch depth** — 476 items, but news-search stories arrive headline-only. Worth improving only if the owner finds them thin in daily use.
 5. **Retire the single-template path.** Move the proposal document-versioning tests (`tests/proposal_documents.rs`) onto the template library, then delete the deprecated single-template branch in `generator.rs` and its commands.
@@ -65,4 +65,4 @@ Client 360 and contact pages · proposals with lines, versions and an internal r
 
 ## Where the detail lives
 
-`docs/HANDOVER.md` — where everything is, how to check, build and install, the rules, the open items · `docs/system-audit/` — the September audit and its 13 architecture decisions · `docs/data-classification.md` — personal vs shared, draft · `docs/service-catalog-decisions.md` · `docs/work-graph.md` · `docs/ux-conventions.md` · `docs/proposal-template-guide.md` · `docs/sync-architecture.md` · `docs/mobile-skeleton.md` · `ARCHITECTURE.md` · `USER_GUIDE.md`.
+`docs/HANDOVER.md` — where everything is, how to check, build and install, the rules, the open items · `docs/system-audit/` — the September audit and its 13 architecture decisions · `docs/data-classification.md` — personal vs shared, with the owner's answers · `docs/shared-version-plan.md` — the shared version, path A · `docs/service-catalog-decisions.md` · `docs/work-graph.md` · `docs/ux-conventions.md` · `docs/proposal-template-guide.md` · `docs/sync-architecture.md` · `docs/mobile-skeleton.md` · `ARCHITECTURE.md` · `USER_GUIDE.md`.

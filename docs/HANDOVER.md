@@ -221,6 +221,7 @@ Waiting on others, do not start:
 8. **Agreements import**: parked on branch `agreements-import`; the first attempt was cancelled on 22 September while Ahmad rethinks the approach. The Agreements Review session holds the findings. Nothing is imported until he reviews and says so.
 9. **Phone sync**: branch `phone-sync`, paused 24 September (it made the Mac lag). On resume: off by default until turned on in Settings, and its migration needs the next free number.
 10. **Department modules** (Recruitment, Admin and PRO, Finance, Payroll): exploration only.
+10a. **The shared version**: `docs/shared-version-plan.md` (3 October 2026). Path A, his own data on a server with one user, may be planned; nothing is built and nothing starts without his word. Azure's Saudi region opens in November 2026; his data leaves the Mac only after the legal brief.
 11. Everything under "Waiting on someone else" in `docs/PLAN.md`.
 
 Small and loose:
